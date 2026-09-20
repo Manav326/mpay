@@ -1,0 +1,118 @@
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MPAY_DB_NAME:-recharge}
+      POSTGRES_USER: ${MPAY_DB_USERNAME:-recharge}
+      POSTGRES_PASSWORD: ${MPAY_DB_PASSWORD:-recharge}
+      TZ: Asia/Kolkata
+    volumes:
+      - mpay_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [mpay]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - mpay_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [mpay]
+
+  pgadmin:
+    image: dpage/pgadmin4:9
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${MPAY_PGADMIN_EMAIL:-admin@mpay.com}
+      PGADMIN_DEFAULT_PASSWORD: ${MPAY_PGADMIN_PASSWORD:-Admin@123}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5050:80"
+    volumes:
+      - mpay_pgadmin_data:/var/lib/pgadmin
+    networks: [mpay]
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      MPAY_DB_URL: jdbc:postgresql://postgres:5432/${MPAY_DB_NAME:-recharge}?options=-c%20TimeZone=Asia%2FKolkata
+      MPAY_DB_USERNAME: ${MPAY_DB_USERNAME:-recharge}
+      MPAY_DB_PASSWORD: ${MPAY_DB_PASSWORD:-recharge}
+      MPAY_PROFILE_IMAGES_DIR: /app/data/profile-images
+      MPAY_CORS_ALLOWED_ORIGINS: ${MPAY_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.31.47:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/config:/app/config:ro
+      - mpay_profile_images:/app/data/profile-images
+    networks: [mpay]
+
+  admin-web:
+    build:
+      context: ./admin-web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${MPAY_WEB_API_BASE_URL:-http://192.168.31.47:8080}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks: [mpay]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["production"]
+    environment:
+      MPAY_PUBLIC_DOMAIN: ${MPAY_PUBLIC_DOMAIN:-example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - mpay_caddy_data:/data
+      - mpay_caddy_config:/config
+    depends_on:
+      - backend
+      - admin-web
+    networks: [mpay]
+
+networks:
+  mpay:
+    driver: bridge
+
+volumes:
+  mpay_postgres_data:
+    external: true
+    name: database_postgres_data
+  mpay_redis_data:
+    external: true
+    name: c2c0f03741da80b4292c280a6b51e56c72785d278990f9b6518ccdaa7246c003
+  mpay_pgadmin_data:
+  mpay_profile_images:
+  mpay_caddy_data:
+  mpay_caddy_config:

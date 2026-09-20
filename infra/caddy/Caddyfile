@@ -1,0 +1,8 @@
+{$MPAY_PUBLIC_DOMAIN} {
+    encode gzip zstd
+
+    @api path /api/*
+    reverse_proxy @api backend:8080
+
+    reverse_proxy admin-web:3000
+}

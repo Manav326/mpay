@@ -1,0 +1,9 @@
+.gradle
+build
+.idea
+.kotlin
+config/application-secrets.yml
+data/profile-images/*
+!data/profile-images/.gitkeep
+*.iml
+work_payu

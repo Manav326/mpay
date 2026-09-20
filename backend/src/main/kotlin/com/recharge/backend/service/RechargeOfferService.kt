@@ -1,0 +1,51 @@
+package com.recharge.backend.service
+
+import com.recharge.backend.provider.PlanCatalogProvider
+import com.recharge.backend.provider.RechargePlan
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
+import java.time.Instant
+
+@Service
+class RechargeOfferService(
+    private val provider: PlanCatalogProvider,
+    private val cache: RechargeOfferCacheStore,
+    @Value("\${app.recharge.offer-cache-ttl-seconds:600}") private val ttlSeconds: Long
+) {
+    fun getOffers(mobileNumber: String, operator: String, circle: String): List<RechargePlan> {
+        val cacheKey = cacheKey(mobileNumber, operator, circle)
+        val now = Instant.now()
+        val cached = cache.getFreshPlans(cacheKey, now)
+        if (cached.isNotEmpty()) return cached
+
+        val fetched = provider.getPlans(mobileNumber, operator, circle)
+        val filtered = fetched.filter { it.amount.signum() > 0 }
+        if (filtered.isEmpty()) return emptyList()
+
+        val expiresAt = now.plusSeconds(ttlSeconds.coerceAtLeast(30))
+        cache.replace(
+            cacheKey = cacheKey,
+            offers = filtered,
+            mobileNumber = mobileNumber,
+            operator = operator,
+            circle = circle,
+            fetchedAt = now,
+            expiresAt = expiresAt
+        )
+        return filtered
+    }
+
+    fun resolveCachedOffer(mobileNumber: String, operator: String, circle: String, offerId: String): RechargePlan? =
+        cache.getFreshPlan(
+            cacheKey(mobileNumber, operator, circle),
+            offerId,
+            Instant.now()
+        )
+
+    fun invalidate(mobileNumber: String, operator: String, circle: String) {
+        cache.invalidate(cacheKey(mobileNumber, operator, circle))
+    }
+
+    private fun cacheKey(mobileNumber: String, operator: String, circle: String): String =
+        listOf(mobileNumber.trim(), operator.trim().uppercase(), circle.trim().uppercase()).joinToString("|")
+}

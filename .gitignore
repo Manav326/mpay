@@ -1,0 +1,25 @@
+# Secrets
+backend/config/application-secrets.yml
+
+# Build/runtime artifacts
+backend/build/
+backend/.gradle/
+backend/.kotlin/
+backend/.idea/
+backend/data/profile-images/*
+!backend/data/profile-images/.gitkeep
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+admin-web/node_modules/
+admin-web/.next/
+*.log
+.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

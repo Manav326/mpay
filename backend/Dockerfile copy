@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.7
+FROM eclipse-temurin:21-jdk AS build
+WORKDIR /app
+
+COPY gradlew gradlew.bat ./
+COPY gradle ./gradle
+COPY settings.gradle.kts build.gradle.kts ./
+COPY src ./src
+
+RUN chmod +x gradlew && ./gradlew clean bootJar --no-daemon
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -Duser.timezone=Asia/Kolkata"
+
+COPY --from=build /app/build/libs/*.jar /app/app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

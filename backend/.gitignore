@@ -1,0 +1,7 @@
+config/application-secrets.yml
+.gradle/
+build/
+.idea/
+*.iml
+
+data/profile-images/

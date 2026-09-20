@@ -1,0 +1,302 @@
+package com.recharge.client.core.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.recharge.client.core.model.OperatorCheckResponse
+import com.recharge.client.core.model.RechargePlan
+import com.recharge.client.core.model.RechargeResponse
+import com.recharge.client.core.model.RechargeTransactionStatusResponse
+import com.recharge.client.core.repository.ClientRepository
+import java.math.BigDecimal
+import java.util.UUID
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+sealed interface RechargeActionState {
+    data object Idle : RechargeActionState
+    data object Submitting : RechargeActionState
+    data class Success(val response: RechargeResponse) : RechargeActionState
+    data class Pending(val response: RechargeResponse) : RechargeActionState
+    data class Failure(val message: String) : RechargeActionState
+}
+
+data class RechargeUiState(
+    val mobile: String = "",
+    val operator: OperatorCheckResponse? = null,
+    val plans: List<RechargePlan> = emptyList(),
+    val selectedPlan: RechargePlan? = null,
+    val detecting: Boolean = false,
+    val loadingPlans: Boolean = false,
+    val refreshingWallet: Boolean = false,
+    val executing: Boolean = false,
+    val error: String? = null,
+    val walletBalance: BigDecimal? = null,
+    val action: RechargeActionState = RechargeActionState.Idle,
+    val transactionStatus: RechargeTransactionStatusResponse? = null
+)
+
+class RechargeViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = ClientRepository(application)
+
+    private val _state = MutableStateFlow(RechargeUiState())
+    val state = _state.asStateFlow()
+
+    private var pollingJob: Job? = null
+
+    fun setMobile(value: String) {
+        val normalized = value.filter(Char::isDigit).take(10)
+        val current = _state.value
+        if (current.mobile == normalized) return
+
+        pollingJob?.cancel()
+        _state.value = current.copy(
+            mobile = normalized,
+            operator = null,
+            plans = emptyList(),
+            selectedPlan = null,
+            detecting = false,
+            loadingPlans = false,
+            error = null,
+            action = RechargeActionState.Idle,
+            transactionStatus = null
+        )
+    }
+
+    fun detectAndLoad() {
+        val mobile = _state.value.mobile
+        if (!isValidIndianMobile(mobile)) {
+            _state.value = _state.value.copy(
+                operator = null,
+                plans = emptyList(),
+                selectedPlan = null,
+                error = "Enter a valid 10-digit Indian mobile number"
+            )
+            return
+        }
+
+        pollingJob?.cancel()
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                detecting = true,
+                loadingPlans = false,
+                error = null,
+                operator = null,
+                plans = emptyList(),
+                selectedPlan = null,
+                action = RechargeActionState.Idle,
+                transactionStatus = null
+            )
+
+            repository.detectOperator(mobile)
+                .onSuccess { detected ->
+                    _state.value = _state.value.copy(
+                        operator = detected,
+                        detecting = false,
+                        loadingPlans = true,
+                        error = null
+                    )
+
+                    repository.plans(mobile, detected.operator, detected.circle)
+                        .onSuccess { plans ->
+                            _state.value = _state.value.copy(
+                                loadingPlans = false,
+                                plans = plans.sortedWith(compareBy<RechargePlan> { it.amount }.thenBy { it.id }),
+                                selectedPlan = null,
+                                error = if (plans.isEmpty()) "No recharge offers are available for this number right now." else null
+                            )
+                        }
+                        .onFailure { failure ->
+                            _state.value = _state.value.copy(
+                                loadingPlans = false,
+                                plans = emptyList(),
+                                selectedPlan = null,
+                                error = friendlyRechargeError(failure.message)
+                            )
+                        }
+                }
+                .onFailure { failure ->
+                    _state.value = _state.value.copy(
+                        detecting = false,
+                        loadingPlans = false,
+                        operator = null,
+                        plans = emptyList(),
+                        selectedPlan = null,
+                        error = friendlyRechargeError(failure.message)
+                    )
+                }
+        }
+    }
+
+    fun refreshPlans() {
+        detectAndLoad()
+    }
+
+    fun refreshWallet() {
+        val current = _state.value
+        if (current.refreshingWallet) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(refreshingWallet = true)
+            repository.wallet()
+                .onSuccess { wallet ->
+                    _state.value = _state.value.copy(
+                        refreshingWallet = false,
+                        walletBalance = wallet.balance
+                    )
+                }
+                .onFailure { failure ->
+                    _state.value = _state.value.copy(refreshingWallet = false)
+                }
+        }
+    }
+
+    fun selectPlan(plan: RechargePlan) {
+        _state.value = _state.value.copy(
+            selectedPlan = plan,
+            error = null,
+            action = RechargeActionState.Idle,
+            transactionStatus = null
+        )
+        refreshWallet()
+    }
+
+    fun clearSelection() {
+        _state.value = _state.value.copy(selectedPlan = null, action = RechargeActionState.Idle, error = null)
+    }
+
+    fun executeSelectedPlan() {
+        val state = _state.value
+        val plan = state.selectedPlan ?: run {
+            _state.value = state.copy(error = "Select a recharge plan first.")
+            return
+        }
+        val operator = state.operator ?: run {
+            _state.value = state.copy(error = "Detect the operator before continuing.")
+            return
+        }
+        val balance = state.walletBalance ?: run {
+            refreshWallet()
+            _state.value = state.copy(error = "Checking your wallet balance. Please try again in a moment.")
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                executing = true,
+                error = null,
+                action = RechargeActionState.Submitting
+            )
+
+            repository.recharge(
+                mobileNumber = state.mobile,
+                operator = operator.operator,
+                circle = operator.circle,
+                planId = plan.id,
+                clientRequestId = "ANDROID-RECHARGE-${UUID.randomUUID()}"
+            )
+                .onSuccess { response ->
+                    _state.value = _state.value.copy(
+                        executing = false,
+                        walletBalance = response.walletBalance,
+                        action = when (response.status.uppercase()) {
+                            "SUCCESS" -> RechargeActionState.Success(response)
+                            "FAILED" -> RechargeActionState.Failure("Recharge failed. Your wallet balance has not been permanently deducted.")
+                            else -> RechargeActionState.Pending(response)
+                        }
+                    )
+
+                    if (response.status.uppercase() == "PENDING") {
+                        startPolling(response.transactionId)
+                    }
+                }
+                .onFailure { failure ->
+                    _state.value = _state.value.copy(
+                        executing = false,
+                        action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
+                    )
+                    refreshWallet()
+                }
+        }
+    }
+
+    private fun startPolling(transactionId: String) {
+        pollingJob?.cancel()
+        pollingJob = viewModelScope.launch {
+            repeat(15) {
+                delay(2000)
+                repository.rechargeStatus(transactionId)
+                    .onSuccess { status ->
+                        _state.value = _state.value.copy(
+                            transactionStatus = status,
+                            walletBalance = status.walletBalance
+                        )
+
+                        when (status.status.uppercase()) {
+                            "SUCCESS" -> {
+                                _state.value = _state.value.copy(action = RechargeActionState.Success(
+                                    RechargeResponse(
+                                        transactionId = status.transactionId,
+                                        status = status.status,
+                                        amount = status.amount,
+                                        commission = status.clientCommission,
+                                        walletDebitAmount = status.walletDebitAmount,
+                                        walletBalance = status.walletBalance
+                                    )
+                                ))
+                                refreshWallet()
+                                pollingJob?.cancel()
+                            }
+                            "FAILED" -> {
+                                _state.value = _state.value.copy(action = RechargeActionState.Failure(
+                                    status.message ?: "Recharge failed."
+                                ))
+                                refreshWallet()
+                                pollingJob?.cancel()
+                            }
+                        }
+                    }
+            }
+        }
+    }
+
+    fun dismissResult() {
+        _state.value = _state.value.copy(
+            action = RechargeActionState.Idle,
+            transactionStatus = null,
+            error = null,
+            executing = false
+        )
+        refreshWallet()
+    }
+
+    fun clear() {
+        pollingJob?.cancel()
+        _state.value = RechargeUiState()
+    }
+
+    private fun isValidIndianMobile(mobile: String): Boolean =
+        mobile.matches(Regex("[6-9][0-9]{9}"))
+
+    private fun friendlyRechargeError(message: String?): String {
+        val raw = message?.trim().orEmpty()
+        return when {
+            raw.contains("Personalized R-Offers", ignoreCase = true) ->
+                "Personalized offers are not available for this operator yet."
+            raw.contains("no recharge offers", ignoreCase = true) ->
+                "No recharge offers are available for this number right now."
+            raw.contains("available balance", ignoreCase = true) ||
+                raw.contains("insufficient", ignoreCase = true) ->
+                "Your wallet balance is not sufficient for this recharge."
+            raw.isBlank() -> "Something went wrong. Please try again."
+            else -> raw
+        }
+    }
+
+    override fun onCleared() {
+        pollingJob?.cancel()
+        super.onCleared()
+    }
+}
