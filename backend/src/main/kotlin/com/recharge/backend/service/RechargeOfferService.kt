@@ -52,7 +52,9 @@ class RechargeOfferService(
         val configured = configuredProviders.split(",").map { it.trim() }.filter { it.isNotBlank() }
         configured.forEach { name ->
             providers.firstOrNull {
-                it.providerName.equals(name, ignoreCase = true) && it.supportsOperator(operator)
+                it.isConfigured() &&
+                    it.providerName.equals(name, ignoreCase = true) &&
+                    it.supportsOperator(operator)
             }?.let { return it }
         }
         providers.firstOrNull { it.isConfigured() && it.supportsOperator(operator) }?.let { return it }
