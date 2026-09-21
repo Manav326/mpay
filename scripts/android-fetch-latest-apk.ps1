@@ -1,15 +1,12 @@
 param(
-  [string]$Branch = ""
+  [string]$Branch = "",
+  [switch]$ForceDownload
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
-
-if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-    throw "GitHub CLI (gh) is required. Install it from https://cli.github.com/ and run 'gh auth login'."
-}
 
 $adbPath = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $adbPath)) {
@@ -34,6 +31,11 @@ $artifactName = "mpay-android-debug-apk"
 $packageName = "com.recharge.client"
 $headSha = (git rev-parse HEAD).Trim()
 
+$targetDir = Join-Path $repoRoot "android\app\build\outputs\apk\debug"
+$targetApk = Join-Path $targetDir "app-debug.apk"
+$cacheCommitFile = "$targetApk.commit"
+$tempDir = Join-Path $repoRoot ".android-apk-download"
+
 Write-Host ""
 Write-Host "mPay Android APK retrieval" -ForegroundColor Cyan
 Write-Host "Branch    : $Branch"
@@ -41,63 +43,102 @@ Write-Host "Commit    : $headSha"
 Write-Host "ADB       : $adbPath"
 Write-Host ""
 
-Write-Host "Finding a successful Android artifact build for this exact commit..." -ForegroundColor Yellow
-$runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
-if ($LASTEXITCODE -ne 0) {
-    throw "Could not query GitHub Actions runs."
-}
-
-$runs = $runJson | ConvertFrom-Json
-
-# The Android job is intentionally restricted to push events in Docker Compose CI.
-# PR validation runs can be successful but do not produce the APK artifact.
-$run = $runs | Where-Object {
-    $_.headSha -eq $headSha -and
-    $_.status -eq "completed" -and
-    $_.conclusion -eq "success" -and
-    $_.event -eq "push"
-} | Sort-Object createdAt -Descending | Select-Object -First 1
-
-if (-not $run) {
-    throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
-}
-
-$targetDir = Join-Path $repoRoot "android\app\build\outputs\apk\debug"
-$targetApk = Join-Path $targetDir "app-debug.apk"
-$tempDir = Join-Path $repoRoot ".android-apk-download"
-
-if (Test-Path $tempDir) {
-    Remove-Item $tempDir -Recurse -Force
-}
-New-Item -ItemType Directory -Path $tempDir | Out-Null
 New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
+$useCachedApk = $false
+$cachedCommit = ""
+
+if (-not $ForceDownload -and (Test-Path $targetApk)) {
+    if (Test-Path $cacheCommitFile) {
+        $cachedCommit = (Get-Content $cacheCommitFile -Raw).Trim()
+    }
+
+    if ($cachedCommit -eq $headSha) {
+        $useCachedApk = $true
+        Write-Host "Cached APK matches the current commit. No GitHub download is needed." -ForegroundColor Green
+    } elseif ([string]::IsNullOrWhiteSpace($cachedCommit)) {
+        Write-Host "An APK already exists at the Gradle output location, but its source commit is unknown." -ForegroundColor Yellow
+        Write-Host "This can happen for APKs downloaded by an older version of this helper." -ForegroundColor Yellow
+        $reuseAnswer = Read-Host "Use this existing APK for the current commit without downloading again? (Y/N)"
+
+        if ($reuseAnswer -match '^(Y|YES)$') {
+            Set-Content -Path $cacheCommitFile -Value $headSha -Encoding UTF8
+            $useCachedApk = $true
+            Write-Host "Using the existing APK and recording it as the cached APK for $headSha." -ForegroundColor Green
+        }
+    } elseif (-not [string]::IsNullOrWhiteSpace($cachedCommit)) {
+        Write-Host "A cached APK exists, but it belongs to commit $cachedCommit." -ForegroundColor Yellow
+        Write-Host "The current commit is $headSha, so a fresh APK will be downloaded." -ForegroundColor Yellow
+    }
+}
+
+if ($ForceDownload) {
+    Write-Host "ForceDownload requested; the cached APK will be replaced." -ForegroundColor Yellow
+}
+
 try {
-    Write-Host "Downloading $artifactName from Actions run $($run.databaseId)..." -ForegroundColor Yellow
-    gh run download $run.databaseId --name $artifactName --dir $tempDir
-    if ($LASTEXITCODE -ne 0) {
-        throw "GitHub Actions artifact download failed for run $($run.databaseId)."
-    }
+    if (-not $useCachedApk) {
+        if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+            throw "GitHub CLI (gh) is required only when a new APK must be downloaded. Install it from https://cli.github.com/ and run 'gh auth login'."
+        }
 
-    $downloadedApk = Get-ChildItem -Path $tempDir -Filter "*.apk" -File -Recurse | Select-Object -First 1
-    if (-not $downloadedApk) {
-        throw "Downloaded artifact does not contain an APK."
-    }
+        Write-Host "Finding a successful Android artifact build for this exact commit..." -ForegroundColor Yellow
+        $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not query GitHub Actions runs."
+        }
 
-    Copy-Item $downloadedApk.FullName $targetApk -Force
+        $runs = $runJson | ConvertFrom-Json
+
+        # The Android job is intentionally restricted to push events in Docker Compose CI.
+        # PR validation runs can be successful but do not produce the APK artifact.
+        $run = $runs | Where-Object {
+            $_.headSha -eq $headSha -and
+            $_.status -eq "completed" -and
+            $_.conclusion -eq "success" -and
+            $_.event -eq "push"
+        } | Sort-Object createdAt -Descending | Select-Object -First 1
+
+        if (-not $run) {
+            throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
+        }
+
+        if (Test-Path $tempDir) {
+            Remove-Item $tempDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $tempDir | Out-Null
+
+        Write-Host "Downloading $artifactName from Actions run $($run.databaseId)..." -ForegroundColor Yellow
+        gh run download $run.databaseId --name $artifactName --dir $tempDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "GitHub Actions artifact download failed for run $($run.databaseId)."
+        }
+
+        $downloadedApk = Get-ChildItem -Path $tempDir -Filter "*.apk" -File -Recurse | Select-Object -First 1
+        if (-not $downloadedApk) {
+            throw "Downloaded artifact does not contain an APK."
+        }
+
+        Copy-Item $downloadedApk.FullName $targetApk -Force
+        Set-Content -Path $cacheCommitFile -Value $headSha -Encoding UTF8
+
+        $sourceRunId = $run.databaseId
+    } else {
+        $sourceRunId = "cached-local"
+    }
 
     Write-Host ""
     Write-Host "APK ready:" -ForegroundColor Green
     Write-Host $targetApk -ForegroundColor Green
     Write-Host ""
-    Write-Host "GitHub Actions run: $($run.databaseId)"
-    Write-Host "Commit             : $($run.headSha)"
-    Write-Host "Size               : $([math]::Round((Get-Item $targetApk).Length / 1MB, 2)) MB"
+    Write-Host "Source              : $sourceRunId"
+    Write-Host "Commit recorded     : $headSha"
+    Write-Host "Size                : $([math]::Round((Get-Item $targetApk).Length / 1MB, 2)) MB"
     Write-Host ""
 
     $installAnswer = Read-Host "Install this APK on a connected Android device now? (Y/N)"
     if ($installAnswer -notmatch '^(Y|YES)$') {
-        Write-Host "APK download complete. Installation skipped." -ForegroundColor Yellow
+        Write-Host "APK is ready. Installation skipped." -ForegroundColor Yellow
         exit 0
     }
 
