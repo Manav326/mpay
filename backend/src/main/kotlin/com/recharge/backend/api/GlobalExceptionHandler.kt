@@ -15,6 +15,23 @@ class GlobalExceptionHandler {
         ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(ErrorResponse(ex.message ?: "Invalid mobile number or password"))
 
+    @ExceptionHandler(com.recharge.backend.provider.Way2ApiException::class)
+    fun handleWay2Api(ex: com.recharge.backend.provider.Way2ApiException): ResponseEntity<ErrorResponse> {
+        val status = when (ex.upstreamStatusCode) {
+            400 -> HttpStatus.BAD_REQUEST
+            401 -> HttpStatus.UNAUTHORIZED
+            402 -> HttpStatus.PAYMENT_REQUIRED
+            403 -> HttpStatus.FORBIDDEN
+            404 -> HttpStatus.BAD_GATEWAY
+            422 -> HttpStatus.UNPROCESSABLE_ENTITY
+            429 -> HttpStatus.TOO_MANY_REQUESTS
+            503 -> HttpStatus.SERVICE_UNAVAILABLE
+            null -> HttpStatus.GATEWAY_TIMEOUT
+            else -> HttpStatus.BAD_GATEWAY
+        }
+        return ResponseEntity.status(status).body(ErrorResponse(ex.message ?: "Way2API request failed"))
+    }
+
     @ExceptionHandler(com.recharge.backend.service.OtpDeliveryException::class)
     fun handleOtpDelivery(ex: com.recharge.backend.service.OtpDeliveryException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
