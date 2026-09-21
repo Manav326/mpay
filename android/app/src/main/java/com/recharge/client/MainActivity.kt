@@ -66,12 +66,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         digits.length >= 10 -> digits.takeLast(10)
                         else -> ""
                     }
-                    if (normalized.length == 10) selectedContactNumber = normalized
+                    if (normalized.length == 10) rechargeViewModel.setMobile(normalized)
                 }
             }
         }
     }
-    private var selectedContactNumber: String? = null
     private val walletPaymentViewModel: WalletPaymentViewModel by viewModels()
     private val rechargeViewModel: RechargeViewModel by viewModels()
     private var rechargeGatewayVerifier: ((String, String, String) -> Unit)? = null
@@ -79,7 +78,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Checkout.preload(applicationContext)
-        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)); }, rechargeViewModel = rechargeViewModel, initialContactNumber = selectedContactNumber) } }
+        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)); }, rechargeViewModel = rechargeViewModel) } }
     }
 
     private fun startRazorpayCheckout(order: PaymentOrderResponse) {
@@ -215,7 +214,6 @@ private fun AppRoot(
     passwordResetViewModel: PasswordResetViewModel = viewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
-    LaunchedEffect(initialContactNumber) { initialContactNumber?.let { rechargeViewModel.setMobile(it) } }
     val passwordResetState by passwordResetViewModel.state.collectAsState()
     val paymentState by paymentViewModel.state.collectAsState()
     val rechargeState by rechargeViewModel.state.collectAsState()
