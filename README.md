@@ -2,6 +2,12 @@
 
 This repository groups the current mPay backend, Admin Web, and Android client under one parent folder.
 
+## Architecture and automation
+
+The complete system architecture, GitHub Actions flow, Docker/GHCR feature-test workflow, Android APK automation, ADB installation flow, exact reusable PowerShell commands, branch workflow, and current verified baseline are documented here:
+
+[docs/ARCHITECTURE_AND_AUTOMATION.md](docs/ARCHITECTURE_AND_AUTOMATION.md)
+
 ## Runtime model
 
 - PostgreSQL: Docker service `postgres`
