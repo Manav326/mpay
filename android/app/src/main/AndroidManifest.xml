@@ -9,7 +9,7 @@
         android:label="mPay"
         android:icon="@drawable/mpay_logo"
         android:roundIcon="@drawable/mpay_logo"
-        tools:replace="android:theme,android:allowBackup">
+        tools:replace="android:theme,android:allowBackup,android:label">
         <activity
             android:name=".MainActivity"
             android:exported="true">

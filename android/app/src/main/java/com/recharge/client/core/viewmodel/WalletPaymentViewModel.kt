@@ -69,9 +69,10 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
             _state.value = PaymentUiState.Verifying
             repository.verifyPayment(
                 VerifyPaymentRequest(
-                    razorpayPaymentId = paymentId,
-                    razorpayOrderId = orderId,
-                    razorpaySignature = signature
+                    provider = "razorpay",
+                    paymentId = paymentId,
+                    orderId = orderId,
+                    signature = signature
                 )
             ).onSuccess {
                 _state.value = PaymentUiState.Success("Payment successful. Wallet is being updated.")

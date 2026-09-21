@@ -43,6 +43,7 @@ data class OperatorCheckResponse(
     val mobileNumber: String,
     val operator: String,
     val providerOperator: String? = null,
+    val providerCircle: String? = null,
     val circle: String,
     val type: String? = null,
     val providerOrderId: String? = null,

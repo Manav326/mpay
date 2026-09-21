@@ -6,6 +6,7 @@ import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
 import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.PayUHashRequest
 import com.recharge.client.core.model.OperatorCheckResponse
 import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeRequest
@@ -115,8 +116,14 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun plans(mobile: String, operator: String, circle: String): Result<List<RechargePlan>> = runCatching {
-        val response = api.plans(mobile, operator, circle, null, null)
+    suspend fun plans(
+        mobile: String,
+        operator: String,
+        circle: String,
+        providerOperator: String? = null,
+        providerCircle: String? = null
+    ): Result<List<RechargePlan>> = runCatching {
+        val response = api.plans(mobile, operator, circle, providerOperator, providerCircle)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
