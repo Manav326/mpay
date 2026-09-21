@@ -193,11 +193,6 @@ try {
             }
         }
 
-        if (Test-Path $tempDir) {
-            Remove-Item $tempDir -Recurse -Force
-        }
-        New-Item -ItemType Directory -Path $tempDir | Out-Null
-
         if (Get-Command gh -ErrorAction SilentlyContinue) {
             Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
             gh run download $runId --name $artifactName --dir $tempDir
@@ -221,7 +216,7 @@ try {
         Copy-Item $downloadedApk.FullName $targetApk -Force
         Set-Content -Path $cacheCommitFile -Value $headSha -Encoding UTF8
 
-        $sourceRunId = $run.databaseId
+        $sourceRunId = $runId
     } else {
         $sourceRunId = "cached-local"
     }
