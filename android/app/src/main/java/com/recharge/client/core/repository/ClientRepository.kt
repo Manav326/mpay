@@ -171,8 +171,8 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun withdraw(amount: BigDecimal, upiId: String): Result<WithdrawMoneyResponse> = runCatching {
-        val response = api.withdraw(WithdrawMoneyRequest(amount.setScale(2), upiId.trim()))
+    suspend fun withdraw(amount: BigDecimal, upiId: String, provider: String): Result<WithdrawMoneyResponse> = runCatching {
+        val response = api.withdraw(WithdrawMoneyRequest(amount.setScale(2), upiId.trim(), provider))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }

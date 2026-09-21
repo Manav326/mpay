@@ -128,7 +128,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         _state.value = _state.value.copy(selectedRecharge = null, selectedWalletItem = null, detailLoading = false, detailError = null)
     }
 
-    fun withdraw(amountText: String, upiId: String) {
+    fun withdraw(amountText: String, upiId: String, provider: String = "razorpay") {
         val amount = amountText.toBigDecimalOrNull()
         if (amount == null || amount < BigDecimal("1.00")) {
             _state.value = _state.value.copy(withdrawError = "Enter a valid withdrawal amount of at least ₹1")
@@ -140,7 +140,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         }
         viewModelScope.launch {
             _state.value = _state.value.copy(withdrawing = true, withdrawError = null, withdrawSuccess = null)
-            repository.withdraw(amount, upiId)
+            repository.withdraw(amount, upiId, provider)
                 .onSuccess { response ->
                     _state.value = _state.value.copy(withdrawing = false, withdrawSuccess = "₹${response.amount.setScale(2)} will be sent to ${response.upiId} (mocked).")
                     loadHistory(true)
