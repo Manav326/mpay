@@ -2,6 +2,7 @@ package com.recharge.backend.provider
 
 interface RechargeExecutionProvider {
     val providerName: String
+    fun supportsOperator(operator: String): Boolean = true
 
     fun recharge(request: ProviderRechargeRequest): ProviderRechargeResult
 
