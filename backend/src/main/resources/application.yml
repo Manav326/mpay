@@ -52,6 +52,9 @@ app:
     # accepted/charged the request even when our connection timed out.
     connect-timeout-ms: ${MPAY_WAY2API_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${MPAY_WAY2API_READ_TIMEOUT_MS:45000}
+    # R-Offer can take a little longer than operator detection; still keep it bounded
+    # below the Android 60-second client timeout.
+    r-offer-read-timeout-ms: ${MPAY_WAY2API_R_OFFER_READ_TIMEOUT_MS:50000}
   recharge:
     plan-provider: way2api
     execution-provider: mock
