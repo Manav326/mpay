@@ -1,0 +1,64 @@
+package com.recharge.backend.service
+
+import com.recharge.backend.api.RechargeRequest
+import com.recharge.backend.api.VerifyPaymentResponse
+import com.recharge.backend.domain.PaymentOrderEntity
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+@Service
+class PaymentSettlementService(
+    private val walletService: WalletService,
+    private val rechargeService: RechargeService
+) {
+    @Transactional
+    fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse {
+        return when (order.purpose.uppercase()) {
+            "RECHARGE" -> {
+                val mobile = order.rechargeMobileNumber ?: throw IllegalArgumentException("Recharge payment is missing mobile number")
+                val operator = order.rechargeOperator ?: throw IllegalArgumentException("Recharge payment is missing operator")
+                val circle = order.rechargeCircle ?: throw IllegalArgumentException("Recharge payment is missing circle")
+                val planId = order.rechargePlanId ?: throw IllegalArgumentException("Recharge payment is missing plan id")
+
+                walletService.credit(
+                    userId = userId,
+                    amount = order.amount,
+                    externalRef = "PAYMENT:" + order.providerName.uppercase() + ":" + externalPaymentReference,
+                    referenceType = "ADD_MONEY",
+                    referenceId = order.clientRequestId,
+                    description = "Gateway funding for mobile recharge"
+                )
+
+                val recharge = rechargeService.recharge(
+                    userId = userId,
+                    request = RechargeRequest(
+                        mobileNumber = mobile,
+                        operator = operator,
+                        circle = circle,
+                        planId = planId,
+                        clientRequestId = order.clientRequestId
+                    )
+                )
+
+                VerifyPaymentResponse(
+                    status = "CAPTURED",
+                    balance = recharge.walletBalance,
+                    transactionId = recharge.transactionId,
+                    rechargeStatus = recharge.status
+                )
+            }
+
+            else -> {
+                val balance = walletService.credit(
+                    userId = userId,
+                    amount = order.amount,
+                    externalRef = "PAYMENT:" + order.providerName.uppercase() + ":" + externalPaymentReference,
+                    referenceType = "ADD_MONEY",
+                    referenceId = externalPaymentReference,
+                    description = "Wallet top-up via " + order.providerName.uppercase()
+                )
+                VerifyPaymentResponse(status = "CAPTURED", balance = balance)
+            }
+        }
+    }
+}
