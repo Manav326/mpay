@@ -48,12 +48,11 @@ class RentalServiceTest {
         assertEquals(BigDecimal("6000.00"), result.total)
         assertEquals("CONFIRMED", result.status)
         Mockito.verify(wallet, Mockito.times(1)).reserve(42L, BigDecimal("6000.00"))
-        Mockito.verify(wallet, Mockito.times(1))
-            .finalizeReservedDebit(
-                42L,
-                BigDecimal("6000.00"),
-                result.bookingId,
-                result.bookingId
-            )
+        Mockito.verify(wallet, Mockito.times(1)).finalizeReservedDebit(
+            42L,
+            BigDecimal("6000.00"),
+            "RENTAL:" + result.bookingId,
+            result.bookingId
+        )
     }
 }
