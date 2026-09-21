@@ -56,6 +56,9 @@ interface ClientApi {
     @POST("api/v1/payments/verify")
     suspend fun verifyPayment(@Body request: VerifyPaymentRequest): Response<PaymentVerificationResponse>
 
+    @POST("api/v1/recharge/payment-order")
+    suspend fun createRechargePaymentOrder(@Body request: RechargeRequest): Response<PaymentOrderResponse>
+
     @POST("api/v1/recharge/operator")
     suspend fun operator(@Body request: OperatorCheckRequest): Response<OperatorCheckResponse>
 
@@ -63,7 +66,9 @@ interface ClientApi {
     suspend fun plans(
         @Query("mobile") mobile: String,
         @Query("operator") operator: String,
-        @Query("circle") circle: String
+        @Query("circle") circle: String,
+        @Query("providerOperator") providerOperator: String? = null,
+        @Query("providerCircle") providerCircle: String? = null
     ): Response<List<RechargePlan>>
 
     @POST("api/v1/recharge")
