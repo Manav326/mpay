@@ -296,6 +296,10 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     private fun friendlyRechargeError(message: String?): String {
         val raw = message?.trim().orEmpty()
         return when {
+            raw.contains("R-Offer", ignoreCase = true) &&
+                (raw.contains("timed out", ignoreCase = true) ||
+                    raw.contains("could not be reached", ignoreCase = true)) ->
+                "Recharge offers service is taking too long to respond. Please try again later."
             raw.contains("timed out", ignoreCase = true) ||
                 raw.contains("could not be reached", ignoreCase = true) ->
                 "Operator service is taking too long to respond. Please try again later."
