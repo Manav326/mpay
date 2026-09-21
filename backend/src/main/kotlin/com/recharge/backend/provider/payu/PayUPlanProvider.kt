@@ -27,6 +27,9 @@ class PayUPlanProvider(
 
     override fun supportsOperator(operator: String): Boolean = operator.isNotBlank()
 
+    override fun getPlans(mobileNumber: String, operator: String, circle: String): List<RechargePlan> =
+        getPlans(mobileNumber, operator, circle, null, null)
+
     override fun getPlans(
         mobileNumber: String,
         operator: String,
