@@ -21,6 +21,9 @@ class PayUPlanProvider(
 
     override val providerName: String = "payu"
 
+    override fun isConfigured(): Boolean =
+        authService.isConfigured() && properties.agentId.isNotBlank()
+
     private val client = RestClient.builder()
         .baseUrl(properties.nbcBaseUrl.trimEnd('/'))
         .build()
