@@ -43,12 +43,13 @@ import org.json.JSONObject
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     private val walletPaymentViewModel: WalletPaymentViewModel by viewModels()
+    private val rechargeViewModel: RechargeViewModel by viewModels()
     private var rechargeGatewayVerifier: ((String, String, String) -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Checkout.preload(applicationContext)
-        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel) } }
+        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, rechargeViewModel = rechargeViewModel) } }
     }
 
     private fun startRazorpayCheckout(order: PaymentOrderResponse) {
