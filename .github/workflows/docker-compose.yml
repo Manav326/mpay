@@ -12,7 +12,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_TAG: ${{ github.sha }}
   MPAY_BACKEND_IMAGE: ghcr.io/manav326/mpay-backend
   MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
   MPAY_WEB_API_BASE_URL: https://example.invalid
@@ -27,7 +26,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Docker Compose
-        run: docker compose -f docker-compose.yml config
+        run: |
+          docker compose -f docker-compose.yml config
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -39,17 +39,31 @@ jobs:
 
       - name: Build backend and admin web images
         run: |
-          export MPAY_IMAGE_TAG="${IMAGE_TAG}"
+          export MPAY_IMAGE_TAG="latest"
           docker compose -f docker-compose.yml build backend admin-web
 
-      - name: Push images to GHCR
+      - name: Push latest images to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          export MPAY_IMAGE_TAG="${IMAGE_TAG}"
+          export MPAY_IMAGE_TAG="latest"
           docker compose -f docker-compose.yml push backend admin-web
+
+      - name: Tag images with commit SHA
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag ${{ env.MPAY_BACKEND_IMAGE }}:latest ${{ env.MPAY_BACKEND_IMAGE }}:${{ github.sha }}
+          docker tag ${{ env.MPAY_ADMIN_WEB_IMAGE }}:latest ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${{ github.sha }}
+
+      - name: Push commit-tagged images to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push ${{ env.MPAY_BACKEND_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${{ github.sha }}
 
       - name: Build summary
         if: always()
         run: |
-          echo "Backend image: ${MPAY_BACKEND_IMAGE}:${IMAGE_TAG}"
-          echo "Admin Web image: ${MPAY_ADMIN_WEB_IMAGE}:${IMAGE_TAG}"
+          echo "Latest backend: ${{ env.MPAY_BACKEND_IMAGE }}:latest"
+          echo "Latest admin web: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:latest"
+          echo "Commit backend: ${{ env.MPAY_BACKEND_IMAGE }}:${{ github.sha }}"
+          echo "Commit admin web: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${{ github.sha }}"
