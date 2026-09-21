@@ -131,6 +131,40 @@ class PayUAuthServiceTest {
     }
 
     @Test
+    fun convertsHttpErrorsToSafePayUExceptions() {
+        responses.add(
+            TokenResponse(
+                statusCode = 401,
+                rawBody = """{"error":"invalid_client","error_description":"client secret rejected"}"""
+            )
+        )
+
+        val ex = assertThrows(PayUIntegrationException::class.java) {
+            auth.getAccessToken()
+        }
+
+        assertEquals("PayU token request failed with HTTP 401", ex.message)
+        assertEquals(false, ex.message?.contains("test-secret") == true)
+    }
+
+    @Test
+    fun convertsMalformedTokenResponsesToSafePayUExceptions() {
+        responses.add(
+            TokenResponse(
+                statusCode = 200,
+                rawBody = """not-valid-json"""
+            )
+        )
+
+        val ex = assertThrows(PayUIntegrationException::class.java) {
+            auth.getAccessToken()
+        }
+
+        assertEquals("PayU token request failed", ex.message)
+        assertEquals(false, ex.message?.contains("test-secret") == true)
+    }
+
+    @Test
     fun rejectsWhenCredentialsAreMissing() {
         val unconfigured = PayUAuthService(
             PayUProperties(
@@ -156,9 +190,9 @@ class PayUAuthServiceTest {
             if (responses.isEmpty()) TokenResponse("unexpected", 7200) else responses.removeFirst()
         }
 
-        val body = """{"access_token":"${response.accessToken}","token_type":"Bearer","expires_in":${response.expiresIn},"scope":"${requests.last()["scope"]}","created_at":1}"""
+        val body = response.rawBody ?: """{"access_token":"${response.accessToken}","token_type":"Bearer","expires_in":${response.expiresIn},"scope":"${requests.last()["scope"]}","created_at":1}"""
         exchange.responseHeaders.add("Content-Type", "application/json")
-        exchange.sendResponseHeaders(200, body.toByteArray(StandardCharsets.UTF_8).size.toLong())
+        exchange.sendResponseHeaders(response.statusCode, body.toByteArray(StandardCharsets.UTF_8).size.toLong())
         exchange.responseBody.use { it.write(body.toByteArray(StandardCharsets.UTF_8)) }
     }
 
@@ -173,7 +207,9 @@ class PayUAuthServiceTest {
             }
 
     private data class TokenResponse(
-        val accessToken: String,
-        val expiresIn: Int
+        val accessToken: String = "",
+        val expiresIn: Int = 7200,
+        val statusCode: Int = 200,
+        val rawBody: String? = null
     )
 }

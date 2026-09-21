@@ -5,8 +5,9 @@ import com.recharge.backend.config.PayUProperties
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
+import org.springframework.web.client.RestClientResponseException
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicReference
 
 @Service
 class PayUAuthService(
@@ -28,19 +29,27 @@ class PayUAuthService(
 
         requireConfigured()
 
-        val response = restClient.post()
-            .uri("/oauth/token")
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .accept(MediaType.APPLICATION_JSON)
-            .body(
-                "client_id=${encode(properties.clientId)}" +
-                    "&client_secret=${encode(properties.clientSecret)}" +
-                    "&grant_type=client_credentials" +
-                    "&scope=${encode(normalizedScope)}"
+        val response = try {
+            restClient.post()
+                .uri("/oauth/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(
+                    "client_id=${encode(properties.clientId)}" +
+                        "&client_secret=${encode(properties.clientSecret)}" +
+                        "&grant_type=client_credentials" +
+                        "&scope=${encode(normalizedScope)}"
+                )
+                .retrieve()
+                .body(PayUTokenResponse::class.java)
+        } catch (ex: RestClientResponseException) {
+            throw PayUIntegrationException(
+                "PayU token request failed with HTTP ${ex.statusCode.value()}",
+                ex
             )
-            .retrieve()
-            .body(PayUTokenResponse::class.java)
-            ?: throw PayUIntegrationException("PayU returned an empty token response")
+        } catch (ex: RestClientException) {
+            throw PayUIntegrationException("PayU token request failed", ex)
+        } ?: throw PayUIntegrationException("PayU returned an empty token response")
 
         if (response.accessToken.isBlank()) {
             throw PayUIntegrationException("PayU token response did not contain access_token")
