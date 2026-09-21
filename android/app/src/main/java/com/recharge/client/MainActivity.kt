@@ -181,9 +181,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             )
         } else {
             walletPaymentViewModel.verifyPayment(
-                razorpayPaymentId.orEmpty(),
-                paymentData?.orderId.orEmpty(),
-                paymentData?.signature.orEmpty()
+                provider = "razorpay",
+                paymentId = razorpayPaymentId,
+                orderId = paymentData?.orderId.orEmpty(),
+                signature = paymentData?.signature
             )
         }
     }
