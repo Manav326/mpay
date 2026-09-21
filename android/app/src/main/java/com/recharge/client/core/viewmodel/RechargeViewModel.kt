@@ -7,6 +7,8 @@ import com.recharge.client.core.model.OperatorCheckResponse
 import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeResponse
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
+import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.PaymentVerificationResponse
 import com.recharge.client.core.repository.ClientRepository
 import java.math.BigDecimal
 import java.util.UUID
@@ -36,7 +38,8 @@ data class RechargeUiState(
     val error: String? = null,
     val walletBalance: BigDecimal? = null,
     val action: RechargeActionState = RechargeActionState.Idle,
-    val transactionStatus: RechargeTransactionStatusResponse? = null
+    val transactionStatus: RechargeTransactionStatusResponse? = null,
+    val gatewayOrder: PaymentOrderResponse? = null
 )
 
 class RechargeViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,7 +65,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
             loadingPlans = false,
             error = null,
             action = RechargeActionState.Idle,
-            transactionStatus = null
+            transactionStatus = null,
+            gatewayOrder = null
         )
     }
 
@@ -125,7 +129,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                         error = null
                     )
 
-                    repository.plans(mobile, detected.operator, detected.circle)
+                    repository.plans(mobile, detected.operator, detected.circle, detected.providerOperator, detected.providerCircle)
                         .onSuccess { plans ->
                             _state.value = _state.value.copy(
                                 loadingPlans = false,
@@ -190,6 +194,97 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     fun clearSelection() {
         _state.value = _state.value.copy(selectedPlan = null, action = RechargeActionState.Idle, error = null)
+    }
+
+    fun startGatewayRechargePayment() {
+        val current = _state.value
+        val plan = current.selectedPlan ?: run {
+            _state.value = current.copy(error = "Select a recharge plan first.")
+            return
+        }
+        val operator = current.operator ?: run {
+            _state.value = current.copy(error = "Detect the operator before continuing.")
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(executing = true, error = null, gatewayOrder = null)
+            repository.createRechargePaymentOrder(
+                com.recharge.client.core.model.RechargeRequest(
+                    mobileNumber = current.mobile,
+                    operator = operator.operator,
+                    circle = operator.circle,
+                    planId = plan.id,
+                    clientRequestId = "ANDROID-RECHARGE-PAY-" + UUID.randomUUID()
+                )
+            ).onSuccess { order ->
+                _state.value = _state.value.copy(executing = false, gatewayOrder = order)
+            }.onFailure { failure ->
+                _state.value = _state.value.copy(
+                    executing = false,
+                    gatewayOrder = null,
+                    action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
+                )
+            }
+        }
+    }
+
+    fun verifyGatewayPayment(provider: String, paymentId: String?, orderId: String?, signature: String?) {
+        val current = _state.value
+        if (orderId.isNullOrBlank()) {
+            _state.value = current.copy(
+                executing = false,
+                gatewayOrder = null,
+                action = RechargeActionState.Failure("Payment verification data is incomplete.")
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(executing = true, gatewayOrder = null, error = null)
+            repository.verifyPayment(
+                com.recharge.client.core.model.VerifyPaymentRequest(
+                    provider = provider,
+                    paymentId = paymentId,
+                    orderId = orderId,
+                    signature = signature
+                )
+            ).onSuccess { verification ->
+                val response = gatewayVerificationToRechargeResponse(verification)
+                _state.value = _state.value.copy(
+                    executing = false,
+                    walletBalance = verification.balance,
+                    action = when (verification.rechargeStatus?.uppercase()) {
+                        "SUCCESS" -> RechargeActionState.Success(response)
+                        "FAILED" -> RechargeActionState.Failure(verification.message ?: "Recharge failed after payment verification.")
+                        else -> RechargeActionState.Pending(response)
+                    }
+                )
+                if (response.transactionId.isNotBlank() && verification.rechargeStatus?.uppercase() == "PENDING") {
+                    startPolling(response.transactionId)
+                }
+            }.onFailure { failure ->
+                _state.value = _state.value.copy(
+                    executing = false,
+                    gatewayOrder = null,
+                    action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
+                )
+                refreshWallet()
+            }
+        }
+    }
+
+    private fun gatewayVerificationToRechargeResponse(verification: PaymentVerificationResponse): RechargeResponse {
+        val plan = _state.value.selectedPlan
+        val amount = plan?.amount ?: BigDecimal.ZERO
+        return RechargeResponse(
+            transactionId = verification.transactionId.orEmpty(),
+            status = verification.rechargeStatus ?: verification.status.orEmpty(),
+            amount = amount,
+            commission = BigDecimal.ZERO,
+            walletDebitAmount = amount,
+            walletBalance = verification.balance
+        )
     }
 
     fun executeSelectedPlan() {
