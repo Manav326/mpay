@@ -105,7 +105,10 @@ data class OperatorCheckResponse(
     val circle: String,
     val type: String?,
     val providerOrderId: String?,
-    val rechargeStatus: String = "UNKNOWN"
+    val rechargeStatus: String = "UNKNOWN",
+    val pending: Boolean = false,
+    val message: String? = null,
+    val providerMessageCode: String? = null
 )
 data class RechargePlanDto(val id: String, val amount: BigDecimal, val validity: String?, val description: String?)
 data class CreatePaymentOrderRequest(
