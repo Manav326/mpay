@@ -14,7 +14,11 @@ data class OperatorResult(
     val providerOperator: String,
     val circle: String,
     val type: String?,
-    val providerOrderId: String?
+    val providerOrderId: String?,
+    val status: String = "UNKNOWN",
+    val pending: Boolean = false,
+    val message: String? = null,
+    val messageCode: String? = null
 )
 
 data class RechargePlan(
