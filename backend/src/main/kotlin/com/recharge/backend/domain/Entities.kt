@@ -148,3 +148,33 @@ class RoleHierarchyEntity(
     @Column(name = "viewer_role", nullable = false, length = 50) var viewerRole: String = "ADMIN",
     @Column(name = "target_role", nullable = false, length = 50) var targetRole: String = "CLIENT"
 )
+
+
+@Entity
+@Table(
+    name = "wallet_withdrawals",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uq_wallet_withdrawal_user_request", columnNames = ["user_id", "client_request_id"])
+    ],
+    indexes = [
+        Index(name = "idx_wallet_withdrawal_user_created", columnList = "user_id, created_at"),
+        Index(name = "idx_wallet_withdrawal_provider_ref", columnList = "provider_name, provider_reference")
+    ]
+)
+class WalletWithdrawalEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "withdrawal_id", nullable = false, unique = true, length = 40) var withdrawalId: String = "",
+    @Column(name = "client_request_id", nullable = false, length = 100) var clientRequestId: String = "",
+    @Column(nullable = false) var userId: Long = 0,
+    @Column(nullable = false, precision = 19, scale = 2) var amount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "upi_id", nullable = false, length = 254) var upiId: String = "",
+    @Column(name = "provider_name", nullable = false, length = 30) var providerName: String = "",
+    @Column(nullable = false, length = 30) var status: String = "PENDING",
+    @Column(name = "provider_reference", length = 150) var providerReference: String? = null,
+    @Column(name = "provider_status", length = 50) var providerStatus: String? = null,
+    @Column(name = "failure_reason", length = 500) var failureReason: String? = null,
+    @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
+    @Column(nullable = false) var createdAt: Instant = Instant.now(),
+    @Column(nullable = false) var updatedAt: Instant = Instant.now(),
+    @Column(name = "completed_at") var completedAt: Instant? = null
+)
