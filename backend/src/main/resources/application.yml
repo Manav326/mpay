@@ -65,8 +65,18 @@ app:
     offer-cache-ttl-seconds: 86400
   payment:
     gateway-providers: payu,razorpay
+  withdrawal:
+    provider-order: ${MPAY_WITHDRAWAL_PROVIDER_ORDER:razorpay,payu}
   razorpay:
     base-url: https://api.razorpay.com/v1
+    payout:
+      enabled: ${MPAY_RAZORPAY_PAYOUT_ENABLED:false}
+      key-id: ${MPAY_RAZORPAY_PAYOUT_KEY_ID:}
+      key-secret: ${MPAY_RAZORPAY_PAYOUT_KEY_SECRET:}
+      account-number: ${MPAY_RAZORPAY_PAYOUT_ACCOUNT_NUMBER:}
+      contact-id: ${MPAY_RAZORPAY_PAYOUT_CONTACT_ID:}
+      purpose: ${MPAY_RAZORPAY_PAYOUT_PURPOSE:payout}
+      webhook-secret: ${MPAY_RAZORPAY_PAYOUT_WEBHOOK_SECRET:}
   profile:
     images-dir: ${MPAY_PROFILE_IMAGES_DIR:./data/profile-images}
 
@@ -93,4 +103,14 @@ app:
     pg-failure-url: https://cbjs.payu.in/sdk/failure
     pg-production: false
     connect-timeout-ms: 10000
+    payout:
+      enabled: ${MPAY_PAYU_PAYOUT_ENABLED:false}
+      environment: ${MPAY_PAYU_PAYOUT_ENVIRONMENT:test}
+      auth-base-url: ${MPAY_PAYU_PAYOUT_AUTH_BASE_URL:https://uat-accounts.payu.in}
+      api-base-url: ${MPAY_PAYU_PAYOUT_API_BASE_URL:https://uatoneapi.payu.in}
+      client-id: ${MPAY_PAYU_PAYOUT_CLIENT_ID:}
+      client-secret: ${MPAY_PAYU_PAYOUT_CLIENT_SECRET:}
+      payout-merchant-id: ${MPAY_PAYU_PAYOUT_MERCHANT_ID:}
+      scope: ${MPAY_PAYU_PAYOUT_SCOPE:create_payout_transactions}
+      webhook-authorization: ${MPAY_PAYU_PAYOUT_WEBHOOK_AUTHORIZATION:}
     read-timeout-ms: 30000
