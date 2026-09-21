@@ -69,19 +69,19 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         try {
             if (order.provider.equals("payu", true)) {
                 PayUCheckoutBridge.open(
-                    activity = this,
-                    amount = order.amount.setScale(2).toPlainString(),
-                    isProduction = order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false,
-                    productInfo = order.checkoutParams["productInfo"] ?: "Mobile recharge",
-                    key = order.keyId,
-                    phone = order.checkoutParams["phone"].orEmpty(),
-                    transactionId = order.orderId,
-                    firstName = order.checkoutParams["firstName"] ?: "mPay",
-                    email = order.checkoutParams["email"] ?: "customer@mpay.local",
-                    surl = order.checkoutParams["surl"].orEmpty(),
-                    furl = order.checkoutParams["furl"].orEmpty(),
-                    userCredential = order.checkoutParams["userCredential"].orEmpty(),
-                    callback = object : PayUCheckoutBridge.Callback {
+                    this,
+                    order.amount.setScale(2).toPlainString(),
+                    order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false,
+                    order.checkoutParams["productInfo"] ?: "Mobile recharge",
+                    order.keyId,
+                    order.checkoutParams["phone"].orEmpty(),
+                    order.orderId,
+                    order.checkoutParams["firstName"] ?: "mPay",
+                    order.checkoutParams["email"] ?: "customer@mpay.local",
+                    order.checkoutParams["surl"].orEmpty(),
+                    order.checkoutParams["furl"].orEmpty(),
+                    order.checkoutParams["userCredential"].orEmpty(),
+                    object : PayUCheckoutBridge.Callback {
                         override fun onPaymentSuccess(response: Any?) {
                             val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
                             val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
@@ -122,39 +122,15 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     }
                 )
             } else {
-                            rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
-                        }
-                    }
-
-                    override fun onError(errorResponse: ErrorResponse) {
-                        rechargeViewModel.gatewayPaymentFailed(errorResponse.errorMessage)
-                    }
-
-                    override fun generateHash(
-                        valueMap: HashMap<String, String?>,
-                        hashGenerationListener: PayUHashGenerationListener
-                    ) {
-                        val hashName = valueMap[PayUCheckoutProConstants.CP_HASH_NAME].orEmpty()
-                        val hashString = valueMap[PayUCheckoutProConstants.CP_HASH_STRING].orEmpty()
-                        if (hashName.isBlank() || hashString.isBlank()) {
-                            rechargeViewModel.gatewayPaymentFailed("PayU requested an invalid payment hash")
-                            return
-                        }
-                        rechargeViewModel.generatePayUHash(hashName, hashString) { hash ->
-                            val hashMap = HashMap<String, String?>()
-                            hashMap[hashName] = hash
-                            hashGenerationListener.onHashGenerated(hashMap)
-                        }
-                    }
-
-                    override fun setWebViewProperties(webView: android.webkit.WebView?, bank: Any?) = Unit
-                })
-            } else {
                 val checkout = Checkout().apply { setKeyID(order.keyId) }
                 val options = JSONObject().apply {
-                    put("key", order.keyId); put("order_id", order.orderId); put("currency", order.currency);
-                    put("amount", order.amount.movePointRight(2).longValueExact()); put("name", "mPay");
-                    put("description", "Mobile recharge"); put("theme.color", "#F59E0B")
+                    put("key", order.keyId)
+                    put("order_id", order.orderId)
+                    put("currency", order.currency)
+                    put("amount", order.amount.movePointRight(2).longValueExact())
+                    put("name", "mPay")
+                    put("description", "Mobile recharge")
+                    put("theme.color", "#F59E0B")
                 }
                 rechargeGatewayVerifier = { paymentId, orderId, signature ->
                     rechargeViewModel.verifyGatewayPayment("razorpay", paymentId, orderId, signature)
