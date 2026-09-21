@@ -68,6 +68,31 @@ class RechargeService(
                 )
             }
 
+    fun createRechargePaymentOrder(userId: Long, request: RechargeRequest): CreatePaymentOrderRequest {
+        val existingPlan = offerService.resolveCachedOffer(
+            mobileNumber = request.mobileNumber,
+            operator = request.operator,
+            circle = request.circle,
+            offerId = request.planId
+        ) ?: throw IllegalArgumentException("Selected recharge offer has expired or is not available. Please refresh the offers and try again.")
+
+        val amount = existingPlan.amount.setScale(2, RoundingMode.HALF_UP)
+        val clientPercent = commissionRateService.rateForUser(userId)
+        val clientCommission = amount.multiply(clientPercent).divide(BigDecimal(100), 4, RoundingMode.HALF_UP)
+        val payable = amount.subtract(clientCommission).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP)
+        require(payable > BigDecimal.ZERO) { "Recharge payable amount must be greater than zero" }
+
+        return CreatePaymentOrderRequest(
+            amount = payable,
+            clientRequestId = request.clientRequestId,
+            purpose = "RECHARGE",
+            rechargeMobileNumber = request.mobileNumber,
+            rechargeOperator = request.operator.uppercase(),
+            rechargeCircle = request.circle,
+            rechargePlanId = request.planId
+        )
+    }
+
     fun recharge(userId: Long, request: RechargeRequest): RechargeResponse {
         val transactionId = "RTX-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().take(8)
 
