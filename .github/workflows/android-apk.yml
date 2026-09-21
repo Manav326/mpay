@@ -4,9 +4,18 @@ on:
   push:
     branches:
       - main
+      - "feature/android-*"
       - "feature/android/**"
+    paths:
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+      - "scripts/android-fetch-latest-apk.ps1"
   pull_request:
     branches: ["main"]
+    paths:
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+      - "scripts/android-fetch-latest-apk.ps1"
 
 permissions:
   contents: read
