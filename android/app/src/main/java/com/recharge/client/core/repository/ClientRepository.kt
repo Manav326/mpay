@@ -103,6 +103,12 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun generatePayUHash(hashName: String, hashString: String, postSalt: String?, hashType: String?): Result<String> = runCatching {
+        val response = api.payuHash(PayUHashRequest(hashName, hashString, postSalt, hashType))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!.hash
+    }
+
     suspend fun detectOperator(mobile: String): Result<OperatorCheckResponse> = runCatching {
         val response = api.operator(OperatorCheckRequest(mobile))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
