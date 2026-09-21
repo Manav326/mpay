@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatExactTimestamp
@@ -25,7 +26,7 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1500); copied = false } }
     val status = item.status.uppercase()
-    val statusColor = when (status) { "SUCCESS" -> AppColors.Success; "FAILED" -> AppColors.Error; else -> MaterialTheme.colorScheme.primary }
+    val statusColor = when (status) { "SUCCESS" -> AppColors.Success; "FAILED", "CANCELLED" -> AppColors.Error; "PENDING", "PROCESSING" -> Color(0xFFD97706); else -> MaterialTheme.colorScheme.primary }
     val text = buildString {
         appendLine("Recharge history")
         appendLine("Amount: ₹${formatMoney(item.amount)}")
@@ -65,7 +66,7 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
                 }
             }
             HorizontalDivider()
-            Text("Wallet debit: ₹${formatMoney(item.walletDebitAmount)}", style = MaterialTheme.typography.bodyMedium)
+            Text(if (status == "PENDING" || status == "PROCESSING") "Reserved: ₹${formatMoney(item.walletDebitAmount)}" else "Wallet debit: ₹${formatMoney(item.walletDebitAmount)}", style = MaterialTheme.typography.bodyMedium)
             Text("Transaction ID: ${item.transactionId}", style = MaterialTheme.typography.bodySmall)
             Text("Reference: ${item.clientRequestId}", style = MaterialTheme.typography.bodySmall)
             item.providerReference?.takeIf { it.isNotBlank() }?.let { Text("Provider ref: $it", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall) }
