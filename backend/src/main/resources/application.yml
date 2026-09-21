@@ -56,12 +56,15 @@ app:
     # below the Android 60-second client timeout.
     r-offer-read-timeout-ms: ${MPAY_WAY2API_R_OFFER_READ_TIMEOUT_MS:50000}
   recharge:
-    plan-provider: way2api
-    execution-provider: mock
+    operator-providers: payu,way2api
+    plan-providers: payu,way2api
+    execution-providers: payu,mock
     mock-execution-status: SUCCESS
     # R-Offers are number-specific; cache per mobile/operator/circle for 24h.
     # A failed recharge invalidates that mobile's cached offers immediately.
     offer-cache-ttl-seconds: 86400
+  payment:
+    gateway-providers: payu,razorpay
   razorpay:
     base-url: https://api.razorpay.com/v1
   profile:
@@ -73,11 +76,19 @@ app:
     nbc-base-url: https://bbps-sb.payu.in
     scope: read_plans
     agent-id: ""
+    operator-circle-path: /payu-nbc/v2/nbc/getOperatorAndCircleInfo
     plans-path: /payu-nbc/v3/nbc/getRechargePlans
-    # Temporary development mode: allows testing our internal plans contract while PayU credentials are awaiting verification.
-    # Set to false after UAT credentials are verified and operator/circle mappings are configured.
-    plan-mock-enabled: true
-    operator-code-mappings: {}
-    circle-code-mappings: {}
+    custom-plans-path: /payu-nbc/v3/nbc/getCustomizedRechargePlans
+    biller-category-name: MOBILE PREPAID
+    bill-payment-path: /payu-nbc-int/v1/nbc/billpaymentrequest
+    status-path: /payu-nbc/v2/nbc/status/billpayment
+    payment-mode: WALLET
+    wallet-name: PAYU
+    pg-name: other
+    initiating-channel: AGT
+    pg-verify-url: https://test.payu.in/merchant/postservice?form=2
+    pg-success-url: https://cbjs.payu.in/sdk/success
+    pg-failure-url: https://cbjs.payu.in/sdk/failure
+    pg-production: false
     connect-timeout-ms: 10000
     read-timeout-ms: 30000
