@@ -67,8 +67,12 @@ class ClientController(
         paymentGatewayService.verifyWalletPayment(authenticatedUserId(authentication), request)
 
     @PostMapping("/payments/payu/hash")
-    fun payuHash(@RequestBody request: PayUHashRequest): PayUHashResponse =
-        PayUHashResponse(
+    fun payuHash(
+        authentication: Authentication,
+        @RequestBody request: PayUHashRequest
+    ): PayUHashResponse {
+        authenticatedUserId(authentication)
+        return PayUHashResponse(
             payuPaymentGateway.generateHash(
                 hashName = request.hashName,
                 hashString = request.hashString,
@@ -76,6 +80,7 @@ class ClientController(
                 hashType = request.hashType
             )
         )
+    }
 
     @PostMapping("/recharge/operator")
     fun operator(@Valid @RequestBody request: OperatorCheckRequest) = recharge.detect(request)
