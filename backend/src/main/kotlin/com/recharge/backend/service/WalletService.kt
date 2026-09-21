@@ -71,7 +71,15 @@ class WalletService(
     }
 
     @Transactional
-    fun finalizeReservedDebit(userId: Long, amount: BigDecimal, externalRef: String, referenceId: String? = null): BigDecimal {
+    fun finalizeReservedDebit(
+        userId: Long,
+        amount: BigDecimal,
+        externalRef: String,
+        referenceId: String? = null,
+        referenceType: String = "RECHARGE",
+        description: String = "Recharge debit",
+        transactionType: String = "DEBIT"
+    ): BigDecimal {
         require(amount.signum() > 0)
         if (ledger.existsByExternalRef(externalRef)) return getBalance(userId)
 
@@ -87,12 +95,12 @@ class WalletService(
             WalletTransactionEntity(
                 externalRef = externalRef,
                 userId = userId,
-                type = "DEBIT",
+                type = transactionType,
                 amount = amount,
                 status = "POSTED",
-                referenceType = "RECHARGE",
+                referenceType = referenceType,
                 referenceId = referenceId,
-                description = "Recharge debit",
+                description = description,
                 createdAt = Instant.now()
             )
         )
@@ -109,25 +117,6 @@ class WalletService(
     }
 
     fun getAvailableBalance(userId: Long): BigDecimal = getWalletSnapshot(userId).availableBalance
-
-    @Transactional
-    fun withdrawToUpi(userId: Long, amount: BigDecimal, upiId: String): WalletSnapshot {
-        require(amount.setScale(2) >= BigDecimal("1.00")) { "Minimum withdrawal amount is ₹1" }
-        require(Regex("^[A-Za-z0-9._-]+@[A-Za-z]{2,}$").matches(upiId.trim())) { "Enter a valid UPI ID" }
-        val wallet = wallets.findByUserIdForUpdate(userId).orElseThrow()
-        val available = wallet.balance.subtract(wallet.reservedBalance)
-        val normalized = amount.setScale(2)
-        check(available >= normalized) { "Insufficient available wallet balance" }
-        wallet.balance = wallet.balance.subtract(normalized)
-        wallets.save(wallet)
-        ledger.save(WalletTransactionEntity(
-            externalRef = "WITHDRAW:${UUID.randomUUID()}",
-            userId = userId, type = "WITHDRAW", amount = normalized, status = "POSTED",
-            referenceType = "WITHDRAWAL", referenceId = upiId.trim(),
-            description = "Mock withdrawal to UPI", createdAt = Instant.now()
-        ))
-        return WalletSnapshot(wallet.balance, wallet.reservedBalance, wallet.balance.subtract(wallet.reservedBalance).max(BigDecimal.ZERO))
-    }
 
     fun walletHistory(userId: Long, page: Int, size: Int, kind: String?, fromDate: LocalDate?, toDate: LocalDate?): WalletHistorySnapshot {
         require(page >= 0)
