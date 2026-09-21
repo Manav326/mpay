@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, Role, SortMode, UserDetail, UserSummary, Vendor } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -133,6 +133,74 @@ export async function getUsers(role: Role | 'ALL' = 'ALL', sort: SortMode = 'tod
 export async function getUserDetailById(id: string): Promise<UserDetail> {
   if (demo) return getUserDetail(id);
   return api(`/api/v1/admin/users/${encodeURIComponent(id)}`);
+}
+
+export async function getUserRechargeHistory(id: string, page = 0, size = 25): Promise<RechargeHistoryResponse> {
+  if (demo) {
+    const detail = getUserDetail(id);
+    const item = detail.latestRecharge
+      ? {
+          transactionId: detail.latestRecharge.transactionId,
+          clientRequestId: detail.latestRecharge.transactionId,
+          mobileNumber: detail.latestRecharge.mobile,
+          operator: detail.latestRecharge.operator,
+          circle: '—',
+          planId: '—',
+          planDescription: null,
+          planValidity: null,
+          amount: detail.latestRecharge.amount,
+          walletDebitAmount: Math.max(detail.latestRecharge.amount - detail.latestRecharge.commission, 0),
+          status: detail.latestRecharge.status,
+          provider: 'DEMO',
+          providerReference: null,
+          providerOrderId: null,
+          walletLedgerRef: null,
+          completedAt: detail.latestRecharge.createdAt,
+          clientCommission: detail.latestRecharge.commission,
+          companyCommission: 0,
+          message: null,
+          createdAt: detail.latestRecharge.createdAt,
+          updatedAt: detail.latestRecharge.createdAt,
+        }
+      : null;
+    const items = item ? [item] : [];
+    return { items, page: 0, size, totalItems: items.length, totalPages: items.length ? 1 : 0, hasNext: false, fromDate: '1970-01-01', toDate: new Date().toISOString().slice(0, 10) };
+  }
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/recharges?page=' + page + '&size=' + size);
+}
+
+export async function getUserWalletHistory(id: string, page = 0, size = 25): Promise<WalletHistoryResponse> {
+  if (demo) {
+    const detail = getUserDetail(id);
+    const items = detail.recentWalletEntries.map((entry, index) => ({
+      id: index + 1,
+      type: entry.type === 'RECHARGE' ? 'DEBIT' : entry.type === 'WITHDRAWAL' ? 'WITHDRAW' : 'CREDIT',
+      amount: entry.amount,
+      status: 'POSTED',
+      referenceType: entry.type,
+      referenceId: entry.reference,
+      externalRef: entry.reference,
+      description: entry.type.replace('_', ' '),
+      createdAt: entry.createdAt,
+      mobileNumber: null,
+      operator: null,
+      circle: null,
+    }));
+    return { items, page: 0, size, totalItems: items.length, totalPages: items.length ? 1 : 0, hasNext: false, fromDate: '1970-01-01', toDate: new Date().toISOString().slice(0, 10) };
+  }
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/wallet-history?page=' + page + '&size=' + size);
+}
+
+export async function getUserProfileImage(id: string): Promise<string | null> {
+  if (demo) return null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const response = await fetch(baseUrl + '/api/v1/admin/users/' + encodeURIComponent(id) + '/profile-image', {
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 }
 
 export async function getVendors(): Promise<Vendor[]> {
