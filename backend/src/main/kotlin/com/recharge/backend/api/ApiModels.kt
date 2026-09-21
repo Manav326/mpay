@@ -139,6 +139,15 @@ data class VerifyPaymentResponse(
     val currency: String = "INR"
 )
 
+data class PayUHashRequest(
+    @field:NotBlank val hashName: String,
+    @field:NotBlank val hashString: String,
+    val postSalt: String? = null,
+    val hashType: String? = null
+)
+
+data class PayUHashResponse(val hash: String)
+
 data class RechargeResponse(
     val transactionId: String,
     val status: String,
