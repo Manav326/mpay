@@ -11,6 +11,7 @@ class PaymentOrderEntity(
     @Column(name = "client_request_id", nullable = false, unique = true, length = 80) var clientRequestId: String = "",
     @Column(name = "user_id", nullable = false) var userId: Long = 0,
     @Column(name = "razorpay_order_id", nullable = false, unique = true, length = 100) var razorpayOrderId: String = "",
+    @Column(name = "provider_name", nullable = false, length = 40) var providerName: String = "razorpay",
     @Column(nullable = false, precision = 19, scale = 2) var amount: BigDecimal = BigDecimal.ZERO,
     @Column(nullable = false, length = 3) var currency: String = "INR",
     @Column(nullable = false, length = 30) var status: String = "CREATED",
