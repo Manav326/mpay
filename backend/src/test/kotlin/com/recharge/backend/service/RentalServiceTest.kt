@@ -43,7 +43,7 @@ class RentalServiceTest {
                 any()
             )
 
-        Mockito.doReturnArgument(0)
+        Mockito.doAnswer { invocation -> invocation.arguments[0] }
             .`when`(bookings)
             .save(any(RentalBookingEntity::class.java))
 
