@@ -78,29 +78,113 @@ if ($ForceDownload) {
 
 try {
     if (-not $useCachedApk) {
-        if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-            throw "GitHub CLI (gh) is required only when a new APK must be downloaded. Install it from https://cli.github.com/ and run 'gh auth login'."
+        # Prefer GitHub CLI when available. If it is not installed, fall back to the
+        # GitHub REST API using a token from the environment or Git Credential Manager.
+        # This keeps the helper usable on machines that have Git configured but not gh.
+        $githubToken = $env:GH_TOKEN
+        if ([string]::IsNullOrWhiteSpace($githubToken)) {
+            $githubToken = $env:GITHUB_TOKEN
         }
 
-        Write-Host "Finding a successful Android artifact build for this exact commit..." -ForegroundColor Yellow
-        $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
-        if ($LASTEXITCODE -ne 0) {
-            throw "Could not query GitHub Actions runs."
+        if (-not (Get-Command gh -ErrorAction SilentlyContinue) -and [string]::IsNullOrWhiteSpace($githubToken)) {
+            try {
+                $credentialInput = "protocol=https" + [Environment]::NewLine + "host=github.com" + [Environment]::NewLine + [Environment]::NewLine
+                $credentialOutput = $credentialInput | git credential fill 2>$null
+                $credential = @{}
+                foreach ($line in $credentialOutput) {
+                    if ($line -match '^([^=]+)=(.*)$') {
+                        $credential[$matches[1]] = $matches[2]
+                    }
+                }
+
+                if ($credential.ContainsKey('password') -and -not [string]::IsNullOrWhiteSpace($credential['password'])) {
+                    $githubToken = $credential['password']
+                }
+            } catch {
+                # Credential Manager may not be configured; the explicit error below is clearer.
+            }
         }
 
-        $runs = $runJson | ConvertFrom-Json
+        if (Get-Command gh -ErrorAction SilentlyContinue) {
+            Write-Host "Finding a successful Android artifact build for this exact commit..." -ForegroundColor Yellow
+            $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not query GitHub Actions runs."
+            }
 
-        # The Android job is intentionally restricted to push events in Docker Compose CI.
-        # PR validation runs can be successful but do not produce the APK artifact.
-        $run = $runs | Where-Object {
-            $_.headSha -eq $headSha -and
-            $_.status -eq "completed" -and
-            $_.conclusion -eq "success" -and
-            $_.event -eq "push"
-        } | Sort-Object createdAt -Descending | Select-Object -First 1
+            $runs = $runJson | ConvertFrom-Json
 
-        if (-not $run) {
-            throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
+            # The Android job is intentionally restricted to push events in Docker Compose CI.
+            # PR validation runs can be successful but do not produce the APK artifact.
+            $run = $runs | Where-Object {
+                $_.headSha -eq $headSha -and
+                $_.status -eq "completed" -and
+                $_.conclusion -eq "success" -and
+                $_.event -eq "push"
+            } | Sort-Object createdAt -Descending | Select-Object -First 1
+
+            if (-not $run) {
+                throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
+            }
+
+            $runId = [string]$run.databaseId
+            $artifactZip = $null
+        } else {
+            if ([string]::IsNullOrWhiteSpace($githubToken)) {
+                throw "GitHub CLI (gh) is not installed and no GitHub token could be obtained from GH_TOKEN, GITHUB_TOKEN, or Git Credential Manager. Install gh from https://cli.github.com/ and run 'gh auth login', or configure a GitHub token in one of those supported locations."
+            }
+
+            Write-Host "GitHub CLI is not installed; using GitHub REST API with the existing GitHub credential..." -ForegroundColor Yellow
+            $apiHeaders = @{
+                Authorization = "Bearer $githubToken"
+                Accept = "application/vnd.github+json"
+                "X-GitHub-Api-Version" = "2022-11-28"
+            }
+
+            $workflowPath = [uri]::EscapeDataString(".github/workflows/docker-compose.yml")
+            $branchQuery = [uri]::EscapeDataString($Branch)
+            $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&event=push&per_page=30"
+            try {
+                $runsResponse = Invoke-RestMethod -Uri $runsUrl -Headers $apiHeaders -Method Get
+            } catch {
+                throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
+            }
+
+            $run = $runsResponse.workflow_runs | Where-Object {
+                $_.head_sha -eq $headSha -and
+                $_.status -eq "completed" -and
+                $_.conclusion -eq "success"
+            } | Sort-Object created_at -Descending | Select-Object -First 1
+
+            if (-not $run) {
+                throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
+            }
+
+            $runId = [string]$run.id
+            Write-Host "Found successful Actions run $runId for commit $headSha." -ForegroundColor Green
+
+            $artifactsUrl = "https://api.github.com/repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
+            try {
+                $artifactsResponse = Invoke-RestMethod -Uri $artifactsUrl -Headers $apiHeaders -Method Get
+            } catch {
+                throw "Could not list GitHub Actions artifacts for run $runId. $($_.Exception.Message)"
+            }
+
+            $artifact = $artifactsResponse.artifacts | Where-Object {
+                $_.name -eq $artifactName -and -not $_.expired
+            } | Sort-Object created_at -Descending | Select-Object -First 1
+
+            if (-not $artifact) {
+                throw "The successful run $runId does not have a non-expired '$artifactName' artifact."
+            }
+
+            $artifactZip = Join-Path $tempDir "$artifactName.zip"
+            Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
+            try {
+                Invoke-WebRequest -Uri "https://api.github.com/repos/Manav326/mpay/actions/artifacts/$($artifact.id)/zip" -Headers $apiHeaders -OutFile $artifactZip -UseBasicParsing
+            } catch {
+                throw "GitHub Actions artifact download failed for artifact $($artifact.id). $($_.Exception.Message)"
+            }
         }
 
         if (Test-Path $tempDir) {
