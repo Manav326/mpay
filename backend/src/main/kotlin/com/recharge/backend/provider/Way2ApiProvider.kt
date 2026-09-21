@@ -29,6 +29,8 @@ class Way2ApiProvider(
     private val objectMapper: ObjectMapper
 ) : RechargeProvider {
 
+    override val providerName: String = "way2api"
+
     private val http = RestClient.builder()
         .baseUrl(baseUrl.trimEnd('/'))
         .requestFactory(
