@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Checkout.preload(applicationContext)
-        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, walletPaymentViewModel) } }
+        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel) } }
     }
 
     private fun startRazorpayCheckout(order: PaymentOrderResponse) {
@@ -56,10 +56,32 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             val options = JSONObject().apply {
                 put("key", order.keyId); put("order_id", order.orderId); put("currency", order.currency);
                 put("amount", order.amount.movePointRight(2).longValueExact()); put("name", "mPay");
-                put("description", "Wallet add money"); put("theme.color", "#F59E0B")
+                put("description", if (order.provider.equals("payu", true)) "Recharge payment" else "Wallet add money"); put("theme.color", "#F59E0B")
             }
             checkout.open(this, options)
         } catch (e: Exception) { walletPaymentViewModel.paymentFailed(e.message ?: "Unable to open payment checkout") }
+    }
+
+    private fun startGatewayRechargeCheckout(order: PaymentOrderResponse, rechargeViewModel: RechargeViewModel) {
+        if (!order.provider.equals("razorpay", true)) {
+            rechargeViewModel.gatewayPaymentFailed(
+                "PayU gateway checkout needs PayU merchant key and salt. The BBPS client_id, client_secret and agentId do not replace those gateway credentials."
+            )
+            return
+        }
+        try {
+            val checkout = Checkout().apply { setKeyID(order.keyId) }
+            val options = JSONObject().apply {
+                put("key", order.keyId); put("order_id", order.orderId); put("currency", order.currency);
+                put("amount", order.amount.movePointRight(2).longValueExact()); put("name", "mPay");
+                put("description", "Mobile recharge"); put("theme.color", "#F59E0B")
+            }
+            checkout.open(this, object : com.razorpay.ExternalWalletListener {
+                override fun onExternalWalletSelected(p0: String?, p1: PaymentData?) = Unit
+            })
+        } catch (e: Exception) {
+            rechargeViewModel.gatewayPaymentFailed(e.message)
+        }
     }
 
     override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
@@ -76,7 +98,9 @@ private data class TopLevelDestination(val route: String, val label: String, val
 
 @Composable
 private fun AppRoot(
-    startRazorpay: (PaymentOrderResponse) -> Unit, paymentViewModel: WalletPaymentViewModel,
+    startRazorpay: (PaymentOrderResponse) -> Unit,
+    startGatewayRecharge: (PaymentOrderResponse, RechargeViewModel) -> Unit,
+    paymentViewModel: WalletPaymentViewModel,
     authViewModel: AuthViewModel = viewModel(), homeViewModel: HomeViewModel = viewModel(),
     profileViewModel: ProfileViewModel = viewModel(), rechargeViewModel: RechargeViewModel = viewModel(),
     rechargeHistoryViewModel: RechargeHistoryViewModel = viewModel(),
@@ -107,6 +131,12 @@ private fun AppRoot(
             passwordResetViewModel.clear()
             authRoute = "login"
             authViewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(rechargeState.gatewayOrder) {
+        rechargeState.gatewayOrder?.let { order ->
+            startGatewayRecharge(order, rechargeViewModel)
         }
     }
 
@@ -233,7 +263,20 @@ private fun AppNavHost(
             )
         }
         composable("recharge") {
-            RechargeScreen(rechargeViewModel.state.collectAsState().value, profileViewModel.state.collectAsState().value.user?.commissionRate, rechargeViewModel::setMobile, rechargeViewModel::detectAndLoad, rechargeViewModel::refreshPlans, rechargeViewModel::selectPlan, rechargeViewModel::executeSelectedPlan, rechargeViewModel::dismissResult, { paymentViewModel.reset(); showFundingDialogSetter(true) }, rechargeViewModel::refreshWallet, rechargeViewModel::clear)
+            RechargeScreen(
+    rechargeViewModel.state.collectAsState().value,
+    profileViewModel.state.collectAsState().value.user?.commissionRate,
+    rechargeViewModel::setMobile,
+    rechargeViewModel::detectAndLoad,
+    rechargeViewModel::refreshPlans,
+    rechargeViewModel::selectPlan,
+    rechargeViewModel::executeSelectedPlan,
+    rechargeViewModel::startGatewayRechargePayment,
+    rechargeViewModel::dismissResult,
+    { paymentViewModel.reset(); showFundingDialogSetter(true) },
+    rechargeViewModel::refreshWallet,
+    rechargeViewModel::clear
+)
         }
         composable("wallet") {
             WalletScreen(
