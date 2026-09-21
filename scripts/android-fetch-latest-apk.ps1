@@ -119,17 +119,17 @@ try {
 
             $runs = $runJson | ConvertFrom-Json
 
-            # The Android job is intentionally restricted to push events in Docker Compose CI.
-            # PR validation runs can be successful but do not produce the APK artifact.
+            # Android artifacts are produced for Android feature PRs and main pushes.
+            # Accept both event types so the helper follows the current CI workflow.
             $run = $runs | Where-Object {
                 $_.headSha -eq $headSha -and
                 $_.status -eq "completed" -and
                 $_.conclusion -eq "success" -and
-                $_.event -eq "push"
+                ($_.event -eq "push" -or $_.event -eq "pull_request")
             } | Sort-Object createdAt -Descending | Select-Object -First 1
 
             if (-not $run) {
-                throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
+                throw "No successful Android build with an APK artifact exists yet for commit $headSha. Checked push and pull-request workflow runs."
             }
 
             $runId = [string]$run.databaseId
@@ -148,7 +148,7 @@ try {
 
             $workflowPath = [uri]::EscapeDataString(".github/workflows/docker-compose.yml")
             $branchQuery = [uri]::EscapeDataString($Branch)
-            $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&event=push&per_page=30"
+            $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&per_page=30"
             try {
                 $runsResponse = Invoke-RestMethod -Uri $runsUrl -Headers $apiHeaders -Method Get
             } catch {
@@ -158,7 +158,8 @@ try {
             $run = $runsResponse.workflow_runs | Where-Object {
                 $_.head_sha -eq $headSha -and
                 $_.status -eq "completed" -and
-                $_.conclusion -eq "success"
+                $_.conclusion -eq "success" -and
+                ($_.event -eq "push" -or $_.event -eq "pull_request")
             } | Sort-Object created_at -Descending | Select-Object -First 1
 
             if (-not $run) {
