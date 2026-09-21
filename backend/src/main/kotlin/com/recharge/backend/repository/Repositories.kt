@@ -27,6 +27,22 @@ interface WalletRepository : JpaRepository<WalletEntity, Long> {
     fun findByUserIdForUpdate(@Param("userId") userId: Long): Optional<WalletEntity>
 }
 
+interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<WalletWithdrawalEntity>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByWithdrawalId(withdrawalId: String): Optional<WalletWithdrawalEntity>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByWithdrawalIdAndProviderName(withdrawalId: String, providerName: String): Optional<WalletWithdrawalEntity>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByProviderNameAndProviderReference(providerName: String, providerReference: String): Optional<WalletWithdrawalEntity>
+
+    fun findTop20ByUserIdOrderByCreatedAtDesc(userId: Long): List<WalletWithdrawalEntity>
+}
+
 interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, Long> {
     fun existsByExternalRef(externalRef: String): Boolean
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
