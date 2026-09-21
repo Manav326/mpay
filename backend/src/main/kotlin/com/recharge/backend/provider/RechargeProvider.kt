@@ -4,6 +4,7 @@ import java.math.BigDecimal
 
 interface OperatorDetectionProvider {
     val providerName: String
+    fun isConfigured(): Boolean = true
     fun detectOperator(mobileNumber: String): OperatorResult
 }
 
