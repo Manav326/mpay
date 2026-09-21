@@ -229,6 +229,14 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun generatePayUHash(hashName: String, hashString: String, onGenerated: (String) -> Unit) {
+        viewModelScope.launch {
+            repository.generatePayUHash(hashName, hashString, null, null)
+                .onSuccess(onGenerated)
+                .onFailure { gatewayPaymentFailed(it.message ?: "Unable to generate PayU payment hash") }
+        }
+    }
+
     fun gatewayPaymentFailed(message: String?) {
         _state.value = _state.value.copy(
             executing = false,
