@@ -128,14 +128,14 @@ class RazorpayService(
         val balance = walletService.credit(
             userId = userId,
             amount = order.amount,
-            externalRef = "RAZORPAY:${request.razorpayPaymentId}",
+            externalRef = "RAZORPAY:${request.paymentId.orEmpty()}",
             referenceType = "ADD_MONEY",
-            referenceId = request.razorpayPaymentId,
+            referenceId = request.paymentId.orEmpty(),
             description = "Wallet top-up via Razorpay"
         )
 
         order.status = "CAPTURED"
-        order.razorpayPaymentId = request.razorpayPaymentId
+        order.razorpayPaymentId = request.paymentId.orEmpty()
         order.razorpaySignature = request.signature.orEmpty()
         order.verifiedAt = Instant.now()
         paymentOrders.save(order)
