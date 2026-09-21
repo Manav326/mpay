@@ -192,10 +192,19 @@ try {
         }
         New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-        Write-Host "Downloading $artifactName from Actions run $($run.databaseId)..." -ForegroundColor Yellow
-        gh run download $run.databaseId --name $artifactName --dir $tempDir
-        if ($LASTEXITCODE -ne 0) {
-            throw "GitHub Actions artifact download failed for run $($run.databaseId)."
+        if (Get-Command gh -ErrorAction SilentlyContinue) {
+            Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
+            gh run download $runId --name $artifactName --dir $tempDir
+            if ($LASTEXITCODE -ne 0) {
+                throw "GitHub Actions artifact download failed for run $runId."
+            }
+        } else {
+            Write-Host "Extracting the REST API artifact archive..." -ForegroundColor Yellow
+            try {
+                Expand-Archive -Path $artifactZip -DestinationPath $tempDir -Force
+            } catch {
+                throw "Could not extract the GitHub Actions artifact archive. $($_.Exception.Message)"
+            }
         }
 
         $downloadedApk = Get-ChildItem -Path $tempDir -Filter "*.apk" -File -Recurse | Select-Object -First 1
