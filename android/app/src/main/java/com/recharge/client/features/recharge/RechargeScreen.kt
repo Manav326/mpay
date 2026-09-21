@@ -40,7 +40,7 @@ fun RechargeScreen(
     onSelectPlan: (RechargePlan) -> Unit,
     onExecuteRecharge: () -> Unit,
     onGatewayPay: () -> Unit,
-    onDismissResult: () -> Unit,
+    onDone: () -> Unit,
     onAddMoney: () -> Unit,
     onRefreshWallet: () -> Unit,
     onExit: () -> Unit
@@ -75,21 +75,21 @@ fun RechargeScreen(
             body = "₹${formatMoney(action.response.amount)} recharge completed. Wallet charged ₹${formatMoney(action.response.walletDebitAmount)} after commission.",
             detail = "${state.mobile} • ${operatorLabel(state.operator?.operator.orEmpty())}",
             positive = true,
-            onDismiss = onDismissResult
+            onDismiss = onDone
         )
         is RechargeActionState.Pending -> RechargeResultDialog(
             title = "Recharge is processing",
             body = "Your recharge has been accepted and is still being processed.",
             detail = "Wallet debit reserved: ₹${formatMoney(action.response.walletDebitAmount)}",
             positive = false,
-            onDismiss = onDismissResult
+            onDismiss = onDone
         )
         is RechargeActionState.Failure -> RechargeResultDialog(
             title = "Recharge not completed",
             body = action.message,
             detail = "No permanent wallet debit is made for a failed recharge.",
             positive = false,
-            onDismiss = onDismissResult
+            onDismiss = onDone
         )
         else -> Unit
     }
