@@ -86,6 +86,13 @@ jobs:
           docker push "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           docker push "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
 
+      - name: Verify pushed images
+        if: github.event_name == 'push'
+        run: |
+          docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}"
+          docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"
+          docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
+          docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
       - name: Build summary
         if: always()
         run: |
