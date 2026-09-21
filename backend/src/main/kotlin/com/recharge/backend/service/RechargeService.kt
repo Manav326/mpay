@@ -29,7 +29,10 @@ class RechargeService(
             circle = r.circle,
             type = r.type,
             providerOrderId = r.providerOrderId,
-            rechargeStatus = "UNKNOWN"
+            rechargeStatus = r.status,
+            pending = r.pending,
+            message = r.message,
+            providerMessageCode = r.messageCode
         )
     }
 
