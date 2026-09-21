@@ -93,6 +93,19 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
             repository.detectOperator(mobile)
                 .onSuccess { detected ->
+                    if (detected.pending) {
+                        _state.value = _state.value.copy(
+                            operator = null,
+                            detecting = false,
+                            loadingPlans = false,
+                            plans = emptyList(),
+                            selectedPlan = null,
+                            error = friendlyRechargeError(detected.message)
+                                .ifBlank { "Operator detection is still processing. Please try again later." }
+                        )
+                        return@onSuccess
+                    }
+
                     _state.value = _state.value.copy(
                         operator = detected,
                         detecting = false,
@@ -283,6 +296,15 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     private fun friendlyRechargeError(message: String?): String {
         val raw = message?.trim().orEmpty()
         return when {
+            raw.contains("timed out", ignoreCase = true) ||
+                raw.contains("could not be reached", ignoreCase = true) ->
+                "Operator service is taking too long to respond. Please try again later."
+            raw.contains("rate limit", ignoreCase = true) ->
+                "Operator service is temporarily busy. Please try again later."
+            raw.contains("insufficient balance", ignoreCase = true) ->
+                "The recharge service provider account has insufficient balance. Please try again later."
+            raw.contains("no api access", ignoreCase = true) ->
+                "The operator service is not enabled for this account."
             raw.contains("Personalized R-Offers", ignoreCase = true) ->
                 "Personalized offers are not available for this operator yet."
             raw.contains("no recharge offers", ignoreCase = true) ->
