@@ -275,14 +275,13 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun gatewayVerificationToRechargeResponse(verification: PaymentVerificationResponse): RechargeResponse {
-        val plan = _state.value.selectedPlan
-        val amount = plan?.amount ?: BigDecimal.ZERO
+        val amount = verification.amount ?: _state.value.selectedPlan?.amount ?: BigDecimal.ZERO
         return RechargeResponse(
             transactionId = verification.transactionId.orEmpty(),
             status = verification.rechargeStatus ?: verification.status.orEmpty(),
             amount = amount,
-            commission = BigDecimal.ZERO,
-            walletDebitAmount = amount,
+            commission = verification.commission ?: BigDecimal.ZERO,
+            walletDebitAmount = verification.walletDebitAmount ?: amount,
             walletBalance = verification.balance
         )
     }
