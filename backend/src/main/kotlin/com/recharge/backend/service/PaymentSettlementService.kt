@@ -44,7 +44,10 @@ class PaymentSettlementService(
                     status = "CAPTURED",
                     balance = recharge.walletBalance,
                     transactionId = recharge.transactionId,
-                    rechargeStatus = recharge.status
+                    rechargeStatus = recharge.status,
+                    amount = recharge.amount,
+                    commission = recharge.commission,
+                    walletDebitAmount = recharge.walletDebitAmount
                 )
             }
 
