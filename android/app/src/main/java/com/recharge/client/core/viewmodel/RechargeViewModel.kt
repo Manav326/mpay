@@ -173,7 +173,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 .onSuccess { wallet ->
                     _state.value = _state.value.copy(
                         refreshingWallet = false,
-                        walletBalance = wallet.balance
+                        walletBalance = wallet.availableBalance
                     )
                 }
                 .onFailure { failure ->
@@ -271,7 +271,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 val response = gatewayVerificationToRechargeResponse(verification)
                 _state.value = _state.value.copy(
                     executing = false,
-                    walletBalance = verification.balance,
+                    walletBalance = verification.availableBalance,
                     action = when (verification.rechargeStatus?.uppercase()) {
                         "SUCCESS" -> RechargeActionState.Success(response)
                         "FAILED" -> RechargeActionState.Failure(verification.message ?: "Recharge failed after payment verification.")
@@ -337,7 +337,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 .onSuccess { response ->
                     _state.value = _state.value.copy(
                         executing = false,
-                        walletBalance = response.walletBalance,
+                        walletBalance = response.walletAvailableBalance,
                         action = when (response.status.uppercase()) {
                             "SUCCESS" -> RechargeActionState.Success(response)
                             "FAILED" -> RechargeActionState.Failure("Recharge failed. Your wallet balance has not been permanently deducted.")
@@ -368,7 +368,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                     .onSuccess { status ->
                         _state.value = _state.value.copy(
                             transactionStatus = status,
-                            walletBalance = status.walletBalance
+                            walletBalance = status.walletAvailableBalance
                         )
 
                         when (status.status.uppercase()) {
