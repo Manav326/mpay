@@ -213,9 +213,19 @@ try {
 
             $artifactZip = Join-Path $tempDir "$artifactName.zip"
             Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
-            gh api "repos/Manav326/mpay/actions/artifacts/$($artifact.id)/zip" --output $artifactZip
-            if ($LASTEXITCODE -ne 0) {
-                throw "GitHub Actions artifact download failed for artifact $($artifact.id)."
+            try {
+                # GitHub's artifact endpoint returns a temporary redirect to blob storage.
+                # Use gh for authentication, then download the redirected ZIP directly so
+                # binary data is written safely to disk.
+                $downloadUrl = "https://api.github.com/repos/Manav326/mpay/actions/artifacts/$($artifact.id)/zip"
+                $redirectResponse = Invoke-WebRequest -Uri $downloadUrl -Headers @{ Authorization = "Bearer $((gh auth token).Trim())"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" } -Method Get -MaximumRedirection 0 -ErrorAction SilentlyContinue
+                if ($redirectResponse.StatusCode -eq 302 -and $redirectResponse.Headers.Location) {
+                    Invoke-WebRequest -Uri $redirectResponse.Headers.Location -OutFile $artifactZip -UseBasicParsing
+                } else {
+                    throw "GitHub did not return the expected artifact download redirect."
+                }
+            } catch {
+                throw "GitHub Actions artifact download failed for artifact $($artifact.id). $($_.Exception.Message)"
             }
 
             Write-Host "Extracting the GitHub Actions artifact archive..." -ForegroundColor Yellow
