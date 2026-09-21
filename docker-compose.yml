@@ -10,7 +10,7 @@ services:
     volumes:
       - mpay_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "$${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -45,6 +45,7 @@ services:
     networks: [mpay]
 
   backend:
+    image: ${MPAY_BACKEND_IMAGE:-ghcr.io/manav326/mpay-backend}:${MPAY_IMAGE_TAG:-latest}
     build:
       context: ./backend
     restart: unless-stopped
@@ -68,6 +69,7 @@ services:
     networks: [mpay]
 
   admin-web:
+    image: ${MPAY_ADMIN_WEB_IMAGE:-ghcr.io/manav326/mpay-admin-web}:${MPAY_IMAGE_TAG:-latest}
     build:
       context: ./admin-web
       args:
