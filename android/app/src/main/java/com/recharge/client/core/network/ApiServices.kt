@@ -59,6 +59,9 @@ interface ClientApi {
     @POST("api/v1/recharge/payment-order")
     suspend fun createRechargePaymentOrder(@Body request: RechargeRequest): Response<PaymentOrderResponse>
 
+    @POST("api/v1/payments/payu/hash")
+    suspend fun payuHash(@Body request: PayUHashRequest): Response<PayUHashResponse>
+
     @POST("api/v1/recharge/operator")
     suspend fun operator(@Body request: OperatorCheckRequest): Response<OperatorCheckResponse>
 
