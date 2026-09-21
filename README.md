@@ -2,6 +2,12 @@
 
 This repository groups the current mPay backend, Admin Web, and Android client under one parent folder.
 
+## Architecture and automation
+
+The complete system architecture, GitHub Actions flow, Docker/GHCR feature-test workflow, Android APK automation, ADB installation flow, exact reusable PowerShell commands, branch workflow, and current verified baseline are documented here:
+
+[docs/ARCHITECTURE_AND_AUTOMATION.md](docs/ARCHITECTURE_AND_AUTOMATION.md)
+
 ## Runtime model
 
 - PostgreSQL: Docker service `postgres`
@@ -70,123 +76,20 @@ Examples:
 feature/recharge-history
 feature/operator-detection
 feature/admin-reports
+feature/android-<feature-name>
 ```
 
-### What GitHub Actions does
+The shared workflow also builds the Android debug APK for pushes to `main` and Android-specific feature branches.
 
-A push to `feature/**`:
+## Quick Android command
 
-1. Validates `docker-compose.yml`.
-2. Builds the backend and Admin Web Docker images in GitHub.
-3. Publishes feature images to GHCR.
-4. Uses a stable branch tag such as:
-   `feature-recharge-history-latest`.
-5. Also publishes an immutable commit tag:
-   `sha-<commit>`.
-
-A pull request targeting `main` builds the images for validation but does not publish PR images.
-
-A push to `main` publishes:
-
-- `latest`
-- `sha-<commit>`
-
-## Local GitHub feature testing
-
-The GitHub-built images are the images used by the `mpay-github` environment.
-
-### First-time GHCR login
-
-If GHCR requires authentication for your account, run:
+From the repository root, on the exact commit you want to test:
 
 ```powershell
-docker login ghcr.io -u Manav326
+.\scripts\android-fetch-latest-apk.ps1
 ```
 
-Use a GitHub token with package read access. Never commit the token.
-
-### Switch away from the stable stack
-
-Because both stacks use ports 3000, 8080 and 5050, stop the stable stack without deleting it:
-
-```powershell
-docker compose -p mpay stop
-```
-
-### Checkout a feature branch
-
-```powershell
-git checkout feature/<feature-name>
-git pull origin feature/<feature-name>
-```
-
-### Pull and run the GitHub-built images
-
-From the repository root:
-
-```powershell
-.\scripts\mpay-github-update.ps1
-```
-
-The script automatically derives the GHCR tag from the current branch.
-
-For example:
-
-```text
-feature/recharge-history
-        ↓
-feature-recharge-history-latest
-```
-
-It then:
-
-```text
-1. docker compose pull backend admin-web
-2. start/reuse postgres, redis and pgadmin
-3. start backend/admin-web with --no-build --no-deps
-```
-
-This means the local machine does not run the Gradle build or Next.js build for every feature update, and PostgreSQL/Redis are not restarted just because the application code changed.
-
-### Manual fast update
-
-The equivalent commands are:
-
-```powershell
-docker compose -p mpay-github pull backend admin-web
-docker compose -p mpay-github up -d --no-build --no-deps backend admin-web
-```
-
-## Switching back to the stable application
-
-```powershell
-docker compose -p mpay-github stop
-docker compose -p mpay up -d
-```
-
-Do not use `down -v` for routine switching.
-
-## Local development configuration
-
-The root `.env` intentionally remains a development configuration.
-
-The default application images are:
-
-```text
-MPAY_BACKEND_IMAGE=ghcr.io/manav326/mpay-backend
-MPAY_ADMIN_WEB_IMAGE=ghcr.io/manav326/mpay-admin-web
-MPAY_IMAGE_TAG=latest
-```
-
-The `mpay-github-update.ps1` helper overrides `MPAY_IMAGE_TAG` for the current feature branch, so you do not need to edit `.env` every time.
-
-The backend continues using the local development secret file:
-
-```text
-backend/config/application-secrets.yml
-```
-
-Keep that file local and never commit it.
+The helper reuses a cached APK when it belongs to the current commit and downloads a new GitHub Actions artifact only when necessary.
 
 ## Local URLs
 
@@ -255,4 +158,4 @@ The backend continues using:
 backend/config/application-secrets.yml
 ```
 
-The Docker image excludes this file and mounts it read-only at runtime.
+Keep that file local and never commit it.
