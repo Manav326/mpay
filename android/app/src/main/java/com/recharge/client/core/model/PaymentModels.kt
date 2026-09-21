@@ -33,6 +33,9 @@ data class PaymentVerificationResponse(
     val balance: BigDecimal = BigDecimal.ZERO,
     val transactionId: String? = null,
     val rechargeStatus: String? = null,
+    val amount: BigDecimal? = null,
+    val commission: BigDecimal? = null,
+    val walletDebitAmount: BigDecimal? = null,
     val message: String? = null,
     val currency: String = "INR"
 )
