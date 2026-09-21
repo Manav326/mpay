@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.domain.RechargeOfferCacheEntity
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.recharge.backend.provider.RechargePlan
 import com.recharge.backend.repository.RechargeOfferCacheRepository
 import org.springframework.stereotype.Service
@@ -16,7 +17,8 @@ interface RechargeOfferCacheStore {
 
 @Service
 class JpaRechargeOfferCacheStore(
-    private val repository: RechargeOfferCacheRepository
+    private val repository: RechargeOfferCacheRepository,
+    private val objectMapper: ObjectMapper
 ) : RechargeOfferCacheStore {
 
     override fun getFreshPlans(cacheKey: String, now: Instant): List<RechargePlan> =
@@ -55,6 +57,7 @@ class JpaRechargeOfferCacheStore(
                     providerReference = plan.providerReference,
                     providerOrderId = plan.providerOrderId,
                     providerLogDescription = plan.providerLogDescription,
+                    providerMetadata = if (plan.providerMetadata.isEmpty()) null else objectMapper.writeValueAsString(plan.providerMetadata),
                     fetchedAt = fetchedAt,
                     expiresAt = expiresAt
                 )
@@ -69,6 +72,11 @@ class JpaRechargeOfferCacheStore(
         description = row.description,
         providerReference = row.providerReference,
         providerOrderId = row.providerOrderId,
-        providerLogDescription = row.providerLogDescription
+        providerLogDescription = row.providerLogDescription,
+        providerMetadata = row.providerMetadata?.let { raw ->
+            runCatching {
+                objectMapper.readValue(raw, object : com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {})
+            }.getOrDefault(emptyMap())
+        } ?: emptyMap()
     )
 }
