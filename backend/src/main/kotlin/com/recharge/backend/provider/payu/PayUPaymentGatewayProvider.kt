@@ -25,7 +25,8 @@ class PayUPaymentGatewayProvider(
     private val properties: com.recharge.backend.config.PayUProperties,
     private val orders: PaymentOrderRepository,
     private val users: UserRepository,
-    private val walletService: WalletService
+    private val walletService: WalletService,
+    private val paymentSettlementService: com.recharge.backend.service.PaymentSettlementService
 ) : PaymentGatewayProvider {
 
     override val providerName: String = "payu"
@@ -59,7 +60,12 @@ class PayUPaymentGatewayProvider(
                 providerName = providerName,
                 amount = amount,
                 currency = "INR",
-                status = "CREATED"
+                status = "CREATED",
+                purpose = request.purpose,
+                rechargeMobileNumber = request.rechargeMobileNumber,
+                rechargeOperator = request.rechargeOperator,
+                rechargeCircle = request.rechargeCircle,
+                rechargePlanId = request.rechargePlanId
             )
         )
 
@@ -99,14 +105,6 @@ class PayUPaymentGatewayProvider(
         require(paidAmount.setScale(2) == order.amount.setScale(2)) { "PayU payment amount mismatch" }
 
         val paymentReference = transaction.path("mihpayid").asText().takeIf { it.isNotBlank() } ?: txnId
-        val balance = walletService.credit(
-            userId = userId,
-            amount = order.amount,
-            externalRef = "PAYU:$txnId",
-            referenceType = "ADD_MONEY",
-            referenceId = txnId,
-            description = "Wallet top-up via PayU"
-        )
 
         order.status = "CAPTURED"
         order.razorpayPaymentId = paymentReference
@@ -114,7 +112,11 @@ class PayUPaymentGatewayProvider(
         order.verifiedAt = Instant.now()
         orders.save(order)
 
-        return VerifyPaymentResponse("CAPTURED", balance)
+        return paymentSettlementService.settleCaptured(
+            userId = userId,
+            order = order,
+            externalPaymentReference = paymentReference
+        )
     }
 
     fun generateHash(hashName: String, hashString: String, postSalt: String? = null, hashType: String? = null): String {
