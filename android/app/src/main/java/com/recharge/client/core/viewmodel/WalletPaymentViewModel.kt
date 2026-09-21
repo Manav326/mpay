@@ -59,8 +59,8 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun verifyPayment(paymentId: String, orderId: String, signature: String) {
-        if (paymentId.isBlank() || orderId.isBlank() || signature.isBlank()) {
+    fun verifyPayment(provider: String, paymentId: String?, orderId: String, signature: String?) {
+        if (orderId.isBlank()) {
             _state.value = PaymentUiState.Error("Payment verification data is incomplete")
             return
         }
@@ -69,10 +69,10 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
             _state.value = PaymentUiState.Verifying
             repository.verifyPayment(
                 VerifyPaymentRequest(
-                    provider = "razorpay",
-                    paymentId = paymentId,
+                    provider = provider,
+                    paymentId = paymentId?.takeIf { it.isNotBlank() },
                     orderId = orderId,
-                    signature = signature
+                    signature = signature?.takeIf { it.isNotBlank() }
                 )
             ).onSuccess {
                 _state.value = PaymentUiState.Success("Payment successful. Wallet is being updated.")
