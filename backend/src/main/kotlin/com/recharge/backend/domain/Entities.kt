@@ -95,6 +95,7 @@ class RechargeOfferCacheEntity(
     @Column(name = "provider_reference", length = 150) var providerReference: String? = null,
     @Column(name = "provider_order_id", length = 150) var providerOrderId: String? = null,
     @Column(name = "provider_log_description", length = 1500) var providerLogDescription: String? = null,
+    @Column(name = "provider_metadata", length = 3000) var providerMetadata: String? = null,
     @Column(name = "fetched_at", nullable = false) var fetchedAt: Instant = Instant.now(),
     @Column(name = "expires_at", nullable = false) var expiresAt: Instant = Instant.now()
 )
