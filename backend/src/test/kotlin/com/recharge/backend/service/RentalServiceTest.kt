@@ -39,8 +39,8 @@ class RentalServiceTest {
         Mockito.doReturn(BigDecimal("1000.00"))
             .`when`(wallet)
             .finalizeReservedDebit(
-                42L,
-                BigDecimal("6000.00"),
+                Mockito.eq(42L),
+                Mockito.eq(BigDecimal("6000.00")),
                 Mockito.anyString(),
                 Mockito.anyString()
             )
@@ -59,8 +59,8 @@ class RentalServiceTest {
         Mockito.verify(wallet, Mockito.times(1)).reserve(42L, BigDecimal("6000.00"))
         Mockito.verify(wallet, Mockito.times(1))
             .finalizeReservedDebit(
-                42L,
-                BigDecimal("6000.00"),
+                Mockito.eq(42L),
+                Mockito.eq(BigDecimal("6000.00")),
                 Mockito.anyString(),
                 Mockito.anyString()
             )
