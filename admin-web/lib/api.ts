@@ -132,7 +132,36 @@ export async function getUsers(role: Role | 'ALL' = 'ALL', sort: SortMode = 'tod
 
 export async function getUserDetailById(id: string): Promise<UserDetail> {
   if (demo) return getUserDetail(id);
-  return api(`/api/v1/admin/users/${encodeURIComponent(id)}`);
+
+  const result = await api<{
+    summary: UserSummary;
+    rechargeCount: number;
+    addMoneyTotal: number;
+    withdrawalTotal: number;
+    commissionRate: number;
+    balance: number;
+    availableBalance: number;
+    reservedBalance: number;
+    profileImageUrl?: string | null;
+    profileImageVersion?: number | null;
+    latestRecharge?: UserDetail['latestRecharge'];
+    recentWalletEntries: UserDetail['recentWalletEntries'];
+  }>(`/api/v1/admin/users/${encodeURIComponent(id)}`);
+
+  return {
+    ...result.summary,
+    rechargeCount: result.rechargeCount,
+    addMoneyTotal: result.addMoneyTotal,
+    withdrawalTotal: result.withdrawalTotal,
+    commissionRate: result.commissionRate,
+    balance: result.balance,
+    availableBalance: result.availableBalance,
+    reservedBalance: result.reservedBalance,
+    profileImageUrl: result.profileImageUrl,
+    profileImageVersion: result.profileImageVersion,
+    latestRecharge: result.latestRecharge,
+    recentWalletEntries: result.recentWalletEntries,
+  };
 }
 
 export async function getUserRechargeHistory(id: string, page = 0, size = 25): Promise<RechargeHistoryResponse> {
