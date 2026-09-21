@@ -39,6 +39,20 @@ Recharge POST body:
 
 The backend never trusts a client-supplied amount; it re-fetches the current provider offers and resolves planId server-side.
 
+## Plan-provider routing
+
+Plan discovery is behind the PlanCatalogProvider abstraction.
+
+Current routing:
+- AIRTEL -> Way2API R-Offer
+- VI -> Way2API R-Offer
+- JIO -> no provider configured yet; the request is rejected before calling Way2API R-Offer
+- BSNL -> no provider configured yet; the request is rejected before calling Way2API R-Offer
+
+Additional providers implement PlanCatalogProvider, declare the operators they support, and can be selected by the existing provider preference or used as an operator-specific fallback. Android does not need to change when a new provider is added.
+
+Way2API R-Offers are for prepaid Airtel/Vi numbers only. The Android flow blocks a detected POSTPAID number before making the R-Offer request.
+
 ## Operator detection reliability
 
 The operator/circle lookup is a real Way2API call:
