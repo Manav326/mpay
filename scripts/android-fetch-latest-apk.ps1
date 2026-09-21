@@ -27,7 +27,7 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
 }
 
 $workflow = "Docker Compose CI"
-$artifactName = "mpay-android-debug-apk"
+$artifactName = "mpay-android-$($Branch -replace '^feature/', 'feature-')"
 $packageName = "com.recharge.client"
 $headSha = (git rev-parse HEAD).Trim()
 
@@ -119,14 +119,7 @@ try {
 
             $runs = $runJson | ConvertFrom-Json
 
-            # Android artifacts are produced for Android feature PRs and main pushes.
-            # Accept both event types so the helper follows the current CI workflow.
-            $run = $runs | Where-Object {
-                $_.headSha -eq $headSha -and
-                $_.status -eq "completed" -and
-                $_.conclusion -eq "success" -and
-                ($_.event -eq "push" -or $_.event -eq "pull_request")
-            } | Sort-Object createdAt -Descending | Select-Object -First 1
+            $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
 
             if (-not $run) {
                 throw "No successful Android build with an APK artifact exists yet for commit $headSha. Checked push and pull-request workflow runs."
