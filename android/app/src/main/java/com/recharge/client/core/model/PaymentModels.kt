@@ -31,6 +31,7 @@ data class VerifyPaymentRequest(
 data class PaymentVerificationResponse(
     val status: String? = null,
     val balance: BigDecimal = BigDecimal.ZERO,
+    val availableBalance: BigDecimal = balance,
     val transactionId: String? = null,
     val rechargeStatus: String? = null,
     val amount: BigDecimal? = null,
