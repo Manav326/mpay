@@ -124,6 +124,19 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
     setWalletHasNext(next.hasNext);
   }
 
+  const walletWithBalances = useMemo(() => {
+    let running = user.balance;
+    return walletHistory.map(item => {
+      const posted = item.status.toUpperCase() === 'POSTED';
+      if (!posted) return { item, before: null as number | null, after: null as number | null };
+      const after = running;
+      const reducesBalance = ['DEBIT', 'WITHDRAW'].includes(item.type.toUpperCase());
+      const before = reducesBalance ? after + item.amount : after - item.amount;
+      running = before;
+      return { item, before, after };
+    });
+  }, [walletHistory, user.balance]);
+
   const statusClass = user.status.toLowerCase();
 
   return <div className="drawer-overlay" onClick={onClose}>
@@ -193,8 +206,8 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
       {tab==='wallet' && <section className="drawer-section">
         <div className="drawer-section-title"><div><h3>Complete balance history</h3><p>Credits, debits, withdrawals and linked recharge ledger entries.</p></div></div>
         {loadingWallet ? <div className="empty-state">Loading balance history…</div> : walletHistory.length===0 ? <div className="empty-state">No balance history found.</div> :
-          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Status</th><th>Reference</th><th>Description</th></tr></thead><tbody>
-            {walletHistory.map(item=><tr key={item.id}><td>{dateTime(item.createdAt)}</td><td><b>{item.referenceType || item.type}</b>{item.mobileNumber&&<span>{item.operator} · {item.mobileNumber}</span>}</td><td><b>{INR.format(item.amount)}</b></td><td><span className={"status " + item.status.toLowerCase()}>{item.status}</span></td><td><span className="mono">{item.referenceId || item.externalRef}</span></td><td>{item.description || '—'}</td></tr>)}
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance before</th><th>Balance after</th><th>Status</th><th>Reference</th><th>Description</th></tr></thead><tbody>
+            {walletWithBalances.map(({item,before,after})=><tr key={item.id}><td>{dateTime(item.createdAt)}</td><td><b>{item.referenceType || item.type}</b>{item.mobileNumber&&<span>{item.operator} · {item.mobileNumber}</span>}</td><td><b>{INR.format(item.amount)}</b></td><td>{before===null?'—':INR.format(before)}</td><td>{after===null?'—':INR.format(after)}</td><td><span className={"status " + item.status.toLowerCase()}>{item.status}</span></td><td><span className="mono">{item.referenceId || item.externalRef}</span></td><td>{item.description || '—'}</td></tr>)}
           </tbody></table></div>}
         {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
       </section>}
