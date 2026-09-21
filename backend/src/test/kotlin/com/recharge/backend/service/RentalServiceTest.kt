@@ -25,6 +25,8 @@ class RentalServiceTest {
             id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
             transmission = "Automatic", pricePerDay = BigDecimal("2000.00"), active = true
         )
+        val start = LocalDate.now().plusDays(2)
+        val end = start.plusDays(3)
 
         Mockito.doReturn(Optional.of(car))
             .`when`(cars)
@@ -32,31 +34,35 @@ class RentalServiceTest {
 
         Mockito.doReturn(false)
             .`when`(bookings)
-            .existsOverlapping(Mockito.eq(7L), any(), any(), any())
+            .existsOverlapping(7L, listOf("PENDING", "CONFIRMED"), start, end)
 
         Mockito.doReturn(BigDecimal("1000.00"))
             .`when`(wallet)
             .finalizeReservedDebit(
-                Mockito.eq(42L),
-                Mockito.eq(BigDecimal("6000.00")),
-                any(),
-                any()
+                42L,
+                BigDecimal("6000.00"),
+                Mockito.anyString(),
+                Mockito.anyString()
             )
 
         Mockito.doAnswer { invocation -> invocation.arguments[0] }
             .`when`(bookings)
             .save(any(RentalBookingEntity::class.java))
 
-        val start = LocalDate.now().plusDays(2)
         val result = service.createBooking(
             42L,
-            RentalBookingRequest("7", "Darbhanga", "Patna", start, start.plusDays(3))
+            RentalBookingRequest("7", "Darbhanga", "Patna", start, end)
         )
 
         assertEquals(BigDecimal("6000.00"), result.total)
         assertEquals("CONFIRMED", result.status)
         Mockito.verify(wallet, Mockito.times(1)).reserve(42L, BigDecimal("6000.00"))
         Mockito.verify(wallet, Mockito.times(1))
-            .finalizeReservedDebit(Mockito.eq(42L), Mockito.eq(BigDecimal("6000.00")), any(), any())
+            .finalizeReservedDebit(
+                42L,
+                BigDecimal("6000.00"),
+                Mockito.anyString(),
+                Mockito.anyString()
+            )
     }
 }
