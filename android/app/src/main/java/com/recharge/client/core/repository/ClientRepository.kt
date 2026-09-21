@@ -91,9 +91,16 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun verifyPayment(request: VerifyPaymentRequest): Result<Unit> = runCatching {
+    suspend fun verifyPayment(request: VerifyPaymentRequest): Result<com.recharge.client.core.model.PaymentVerificationResponse> = runCatching {
         val response = api.verifyPayment(request)
-        if (!response.isSuccessful) error(ApiError.message(response))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun createRechargePaymentOrder(request: RechargeRequest): Result<PaymentOrderResponse> = runCatching {
+        val response = api.createRechargePaymentOrder(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
     }
 
     suspend fun detectOperator(mobile: String): Result<OperatorCheckResponse> = runCatching {
@@ -103,7 +110,7 @@ class ClientRepository(context: Context) {
     }
 
     suspend fun plans(mobile: String, operator: String, circle: String): Result<List<RechargePlan>> = runCatching {
-        val response = api.plans(mobile, operator, circle)
+        val response = api.plans(mobile, operator, circle, null, null)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
