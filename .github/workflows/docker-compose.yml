@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - "feature/**"
   pull_request:
     branches:
       - main
@@ -97,12 +96,10 @@ jobs:
 
   android-apk:
     if: >
-      github.event_name == 'push' &&
-      (
-        github.ref_name == 'main' ||
-        startsWith(github.ref_name, 'feature/android-') ||
-        startsWith(github.ref_name, 'feature/android/')
-      )
+      (github.event_name == 'pull_request' &&
+        (startsWith(github.head_ref, 'feature/android-') ||
+         startsWith(github.head_ref, 'feature/android/'))) ||
+      (github.event_name == 'push' && github.ref_name == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
