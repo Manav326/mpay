@@ -123,7 +123,7 @@ class PayUPaymentGatewayProvider(
         check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
         require(hashName.isNotBlank() && hashString.isNotBlank()) { "PayU hash request is incomplete" }
         val data = if (!postSalt.isNullOrBlank()) hashString + properties.pgSalt + postSalt else hashString + properties.pgSalt
-        return if (hashType.equals("V2", true)) sha256WithKey(hashString, properties.pgSalt) else sha512(data)
+        return sha512(data)
     }
 
     private fun responseFor(userId: Long, order: PaymentOrderEntity): CreatePaymentOrderResponse {
@@ -147,7 +147,8 @@ class PayUPaymentGatewayProvider(
                 "furl" to properties.pgFailureUrl,
                 "userCredential" to "${properties.pgKey}:$phone",
                 "vasForMobileSdkHash" to sha512("${properties.pgKey}|vas_for_mobile_sdk|${order.amount.toPlainString()}|${properties.pgSalt}"),
-                "paymentRelatedDetailsHash" to sha512("${properties.pgKey}|payment_related_details_for_mobile_sdk|${properties.pgKey}:$phone|${properties.pgSalt}")
+                "paymentRelatedDetailsHash" to sha512("${properties.pgKey}|payment_related_details_for_mobile_sdk|${properties.pgKey}:$phone|${properties.pgSalt}"),
+                "isProduction" to properties.pgProduction.toString()
             )
         )
     }
@@ -169,13 +170,6 @@ class PayUPaymentGatewayProvider(
         MessageDigest.getInstance("SHA-512")
             .digest(value.toByteArray(StandardCharsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
-
-    private fun sha256WithKey(value: String, key: String): String {
-        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
-        mac.init(javax.crypto.spec.SecretKeySpec(key.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
-        return mac.doFinal(value.toByteArray(StandardCharsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-    }
 
     private fun enc(value: String): String = java.net.URLEncoder.encode(value, Charsets.UTF_8)
 }
