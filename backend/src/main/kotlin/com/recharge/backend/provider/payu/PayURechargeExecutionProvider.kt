@@ -22,6 +22,9 @@ class PayURechargeExecutionProvider(
 
     override val providerName: String = "payu"
 
+    override fun isConfigured(): Boolean =
+        auth.isConfigured() && properties.agentId.isNotBlank()
+
     private val http = RestClient.builder()
         .baseUrl(properties.nbcBaseUrl.trimEnd('/'))
         .build()
