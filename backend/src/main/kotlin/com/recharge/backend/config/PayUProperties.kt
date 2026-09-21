@@ -14,6 +14,8 @@ data class PayUProperties(
     val operatorCirclePath: String = "/payu-nbc/v2/nbc/getOperatorAndCircleInfo",
     val plansPath: String = "/payu-nbc/v3/nbc/getRechargePlans",
     val customPlansPath: String = "/payu-nbc/v3/nbc/getCustomizedRechargePlans",
+    val operatorCodeMappings: Map<String, String> = emptyMap(),
+    val circleCodeMappings: Map<String, String> = emptyMap(),
     val billPaymentPath: String = "/payu-nbc-int/v1/nbc/billpaymentrequest",
     val statusPath: String = "/payu-nbc/v2/nbc/status/billpayment",
     val paymentMode: String = "WALLET",
