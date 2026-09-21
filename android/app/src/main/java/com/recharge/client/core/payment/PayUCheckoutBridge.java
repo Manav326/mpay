@@ -6,12 +6,12 @@ import android.webkit.WebView;
 import java.util.HashMap;
 import java.util.Map;
 
-import in.payu.checkoutpro.PayUCheckoutPro;
-import in.payu.checkoutpro.PayUCheckoutProListener;
-import in.payu.checkoutpro.constants.PayUCheckoutProConstants;
-import in.payu.checkoutpro.models.PayUPaymentParams;
-import in.payu.checkoutpro.utils.ErrorResponse;
-import in.payu.checkoutpro.utils.PayUHashGenerationListener;
+import com.payu.checkoutpro.PayUCheckoutPro;
+import com.payu.ui.model.listeners.PayUCheckoutProListener;
+import com.payu.checkoutpro.utils.PayUCheckoutProConstants;
+import com.payu.base.models.PayUPaymentParams;
+import com.payu.base.models.ErrorResponse;
+import com.payu.ui.model.listeners.PayUHashGenerationListener;
 
 public final class PayUCheckoutBridge {
     private PayUCheckoutBridge() {}
