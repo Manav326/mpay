@@ -43,9 +43,6 @@ import in.payu.checkoutpro.PayUCheckoutPro
 import in.payu.checkoutpro.PayUCheckoutProListener
 import in.payu.checkoutpro.constants.PayUCheckoutProConstants
 import in.payu.checkoutpro.utils.ErrorResponse
-import in.payu.custombrowser.bean.CustomBrowserConfig
-import in.payu.custombrowser.analytics.Analytics
-import in.payu.custombrowser.Bank
 import in.payu.checkoutpro.utils.PayUHashGenerationListener
 import in.payu.checkoutpro.models.PayUPaymentParams
 import org.json.JSONObject
