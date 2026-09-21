@@ -10,7 +10,7 @@ COPY settings.gradle.kts build.gradle.kts ./
 COPY src ./src
 
 RUN chmod +x gradlew
-RUN gradle clean bootJar --no-daemon
+RUN gradle clean test bootJar --no-daemon
 
 
 FROM eclipse-temurin:21-jre
