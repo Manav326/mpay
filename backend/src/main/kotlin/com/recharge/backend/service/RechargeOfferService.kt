@@ -55,7 +55,7 @@ class RechargeOfferService(
                 it.providerName.equals(name, ignoreCase = true) && it.supportsOperator(operator)
             }?.let { return it }
         }
-        providers.firstOrNull { it.supportsOperator(operator) }?.let { return it }
+        providers.firstOrNull { it.isConfigured() && it.supportsOperator(operator) }?.let { return it }
 
         throw IllegalArgumentException(
             "No configured recharge plan provider supports ${operator.trim().uppercase()} prepaid numbers yet"
