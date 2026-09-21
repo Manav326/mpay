@@ -138,9 +138,23 @@ class Way2ApiROfferPlanProvider(
             )
         }
 
-        val result = root.data?.result ?: error("Way2API R-Offer returned no offer data")
+        val result = root.data?.result
+            ?: throw Way2ApiException(
+                upstreamStatusCode = root.status_code,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = "Way2API R-Offer returned success without offer data"
+            )
+
         if (!result.operator.equals(way2Operator, ignoreCase = true)) {
-            error("Way2API returned a different operator than requested")
+            throw Way2ApiException(
+                upstreamStatusCode = 502,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data.order_id,
+                message = "Way2API returned a different operator than requested"
+            )
         }
 
         return result.offers.mapIndexed { index, offer ->
