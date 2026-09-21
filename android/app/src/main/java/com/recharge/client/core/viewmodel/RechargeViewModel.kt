@@ -300,19 +300,25 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 (raw.contains("timed out", ignoreCase = true) ||
                     raw.contains("could not be reached", ignoreCase = true)) ->
                 "Recharge offers service is taking too long to respond. Please try again later."
+            raw.contains("R-Offer", ignoreCase = true) &&
+                raw.contains("rate limit", ignoreCase = true) ->
+                "Recharge offers service is temporarily busy. Please try again later."
+            raw.contains("R-Offer", ignoreCase = true) &&
+                raw.contains("insufficient balance", ignoreCase = true) ->
+                "The recharge offers provider account has insufficient balance. Please try again later."
             raw.contains("timed out", ignoreCase = true) ||
                 raw.contains("could not be reached", ignoreCase = true) ->
-                "Operator service is taking too long to respond. Please try again later."
+                "Operator detection service is taking too long to respond. Please try again later."
             raw.contains("rate limit", ignoreCase = true) ->
-                "Operator service is temporarily busy. Please try again later."
+                "Operator detection service is temporarily busy. Please try again later."
             raw.contains("insufficient balance", ignoreCase = true) ->
-                "The recharge service provider account has insufficient balance. Please try again later."
+                "The operator provider account has insufficient balance. Please try again later."
             raw.contains("no api access", ignoreCase = true) ->
-                "The operator service is not enabled for this account."
+                "The operator detection service is not enabled for this account."
             raw.contains("Personalized R-Offers", ignoreCase = true) ->
-                "Personalized offers are not available for this operator yet."
+                "Personalized offers through Way2API are currently supported only for Airtel and Vi numbers."
             raw.contains("no recharge offers", ignoreCase = true) ->
-                "No recharge offers are available for this number right now."
+                "No personalized recharge offers are available for this number right now."
             raw.contains("available balance", ignoreCase = true) ||
                 raw.contains("insufficient", ignoreCase = true) ->
                 "Your wallet balance is not sufficient for this recharge."
