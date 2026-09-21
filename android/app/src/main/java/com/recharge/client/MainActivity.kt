@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     }
 
                     override fun generateHash(
-                        valueMap: HashMap<String, String>,
+                        valueMap: HashMap<String, String?>,
                         hashGenerationListener: PayUHashGenerationListener
                     ) {
                         val hashName = valueMap[PayUCheckoutProConstants.CP_HASH_NAME].orEmpty()
@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                             return
                         }
                         rechargeViewModel.generatePayUHash(hashName, hashString) { hash ->
-                            val hashMap = HashMap<String, String>()
+                            val hashMap = HashMap<String, String?>()
                             hashMap[hashName] = hash
                             hashGenerationListener.onHashGenerated(hashMap)
                         }
