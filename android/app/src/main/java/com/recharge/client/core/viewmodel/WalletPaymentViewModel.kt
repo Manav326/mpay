@@ -27,7 +27,7 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
     private val _state = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
     val state = _state.asStateFlow()
 
-    fun createOrder(amountText: String) {
+    fun createOrder(amountText: String, provider: String = "razorpay") {
         val amount = amountText.toBigDecimalOrNull()
         if (amount == null || amount <= BigDecimal.ZERO) {
             _state.value = PaymentUiState.Error("Enter a valid amount")
