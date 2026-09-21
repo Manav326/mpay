@@ -39,3 +39,12 @@ data class PaymentVerificationResponse(
     val message: String? = null,
     val currency: String = "INR"
 )
+
+data class PayUHashRequest(
+    val hashName: String,
+    val hashString: String,
+    val postSalt: String? = null,
+    val hashType: String? = null
+)
+
+data class PayUHashResponse(val hash: String)
