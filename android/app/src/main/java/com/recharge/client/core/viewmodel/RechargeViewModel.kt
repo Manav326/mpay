@@ -106,6 +106,18 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                         return@onSuccess
                     }
 
+                    if (detected.type?.equals("POSTPAID", ignoreCase = true) == true) {
+                        _state.value = _state.value.copy(
+                            operator = detected,
+                            detecting = false,
+                            loadingPlans = false,
+                            plans = emptyList(),
+                            selectedPlan = null,
+                            error = "Personalized recharge offers are currently available only for prepaid numbers."
+                        )
+                        return@onSuccess
+                    }
+
                     _state.value = _state.value.copy(
                         operator = detected,
                         detecting = false,
@@ -315,6 +327,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 "The operator provider account has insufficient balance. Please try again later."
             raw.contains("no api access", ignoreCase = true) ->
                 "The operator detection service is not enabled for this account."
+            raw.contains("No configured recharge plan provider supports", ignoreCase = true) ->
+                "Recharge plans are currently available only for Airtel and Vi numbers."
             raw.contains("Personalized R-Offers", ignoreCase = true) ->
                 "Personalized offers through Way2API are currently supported only for Airtel and Vi numbers."
             raw.contains("no recharge offers", ignoreCase = true) ->
