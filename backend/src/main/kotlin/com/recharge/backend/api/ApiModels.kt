@@ -316,6 +316,11 @@ data class AdminUserDetailResponse(
     val addMoneyTotal: BigDecimal,
     val withdrawalTotal: BigDecimal,
     val commissionRate: BigDecimal,
+    val balance: BigDecimal,
+    val availableBalance: BigDecimal,
+    val reservedBalance: BigDecimal,
+    val profileImageUrl: String?,
+    val profileImageVersion: Long?,
     val latestRecharge: AdminLatestRechargeResponse?,
     val recentWalletEntries: List<AdminWalletEntryResponse>
 )
