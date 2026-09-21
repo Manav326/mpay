@@ -8,76 +8,73 @@ import com.recharge.backend.provider.RechargePlan
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.web.client.RestClient
 import java.math.BigDecimal
+import java.security.MessageDigest
 
 @Service
-@ConditionalOnProperty(prefix = "app.recharge", name = ["plan-provider"], havingValue = "payu")
 class PayUPlanProvider(
     private val properties: PayUProperties,
     private val authService: PayUAuthService,
     private val objectMapper: ObjectMapper
 ) : PlanCatalogProvider {
 
+    override val providerName: String = "payu"
+
     private val client = RestClient.builder()
         .baseUrl(properties.nbcBaseUrl.trimEnd('/'))
         .build()
 
-    override fun getPlans(mobileNumber: String, operator: String, circle: String): List<RechargePlan> {
-        require(mobileNumber.matches(Regex("[6-9][0-9]{9}"))) {
-            "Mobile number must be a valid 10 digit Indian mobile number"
-        }
+    override fun supportsOperator(operator: String): Boolean = operator.isNotBlank()
+
+    override fun getPlans(
+        mobileNumber: String,
+        operator: String,
+        circle: String,
+        providerOperator: String?,
+        providerCircle: String?
+    ): List<RechargePlan> {
+        require(mobileNumber.matches(Regex("[6-9][0-9]{9}"))) { "Mobile number must be a valid 10 digit Indian mobile number" }
         require(operator.isNotBlank()) { "Operator is required" }
         require(circle.isNotBlank()) { "Circle is required" }
+        check(authService.isConfigured()) { "PayU BBPS credentials are not configured" }
+        check(properties.agentId.isNotBlank()) { "PayU agentId is not configured" }
 
-        // Until the newly created PayU credentials are verified, we intentionally use
-        // a development-only deterministic mock. This lets us finish and test our
-        // internal contract without pretending PayU authentication succeeded.
-        if (properties.planMockEnabled) {
-            return mockPlans(operator, circle)
-        }
+        val operatorId = providerOperator?.takeIf { it.isNotBlank() }
+            ?: throw PayUIntegrationException("PayU operator ID is missing from operator detection")
+        val circleId = providerCircle?.takeIf { it.isNotBlank() }
+            ?: throw PayUIntegrationException("PayU circle ID is missing from operator detection")
 
-        if (!authService.isConfigured()) {
-            throw PayUIntegrationException("PayU credentials are not configured and plan mock is disabled")
-        }
-
-        val accessToken = authService.getAccessToken()
-        val operatorId = properties.operatorCodeMappings[operator.uppercase()]
-            ?: throw PayUIntegrationException("No PayU operatorId mapping configured for '$operator'")
-        val circleId = properties.circleCodeMappings[circle]
-            ?: properties.circleCodeMappings.entries.firstOrNull { it.key.equals(circle, ignoreCase = true) }?.value
-            ?: throw PayUIntegrationException("No PayU circleId mapping configured for '$circle'")
-        val agentId = properties.agentId.trim()
-        require(agentId.isNotBlank()) { "PayU agent-id is required for plan lookup" }
-
+        val accessToken = authService.getAccessToken("read_plans")
         val response = client.get()
             .uri { builder ->
-                builder.path(properties.plansPath)
-                    .queryParam("agentId", agentId)
+                builder.path(properties.customPlansPath)
+                    .queryParam("agentId", properties.agentId)
                     .queryParam("circleId", circleId)
+                    .queryParam("mobileNo", mobileNumber)
                     .queryParam("operatorId", operatorId)
                     .build()
             }
             .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
-            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
             .retrieve()
             .body(String::class.java)
             ?: throw PayUIntegrationException("PayU plans API returned an empty response")
 
-        return parsePlans(response, operator, circle)
+        return parsePlans(response, operator, circle, operatorId, circleId)
     }
 
-    private fun parsePlans(raw: String, operator: String, circle: String): List<RechargePlan> {
-        val root = try {
-            objectMapper.readTree(raw)
-        } catch (ex: Exception) {
-            throw PayUIntegrationException("PayU plans API returned invalid JSON", ex)
-        }
+    private fun parsePlans(
+        raw: String,
+        operator: String,
+        circle: String,
+        operatorId: String,
+        circleId: String
+    ): List<RechargePlan> {
+        val root = runCatching { objectMapper.readTree(raw) }
+            .getOrElse { throw PayUIntegrationException("PayU plans API returned invalid JSON", it) }
 
-        val status = root.path("status").asText()
-        if (!status.equals("SUCCESS", ignoreCase = true)) {
+        if (!root.path("status").asText().equals("SUCCESS", true)) {
             val message = root.path("message").asText().takeIf { it.isNotBlank() }
                 ?: root.path("payload").path("errors").firstOrNull()?.path("reason")?.asText()
                 ?: "PayU plans API failed"
@@ -85,81 +82,64 @@ class PayUPlanProvider(
         }
 
         val payload = root.path("payload")
-        val plans = mutableListOf<RechargePlan>()
+        val nodes = mutableListOf<JsonNode>()
 
         if (payload.isArray) {
-            // Current PayU documented response: payload[] -> circleWisePlanLists[] -> plansInfo[].
             payload.forEach { operatorNode ->
                 operatorNode.path("circleWisePlanLists").forEach { circleNode ->
-                    val circleName = circleNode.path("circleName").asText()
-                    if (circleName.isBlank() || circleName.equals(circle, ignoreCase = true)) {
-                        circleNode.path("plansInfo").forEach { plan ->
-                            plans += toRechargePlan(plan)
-                        }
+                    if (
+                        circleNode.path("circleId").asText().equals(circleId, true) ||
+                        circleNode.path("circleName").asText().equals(circle, true)
+                    ) {
+                        circleNode.path("plansInfo").forEach(nodes::add)
                     }
                 }
             }
         } else if (payload.isObject) {
-            // Custom-plan API shape: payload.plansInfo[].
-            payload.path("plansInfo").forEach { plan ->
-                plans += toRechargePlan(plan)
+            payload.path("plansInfo").forEach(nodes::add)
+            payload.path("circleWisePlanLists").forEach { circleNode ->
+                circleNode.path("plansInfo").forEach(nodes::add)
             }
         }
 
-        return plans
+        return nodes.map { toRechargePlan(it, operatorId, circleId) }
             .filter { it.amount.signum() > 0 }
             .distinctBy { it.id }
     }
 
-    private fun toRechargePlan(plan: JsonNode): RechargePlan {
+    private fun toRechargePlan(plan: JsonNode, operatorId: String, circleId: String): RechargePlan {
         val planName = plan.path("planName").asText().ifBlank { "Recharge plan" }
-        val price = plan.path("price").asText()
-            .ifBlank { plan.path("amount").asText() }
-            .toBigDecimalOrNull()
+        val price = firstDecimal(plan, "price", "amount")
             ?: throw PayUIntegrationException("PayU returned a plan without a valid price")
         val planType = plan.path("planType").asText().takeIf { it.isNotBlank() }
         val validity = plan.path("validity").asText().takeIf { it.isNotBlank() }
         val validityDescription = plan.path("validityDescription").asText().takeIf { it.isNotBlank() }
         val talkTime = plan.path("talkTime").asText().takeIf { it.isNotBlank() }
         val packageDescription = plan.path("packageDescription").asText().takeIf { it.isNotBlank() }
-
         val idSource = listOf(planType, planName, price.toPlainString(), validity).filterNotNull().joinToString("|")
-        val id = "PAYU-${idSource.hashCode().toUInt().toString(16)}"
-        val description = listOf(validityDescription, packageDescription, talkTime)
-            .filterNotNull()
-            .filter { it.isNotBlank() }
-            .joinToString(" • ")
-            .ifBlank { planName }
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(idSource.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+            .take(20)
 
         return RechargePlan(
-            id = id,
+            id = "PAYU-$digest",
             amount = price,
             validity = validity,
-            description = description
-        )
-    }
-
-    private fun mockPlans(operator: String, circle: String): List<RechargePlan> {
-        val prefix = "MOCK-${operator.uppercase()}-${circle.hashCode().toUInt().toString(16)}"
-        return listOf(
-            RechargePlan(
-                id = "$prefix-199",
-                amount = BigDecimal("199.00"),
-                validity = "28 days",
-                description = "Mock UAT plan • Unlimited voice + 1.5 GB/day + 100 SMS/day"
-            ),
-            RechargePlan(
-                id = "$prefix-299",
-                amount = BigDecimal("299.00"),
-                validity = "28 days",
-                description = "Mock UAT plan • Unlimited voice + 2 GB/day + 100 SMS/day"
-            ),
-            RechargePlan(
-                id = "$prefix-399",
-                amount = BigDecimal("399.00"),
-                validity = "56 days",
-                description = "Mock UAT plan • Unlimited voice + 2.5 GB/day + 100 SMS/day"
+            description = listOf(validityDescription, packageDescription, talkTime)
+                .filterNotNull().filter { it.isNotBlank() }.joinToString(" • ").ifBlank { planName },
+            providerMetadata = mapOf(
+                "operatorId" to operatorId,
+                "circleId" to circleId,
+                "planName" to planName,
+                "planType" to (planType ?: ""),
+                "validity" to (validity ?: "")
             )
         )
     }
+
+    private fun firstDecimal(node: JsonNode, vararg names: String): BigDecimal? =
+        names.asSequence().map { node.path(it).asText() }
+            .mapNotNull { it.toBigDecimalOrNull() }
+            .firstOrNull()
 }
