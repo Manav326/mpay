@@ -66,14 +66,16 @@ class WithdrawalService(
                 )
             )
         } catch (e: Exception) {
-            persistence.markFailed(
+            // A network/transport error does not prove the provider rejected the payout.
+            // Keep the wallet reservation until a provider status/webhook resolves it.
+            val processing = persistence.markProcessing(
                 saved.withdrawalId,
                 provider.providerName,
-                e.message ?: "Payout provider request failed"
+                providerReference = null,
+                providerStatus = "UNKNOWN",
+                message = "Provider outcome could not be confirmed: " + (e.message ?: "provider error")
             )
-            throw IllegalArgumentException(
-                "Unable to initiate withdrawal with ${provider.providerName}: ${e.message ?: "provider error"}"
-            )
+            return responseFor(processing)
         }
 
         val finalEntity = when (result.status.uppercase()) {
