@@ -20,10 +20,10 @@ class RechargeService(
     private val workflow: RechargeTransactionWorkflowService,
     private val rechargeRepository: RechargeTransactionRepository,
     private val walletService: WalletService,
-    @Value("${'$'{app.commission.company-percent}}") private val companyPercent: BigDecimal,
+    @Value("\${app.commission.company-percent}") private val companyPercent: BigDecimal,
     private val commissionRateService: CommissionRateService,
-    @Value("${'$'{app.recharge.operator-providers:payu,way2api}}") private val operatorProviderOrder: String,
-    @Value("${'$'{app.recharge.execution-providers:payu,mock}}") private val executionProviderOrder: String
+    @Value("\${app.recharge.operator-providers:way2api,payu}") private val operatorProviderOrder: String,
+    @Value("\${app.recharge.execution-providers:payu,mock}") private val executionProviderOrder: String
 ) {
     fun detect(request: OperatorCheckRequest): OperatorCheckResponse {
         var lastError: Exception? = null
