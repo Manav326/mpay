@@ -47,6 +47,11 @@ app:
     base-url: https://app.way2api.com
     operator-check-path: /api/v1/operator-circle/check
     r-offer-path: /api/v1/mobile/r-offer
+    # Keep the backend upstream timeout longer than the Android client timeout.
+    # Do not auto-retry operator checks after a timeout because the provider may have
+    # accepted/charged the request even when our connection timed out.
+    connect-timeout-ms: ${MPAY_WAY2API_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${MPAY_WAY2API_READ_TIMEOUT_MS:45000}
   recharge:
     plan-provider: way2api
     execution-provider: mock
