@@ -113,8 +113,13 @@ data class OperatorCheckResponse(
 )
 data class RechargePlanDto(val id: String, val amount: BigDecimal, val validity: String?, val description: String?)
 data class CreatePaymentOrderRequest(
-    @field:DecimalMin("10.00") val amount: BigDecimal,
-    @field:NotBlank val clientRequestId: String
+    @field:DecimalMin("0.01") val amount: BigDecimal,
+    @field:NotBlank val clientRequestId: String,
+    val purpose: String = "ADD_MONEY",
+    val rechargeMobileNumber: String? = null,
+    val rechargeOperator: String? = null,
+    val rechargeCircle: String? = null,
+    val rechargePlanId: String? = null
 )
 
 data class CreatePaymentOrderResponse(
@@ -136,6 +141,9 @@ data class VerifyPaymentRequest(
 data class VerifyPaymentResponse(
     val status: String,
     val balance: BigDecimal,
+    val transactionId: String? = null,
+    val rechargeStatus: String? = null,
+    val message: String? = null,
     val currency: String = "INR"
 )
 
