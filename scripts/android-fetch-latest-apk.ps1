@@ -194,10 +194,35 @@ try {
         }
 
         if (Get-Command gh -ErrorAction SilentlyContinue) {
-            Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
-            gh run download $runId --name $artifactName --dir $tempDir
+            # Download through the GitHub API instead of 'gh run download'.
+            # This avoids the CLI artifact-download path hanging on some machines.
+            Write-Host "Finding artifact $artifactName for Actions run $runId..." -ForegroundColor Yellow
+            $artifactListJson = gh api "repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
             if ($LASTEXITCODE -ne 0) {
-                throw "GitHub Actions artifact download failed for run $runId."
+                throw "Could not list GitHub Actions artifacts for run $runId."
+            }
+
+            $artifact = ($artifactListJson | ConvertFrom-Json).artifacts |
+                Where-Object { $_.name -eq $artifactName -and -not $_.expired } |
+                Sort-Object created_at -Descending |
+                Select-Object -First 1
+
+            if (-not $artifact) {
+                throw "The successful run $runId does not have a non-expired '$artifactName' artifact."
+            }
+
+            $artifactZip = Join-Path $tempDir "$artifactName.zip"
+            Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
+            gh api "repos/Manav326/mpay/actions/artifacts/$($artifact.id)/zip" --output $artifactZip
+            if ($LASTEXITCODE -ne 0) {
+                throw "GitHub Actions artifact download failed for artifact $($artifact.id)."
+            }
+
+            Write-Host "Extracting the GitHub Actions artifact archive..." -ForegroundColor Yellow
+            try {
+                Expand-Archive -Path $artifactZip -DestinationPath $tempDir -Force
+            } catch {
+                throw "Could not extract the GitHub Actions artifact archive. $($_.Exception.Message)"
             }
         } else {
             Write-Host "Extracting the REST API artifact archive..." -ForegroundColor Yellow
