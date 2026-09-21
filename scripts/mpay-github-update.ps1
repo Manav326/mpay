@@ -31,12 +31,7 @@ Write-Host "Backend   : $backendImage"
 Write-Host "Admin Web : $adminWebImage"
 Write-Host ""
 
-Write-Host "Pulling exact branch images from GHCR..." -ForegroundColor Yellow
-docker pull $backendImage
-if ($LASTEXITCODE -ne 0) { throw "Backend image pull failed: $backendImage" }
-docker pull $adminWebImage
-if ($LASTEXITCODE -ne 0) { throw "Admin Web image pull failed: $adminWebImage" }
-
+Write-Host "Pulling exact branch images from GHCR via Compose..." -ForegroundColor Yellow
 docker compose -p mpay-github pull backend admin-web
 if ($LASTEXITCODE -ne 0) { throw "Docker image pull failed." }
 
