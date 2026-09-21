@@ -58,7 +58,7 @@ app:
   recharge:
     operator-providers: way2api,payu
     plan-providers: way2api,payu
-    execution-providers: payu,mock
+    execution-providers: payu
     mock-execution-status: SUCCESS
     # R-Offers are number-specific; cache per mobile/operator/circle for 24h.
     # A failed recharge invalidates that mobile's cached offers immediately.
