@@ -3,14 +3,36 @@ package com.recharge.backend.service
 import com.recharge.backend.api.RechargeRequest
 import com.recharge.backend.api.VerifyPaymentResponse
 import com.recharge.backend.domain.PaymentOrderEntity
+import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
 class PaymentSettlementService(
     private val walletService: WalletService,
-    private val rechargeService: RechargeService
+    private val rechargeService: RechargeService,
+    private val rechargeRepository: RechargeTransactionRepository
 ) {
+    fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse {
+        if (order.purpose.equals("RECHARGE", true)) {
+            val recharge = rechargeRepository.findByClientRequestIdAndUserId(order.clientRequestId, userId).orElse(null)
+            if (recharge != null) {
+                val wallet = walletService.getWalletSnapshot(userId)
+                return VerifyPaymentResponse(
+                    status = "CAPTURED",
+                    balance = wallet.balance,
+                    transactionId = recharge.transactionId,
+                    rechargeStatus = recharge.status,
+                    amount = recharge.amount,
+                    commission = recharge.clientCommission,
+                    walletDebitAmount = recharge.walletDebitAmount,
+                    message = recharge.message
+                )
+            }
+        }
+        return VerifyPaymentResponse(status = "CAPTURED", balance = walletService.getBalance(userId))
+    }
+
     @Transactional
     fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse {
         return when (order.purpose.uppercase()) {
