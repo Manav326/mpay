@@ -36,15 +36,10 @@ import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
+import com.recharge.client.core.payment.PayUCheckoutBridge
 import com.razorpay.Checkout
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
-import `in`.payu.checkoutpro.PayUCheckoutPro
-import `in`.payu.checkoutpro.PayUCheckoutProListener
-import `in`.payu.checkoutpro.constants.PayUCheckoutProConstants
-import `in`.payu.checkoutpro.utils.ErrorResponse
-import `in`.payu.checkoutpro.utils.PayUHashGenerationListener
-import `in`.payu.checkoutpro.models.PayUPaymentParams
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
@@ -73,43 +68,60 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     private fun startGatewayRechargeCheckout(order: PaymentOrderResponse, rechargeViewModel: RechargeViewModel) {
         try {
             if (order.provider.equals("payu", true)) {
-                val params = PayUPaymentParams.Builder()
-                    .setAmount(order.amount.setScale(2).toPlainString())
-                    .setIsProduction(order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false)
-                    .setProductInfo(order.checkoutParams["productInfo"] ?: "Mobile recharge")
-                    .setKey(order.keyId)
-                    .setPhone(order.checkoutParams["phone"].orEmpty())
-                    .setTransactionId(order.orderId)
-                    .setFirstName(order.checkoutParams["firstName"] ?: "mPay")
-                    .setEmail(order.checkoutParams["email"] ?: "customer@mpay.local")
-                    .setSurl(order.checkoutParams["surl"].orEmpty())
-                    .setFurl(order.checkoutParams["furl"].orEmpty())
-                    .setUserCredential(order.checkoutParams["userCredential"].orEmpty())
-                    .build()
+                PayUCheckoutBridge.open(
+                    activity = this,
+                    amount = order.amount.setScale(2).toPlainString(),
+                    isProduction = order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false,
+                    productInfo = order.checkoutParams["productInfo"] ?: "Mobile recharge",
+                    key = order.keyId,
+                    phone = order.checkoutParams["phone"].orEmpty(),
+                    transactionId = order.orderId,
+                    firstName = order.checkoutParams["firstName"] ?: "mPay",
+                    email = order.checkoutParams["email"] ?: "customer@mpay.local",
+                    surl = order.checkoutParams["surl"].orEmpty(),
+                    furl = order.checkoutParams["furl"].orEmpty(),
+                    userCredential = order.checkoutParams["userCredential"].orEmpty(),
+                    callback = object : PayUCheckoutBridge.Callback {
+                        override fun onPaymentSuccess(response: Any?) {
+                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
+                            val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
+                            val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
+                            val mihpayid = parsed?.optString("mihpayid").orEmpty()
+                            val hash = parsed?.optString("hash").orEmpty()
+                            rechargeViewModel.verifyGatewayPayment("payu", mihpayid, txnId, hash)
+                        }
 
-                PayUCheckoutPro.open(this, params, object : PayUCheckoutProListener {
-                    override fun onPaymentSuccess(response: Any) {
-                        val result = response as? Map<*, *>
-                        val payuResponse = result?.get(PayUCheckoutProConstants.CP_PAYU_RESPONSE) as? String
-                        val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
-                        val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
-                        val mihpayid = parsed?.optString("mihpayid").orEmpty()
-                        val hash = parsed?.optString("hash").orEmpty()
-                        rechargeViewModel.verifyGatewayPayment("payu", mihpayid, txnId, hash)
+                        override fun onPaymentFailure(response: Any?) {
+                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
+                            val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
+                                .getOrNull()?.takeIf { it.isNotBlank() }
+                            rechargeViewModel.gatewayPaymentFailed(message ?: "PayU payment failed")
+                        }
+
+                        override fun onPaymentCancel(isTxnInitiated: Boolean) {
+                            if (isTxnInitiated) {
+                                rechargeViewModel.verifyGatewayPayment("payu", null, order.orderId, null)
+                            } else {
+                                rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
+                            }
+                        }
+
+                        override fun onError(message: String?) {
+                            rechargeViewModel.gatewayPaymentFailed(message ?: "PayU checkout error")
+                        }
+
+                        override fun onGenerateHash(
+                            hashName: String,
+                            hashString: String,
+                            callback: PayUCheckoutBridge.PayUHashCallback
+                        ) {
+                            rechargeViewModel.generatePayUHash(hashName, hashString) { hash ->
+                                callback.onHashGenerated(hash)
+                            }
+                        }
                     }
-
-                    override fun onPaymentFailure(response: Any) {
-                        val result = response as? Map<*, *>
-                        val payuResponse = result?.get(PayUCheckoutProConstants.CP_PAYU_RESPONSE) as? String
-                        val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
-                            .getOrNull()?.takeIf { it.isNotBlank() }
-                        rechargeViewModel.gatewayPaymentFailed(message ?: "PayU payment failed")
-                    }
-
-                    override fun onPaymentCancel(isTxnInitiated: Boolean) {
-                        if (isTxnInitiated) {
-                            rechargeViewModel.verifyGatewayPayment("payu", null, order.orderId, null)
-                        } else {
+                )
+            } else {
                             rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
                         }
                     }
