@@ -8,8 +8,9 @@ import java.time.Instant
 
 @Service
 class RechargeOfferService(
-    private val provider: PlanCatalogProvider,
+    private val providers: List<PlanCatalogProvider>,
     private val cache: RechargeOfferCacheStore,
+    @Value("\${app.recharge.plan-provider:way2api}") private val preferredProvider: String,
     @Value("\${app.recharge.offer-cache-ttl-seconds:600}") private val ttlSeconds: Long
 ) {
     fun getOffers(mobileNumber: String, operator: String, circle: String): List<RechargePlan> {
@@ -18,6 +19,7 @@ class RechargeOfferService(
         val cached = cache.getFreshPlans(cacheKey, now)
         if (cached.isNotEmpty()) return cached
 
+        val provider = resolveProvider(operator)
         val fetched = provider.getPlans(mobileNumber, operator, circle)
         val filtered = fetched.filter { it.amount.signum() > 0 }
         if (filtered.isEmpty()) return emptyList()
@@ -46,6 +48,18 @@ class RechargeOfferService(
         cache.invalidate(cacheKey(mobileNumber, operator, circle))
     }
 
+    private fun resolveProvider(operator: String): PlanCatalogProvider {
+        providers.firstOrNull {
+            it.providerName.equals(preferredProvider, ignoreCase = true) &&
+                it.supportsOperator(operator)
+        }?.let { return it }
+
+        providers.firstOrNull { it.supportsOperator(operator) }?.let { return it }
+
+        throw IllegalArgumentException(
+            "No configured recharge plan provider supports ${operator.trim().uppercase()} prepaid numbers yet"
+        )
+    }
     private fun cacheKey(mobileNumber: String, operator: String, circle: String): String =
         listOf(mobileNumber.trim(), operator.trim().uppercase(), circle.trim().uppercase()).joinToString("|")
 }
