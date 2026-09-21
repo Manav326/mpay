@@ -142,7 +142,15 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             _state.value = _state.value.copy(withdrawing = true, withdrawError = null, withdrawSuccess = null)
             repository.withdraw(amount, upiId, provider)
                 .onSuccess { response ->
-                    _state.value = _state.value.copy(withdrawing = false, withdrawSuccess = "₹${response.amount.setScale(2)} will be sent to ${response.upiId} (mocked).")
+                    _state.value = _state.value.copy(
+                        withdrawing = false,
+                        withdrawSuccess = response.message
+                            ?: when (response.status.uppercase()) {
+                                "SUCCESS" -> "₹${response.amount.setScale(2)} was sent to ${response.upiId}."
+                                "PROCESSING", "PENDING" -> "₹${response.amount.setScale(2)} withdrawal is processing for ${response.upiId}."
+                                else -> "Withdrawal status: ${response.status.lowercase()}."
+                            }
+                    )
                     loadHistory(true)
                 }
                 .onFailure { e -> _state.value = _state.value.copy(withdrawing = false, withdrawError = e.message ?: "Unable to withdraw money.") }
