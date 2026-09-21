@@ -42,7 +42,7 @@ class RentalService(
     @Transactional
     fun createBooking(userId: Long, request: RentalBookingRequest): RentalBookingResponse {
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
-        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
+        val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         check(car.active) { "Rental car is not available" }
         val pickup = request.pickupLocation.trim()
         val drop = request.dropLocation.trim()
