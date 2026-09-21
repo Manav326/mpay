@@ -52,6 +52,13 @@ class ClientController(
     ): CreatePaymentOrderResponse =
         paymentGatewayService.createWalletOrder(authenticatedUserId(authentication), request)
 
+    @PostMapping("/recharge/payment-order")
+    fun createRechargePaymentOrder(
+        authentication: Authentication,
+        @Valid @RequestBody request: RechargeRequest
+    ): CreatePaymentOrderResponse =
+        paymentGatewayService.createRechargeOrder(authenticatedUserId(authentication), request)
+
     @PostMapping("/payments/verify")
     fun verifyPayment(
         authentication: Authentication,
