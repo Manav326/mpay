@@ -36,15 +36,6 @@ class RentalServiceTest {
             .`when`(bookings)
             .existsOverlapping(7L, listOf("PENDING", "CONFIRMED"), start, end)
 
-        Mockito.doReturn(BigDecimal("1000.00"))
-            .`when`(wallet)
-            .finalizeReservedDebit(
-                Mockito.eq(42L),
-                Mockito.eq(BigDecimal("6000.00")),
-                Mockito.anyString(),
-                Mockito.anyString()
-            )
-
         Mockito.doAnswer { invocation -> invocation.arguments[0] }
             .`when`(bookings)
             .save(any(RentalBookingEntity::class.java))
@@ -59,10 +50,10 @@ class RentalServiceTest {
         Mockito.verify(wallet, Mockito.times(1)).reserve(42L, BigDecimal("6000.00"))
         Mockito.verify(wallet, Mockito.times(1))
             .finalizeReservedDebit(
-                Mockito.eq(42L),
-                Mockito.eq(BigDecimal("6000.00")),
-                Mockito.anyString(),
-                Mockito.anyString()
+                42L,
+                BigDecimal("6000.00"),
+                result.bookingId,
+                result.bookingId
             )
     }
 }
