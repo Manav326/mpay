@@ -31,6 +31,12 @@ class Way2ApiROfferPlanProvider(
     private val objectMapper: ObjectMapper
 ) : PlanCatalogProvider {
 
+    override val providerName: String = "way2api"
+
+    override fun supportsOperator(operator: String): Boolean =
+        operator.equals("AIRTEL", ignoreCase = true) ||
+            operator.equals("VI", ignoreCase = true)
+
     private val http = RestClient.builder()
         .baseUrl(baseUrl.trimEnd('/'))
         .requestFactory(
