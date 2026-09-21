@@ -43,9 +43,15 @@ class PayUPlanProvider(
         check(authService.isConfigured()) { "PayU BBPS credentials are not configured" }
         check(properties.agentId.isNotBlank()) { "PayU agentId is not configured" }
 
-        val operatorId = providerOperator?.takeIf { it.isNotBlank() }
+        val rawOperator = providerOperator?.trim().orEmpty()
+        val rawCircle = providerCircle?.trim().orEmpty()
+        val operatorId = properties.operatorCodeMappings[rawOperator]
+            ?: properties.operatorCodeMappings.entries.firstOrNull { it.key.equals(rawOperator, true) }?.value
+            ?: rawOperator.takeIf { it.isNotBlank() }
             ?: throw PayUIntegrationException("PayU operator ID is missing from operator detection")
-        val circleId = providerCircle?.takeIf { it.isNotBlank() }
+        val circleId = properties.circleCodeMappings[rawCircle]
+            ?: properties.circleCodeMappings.entries.firstOrNull { it.key.equals(rawCircle, true) }?.value
+            ?: rawCircle.takeIf { it.isNotBlank() }
             ?: throw PayUIntegrationException("PayU circle ID is missing from operator detection")
 
         val accessToken = authService.getAccessToken("read_plans")
@@ -133,6 +139,7 @@ class PayUPlanProvider(
                 .filterNotNull().filter { it.isNotBlank() }.joinToString(" • ").ifBlank { planName },
             providerMetadata = mapOf(
                 "operatorId" to operatorId,
+                "billerId" to operatorId,
                 "circleId" to circleId,
                 "planName" to planName,
                 "planType" to (planType ?: ""),
