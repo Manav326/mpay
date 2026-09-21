@@ -25,6 +25,7 @@ class GlobalExceptionHandler {
             404 -> HttpStatus.BAD_GATEWAY
             422 -> HttpStatus.UNPROCESSABLE_ENTITY
             429 -> HttpStatus.TOO_MANY_REQUESTS
+            202 -> HttpStatus.SERVICE_UNAVAILABLE
             503 -> HttpStatus.SERVICE_UNAVAILABLE
             null -> HttpStatus.GATEWAY_TIMEOUT
             else -> HttpStatus.BAD_GATEWAY
