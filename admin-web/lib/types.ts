@@ -24,6 +24,11 @@ export interface UserDetail extends UserSummary {
   addMoneyTotal: number;
   withdrawalTotal: number;
   commissionRate: number;
+  balance: number;
+  availableBalance: number;
+  reservedBalance: number;
+  profileImageUrl?: string | null;
+  profileImageVersion?: number | null;
   latestRecharge?: {
     mobile: string;
     operator: string;
@@ -53,6 +58,67 @@ export interface DashboardSummary {
   successfulRecharges: number;
   totalUsers: number;
   chart: Array<{ label: string; volume: number; commission: number }>;
+}
+
+export interface RechargeHistoryItem {
+  transactionId: string;
+  clientRequestId: string;
+  mobileNumber: string;
+  operator: string;
+  circle: string;
+  planId: string;
+  planDescription?: string | null;
+  planValidity?: string | null;
+  amount: number;
+  walletDebitAmount: number;
+  status: string;
+  provider: string;
+  providerReference?: string | null;
+  providerOrderId?: string | null;
+  walletLedgerRef?: string | null;
+  completedAt?: string | null;
+  clientCommission: number;
+  companyCommission: number;
+  message?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RechargeHistoryResponse {
+  items: RechargeHistoryItem[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  fromDate: string;
+  toDate: string;
+}
+
+export interface WalletHistoryItem {
+  id: number;
+  type: string;
+  amount: number;
+  status: string;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  externalRef: string;
+  description?: string | null;
+  createdAt: string;
+  mobileNumber?: string | null;
+  operator?: string | null;
+  circle?: string | null;
+}
+
+export interface WalletHistoryResponse {
+  items: WalletHistoryItem[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  fromDate: string;
+  toDate: string;
 }
 
 export interface Vendor {
