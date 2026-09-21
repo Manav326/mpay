@@ -74,3 +74,15 @@ android/app/build/outputs/apk/debug/app-debug.apk
 That location is ignored by Git and is the normal Gradle debug APK output location. Android Studio can install the APK through its device/deployment tooling, or the same file can be installed with ADB when a device is connected.
 
 For local development, backend URL configuration is supplied through the `MPAY_API_BASE_URL` Gradle property/environment variable. The shared CI workflow currently builds the test APK with `http://192.168.31.47:8080/`, matching the local development backend used on the test PC.
+
+
+### Optional automatic installation after download
+
+The Windows helper asks whether to install the downloaded APK immediately.
+
+- If you answer `N`, it only downloads the APK.
+- If you answer `Y` and exactly one ADB device is connected, that device is selected automatically.
+- If you answer `Y` and multiple ADB devices are connected, the script lists them and asks you to choose one.
+- If no ADB device is connected, installation is skipped and the APK remains in the Gradle debug output directory.
+
+ADB device selection uses the exact serial reported by `adb devices`, including Android wireless mDNS serials such as `adb-..._adb-tls-connect._tcp`.
