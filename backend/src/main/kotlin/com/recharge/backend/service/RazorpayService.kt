@@ -113,7 +113,7 @@ class RazorpayService(
             throw IllegalArgumentException("Invalid Razorpay payment signature")
         }
 
-        val paymentJson = razorpayRequest("GET", "/payments/${request.razorpayPaymentId}", null).body
+        val paymentJson = razorpayRequest("GET", "/payments/${request.paymentId.orEmpty()}", null).body
         val paymentOrderId = paymentJson["order_id"]?.asText()
         require(paymentOrderId == order.razorpayOrderId) { "Razorpay payment does not belong to this order" }
 
@@ -136,7 +136,7 @@ class RazorpayService(
 
         order.status = "CAPTURED"
         order.razorpayPaymentId = request.razorpayPaymentId
-        order.razorpaySignature = request.razorpaySignature
+        order.razorpaySignature = request.signature.orEmpty()
         order.verifiedAt = Instant.now()
         paymentOrders.save(order)
 
