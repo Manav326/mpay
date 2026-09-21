@@ -229,6 +229,16 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun gatewayPaymentFailed(message: String?) {
+        _state.value = _state.value.copy(
+            executing = false,
+            gatewayOrder = null,
+            action = RechargeActionState.Failure(
+                message?.takeIf { it.isNotBlank() } ?: "Gateway payment was cancelled or failed."
+            )
+        )
+    }
+
     fun verifyGatewayPayment(provider: String, paymentId: String?, orderId: String?, signature: String?) {
         val current = _state.value
         if (orderId.isNullOrBlank()) {
