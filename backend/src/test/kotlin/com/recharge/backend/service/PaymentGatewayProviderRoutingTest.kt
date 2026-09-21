@@ -18,7 +18,7 @@ class PaymentGatewayProviderRoutingTest {
         val razorpay = FakeGateway("razorpay", configured = true)
         val service = service(listOf(razorpay, payu), "payu,razorpay")
 
-        val response = service.createWalletOrder(7L, orderRequest())
+        val response = service.createWalletOrder(7L, orderRequest(provider = ""))
 
         assertEquals("payu", response.provider)
         assertEquals(1, payu.createCalls)
@@ -31,7 +31,7 @@ class PaymentGatewayProviderRoutingTest {
         val razorpay = FakeGateway("razorpay", configured = true)
         val service = service(listOf(payu, razorpay), "payu,razorpay")
 
-        val response = service.createWalletOrder(7L, orderRequest())
+        val response = service.createWalletOrder(7L, orderRequest(provider = ""))
 
         assertEquals("razorpay", response.provider)
         assertEquals(0, payu.createCalls)
@@ -61,7 +61,7 @@ class PaymentGatewayProviderRoutingTest {
         val service = service(listOf(payu, razorpay), "payu,razorpay")
 
         val ex = assertThrows(IllegalArgumentException::class.java) {
-            service.createWalletOrder(7L, orderRequest())
+            service.createWalletOrder(7L, orderRequest(provider = ""))
         }
 
         assertEquals("No configured payment gateway provider is available", ex.message)
@@ -76,9 +76,10 @@ class PaymentGatewayProviderRoutingTest {
         configuredProviders = configuredOrder
     )
 
-    private fun orderRequest() = CreatePaymentOrderRequest(
+    private fun orderRequest(provider: String) = CreatePaymentOrderRequest(
         amount = BigDecimal("299.00"),
-        clientRequestId = "REQ-1"
+        clientRequestId = "REQ-1",
+        provider = provider
     )
 
     private class FakeGateway(
