@@ -39,6 +39,15 @@ import com.recharge.client.features.wallet.WalletScreen
 import com.razorpay.Checkout
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
+import in.payu.checkoutpro.PayUCheckoutPro
+import in.payu.checkoutpro.PayUCheckoutProListener
+import in.payu.checkoutpro.constants.PayUCheckoutProConstants
+import in.payu.checkoutpro.utils.ErrorResponse
+import in.payu.custombrowser.bean.CustomBrowserConfig
+import in.payu.custombrowser.analytics.Analytics
+import in.payu.custombrowser.Bank
+import in.payu.checkoutpro.utils.PayUHashGenerationListener
+import in.payu.checkoutpro.models.PayUPaymentParams
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
@@ -65,23 +74,84 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
 
     private fun startGatewayRechargeCheckout(order: PaymentOrderResponse, rechargeViewModel: RechargeViewModel) {
-        if (!order.provider.equals("razorpay", true)) {
-            rechargeViewModel.gatewayPaymentFailed(
-                "PayU gateway checkout needs PayU merchant key and salt. The BBPS client_id, client_secret and agentId do not replace those gateway credentials."
-            )
-            return
-        }
         try {
-            val checkout = Checkout().apply { setKeyID(order.keyId) }
-            val options = JSONObject().apply {
-                put("key", order.keyId); put("order_id", order.orderId); put("currency", order.currency);
-                put("amount", order.amount.movePointRight(2).longValueExact()); put("name", "mPay");
-                put("description", "Mobile recharge"); put("theme.color", "#F59E0B")
+            if (order.provider.equals("payu", true)) {
+                val params = PayUPaymentParams.Builder()
+                    .setAmount(order.amount.setScale(2).toPlainString())
+                    .setIsProduction(order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false)
+                    .setProductInfo(order.checkoutParams["productInfo"] ?: "Mobile recharge")
+                    .setKey(order.keyId)
+                    .setPhone(order.checkoutParams["phone"].orEmpty())
+                    .setTransactionId(order.orderId)
+                    .setFirstName(order.checkoutParams["firstName"] ?: "mPay")
+                    .setEmail(order.checkoutParams["email"] ?: "customer@mpay.local")
+                    .setSurl(order.checkoutParams["surl"].orEmpty())
+                    .setFurl(order.checkoutParams["furl"].orEmpty())
+                    .setUserCredential(order.checkoutParams["userCredential"].orEmpty())
+                    .build()
+
+                PayUCheckoutPro.open(this, params, object : PayUCheckoutProListener {
+                    override fun onPaymentSuccess(response: Any) {
+                        val result = response as? Map<*, *>
+                        val payuResponse = result?.get(PayUCheckoutProConstants.CP_PAYU_RESPONSE) as? String
+                        val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
+                        val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
+                        val mihpayid = parsed?.optString("mihpayid").orEmpty()
+                        val hash = parsed?.optString("hash").orEmpty()
+                        rechargeViewModel.verifyGatewayPayment("payu", mihpayid, txnId, hash)
+                    }
+
+                    override fun onPaymentFailure(response: Any) {
+                        val result = response as? Map<*, *>
+                        val payuResponse = result?.get(PayUCheckoutProConstants.CP_PAYU_RESPONSE) as? String
+                        val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
+                            .getOrNull()?.takeIf { it.isNotBlank() }
+                        rechargeViewModel.gatewayPaymentFailed(message ?: "PayU payment failed")
+                    }
+
+                    override fun onPaymentCancel(isTxnInitiated: Boolean) {
+                        if (isTxnInitiated) {
+                            rechargeViewModel.verifyGatewayPayment("payu", null, order.orderId, null)
+                        } else {
+                            rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
+                        }
+                    }
+
+                    override fun onError(errorResponse: ErrorResponse) {
+                        rechargeViewModel.gatewayPaymentFailed(errorResponse.errorMessage)
+                    }
+
+                    override fun generateHash(
+                        valueMap: HashMap<String, String>,
+                        hashGenerationListener: PayUHashGenerationListener
+                    ) {
+                        val hashName = valueMap[PayUCheckoutProConstants.CP_HASH_NAME].orEmpty()
+                        val hashString = valueMap[PayUCheckoutProConstants.CP_HASH_STRING].orEmpty()
+                        if (hashName.isBlank() || hashString.isBlank()) {
+                            rechargeViewModel.gatewayPaymentFailed("PayU requested an invalid payment hash")
+                            return
+                        }
+                        rechargeViewModel.generatePayUHash(hashName, hashString) { hash ->
+                            val hashMap = HashMap<String, String>()
+                            hashMap[hashName] = hash
+                            hashGenerationListener.onHashGenerated(hashMap)
+                        }
+                    }
+
+                    override fun setWebViewProperties(webView: android.webkit.WebView?, bank: Any?) = Unit
+                })
+            } else {
+                val checkout = Checkout().apply { setKeyID(order.keyId) }
+                val options = JSONObject().apply {
+                    put("key", order.keyId); put("order_id", order.orderId); put("currency", order.currency);
+                    put("amount", order.amount.movePointRight(2).longValueExact()); put("name", "mPay");
+                    put("description", "Mobile recharge"); put("theme.color", "#F59E0B")
+                }
+                rechargeGatewayVerifier = { paymentId, orderId, signature ->
+                    rechargeViewModel.verifyGatewayPayment("razorpay", paymentId, orderId, signature)
+                }
+                checkout.open(this, options)
             }
-            rechargeGatewayVerifier = { paymentId, orderId, signature ->
-                rechargeViewModel.verifyGatewayPayment("razorpay", paymentId, orderId, signature)
-            }
-            checkout.open(this, options)
         } catch (e: Exception) {
             rechargeViewModel.gatewayPaymentFailed(e.message)
         }
