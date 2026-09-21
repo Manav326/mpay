@@ -46,8 +46,3 @@ if ($LASTEXITCODE -ne 0) { throw "Application startup failed." }
 Write-Host ""
 Write-Host "Current mpay-github status:" -ForegroundColor Green
 docker compose -p mpay-github ps
-
-Write-Host ""
-Write-Host "Deployed images:" -ForegroundColor Green
-docker inspect $backendImage --format "Backend : {{.RepoDigests}}" 2>$null
-docker inspect $adminWebImage --format "Admin  : {{.RepoDigests}}" 2>$null
