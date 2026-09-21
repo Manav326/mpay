@@ -56,8 +56,8 @@ app:
     # below the Android 60-second client timeout.
     r-offer-read-timeout-ms: ${MPAY_WAY2API_R_OFFER_READ_TIMEOUT_MS:50000}
   recharge:
-    operator-providers: payu,way2api
-    plan-providers: payu,way2api
+    operator-providers: way2api,payu
+    plan-providers: way2api,payu
     execution-providers: payu,mock
     mock-execution-status: SUCCESS
     # R-Offers are number-specific; cache per mobile/operator/circle for 24h.
