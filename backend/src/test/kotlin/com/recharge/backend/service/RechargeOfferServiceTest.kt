@@ -40,6 +40,22 @@ class RechargeOfferServiceTest {
     }
 
     @Test
+    fun rejectsBsnlWhenNoConfiguredProviderSupportsIt() {
+        val way2 = FakeProvider("way2api", setOf("AIRTEL", "VI"), listOf(plan("WAY2-AIR")))
+        val service = service(listOf(way2))
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            service.getOffers("9876543210", "BSNL", "Bihar and Jharkhand")
+        }
+
+        assertEquals(
+            "No configured recharge plan provider supports BSNL prepaid numbers yet",
+            ex.message
+        )
+        assertEquals(0, way2.calls)
+    }
+
+    @Test
     fun fallsBackToAnotherProviderForJio() {
         val way2 = FakeProvider("way2api", setOf("AIRTEL", "VI"), listOf(plan("WAY2-AIR")))
         val jioProvider = FakeProvider("jio-provider", setOf("JIO"), listOf(plan("JIO-199")))
