@@ -56,5 +56,6 @@ dependencies {
     implementation("com.google.code.gson:gson:2.13.1")
 
     implementation("com.razorpay:checkout:1.6.41")
+    implementation("in.payu:payu-checkout-pro:3.3.7")
     implementation("io.coil-kt:coil-compose:2.7.0")
 }
