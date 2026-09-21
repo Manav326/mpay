@@ -106,7 +106,7 @@ class RazorpayService(
         require(order.providerName.equals(providerName, true)) { "Payment order belongs to another gateway" }
         
         if (order.status == "CAPTURED") {
-            return VerifyPaymentResponse("CAPTURED", walletService.getBalance(userId))
+            return paymentSettlementService.responseForCaptured(userId, order)
         }
 
         val expectedSignature = hmacSha256(
