@@ -21,7 +21,8 @@ class AdminService(
     private val recharges: RechargeTransactionRepository,
     private val vendors: AdminVendorRepository,
     private val commissionRates: CommissionRateService,
-    private val roleAccess: RoleAccessService
+    private val roleAccess: RoleAccessService,
+    private val imageStorage: ProfileImageStorage
 ) {
     private val zoneId = ZoneId.of("Asia/Kolkata")
 
@@ -46,31 +47,132 @@ class AdminService(
     }
 
     fun userDetail(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
-        val target = users.findByPublicId(targetPublicId).orElse(null)
-            ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
-            ?: throw IllegalArgumentException("User not found")
-        roleAccess.requireCanView(viewer, target)
+        val target = resolveTarget(viewer, targetPublicId)
 
         val now = ZonedDateTime.now(zoneId)
         val todayStart = now.toLocalDate().atStartOfDay(zoneId).toInstant()
         val tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay(zoneId).toInstant()
         val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zoneId).toInstant()
+        val targetId = requireId(target)
         val summary = toSummary(target, todayStart, tomorrowStart, monthStart, now.toInstant())
-        val rechargeCount = recharges.countSuccessfulByUserId(requireId(target))
-        val addMoneyTotal = walletLedger.sumAddMoneyAllTime(requireId(target)).setScale(2)
-        val withdrawalTotal = walletLedger.sumWithdrawalsAllTime(requireId(target)).setScale(2)
-        val latest = recharges.findTopByUserIdOrderByCreatedAtDesc(requireId(target))
-        val recentEntries = walletLedger.findTop10ByUserIdOrderByCreatedAtDesc(requireId(target)).map(::toWalletEntry)
+        val wallet = wallets.findByUserId(targetId).orElseThrow { IllegalArgumentException("Wallet not found") }
+        val rechargeCount = recharges.countSuccessfulByUserId(targetId)
+        val addMoneyTotal = walletLedger.sumAddMoneyAllTime(targetId).setScale(2)
+        val withdrawalTotal = walletLedger.sumWithdrawalsAllTime(targetId).setScale(2)
+        val latest = recharges.findTopByUserIdOrderByCreatedAtDesc(targetId)
+        val recentEntries = walletLedger.findTop10ByUserIdOrderByCreatedAtDesc(targetId).map(::toWalletEntry)
         val latestResponse = latest?.let(::toLatestRecharge)
+        val imageVersion = target.profileImageUpdatedAt?.toEpochMilli()
         return AdminUserDetailResponse(
             summary = summary,
             rechargeCount = rechargeCount,
             addMoneyTotal = addMoneyTotal,
             withdrawalTotal = withdrawalTotal,
             commissionRate = commissionRates.rateForRole(target.role),
+            balance = wallet.balance.setScale(2),
+            availableBalance = wallet.balance.subtract(wallet.reservedBalance).max(BigDecimal.ZERO).setScale(2),
+            reservedBalance = wallet.reservedBalance.setScale(2),
+            profileImageUrl = target.profileImageKey?.let { "/api/v1/admin/users/" + target.publicId + "/profile-image" },
+            profileImageVersion = imageVersion,
             latestRecharge = latestResponse,
             recentWalletEntries = recentEntries
         )
+    }
+
+    fun rechargeHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): RechargeHistoryResponse {
+        val target = resolveTarget(viewer, targetPublicId)
+        require(page >= 0) { "Page must be non-negative" }
+        require(size in 1..50) { "Page size must be between 1 and 50" }
+        val now = Instant.now()
+        val pageData = recharges.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+            requireId(target), Instant.EPOCH, now.plusNanos(1), PageRequest.of(page, size)
+        )
+        return RechargeHistoryResponse(
+            items = pageData.content.map {
+                RechargeHistoryItem(
+                    transactionId = it.transactionId,
+                    clientRequestId = it.clientRequestId,
+                    mobileNumber = it.mobileNumber,
+                    operator = it.operator,
+                    circle = it.circle,
+                    planId = it.planId,
+                    planDescription = it.planDescription,
+                    planValidity = it.planValidity,
+                    amount = it.amount.setScale(2),
+                    walletDebitAmount = it.walletDebitAmount.setScale(2),
+                    status = it.status,
+                    provider = it.providerName,
+                    providerReference = it.providerReference,
+                    providerOrderId = it.providerOrderId,
+                    walletLedgerRef = it.walletLedgerRef,
+                    completedAt = it.completedAt,
+                    clientCommission = it.clientCommission.setScale(2),
+                    companyCommission = it.companyCommission.setScale(2),
+                    message = it.message,
+                    createdAt = it.createdAt,
+                    updatedAt = it.updatedAt
+                )
+            },
+            page = pageData.number,
+            size = pageData.size,
+            totalItems = pageData.totalElements,
+            totalPages = pageData.totalPages,
+            hasNext = pageData.hasNext(),
+            fromDate = "1970-01-01",
+            toDate = java.time.LocalDate.now(zoneId).toString()
+        )
+    }
+
+    fun walletHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): WalletHistoryResponse {
+        val target = resolveTarget(viewer, targetPublicId)
+        require(page >= 0) { "Page must be non-negative" }
+        require(size in 1..50) { "Page size must be between 1 and 50" }
+        val now = Instant.now()
+        val pageData = walletLedger.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+            requireId(target), Instant.EPOCH, now.plusNanos(1), PageRequest.of(page, size)
+        )
+        return WalletHistoryResponse(
+            items = pageData.content.map { tx ->
+                val recharge = if (tx.referenceType.equals("RECHARGE", true) && !tx.referenceId.isNullOrBlank()) {
+                    recharges.findByTransactionId(tx.referenceId!!).orElse(null)
+                } else null
+                WalletHistoryItem(
+                    id = tx.id ?: 0L,
+                    type = tx.type,
+                    amount = tx.amount.setScale(2),
+                    status = tx.status,
+                    referenceType = tx.referenceType,
+                    referenceId = tx.referenceId,
+                    externalRef = tx.externalRef,
+                    description = tx.description,
+                    createdAt = tx.createdAt,
+                    mobileNumber = recharge?.mobileNumber,
+                    operator = recharge?.operator,
+                    circle = recharge?.circle
+                )
+            },
+            page = pageData.number,
+            size = pageData.size,
+            totalItems = pageData.totalElements,
+            totalPages = pageData.totalPages,
+            hasNext = pageData.hasNext(),
+            fromDate = "1970-01-01",
+            toDate = java.time.LocalDate.now(zoneId).toString()
+        )
+    }
+
+    fun profileImage(viewer: UserEntity, targetPublicId: String): ProfileImageStorage.StoredImage {
+        val target = resolveTarget(viewer, targetPublicId)
+        val key = target.profileImageKey ?: throw IllegalArgumentException("Profile image not found")
+        return imageStorage.load(key) ?: throw IllegalArgumentException("Profile image not found")
+    }
+
+    private fun resolveTarget(viewer: UserEntity, targetPublicId: String): UserEntity {
+        val target = users.findByPublicId(targetPublicId).orElse(null)
+            ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
+            ?: throw IllegalArgumentException("User not found")
+        roleAccess.requireCanView(viewer, target)
+        return target
     }
 
     fun dashboard(viewer: UserEntity): AdminDashboardResponse {
