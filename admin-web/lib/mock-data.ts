@@ -58,6 +58,11 @@ export function getUserDetail(id: string): UserDetail {
     addMoneyTotal: 19200,
     withdrawalTotal: 5400,
     commissionRate: base.role === 'CLIENT' ? 1 : base.role === 'MANAGER' ? 1.5 : 2,
+    balance: base.walletBalance,
+    availableBalance: base.walletBalance,
+    reservedBalance: 0,
+    profileImageUrl: null,
+    profileImageVersion: null,
     latestRecharge: {
       mobile: '7070107483', operator: 'AIRTEL', amount: 200, commission: 2, status: 'SUCCESS',
       createdAt: new Date().toISOString(), transactionId: 'TXN-5FBD2A19',
