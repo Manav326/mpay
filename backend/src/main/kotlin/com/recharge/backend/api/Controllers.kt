@@ -4,6 +4,7 @@ import com.recharge.backend.service.AuthService
 import com.recharge.backend.service.RechargeHistoryService
 import com.recharge.backend.service.RechargeService
 import com.recharge.backend.service.WalletService
+import com.recharge.backend.provider.payu.PayUPaymentGatewayProvider
 import com.recharge.backend.service.ProfileService
 import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.http.CacheControl
@@ -24,6 +25,7 @@ class ClientController(
     private val rechargeHistory: RechargeHistoryService,
     private val authService: AuthService,
     private val paymentGatewayService: PaymentGatewayService,
+    private val payuPaymentGateway: PayUPaymentGatewayProvider,
     private val rechargeRepository: RechargeTransactionRepository
 ) {
     private fun authenticatedUserId(authentication: Authentication): Long =
@@ -56,6 +58,17 @@ class ClientController(
         @Valid @RequestBody request: VerifyPaymentRequest
     ): VerifyPaymentResponse =
         paymentGatewayService.verifyWalletPayment(authenticatedUserId(authentication), request)
+
+    @PostMapping("/payments/payu/hash")
+    fun payuHash(@RequestBody request: PayUHashRequest): PayUHashResponse =
+        PayUHashResponse(
+            payuPaymentGateway.generateHash(
+                hashName = request.hashName,
+                hashString = request.hashString,
+                postSalt = request.postSalt,
+                hashType = request.hashType
+            )
+        )
 
     @PostMapping("/recharge/operator")
     fun operator(@Valid @RequestBody request: OperatorCheckRequest) = recharge.detect(request)
