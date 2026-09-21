@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ fun RechargeScreen(
     state: RechargeUiState,
     commissionRate: BigDecimal?,
     onMobileChange: (String) -> Unit,
+    onChooseContact: () -> Unit,
     onDetect: () -> Unit,
     onRefreshPlans: () -> Unit,
     onSelectPlan: (RechargePlan) -> Unit,
@@ -119,6 +121,22 @@ fun RechargeScreen(
                         leadingIcon = { Icon(Icons.Default.SimCard, null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         shape = RoundedCornerShape(16.dp)
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onChooseContact,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Contacts, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Choose from phone contacts")
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "You can also enter the number manually above.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(10.dp))
                     Button(
