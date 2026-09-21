@@ -102,6 +102,7 @@ data class OperatorCheckResponse(
     val mobileNumber: String,
     val operator: String,
     val providerOperator: String,
+    val providerCircle: String? = null,
     val circle: String,
     val type: String?,
     val providerOrderId: String?,
@@ -117,16 +118,19 @@ data class CreatePaymentOrderRequest(
 )
 
 data class CreatePaymentOrderResponse(
+    val provider: String = "razorpay",
     val orderId: String,
     val amount: BigDecimal,
     val currency: String,
-    val keyId: String
+    val keyId: String,
+    val checkoutParams: Map<String, String> = emptyMap()
 )
 
 data class VerifyPaymentRequest(
-    @field:NotBlank val razorpayPaymentId: String,
-    @field:NotBlank val razorpayOrderId: String,
-    @field:NotBlank val razorpaySignature: String
+    val provider: String = "razorpay",
+    val paymentId: String? = null,
+    val orderId: String? = null,
+    val signature: String? = null
 )
 
 data class VerifyPaymentResponse(
