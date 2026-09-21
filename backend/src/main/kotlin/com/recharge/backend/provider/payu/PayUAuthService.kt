@@ -16,11 +16,12 @@ class PayUAuthService(
         .baseUrl(properties.authBaseUrl.trimEnd('/'))
         .build()
 
-    private val cachedToken = AtomicReference<CachedToken?>()
+    private val cachedTokens = mutableMapOf<String, CachedToken>()
 
     @Synchronized
-    fun getAccessToken(): String {
-        val cached = cachedToken.get()
+    fun getAccessToken(scope: String = properties.scope): String {
+        val normalizedScope = scope.trim().ifBlank { properties.scope }
+        val cached = cachedTokens[normalizedScope]
         if (cached != null && cached.expiresAt.isAfter(Instant.now().plusSeconds(60))) {
             return cached.value
         }
@@ -35,7 +36,7 @@ class PayUAuthService(
                 "client_id=${encode(properties.clientId)}" +
                     "&client_secret=${encode(properties.clientSecret)}" +
                     "&grant_type=client_credentials" +
-                    "&scope=${encode(properties.scope)}"
+                    "&scope=${encode(normalizedScope)}"
             )
             .retrieve()
             .body(PayUTokenResponse::class.java)
@@ -50,12 +51,13 @@ class PayUAuthService(
             value = response.accessToken,
             expiresAt = Instant.now().plusSeconds(expiresIn.toLong())
         )
-        cachedToken.set(token)
+        cachedTokens[normalizedScope] = token
         return token.value
     }
 
-    fun clearToken() {
-        cachedToken.set(null)
+    @Synchronized
+    fun clearToken(scope: String? = null) {
+        if (scope.isNullOrBlank()) cachedTokens.clear() else cachedTokens.remove(scope.trim())
     }
 
     fun isConfigured(): Boolean = properties.clientId.isNotBlank() && properties.clientSecret.isNotBlank()
