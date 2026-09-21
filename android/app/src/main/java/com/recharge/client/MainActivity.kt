@@ -43,6 +43,7 @@ import org.json.JSONObject
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     private val walletPaymentViewModel: WalletPaymentViewModel by viewModels()
+    private var rechargeGatewayVerifier: ((String, String, String) -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,20 +77,41 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 put("amount", order.amount.movePointRight(2).longValueExact()); put("name", "mPay");
                 put("description", "Mobile recharge"); put("theme.color", "#F59E0B")
             }
-            checkout.open(this, object : com.razorpay.ExternalWalletListener {
-                override fun onExternalWalletSelected(p0: String?, p1: PaymentData?) = Unit
-            })
+            rechargeGatewayVerifier = { paymentId, orderId, signature ->
+                rechargeViewModel.verifyGatewayPayment("razorpay", paymentId, orderId, signature)
+            }
+            checkout.open(this, options)
         } catch (e: Exception) {
             rechargeViewModel.gatewayPaymentFailed(e.message)
         }
     }
 
     override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
-        walletPaymentViewModel.verifyPayment(razorpayPaymentId.orEmpty(), paymentData?.orderId.orEmpty(), paymentData?.signature.orEmpty())
+        val rechargeVerifier = rechargeGatewayVerifier
+        if (rechargeVerifier != null) {
+            rechargeGatewayVerifier = null
+            rechargeVerifier(
+                razorpayPaymentId.orEmpty(),
+                paymentData?.orderId.orEmpty(),
+                paymentData?.signature.orEmpty()
+            )
+        } else {
+            walletPaymentViewModel.verifyPayment(
+                razorpayPaymentId.orEmpty(),
+                paymentData?.orderId.orEmpty(),
+                paymentData?.signature.orEmpty()
+            )
+        }
     }
 
     override fun onPaymentError(code: Int, response: String?, paymentData: PaymentData?) {
-        walletPaymentViewModel.paymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
+        val rechargeVerifier = rechargeGatewayVerifier
+        if (rechargeVerifier != null) {
+            rechargeGatewayVerifier = null
+            rechargeViewModel.gatewayPaymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
+        } else {
+            walletPaymentViewModel.paymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
+        }
     }
 }
 
