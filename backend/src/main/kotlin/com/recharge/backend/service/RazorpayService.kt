@@ -29,6 +29,7 @@ class RazorpayService(
     private val paymentOrders: PaymentOrderRepository,
     private val walletService: WalletService,
     private val objectMapper: ObjectMapper,
+    private val paymentSettlementService: PaymentSettlementService,
     @Value("\${app.razorpay.key-id:}") private val keyId: String,
     @Value("\${app.razorpay.key-secret:}") private val keySecret: String,
     @Value("\${app.razorpay.base-url:https://api.razorpay.com/v1}") private val baseUrl: String
@@ -83,7 +84,12 @@ class RazorpayService(
                 razorpayOrderId = orderId,
                 amount = normalizedAmount,
                 currency = "INR",
-                status = "CREATED"
+                status = "CREATED",
+                purpose = request.purpose,
+                rechargeMobileNumber = request.rechargeMobileNumber,
+                rechargeOperator = request.rechargeOperator,
+                rechargeCircle = request.rechargeCircle,
+                rechargePlanId = request.rechargePlanId
             )
         )
 
