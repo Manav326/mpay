@@ -19,7 +19,7 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
     throw "Could not determine the current Git branch."
 }
 
-$workflow = ".github/workflows/android-apk.yml"
+$workflow = "Docker Compose CI"
 $headSha = (git rev-parse HEAD).Trim()
 
 Write-Host ""
