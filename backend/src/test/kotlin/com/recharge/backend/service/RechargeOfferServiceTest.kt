@@ -87,7 +87,7 @@ class RechargeOfferServiceTest {
     ) = RechargeOfferService(
         providers = providers,
         cache = cache,
-        preferredProvider = "way2api",
+        configuredProviders = "way2api",
         ttlSeconds = 600
     )
 
