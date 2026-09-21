@@ -6,11 +6,13 @@ interface PlanCatalogProvider {
 
     fun supportsOperator(operator: String): Boolean = false
 
+    fun getPlans(mobileNumber: String, operator: String, circle: String): List<RechargePlan>
+
     fun getPlans(
         mobileNumber: String,
         operator: String,
         circle: String,
-        providerOperator: String? = null,
-        providerCircle: String? = null
-    ): List<RechargePlan>
+        providerOperator: String?,
+        providerCircle: String?
+    ): List<RechargePlan> = getPlans(mobileNumber, operator, circle)
 }
