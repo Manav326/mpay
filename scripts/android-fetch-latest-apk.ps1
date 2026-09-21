@@ -31,6 +31,7 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
 
 $workflow = "Docker Compose CI"
 $artifactName = "mpay-android-debug-apk"
+$packageName = "com.recharge.client"
 $headSha = (git rev-parse HEAD).Trim()
 
 Write-Host ""
@@ -147,10 +148,38 @@ try {
 
     Write-Host ""
     Write-Host "Installing APK on $selectedSerial..." -ForegroundColor Yellow
-    & $adbPath -s $selectedSerial install -r $targetApk
+    $installOutput = @(& $adbPath -s $selectedSerial install -r $targetApk 2>&1)
+    $installExitCode = $LASTEXITCODE
+    $installOutput | ForEach-Object { Write-Host $_ }
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "APK installation failed on device $selectedSerial."
+    if ($installExitCode -ne 0) {
+        $installText = $installOutput -join [Environment]::NewLine
+
+        if ($installText -match "INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match") {
+            Write-Host ""
+            Write-Host "The existing $packageName app is signed with a different key." -ForegroundColor Yellow
+            Write-Host "Android requires the existing app to be uninstalled before this CI-signed APK can be installed." -ForegroundColor Yellow
+            Write-Host "Uninstalling the existing app removes its local app data." -ForegroundColor Yellow
+
+            $uninstallAnswer = Read-Host "Uninstall $packageName and install the CI APK now? (Y/N)"
+            if ($uninstallAnswer -notmatch '^(Y|YES)$') {
+                throw "Installation stopped because the existing app uses a different signing key."
+            }
+
+            Write-Host "Uninstalling $packageName..." -ForegroundColor Yellow
+            & $adbPath -s $selectedSerial uninstall $packageName
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not uninstall $packageName from device $selectedSerial."
+            }
+
+            Write-Host "Installing CI APK..." -ForegroundColor Yellow
+            & $adbPath -s $selectedSerial install $targetApk
+            if ($LASTEXITCODE -ne 0) {
+                throw "APK installation failed on device $selectedSerial after uninstall."
+            }
+        } else {
+            throw "APK installation failed on device $selectedSerial."
+        }
     }
 
     Write-Host ""
