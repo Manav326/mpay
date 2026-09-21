@@ -10,10 +10,14 @@ import org.springframework.stereotype.Service
 @Service
 class PaymentGatewayService(
     private val providers: List<PaymentGatewayProvider>,
+    private val rechargeService: RechargeService,
     @Value("${app.payment.gateway-providers:payu,razorpay}") private val configuredProviders: String
 ) {
     fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse =
         resolveProvider().createWalletOrder(userId, request)
+
+    fun createRechargeOrder(userId: Long, request: com.recharge.backend.api.RechargeRequest): CreatePaymentOrderResponse =
+        resolveProvider().createWalletOrder(userId, rechargeService.createRechargePaymentOrder(userId, request))
 
     fun verifyWalletPayment(userId: Long, request: VerifyPaymentRequest): VerifyPaymentResponse {
         val requested = request.provider.trim()
