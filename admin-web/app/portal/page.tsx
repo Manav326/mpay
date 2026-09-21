@@ -39,11 +39,6 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
   return r.status === 204 ? (undefined as T) : r.json();
 }
 
-const rentalFallback: RentalCar[] = [
-  { id: 'city-compact', name: 'City Compact', category: 'Hatchback', seats: 5, transmission: 'Manual', pricePerDay: 1499 },
-  { id: 'urban-sedan', name: 'Urban Sedan', category: 'Sedan', seats: 5, transmission: 'Automatic', pricePerDay: 2199 },
-  { id: 'family-suv', name: 'Family SUV', category: 'SUV', seats: 7, transmission: 'Automatic', pricePerDay: 3299 }
-];
 
 export default function Portal() {
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'rental'|'account'>('home');
@@ -55,7 +50,7 @@ export default function Portal() {
   const [plans, setPlans] = useState<any[]>([]);
   const [recharges, setRecharges] = useState<RechargeItem[]>([]);
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
-  const [cars, setCars] = useState<RentalCar[]>(rentalFallback);
+  const [cars, setCars] = useState<RentalCar[]>([]);
   const [bookings, setBookings] = useState<RentalBooking[]>([]);
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
   const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
@@ -88,11 +83,10 @@ export default function Portal() {
         api<any>('/api/v1/car-rental/cars'),
         api<any>('/api/v1/car-rental/bookings?page=0&size=25')
       ]);
-      setCars(available?.items || available || rentalFallback);
+      setCars(available?.items || available || []);
       setBookings(existing?.items || existing?.content || existing || []);
-    } catch {
-      // The rental provider/API is optional until enabled. Keep the page usable without
-      // inventing a successful booking; submitted bookings still go to the backend.
+    } catch (e: any) {
+      setNotice(e.message || 'Unable to load rental inventory.');
     }
   }
 
@@ -169,7 +163,6 @@ export default function Portal() {
           dropLocation: rentalForm.drop || rentalForm.pickup,
           startDate: rentalForm.startDate,
           endDate: rentalForm.endDate,
-          totalAmount: selectedCar.pricePerDay * days
         })
       });
       setBookings(b => [result, ...b]);
