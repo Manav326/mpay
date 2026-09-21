@@ -79,6 +79,8 @@ app:
     operator-circle-path: /payu-nbc/v2/nbc/getOperatorAndCircleInfo
     plans-path: /payu-nbc/v3/nbc/getRechargePlans
     custom-plans-path: /payu-nbc/v3/nbc/getCustomizedRechargePlans
+    operator-code-mappings: {}
+    circle-code-mappings: {}
     biller-category-name: MOBILE PREPAID
     bill-payment-path: /payu-nbc-int/v1/nbc/billpaymentrequest
     status-path: /payu-nbc/v2/nbc/status/billpayment
