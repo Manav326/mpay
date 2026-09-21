@@ -78,6 +78,11 @@ if ($ForceDownload) {
 
 try {
     if (-not $useCachedApk) {
+        if (Test-Path $tempDir) {
+            Remove-Item $tempDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $tempDir | Out-Null
+
         # Prefer GitHub CLI when available. If it is not installed, fall back to the
         # GitHub REST API using a token from the environment or Git Credential Manager.
         # This keeps the helper usable on machines that have Git configured but not gh.
