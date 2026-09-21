@@ -137,7 +137,7 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
     });
   }, [walletHistory, user.balance]);
 
-  const statusClass = user.status.toLowerCase();
+  const statusClass = (user.status || 'UNKNOWN').toLowerCase();
 
   return <div className="drawer-overlay" onClick={onClose}>
     <aside className="user-drawer user-drawer-wide" onClick={e=>e.stopPropagation()}>
@@ -183,7 +183,7 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
       {tab==='overview' && <section className="drawer-section">
         <div className="drawer-section-title"><div><h3>Recent activity</h3><p>Latest wallet and recharge activity for quick review.</p></div></div>
         {user.latestRecharge ? <div className="detail-card">
-          <div className="detail-top"><span className={"status " + user.latestRecharge.status.toLowerCase()}>{user.latestRecharge.status}</span><span>{dateTime(user.latestRecharge.createdAt)}</span></div>
+          <div className="detail-top"><span className={"status " + (user.latestRecharge.status || 'UNKNOWN').toLowerCase()}>{user.latestRecharge.status}</span><span>{dateTime(user.latestRecharge.createdAt)}</span></div>
           <b>{user.latestRecharge.operator} · {user.latestRecharge.mobile}</b>
           <div className="detail-row"><span>Recharge amount</span><strong>{INR.format(user.latestRecharge.amount)}</strong></div>
           <div className="detail-row"><span>Client commission</span><strong className="green">{INR.format(user.latestRecharge.commission)}</strong></div>
@@ -207,7 +207,7 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
         <div className="drawer-section-title"><div><h3>Complete balance history</h3><p>Credits, debits, withdrawals and linked recharge ledger entries.</p></div></div>
         {loadingWallet ? <div className="empty-state">Loading balance history…</div> : walletHistory.length===0 ? <div className="empty-state">No balance history found.</div> :
           <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance before</th><th>Balance after</th><th>Status</th><th>Reference</th><th>Description</th></tr></thead><tbody>
-            {walletWithBalances.map(({item,before,after})=><tr key={item.id}><td>{dateTime(item.createdAt)}</td><td><b>{item.referenceType || item.type}</b>{item.mobileNumber&&<span>{item.operator} · {item.mobileNumber}</span>}</td><td><b>{INR.format(item.amount)}</b></td><td>{before===null?'—':INR.format(before)}</td><td>{after===null?'—':INR.format(after)}</td><td><span className={"status " + item.status.toLowerCase()}>{item.status}</span></td><td><span className="mono">{item.referenceId || item.externalRef}</span></td><td>{item.description || '—'}</td></tr>)}
+            {walletWithBalances.map(({item,before,after})=><tr key={item.id}><td>{dateTime(item.createdAt)}</td><td><b>{item.referenceType || item.type}</b>{item.mobileNumber&&<span>{item.operator} · {item.mobileNumber}</span>}</td><td><b>{INR.format(item.amount)}</b></td><td>{before===null?'—':INR.format(before)}</td><td>{after===null?'—':INR.format(after)}</td><td><span className={"status " + (item.status || 'UNKNOWN').toLowerCase()}>{item.status}</span></td><td><span className="mono">{item.referenceId || item.externalRef}</span></td><td>{item.description || '—'}</td></tr>)}
           </tbody></table></div>}
         {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
       </section>}
