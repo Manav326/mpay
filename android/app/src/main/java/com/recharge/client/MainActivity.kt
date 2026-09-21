@@ -2,8 +2,11 @@ package com.recharge.client
 
 import android.content.res.Configuration
 import android.os.Bundle
+import android.provider.ContactsContract
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -44,6 +47,31 @@ import com.razorpay.PaymentResultWithDataListener
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
+    private val contactPicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val uri = result.data?.data ?: return@registerForActivityResult
+            contentResolver.query(
+                uri,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val raw = cursor.getString(0).orEmpty()
+                    val digits = raw.filter { it.isDigit() }
+                    val normalized = when {
+                        digits.length == 10 -> digits
+                        digits.length > 10 && digits.endsWith("10") -> digits.takeLast(10)
+                        digits.length >= 10 -> digits.takeLast(10)
+                        else -> ""
+                    }
+                    if (normalized.length == 10) selectedContactNumber = normalized
+                }
+            }
+        }
+    }
+    private var selectedContactNumber: String? = null
     private val walletPaymentViewModel: WalletPaymentViewModel by viewModels()
     private val rechargeViewModel: RechargeViewModel by viewModels()
     private var rechargeGatewayVerifier: ((String, String, String) -> Unit)? = null
@@ -51,7 +79,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Checkout.preload(applicationContext)
-        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, rechargeViewModel = rechargeViewModel) } }
+        setContent { RechargeTheme { AppRoot(::startRazorpayCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)); }, rechargeViewModel = rechargeViewModel, initialContactNumber = selectedContactNumber) } }
     }
 
     private fun startRazorpayCheckout(order: PaymentOrderResponse) {
@@ -187,6 +215,7 @@ private fun AppRoot(
     passwordResetViewModel: PasswordResetViewModel = viewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
+    LaunchedEffect(initialContactNumber) { initialContactNumber?.let { rechargeViewModel.setMobile(it) } }
     val passwordResetState by passwordResetViewModel.state.collectAsState()
     val paymentState by paymentViewModel.state.collectAsState()
     val rechargeState by rechargeViewModel.state.collectAsState()
@@ -353,6 +382,7 @@ private fun AppNavHost(
     rechargeViewModel.state.collectAsState().value,
     profileViewModel.state.collectAsState().value.user?.commissionRate,
     rechargeViewModel::setMobile,
+    openContactPicker,
     rechargeViewModel::detectAndLoad,
     rechargeViewModel::refreshPlans,
     rechargeViewModel::selectPlan,
