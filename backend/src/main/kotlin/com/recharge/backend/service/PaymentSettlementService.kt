@@ -21,6 +21,7 @@ class PaymentSettlementService(
                 return VerifyPaymentResponse(
                     status = "CAPTURED",
                     balance = wallet.balance,
+                    availableBalance = wallet.availableBalance,
                     transactionId = recharge.transactionId,
                     rechargeStatus = recharge.status,
                     amount = recharge.amount,
@@ -65,6 +66,7 @@ class PaymentSettlementService(
                 VerifyPaymentResponse(
                     status = "CAPTURED",
                     balance = recharge.walletBalance,
+                    availableBalance = walletService.getAvailableBalance(userId),
                     transactionId = recharge.transactionId,
                     rechargeStatus = recharge.status,
                     amount = recharge.amount,
@@ -82,7 +84,7 @@ class PaymentSettlementService(
                     referenceId = externalPaymentReference,
                     description = "Wallet top-up via " + order.providerName.uppercase()
                 )
-                VerifyPaymentResponse(status = "CAPTURED", balance = balance)
+                VerifyPaymentResponse(status = "CAPTURED", balance = balance, availableBalance = walletService.getAvailableBalance(userId))
             }
         }
     }
