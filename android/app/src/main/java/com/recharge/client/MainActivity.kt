@@ -34,6 +34,7 @@ import com.recharge.client.features.home.HomeScreen
 import com.recharge.client.features.profile.ProfileScreen
 import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
+import com.recharge.client.features.services.CarRentalComingSoonScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
 import com.recharge.client.core.payment.PayUCheckoutBridge
@@ -279,10 +280,16 @@ private fun AppRoot(
                 highlightTransactionId = action.response.transactionId
                 rechargeHistoryViewModel.refreshAll()
                 homeViewModel.load()
-                rechargeViewModel.clear()
-                navigateToTopLevel(nav, "wallet")
             }
-            is RechargeActionState.Failure -> { homeViewModel.load(); rechargeHistoryViewModel.refreshAll() }
+            is RechargeActionState.Pending -> {
+                highlightTransactionId = action.response.transactionId
+                rechargeHistoryViewModel.refreshAll()
+                homeViewModel.load()
+            }
+            is RechargeActionState.Failure -> {
+                rechargeHistoryViewModel.refreshAll()
+                homeViewModel.load()
+            }
             else -> Unit
         }
     }
@@ -329,7 +336,7 @@ private fun AppNavHost(
                 wallet = homeViewModel.wallet.collectAsState().value,
                 loading = homeViewModel.loading.collectAsState().value,
                 commission = historyState.commission,
-                latestRecharge = historyState.items.firstOrNull { it.status.equals("SUCCESS", true) },
+                latestRecharge = historyState.items.firstOrNull(),
                 error = homeViewModel.error.collectAsState().value,
                 isVisible = currentRoute == "home",
                 onRefresh = { homeViewModel.load(); rechargeHistoryViewModel.loadCommission() },
@@ -337,7 +344,8 @@ private fun AppNavHost(
                 onRefreshEarnings = rechargeHistoryViewModel::loadCommission,
                 onRecharge = { navigateToTopLevel(nav, "recharge") },
                 onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
-                onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") }
+                onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
+                onCarRental = { nav.navigate("car-rental") }
             )
         }
         composable("recharge") {
@@ -350,7 +358,7 @@ private fun AppNavHost(
     rechargeViewModel::selectPlan,
     rechargeViewModel::executeSelectedPlan,
     rechargeViewModel::startGatewayRechargePayment,
-    rechargeViewModel::dismissResult,
+    { rechargeViewModel.dismissResult(); homeViewModel.load(); rechargeHistoryViewModel.refreshAll(); navigateToTopLevel(nav, "home") },
     { paymentViewModel.reset(); showFundingDialogSetter(true) },
     rechargeViewModel::refreshWallet,
     rechargeViewModel::clear
@@ -384,6 +392,9 @@ private fun AppNavHost(
         }
         composable("profile") {
             ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, currentRoute == "profile")
+        }
+        composable("car-rental") {
+            CarRentalComingSoonScreen(onBack = { nav.popBackStack() })
         }
         composable("recharge-history") {
             RechargeHistoryScreen(
