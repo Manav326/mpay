@@ -8,10 +8,6 @@ on:
   pull_request:
     branches: ["main"]
 
-concurrency:
-  group: docker-images-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
   packages: write
@@ -26,13 +22,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Calculate image tags
         shell: bash
@@ -54,7 +48,8 @@ jobs:
           echo "Commit image tag: sha-${GITHUB_SHA}"
 
       - name: Validate Docker Compose
-        run: docker compose -f docker-compose.yml config
+        run: |
+          docker compose -f docker-compose.yml config
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push'
