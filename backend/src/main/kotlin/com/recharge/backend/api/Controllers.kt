@@ -292,6 +292,37 @@ class AdminController(
     fun userDetail(authentication: Authentication, @PathVariable publicId: String): AdminUserDetailResponse =
         adminService.userDetail(currentUser(authentication), publicId)
 
+    @GetMapping("/users/{publicId}/recharges")
+    fun userRecharges(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int
+    ): RechargeHistoryResponse =
+        adminService.rechargeHistory(currentUser(authentication), publicId, page, size)
+
+    @GetMapping("/users/{publicId}/wallet-history")
+    fun userWalletHistory(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int
+    ): WalletHistoryResponse =
+        adminService.walletHistory(currentUser(authentication), publicId, page, size)
+
+    @GetMapping("/users/{publicId}/profile-image")
+    fun userProfileImage(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): ResponseEntity<ByteArray> {
+        val stored = adminService.profileImage(currentUser(authentication), publicId)
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(stored.contentType))
+            .contentLength(stored.bytes.size.toLong())
+            .cacheControl(CacheControl.noCache().cachePrivate())
+            .body(stored.bytes)
+    }
+
     @GetMapping("/vendors")
     fun vendors(authentication: Authentication): List<AdminVendorResponse> =
         adminService.vendorList(currentUser(authentication))

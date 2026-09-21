@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CarFront, ChevronRight, CircleDollarSign, Clock3, LayoutDashboard, LogOut, Menu, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, X } from 'lucide-react';
+import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { createVendor, getDashboard, getPortalRoles, getUserDetailById, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
-import { DashboardSummary, Role, SortMode, UserDetail, UserSummary, Vendor } from '@/lib/types';
+import { createVendor, getDashboard, getPortalRoles, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import { DashboardSummary, RechargeHistoryItem, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -73,13 +73,149 @@ function Dashboard({data,onUsers}:{data?:DashboardSummary;onUsers:()=>void}){
 
 function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,selected,setSelected}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void}){
   const allowed = ['ALL', ...visibleRoles];
-  return <div className="content"><section className="panel"><div className="panel-head wrap"><div><h2>User hierarchy</h2><p>{role==='ADMIN'?'Admins can see managers and clients. Managers can see clients only.':'You can see client accounts assigned under your management.'}</p></div><div className="filters"><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>{allowed.map(r=><option key={r} value={r}>{r==='ALL'?'All users':r}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="today-high">Today: highest earnings</option><option value="today-low">Today: lowest earnings</option><option value="month-high">Month: highest earnings</option><option value="month-low">Month: lowest earnings</option></select></div></div><div className="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Today's earnings</th><th>Monthly earnings</th><th>Wallet</th><th>Status</th><th></th></tr></thead><tbody>{users.map(u=><tr key={u.id} onClick={async()=>setSelected(await getUserDetailById(u.id))}><td><div className="user-cell"><div className="avatar light">{u.name.charAt(0)}</div><div><b>{u.name}</b><span>{u.mobile} · {u.publicUserId}</span></div></div></td><td><span className={`type-pill ${u.role.toLowerCase()}`}>{u.accountType}</span></td><td>{INR.format(u.todayEarnings)}</td><td>{INR.format(u.monthEarnings)}</td><td>{INR.format(u.walletBalance)}</td><td><span className={`status ${u.status.toLowerCase()}`}>{u.status}</span></td><td><ChevronRight size={18}/></td></tr>)}</tbody></table></div></section>{selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)}/>}</div>
+  return <div className="content"><section className="panel"><div className="panel-head wrap"><div><h2>User hierarchy</h2><p>{role==='ADMIN'?'Admins can see managers and clients. Managers can see clients only.':'You can see client accounts assigned under your management.'}</p></div><div className="filters"><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>{allowed.map(r=><option key={r} value={r}>{r==='ALL'?'All users':r}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="today-high">Today: highest earnings</option><option value="today-low">Today: lowest earnings</option><option value="month-high">Month: highest earnings</option><option value="month-low">Month: lowest earnings</option></select></div></div><div className="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Today's earnings</th><th>Monthly earnings</th><th>Wallet</th><th>Status</th><th></th></tr></thead><tbody>{users.map(u=><tr key={u.id} onClick={async()=>setSelected(await getUserDetailById(u.id))}><td><div className="user-cell"><div className="avatar light">{u.name.charAt(0)}</div><div><b>{u.name}</b><span>{u.mobile} · {u.publicUserId}</span></div></div></td><td><span className={`type-pill ${(u.role || 'UNKNOWN').toLowerCase()}`}>{u.accountType}</span></td><td>{INR.format(u.todayEarnings)}</td><td>{INR.format(u.monthEarnings)}</td><td>{INR.format(u.walletBalance)}</td><td><span className={`status ${(u.status || 'UNKNOWN').toLowerCase()}`}>{u.status}</span></td><td><ChevronRight size={18}/></td></tr>)}</tbody></table></div></section>{selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)}/>}</div>
 }
 
 function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
-  return <div className="drawer-overlay" onClick={onClose}><aside className="user-drawer" onClick={e=>e.stopPropagation()}><div className="drawer-head"><div><div className="eyebrow">Account detail</div><h2>{user.name}</h2><span>{user.accountType} · {user.publicUserId}</span></div><button className="icon-btn" onClick={onClose}><X/></button></div><div className="detail-grid"><div><small>Mobile</small><b>{user.mobile}</b></div><div><small>Email</small><b>{user.email}</b></div><div><small>Wallet</small><b>{INR.format(user.walletBalance)}</b></div><div><small>Commission</small><b>{user.commissionRate}%</b></div><div><small>Today's earnings</small><b>{INR.format(user.todayEarnings)}</b></div><div><small>This month</small><b>{INR.format(user.monthEarnings)}</b></div></div><section className="drawer-section"><h3>Activity summary</h3><div className="summary-list"><span>Recharge count <b>{user.rechargeCount}</b></span><span>Add money <b>{INR.format(user.addMoneyTotal)}</b></span><span>Withdrawn <b>{INR.format(user.withdrawalTotal)}</b></span></div></section>{user.latestRecharge&&<section className="detail-card"><div className="detail-top"><span className="status success">SUCCESS</span><span>{dateTime(user.latestRecharge.createdAt)}</span></div><b>{user.latestRecharge.operator} · {user.latestRecharge.mobile}</b><div className="detail-row"><span>Recharge</span><strong>{INR.format(user.latestRecharge.amount)}</strong></div><div className="detail-row"><span>Commission</span><strong className="green">{INR.format(user.latestRecharge.commission)}</strong></div><div className="detail-row"><span>Transaction</span><strong>{user.latestRecharge.transactionId}</strong></div></section>}<div className="drawer-note">Admin and manager access is read-only for client wallets. This portal cannot recharge, add money, or withdraw on behalf of a user.</div></aside></div>
-}
+  const [tab,setTab] = useState<'overview'|'recharges'|'wallet'>('overview');
+  const [imageSrc,setImageSrc] = useState<string | null>(null);
+  const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
+  const [rechargePage,setRechargePage] = useState(0);
+  const [rechargeHasNext,setRechargeHasNext] = useState(false);
+  const [walletHistory,setWalletHistory] = useState<WalletHistoryItem[]>([]);
+  const [walletPage,setWalletPage] = useState(0);
+  const [walletHasNext,setWalletHasNext] = useState(false);
+  const [loadingRecharges,setLoadingRecharges] = useState(true);
+  const [loadingWallet,setLoadingWallet] = useState(true);
 
+  useEffect(()=>{
+    let active = true;
+    getUserProfileImage(user.id).then(src=>{ if(active) setImageSrc(src); }).catch(()=>{});
+    Promise.all([
+      getUserRechargeHistory(user.id,0,25),
+      getUserWalletHistory(user.id,0,25),
+    ]).then(([rechargePageData,walletPageData])=>{
+      if(!active) return;
+      setRecharges(rechargePageData.items);
+      setRechargePage(rechargePageData.page);
+      setRechargeHasNext(rechargePageData.hasNext);
+      setWalletHistory(walletPageData.items);
+      setWalletPage(walletPageData.page);
+      setWalletHasNext(walletPageData.hasNext);
+    }).catch(()=>{}).finally(()=>{
+      if(active){ setLoadingRecharges(false); setLoadingWallet(false); }
+    });
+    return ()=>{ active=false; };
+  },[user.id]);
+
+  useEffect(()=>()=>{ if(imageSrc?.startsWith('blob:')) URL.revokeObjectURL(imageSrc); },[imageSrc]);
+
+  async function loadMoreRecharges(){
+    const next = await getUserRechargeHistory(user.id,rechargePage + 1,25);
+    setRecharges(current=>[...current,...next.items]);
+    setRechargePage(next.page);
+    setRechargeHasNext(next.hasNext);
+  }
+
+  async function loadMoreWallet(){
+    const next = await getUserWalletHistory(user.id,walletPage + 1,25);
+    setWalletHistory(current=>[...current,...next.items]);
+    setWalletPage(next.page);
+    setWalletHasNext(next.hasNext);
+  }
+
+  const walletWithBalances = useMemo(() => {
+    let running = user.balance;
+    return walletHistory.map(item => {
+      const posted = (item.status || '').toUpperCase() === 'POSTED';
+      if (!posted) return { item, before: null as number | null, after: null as number | null };
+      const after = running;
+      const reducesBalance = ['DEBIT', 'WITHDRAW'].includes((item.type || '').toUpperCase());
+      const before = reducesBalance ? after + item.amount : after - item.amount;
+      running = before;
+      return { item, before, after };
+    });
+  }, [walletHistory, user.balance]);
+
+  const statusClass = (user.status || 'UNKNOWN').toLowerCase();
+
+  return <div className="drawer-overlay" onClick={onClose}>
+    <aside className="user-drawer user-drawer-wide" onClick={e=>e.stopPropagation()}>
+      <div className="drawer-head">
+        <div className="drawer-user-heading">
+          {imageSrc ? <img className="drawer-avatar-image" src={imageSrc} alt={user.name + ' profile'} /> : <div className="drawer-avatar">{user.name.charAt(0).toUpperCase()}</div>}
+          <div>
+            <div className="eyebrow">Account detail · Read only</div>
+            <h2>{user.name}</h2>
+            <div className="drawer-subtitle"><span>{user.accountType}</span><span>{user.publicUserId}</span><span className={"status " + statusClass}>{user.status}</span></div>
+          </div>
+        </div>
+        <button className="icon-btn" onClick={onClose}><X/></button>
+      </div>
+
+      <section className="detail-grid detail-grid-3">
+        <div className="balance-highlight"><small>Current balance</small><b>{INR.format(user.balance)}</b></div>
+        <div><small>Available balance</small><b>{INR.format(user.availableBalance)}</b></div>
+        <div><small>Reserved balance</small><b>{INR.format(user.reservedBalance)}</b></div>
+        <div><small>Successful recharges</small><b>{user.rechargeCount.toLocaleString('en-IN')}</b></div>
+        <div><small>Total added</small><b>{INR.format(user.addMoneyTotal)}</b></div>
+        <div><small>Total withdrawn</small><b>{INR.format(user.withdrawalTotal)}</b></div>
+      </section>
+
+      <section className="drawer-section">
+        <div className="drawer-section-title"><div><h3>Profile & account</h3><p>Information currently available to the client account.</p></div><ShieldCheck size={17}/></div>
+        <div className="profile-facts">
+          <div><small><Users size={14}/> Name</small><b>{user.name}</b></div>
+          <div><small><Smartphone size={14}/> Mobile</small><b>{user.mobile}</b></div>
+          <div><small><ReceiptText size={14}/> Email</small><b>{user.email || 'Not provided'}</b></div>
+          <div><small><CircleDollarSign size={14}/> Commission</small><b>{user.commissionRate}%</b></div>
+          <div><small><CalendarDays size={14}/> Joined</small><b>{dateTime(user.joinedAt)}</b></div>
+          <div><small><History size={14}/> Profile updated</small><b>{user.profileUpdatedAt ? dateTime(user.profileUpdatedAt) : 'Not available'}</b></div>
+        </div>
+      </section>
+
+      <div className="detail-tabs">
+        <button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}><WalletCards size={15}/> Overview</button>
+        <button className={tab==='recharges'?'active':''} onClick={()=>setTab('recharges')}><ReceiptText size={15}/> Recharges <span>{recharges.length}{rechargeHasNext?'+':''}</span></button>
+        <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}><History size={15}/> Balance history <span>{walletHistory.length}{walletHasNext?'+':''}</span></button>
+      </div>
+
+      {tab==='overview' && <section className="drawer-section">
+        <div className="drawer-section-title"><div><h3>Recent activity</h3><p>Latest wallet and recharge activity for quick review.</p></div></div>
+        {user.latestRecharge ? <div className="detail-card">
+          <div className="detail-top"><span className={"status " + (user.latestRecharge.status || 'UNKNOWN').toLowerCase()}>{user.latestRecharge.status}</span><span>{dateTime(user.latestRecharge.createdAt)}</span></div>
+          <b>{user.latestRecharge.operator} · {user.latestRecharge.mobile}</b>
+          <div className="detail-row"><span>Recharge amount</span><strong>{INR.format(user.latestRecharge.amount)}</strong></div>
+          <div className="detail-row"><span>Client commission</span><strong className="green">{INR.format(user.latestRecharge.commission)}</strong></div>
+          <div className="detail-row"><span>Transaction ID</span><strong className="mono">{user.latestRecharge.transactionId}</strong></div>
+        </div> : <div className="empty-state">No recharge activity recorded.</div>}
+        <div className="activity-list">
+          {user.recentWalletEntries.map(entry=><div className="activity-row" key={entry.id}><div><b>{entry.type.replace('_',' ')}</b><span>{entry.reference}</span></div><strong>{INR.format(entry.amount)}</strong></div>)}
+        </div>
+      </section>}
+
+      {tab==='recharges' && <section className="drawer-section">
+        <div className="drawer-section-title"><div><h3>All recharge records</h3><p>Includes successful, failed, pending and other persisted recharge attempts.</p></div></div>
+        {loadingRecharges ? <div className="empty-state">Loading recharge history…</div> : recharges.length===0 ? <div className="empty-state">No recharge records found.</div> :
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Recharge</th><th>Plan</th><th>Amounts</th><th>Status</th><th>References</th></tr></thead><tbody>
+            {recharges.map(r=><tr key={r.transactionId}><td>{dateTime(r.createdAt)}</td><td><b>{r.operator} · {r.mobileNumber}</b><span>{r.circle}</span></td><td><b>{INR.format(r.amount)}</b><span>{r.planDescription || r.planId}</span></td><td><b>Debit {INR.format(r.walletDebitAmount)}</b><span>Commission {INR.format(r.clientCommission)}</span><span>Company {INR.format(r.companyCommission)}</span></td><td><span className={"status " + (r.status || 'UNKNOWN').toLowerCase()}>{r.status}</span>{r.message&&<span>{r.message}</span>}</td><td><span className="mono">{r.transactionId}</span><span>{r.providerReference || r.providerOrderId || r.clientRequestId}</span></td></tr>)}
+          </tbody></table></div>}
+        {rechargeHasNext && <button className="secondary load-more" onClick={loadMoreRecharges}>Load more recharge records <ChevronRight size={15}/></button>}
+      </section>}
+
+      {tab==='wallet' && <section className="drawer-section">
+        <div className="drawer-section-title"><div><h3>Complete balance history</h3><p>Credits, debits, withdrawals and linked recharge ledger entries.</p></div></div>
+        {loadingWallet ? <div className="empty-state">Loading balance history…</div> : walletHistory.length===0 ? <div className="empty-state">No balance history found.</div> :
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance before</th><th>Balance after</th><th>Status</th><th>Reference</th><th>Description</th></tr></thead><tbody>
+            {walletWithBalances.map(({item,before,after})=><tr key={item.id}><td>{dateTime(item.createdAt)}</td><td><b>{item.referenceType || item.type}</b>{item.mobileNumber&&<span>{item.operator} · {item.mobileNumber}</span>}</td><td><b>{INR.format(item.amount)}</b></td><td>{before===null?'—':INR.format(before)}</td><td>{after===null?'—':INR.format(after)}</td><td><span className={"status " + (item.status || 'UNKNOWN').toLowerCase()}>{item.status}</span></td><td><span className="mono">{item.referenceId || item.externalRef}</span></td><td>{item.description || '—'}</td></tr>)}
+          </tbody></table></div>}
+        {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
+      </section>}
+
+      <div className="drawer-note"><ShieldCheck size={15}/> This view is strictly read-only. No balance, profile, recharge, transaction or booking data can be changed from this screen.</div>
+    </aside>
+  </div>
+}
 function VendorsView({vendors,newVendor,setNewVendor,onAdd}:{vendors:Vendor[];newVendor:any;setNewVendor:(v:any)=>void;onAdd:()=>void}){
   return <div className="content"><div className="split"><section className="panel"><div className="panel-head"><div><h2>Add vendor</h2><p>These partner services will later appear as quick actions for clients.</p></div></div><div className="form vendor-form"><label>Vendor name<input value={newVendor.name} onChange={e=>setNewVendor({...newVendor,name:e.target.value})}/></label><div className="two"><label>Category<select value={newVendor.category} onChange={e=>setNewVendor({...newVendor,category:e.target.value})}><option value="CAR_RENT">Car rental</option><option value="TRAVEL">Travel</option><option value="SERVICES">Other service</option></select></label><label>City<input value={newVendor.city} onChange={e=>setNewVendor({...newVendor,city:e.target.value})}/></label></div><label>Phone<input value={newVendor.phone} onChange={e=>setNewVendor({...newVendor,phone:e.target.value})}/></label><label>Commission %<input type="number" value={newVendor.commissionRate} onChange={e=>setNewVendor({...newVendor,commissionRate:Number(e.target.value)})}/></label><button className="primary" onClick={onAdd} disabled={!newVendor.name||!newVendor.city}>Add vendor</button></div></section><section className="panel"><div className="panel-head"><div><h2>Partner directory</h2><p>Active and inactive service vendors.</p></div></div><div className="vendor-list">{vendors.map(v=><div className="vendor-row" key={v.id}><div className="vendor-icon"><CarFront size={18}/></div><div className="vendor-main"><b>{v.name}</b><span>{v.category.replace('_',' ')} · {v.city} · {v.phone}</span></div><span className={`status ${v.active?'active':'blocked'}`}>{v.active?'ACTIVE':'INACTIVE'}</span></div>)}</div></section></div></div>
 }
