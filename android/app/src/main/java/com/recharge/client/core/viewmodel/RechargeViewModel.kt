@@ -7,6 +7,8 @@ import com.recharge.client.core.model.OperatorCheckResponse
 import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeResponse
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
+import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.PaymentVerificationResponse
 import com.recharge.client.core.repository.ClientRepository
 import java.math.BigDecimal
 import java.util.UUID
@@ -36,7 +38,8 @@ data class RechargeUiState(
     val error: String? = null,
     val walletBalance: BigDecimal? = null,
     val action: RechargeActionState = RechargeActionState.Idle,
-    val transactionStatus: RechargeTransactionStatusResponse? = null
+    val transactionStatus: RechargeTransactionStatusResponse? = null,
+    val gatewayOrder: PaymentOrderResponse? = null
 )
 
 class RechargeViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,7 +65,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
             loadingPlans = false,
             error = null,
             action = RechargeActionState.Idle,
-            transactionStatus = null
+            transactionStatus = null,
+            gatewayOrder = null
         )
     }
 
@@ -93,6 +97,31 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
             repository.detectOperator(mobile)
                 .onSuccess { detected ->
+                    if (detected.pending) {
+                        _state.value = _state.value.copy(
+                            operator = null,
+                            detecting = false,
+                            loadingPlans = false,
+                            plans = emptyList(),
+                            selectedPlan = null,
+                            error = friendlyRechargeError(detected.message)
+                                .ifBlank { "Operator detection is still processing. Please try again later." }
+                        )
+                        return@onSuccess
+                    }
+
+                    if (detected.type?.equals("POSTPAID", ignoreCase = true) == true) {
+                        _state.value = _state.value.copy(
+                            operator = detected,
+                            detecting = false,
+                            loadingPlans = false,
+                            plans = emptyList(),
+                            selectedPlan = null,
+                            error = "Personalized recharge offers are currently available only for prepaid numbers."
+                        )
+                        return@onSuccess
+                    }
+
                     _state.value = _state.value.copy(
                         operator = detected,
                         detecting = false,
@@ -100,7 +129,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                         error = null
                     )
 
-                    repository.plans(mobile, detected.operator, detected.circle)
+                    repository.plans(mobile, detected.operator, detected.circle, detected.providerOperator, detected.providerCircle)
                         .onSuccess { plans ->
                             _state.value = _state.value.copy(
                                 loadingPlans = false,
@@ -144,7 +173,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 .onSuccess { wallet ->
                     _state.value = _state.value.copy(
                         refreshingWallet = false,
-                        walletBalance = wallet.balance
+                        walletBalance = wallet.availableBalance
                     )
                 }
                 .onFailure { failure ->
@@ -165,6 +194,114 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     fun clearSelection() {
         _state.value = _state.value.copy(selectedPlan = null, action = RechargeActionState.Idle, error = null)
+    }
+
+    fun startGatewayRechargePayment() {
+        val current = _state.value
+        val plan = current.selectedPlan ?: run {
+            _state.value = current.copy(error = "Select a recharge plan first.")
+            return
+        }
+        val operator = current.operator ?: run {
+            _state.value = current.copy(error = "Detect the operator before continuing.")
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(executing = true, error = null, gatewayOrder = null)
+            repository.createRechargePaymentOrder(
+                com.recharge.client.core.model.RechargeRequest(
+                    mobileNumber = current.mobile,
+                    operator = operator.operator,
+                    circle = operator.circle,
+                    planId = plan.id,
+                    clientRequestId = "ANDROID-RECHARGE-PAY-" + UUID.randomUUID()
+                )
+            ).onSuccess { order ->
+                _state.value = _state.value.copy(executing = false, gatewayOrder = order)
+            }.onFailure { failure ->
+                _state.value = _state.value.copy(
+                    executing = false,
+                    gatewayOrder = null,
+                    action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
+                )
+            }
+        }
+    }
+
+    fun generatePayUHash(hashName: String, hashString: String, onGenerated: (String) -> Unit) {
+        viewModelScope.launch {
+            repository.generatePayUHash(hashName, hashString, null, null)
+                .onSuccess(onGenerated)
+                .onFailure { gatewayPaymentFailed(it.message ?: "Unable to generate PayU payment hash") }
+        }
+    }
+
+    fun gatewayPaymentFailed(message: String?) {
+        _state.value = _state.value.copy(
+            executing = false,
+            gatewayOrder = null,
+            action = RechargeActionState.Failure(
+                message?.takeIf { it.isNotBlank() } ?: "Gateway payment was cancelled or failed."
+            )
+        )
+    }
+
+    fun verifyGatewayPayment(provider: String, paymentId: String?, orderId: String?, signature: String?) {
+        val current = _state.value
+        if (orderId.isNullOrBlank()) {
+            _state.value = current.copy(
+                executing = false,
+                gatewayOrder = null,
+                action = RechargeActionState.Failure("Payment verification data is incomplete.")
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(executing = true, gatewayOrder = null, error = null)
+            repository.verifyPayment(
+                com.recharge.client.core.model.VerifyPaymentRequest(
+                    provider = provider,
+                    paymentId = paymentId,
+                    orderId = orderId,
+                    signature = signature
+                )
+            ).onSuccess { verification ->
+                val response = gatewayVerificationToRechargeResponse(verification)
+                _state.value = _state.value.copy(
+                    executing = false,
+                    walletBalance = verification.availableBalance,
+                    action = when (verification.rechargeStatus?.uppercase()) {
+                        "SUCCESS" -> RechargeActionState.Success(response)
+                        "FAILED" -> RechargeActionState.Failure(verification.message ?: "Recharge failed after payment verification.")
+                        else -> RechargeActionState.Pending(response)
+                    }
+                )
+                if (response.transactionId.isNotBlank() && verification.rechargeStatus?.uppercase() == "PENDING") {
+                    startPolling(response.transactionId)
+                }
+            }.onFailure { failure ->
+                _state.value = _state.value.copy(
+                    executing = false,
+                    gatewayOrder = null,
+                    action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
+                )
+                refreshWallet()
+            }
+        }
+    }
+
+    private fun gatewayVerificationToRechargeResponse(verification: PaymentVerificationResponse): RechargeResponse {
+        val amount = verification.amount ?: _state.value.selectedPlan?.amount ?: BigDecimal.ZERO
+        return RechargeResponse(
+            transactionId = verification.transactionId.orEmpty(),
+            status = verification.rechargeStatus ?: verification.status.orEmpty(),
+            amount = amount,
+            commission = verification.commission ?: BigDecimal.ZERO,
+            walletDebitAmount = verification.walletDebitAmount ?: amount,
+            walletBalance = verification.balance
+        )
     }
 
     fun executeSelectedPlan() {
@@ -200,7 +337,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                 .onSuccess { response ->
                     _state.value = _state.value.copy(
                         executing = false,
-                        walletBalance = response.walletBalance,
+                        walletBalance = response.walletAvailableBalance,
                         action = when (response.status.uppercase()) {
                             "SUCCESS" -> RechargeActionState.Success(response)
                             "FAILED" -> RechargeActionState.Failure("Recharge failed. Your wallet balance has not been permanently deducted.")
@@ -231,7 +368,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                     .onSuccess { status ->
                         _state.value = _state.value.copy(
                             transactionStatus = status,
-                            walletBalance = status.walletBalance
+                            walletBalance = status.walletAvailableBalance
                         )
 
                         when (status.status.uppercase()) {
@@ -283,10 +420,31 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     private fun friendlyRechargeError(message: String?): String {
         val raw = message?.trim().orEmpty()
         return when {
+            raw.contains("R-Offer", ignoreCase = true) &&
+                (raw.contains("timed out", ignoreCase = true) ||
+                    raw.contains("could not be reached", ignoreCase = true)) ->
+                "Recharge offers service is taking too long to respond. Please try again later."
+            raw.contains("R-Offer", ignoreCase = true) &&
+                raw.contains("rate limit", ignoreCase = true) ->
+                "Recharge offers service is temporarily busy. Please try again later."
+            raw.contains("R-Offer", ignoreCase = true) &&
+                raw.contains("insufficient balance", ignoreCase = true) ->
+                "The recharge offers provider account has insufficient balance. Please try again later."
+            raw.contains("timed out", ignoreCase = true) ||
+                raw.contains("could not be reached", ignoreCase = true) ->
+                "Operator detection service is taking too long to respond. Please try again later."
+            raw.contains("rate limit", ignoreCase = true) ->
+                "Operator detection service is temporarily busy. Please try again later."
+            raw.contains("insufficient balance", ignoreCase = true) ->
+                "The operator provider account has insufficient balance. Please try again later."
+            raw.contains("no api access", ignoreCase = true) ->
+                "The operator detection service is not enabled for this account."
+            raw.contains("No configured recharge plan provider supports", ignoreCase = true) ->
+                "Recharge plans are currently available only for Airtel and Vi numbers."
             raw.contains("Personalized R-Offers", ignoreCase = true) ->
-                "Personalized offers are not available for this operator yet."
+                "Personalized offers through Way2API are currently supported only for Airtel and Vi numbers."
             raw.contains("no recharge offers", ignoreCase = true) ->
-                "No recharge offers are available for this number right now."
+                "No personalized recharge offers are available for this number right now."
             raw.contains("available balance", ignoreCase = true) ||
                 raw.contains("insufficient", ignoreCase = true) ->
                 "Your wallet balance is not sufficient for this recharge."

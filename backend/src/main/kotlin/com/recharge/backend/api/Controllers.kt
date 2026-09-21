@@ -4,12 +4,13 @@ import com.recharge.backend.service.AuthService
 import com.recharge.backend.service.RechargeHistoryService
 import com.recharge.backend.service.RechargeService
 import com.recharge.backend.service.WalletService
+import com.recharge.backend.provider.payu.PayUPaymentGatewayProvider
 import com.recharge.backend.service.ProfileService
 import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.http.CacheControl
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import com.recharge.backend.service.RazorpayService
+import com.recharge.backend.service.PaymentGatewayService
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.security.access.AccessDeniedException
@@ -23,7 +24,8 @@ class ClientController(
     private val recharge: RechargeService,
     private val rechargeHistory: RechargeHistoryService,
     private val authService: AuthService,
-    private val razorpayService: RazorpayService,
+    private val paymentGatewayService: PaymentGatewayService,
+    private val payuPaymentGateway: PayUPaymentGatewayProvider,
     private val rechargeRepository: RechargeTransactionRepository
 ) {
     private fun authenticatedUserId(authentication: Authentication): Long =
@@ -48,14 +50,37 @@ class ClientController(
         authentication: Authentication,
         @Valid @RequestBody request: CreatePaymentOrderRequest
     ): CreatePaymentOrderResponse =
-        razorpayService.createWalletOrder(authenticatedUserId(authentication), request)
+        paymentGatewayService.createWalletOrder(authenticatedUserId(authentication), request)
+
+    @PostMapping("/recharge/payment-order")
+    fun createRechargePaymentOrder(
+        authentication: Authentication,
+        @Valid @RequestBody request: RechargeRequest
+    ): CreatePaymentOrderResponse =
+        paymentGatewayService.createRechargeOrder(authenticatedUserId(authentication), request)
 
     @PostMapping("/payments/verify")
     fun verifyPayment(
         authentication: Authentication,
         @Valid @RequestBody request: VerifyPaymentRequest
     ): VerifyPaymentResponse =
-        razorpayService.verifyWalletPayment(authenticatedUserId(authentication), request)
+        paymentGatewayService.verifyWalletPayment(authenticatedUserId(authentication), request)
+
+    @PostMapping("/payments/payu/hash")
+    fun payuHash(
+        authentication: Authentication,
+        @RequestBody request: PayUHashRequest
+    ): PayUHashResponse {
+        authenticatedUserId(authentication)
+        return PayUHashResponse(
+            payuPaymentGateway.generateHash(
+                hashName = request.hashName,
+                hashString = request.hashString,
+                postSalt = request.postSalt,
+                hashType = request.hashType
+            )
+        )
+    }
 
     @PostMapping("/recharge/operator")
     fun operator(@Valid @RequestBody request: OperatorCheckRequest) = recharge.detect(request)
@@ -64,8 +89,10 @@ class ClientController(
     fun plans(
         @RequestParam mobile: String,
         @RequestParam operator: String,
-        @RequestParam circle: String
-    ) = recharge.plans(mobile, operator, circle)
+        @RequestParam circle: String,
+        @RequestParam(required = false) providerOperator: String?,
+        @RequestParam(required = false) providerCircle: String?
+    ) = recharge.plans(mobile, operator, circle, providerOperator, providerCircle)
 
     @PostMapping("/recharge")
     fun recharge(

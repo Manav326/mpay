@@ -5,8 +5,9 @@ import com.recharge.backend.config.PayUProperties
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
+import org.springframework.web.client.RestClientResponseException
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicReference
 
 @Service
 class PayUAuthService(
@@ -16,30 +17,39 @@ class PayUAuthService(
         .baseUrl(properties.authBaseUrl.trimEnd('/'))
         .build()
 
-    private val cachedToken = AtomicReference<CachedToken?>()
+    private val cachedTokens = mutableMapOf<String, CachedToken>()
 
     @Synchronized
-    fun getAccessToken(): String {
-        val cached = cachedToken.get()
+    fun getAccessToken(scope: String = properties.scope): String {
+        val normalizedScope = scope.trim().ifBlank { properties.scope }
+        val cached = cachedTokens[normalizedScope]
         if (cached != null && cached.expiresAt.isAfter(Instant.now().plusSeconds(60))) {
             return cached.value
         }
 
         requireConfigured()
 
-        val response = restClient.post()
-            .uri("/oauth/token")
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .accept(MediaType.APPLICATION_JSON)
-            .body(
-                "client_id=${encode(properties.clientId)}" +
-                    "&client_secret=${encode(properties.clientSecret)}" +
-                    "&grant_type=client_credentials" +
-                    "&scope=${encode(properties.scope)}"
+        val response = try {
+            restClient.post()
+                .uri("/oauth/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(
+                    "client_id=${encode(properties.clientId)}" +
+                        "&client_secret=${encode(properties.clientSecret)}" +
+                        "&grant_type=client_credentials" +
+                        "&scope=${encode(normalizedScope)}"
+                )
+                .retrieve()
+                .body(PayUTokenResponse::class.java)
+        } catch (ex: RestClientResponseException) {
+            throw PayUIntegrationException(
+                "PayU token request failed with HTTP ${ex.statusCode.value()}",
+                ex
             )
-            .retrieve()
-            .body(PayUTokenResponse::class.java)
-            ?: throw PayUIntegrationException("PayU returned an empty token response")
+        } catch (ex: RestClientException) {
+            throw PayUIntegrationException("PayU token request failed", ex)
+        } ?: throw PayUIntegrationException("PayU returned an empty token response")
 
         if (response.accessToken.isBlank()) {
             throw PayUIntegrationException("PayU token response did not contain access_token")
@@ -50,12 +60,13 @@ class PayUAuthService(
             value = response.accessToken,
             expiresAt = Instant.now().plusSeconds(expiresIn.toLong())
         )
-        cachedToken.set(token)
+        cachedTokens[normalizedScope] = token
         return token.value
     }
 
-    fun clearToken() {
-        cachedToken.set(null)
+    @Synchronized
+    fun clearToken(scope: String? = null) {
+        if (scope.isNullOrBlank()) cachedTokens.clear() else cachedTokens.remove(scope.trim())
     }
 
     fun isConfigured(): Boolean = properties.clientId.isNotBlank() && properties.clientSecret.isNotBlank()

@@ -102,35 +102,63 @@ data class OperatorCheckResponse(
     val mobileNumber: String,
     val operator: String,
     val providerOperator: String,
+    val providerCircle: String? = null,
     val circle: String,
     val type: String?,
     val providerOrderId: String?,
-    val rechargeStatus: String = "UNKNOWN"
+    val rechargeStatus: String = "UNKNOWN",
+    val pending: Boolean = false,
+    val message: String? = null,
+    val providerMessageCode: String? = null
 )
 data class RechargePlanDto(val id: String, val amount: BigDecimal, val validity: String?, val description: String?)
 data class CreatePaymentOrderRequest(
-    @field:DecimalMin("10.00") val amount: BigDecimal,
-    @field:NotBlank val clientRequestId: String
+    @field:DecimalMin("0.01") val amount: BigDecimal,
+    @field:NotBlank val clientRequestId: String,
+    val purpose: String = "ADD_MONEY",
+    val rechargeMobileNumber: String? = null,
+    val rechargeOperator: String? = null,
+    val rechargeCircle: String? = null,
+    val rechargePlanId: String? = null
 )
 
 data class CreatePaymentOrderResponse(
+    val provider: String = "razorpay",
     val orderId: String,
     val amount: BigDecimal,
     val currency: String,
-    val keyId: String
+    val keyId: String,
+    val checkoutParams: Map<String, String> = emptyMap()
 )
 
 data class VerifyPaymentRequest(
-    @field:NotBlank val razorpayPaymentId: String,
-    @field:NotBlank val razorpayOrderId: String,
-    @field:NotBlank val razorpaySignature: String
+    val provider: String = "razorpay",
+    val paymentId: String? = null,
+    val orderId: String? = null,
+    val signature: String? = null
 )
 
 data class VerifyPaymentResponse(
     val status: String,
     val balance: BigDecimal,
+    val availableBalance: BigDecimal = balance,
+    val transactionId: String? = null,
+    val rechargeStatus: String? = null,
+    val amount: BigDecimal? = null,
+    val commission: BigDecimal? = null,
+    val walletDebitAmount: BigDecimal? = null,
+    val message: String? = null,
     val currency: String = "INR"
 )
+
+data class PayUHashRequest(
+    @field:NotBlank val hashName: String,
+    @field:NotBlank val hashString: String,
+    val postSalt: String? = null,
+    val hashType: String? = null
+)
+
+data class PayUHashResponse(val hash: String)
 
 data class RechargeResponse(
     val transactionId: String,

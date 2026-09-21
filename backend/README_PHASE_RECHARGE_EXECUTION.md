@@ -38,3 +38,38 @@ Recharge POST body:
 }
 
 The backend never trusts a client-supplied amount; it re-fetches the current provider offers and resolves planId server-side.
+
+## Plan-provider routing
+
+Plan discovery is behind the PlanCatalogProvider abstraction.
+
+Current routing:
+- AIRTEL -> Way2API R-Offer
+- VI -> Way2API R-Offer
+- JIO -> no provider configured yet; the request is rejected before calling Way2API R-Offer
+- BSNL -> no provider configured yet; the request is rejected before calling Way2API R-Offer
+
+Additional providers implement PlanCatalogProvider, declare the operators they support, and can be selected by the existing provider preference or used as an operator-specific fallback. Android does not need to change when a new provider is added.
+
+Way2API R-Offers are for prepaid Airtel/Vi numbers only. The Android flow blocks a detected POSTPAID number before making the R-Offer request.
+
+## Operator detection reliability
+
+The operator/circle lookup is a real Way2API call:
+
+POST /api/v1/recharge/operator -> POST https://app.way2api.com/api/v1/operator-circle/check.
+
+The backend now uses explicit upstream connect/read timeouts and exposes provider failures as gateway/provider errors instead of allowing an unbounded upstream wait.
+
+Current local defaults:
+- Way2API connect timeout: 5 seconds
+- Way2API read timeout: 45 seconds
+- Android client read timeout: 60 seconds
+
+The provider response lifecycle is also handled explicitly:
+- SUCCESS with operator/circle -> continue to plan lookup.
+- PENDING / ACCEPTED / PROVIDER_NO_RESPONSE -> Android shows a pending message and does not call the plans API with incomplete operator data.
+- Upstream timeout -> HTTP 504 from our backend.
+- Provider errors such as 429, 503, 401, 402, 403, and 422 are surfaced without automatic retry.
+
+Automatic retry is intentionally not used for operator detection because Way2API documents that some accepted/pending requests are billable; retrying blindly after a timeout could duplicate a billable lookup.

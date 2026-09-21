@@ -1,18 +1,11 @@
 package com.recharge.backend.provider.mock
 
 import com.recharge.backend.provider.*
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.UUID
 
 @Service
-@ConditionalOnProperty(
-    prefix = "app.recharge",
-    name = ["execution-provider"],
-    havingValue = "mock",
-    matchIfMissing = true
-)
 class MockRechargeExecutionProvider(
     @Value("\${app.recharge.mock-execution-status:SUCCESS}") private val configuredStatus: String
 ) : RechargeExecutionProvider {

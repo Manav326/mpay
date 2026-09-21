@@ -6,6 +6,7 @@ import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
 import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.PayUHashRequest
 import com.recharge.client.core.model.OperatorCheckResponse
 import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeRequest
@@ -91,9 +92,22 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun verifyPayment(request: VerifyPaymentRequest): Result<Unit> = runCatching {
+    suspend fun verifyPayment(request: VerifyPaymentRequest): Result<com.recharge.client.core.model.PaymentVerificationResponse> = runCatching {
         val response = api.verifyPayment(request)
-        if (!response.isSuccessful) error(ApiError.message(response))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun createRechargePaymentOrder(request: RechargeRequest): Result<PaymentOrderResponse> = runCatching {
+        val response = api.createRechargePaymentOrder(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun generatePayUHash(hashName: String, hashString: String, postSalt: String?, hashType: String?): Result<String> = runCatching {
+        val response = api.payuHash(PayUHashRequest(hashName, hashString, postSalt, hashType))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!.hash
     }
 
     suspend fun detectOperator(mobile: String): Result<OperatorCheckResponse> = runCatching {
@@ -102,8 +116,14 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun plans(mobile: String, operator: String, circle: String): Result<List<RechargePlan>> = runCatching {
-        val response = api.plans(mobile, operator, circle)
+    suspend fun plans(
+        mobile: String,
+        operator: String,
+        circle: String,
+        providerOperator: String? = null,
+        providerCircle: String? = null
+    ): Result<List<RechargePlan>> = runCatching {
+        val response = api.plans(mobile, operator, circle, providerOperator, providerCircle)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }

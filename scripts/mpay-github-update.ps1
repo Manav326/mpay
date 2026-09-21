@@ -20,13 +20,18 @@ $env:MPAY_BACKEND_IMAGE = "ghcr.io/manav326/mpay-backend"
 $env:MPAY_ADMIN_WEB_IMAGE = "ghcr.io/manav326/mpay-admin-web"
 $env:MPAY_IMAGE_TAG = $imageTag
 
+$backendImage = "$($env:MPAY_BACKEND_IMAGE):$imageTag"
+$adminWebImage = "$($env:MPAY_ADMIN_WEB_IMAGE):$imageTag"
+
 Write-Host ""
 Write-Host "mPay GitHub test environment" -ForegroundColor Cyan
 Write-Host "Branch    : $branch"
 Write-Host "Image tag : $imageTag"
+Write-Host "Backend   : $backendImage"
+Write-Host "Admin Web : $adminWebImage"
 Write-Host ""
 
-Write-Host "Pulling backend and Admin Web images..." -ForegroundColor Yellow
+Write-Host "Pulling exact branch images from GHCR via Compose..." -ForegroundColor Yellow
 docker compose -p mpay-github pull backend admin-web
 if ($LASTEXITCODE -ne 0) { throw "Docker image pull failed." }
 

@@ -1,13 +1,18 @@
 package com.recharge.backend.provider
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Service
+import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
 import java.math.BigDecimal
+import java.time.Duration
 import java.security.MessageDigest
 
 @Service
@@ -20,10 +25,27 @@ import java.security.MessageDigest
 class Way2ApiROfferPlanProvider(
     @Value("\${app.way2api.base-url}") private val baseUrl: String,
     @Value("\${app.way2api.api-key}") private val apiKey: String,
-    @Value("\${app.way2api.r-offer-path:/api/v1/mobile/r-offer}") private val rOfferPath: String
+    @Value("\${app.way2api.r-offer-path:/api/v1/mobile/r-offer}") private val rOfferPath: String,
+    @Value("\${app.way2api.connect-timeout-ms:5000}") private val connectTimeoutMs: Long,
+    @Value("\${app.way2api.r-offer-read-timeout-ms:50000}") private val readTimeoutMs: Long,
+    private val objectMapper: ObjectMapper
 ) : PlanCatalogProvider {
 
-    private val http = RestClient.builder().baseUrl(baseUrl.trimEnd('/')).build()
+    override val providerName: String = "way2api"
+
+    override fun supportsOperator(operator: String): Boolean =
+        operator.equals("AIRTEL", ignoreCase = true) ||
+            operator.equals("VI", ignoreCase = true)
+
+    private val http = RestClient.builder()
+        .baseUrl(baseUrl.trimEnd('/'))
+        .requestFactory(
+            SimpleClientHttpRequestFactory().apply {
+                setConnectTimeout(Duration.ofMillis(connectTimeoutMs.coerceAtLeast(100)))
+                setReadTimeout(Duration.ofMillis(readTimeoutMs.coerceAtLeast(100)))
+            }
+        )
+        .build()
 
     override fun getPlans(mobileNumber: String, operator: String, circle: String): List<RechargePlan> {
         require(mobileNumber.matches(Regex("[6-9][0-9]{9}"))) {
@@ -39,30 +61,100 @@ class Way2ApiROfferPlanProvider(
         }
 
         val request = Way2ROfferRequest(mobile_number = mobileNumber, operator = way2Operator)
-        val response = http.post()
-            .uri(rOfferPath)
-            .header(HttpHeaders.AUTHORIZATION, "Bearer $apiKey")
-            .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(request)
-            .retrieve()
-            .toEntity(Way2ROfferResponse::class.java)
-
-        val root = response.body ?: error("Way2API R-Offer returned an empty response")
-        if (!root.success || !root.status.equals("SUCCESS", ignoreCase = true)) {
-            val code = root.message_code?.takeIf { it.isNotBlank() }
-            val message = root.message?.takeIf { it.isNotBlank() } ?: "No recharge offers are available"
-            error(buildString {
-                append("Recharge offers lookup failed")
-                if (code != null) append(" [$code]")
-                append(": ")
-                append(message)
-            })
+        val response = try {
+            http.post()
+                .uri(rOfferPath)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer $apiKey")
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .onStatus({ status -> status.isError }) { _, upstream ->
+                    val body = runCatching { upstream.body.readBytes() }
+                        .getOrDefault(ByteArray(0))
+                    val root = runCatching {
+                        objectMapper.readValue(body, Way2ROfferResponse::class.java)
+                    }.getOrNull()
+                    throw Way2ApiException(
+                        upstreamStatusCode = upstream.statusCode.value(),
+                        providerMessageCode = root?.message_code,
+                        charged = root?.charged,
+                        providerOrderId = root?.order_id ?: root?.data?.order_id,
+                        message = root?.message?.takeIf { it.isNotBlank() }
+                            ?: "Way2API R-Offer lookup failed (${upstream.statusCode.value()})"
+                    )
+                }
+                .toEntity(Way2ROfferResponse::class.java)
+        } catch (ex: Way2ApiException) {
+            throw ex
+        } catch (ex: ResourceAccessException) {
+            throw Way2ApiException(
+                upstreamStatusCode = null,
+                message = "Way2API R-Offer lookup timed out or could not be reached. The request was not retried automatically because the provider billing state may be unknown."
+            )
+        } catch (ex: RestClientResponseException) {
+            throw Way2ApiException(
+                upstreamStatusCode = ex.statusCode.value(),
+                message = "Way2API R-Offer lookup failed (${ex.statusCode.value()})"
+            )
         }
 
-        val result = root.data?.result ?: error("Way2API R-Offer returned no offer data")
+        val root = response.body ?: throw Way2ApiException(
+            upstreamStatusCode = response.statusCode.value(),
+            message = "Way2API R-Offer returned an empty response"
+        )
+        val rootStatus = root.status.trim().uppercase()
+        val rootMessageCode = root.message_code?.trim()?.uppercase()
+        val rootMessage = root.message?.trim()?.takeIf { it.isNotBlank() }
+
+        if (response.statusCode.value() == 202 ||
+            rootStatus == "PENDING" ||
+            rootMessageCode == "ACCEPTED" ||
+            rootMessageCode == "PROVIDER_NO_RESPONSE"
+        ) {
+            throw Way2ApiException(
+                upstreamStatusCode = 202,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = rootMessage
+                    ?: "Way2API accepted the R-Offer lookup but it is still processing. Please try again later; no automatic retry was performed."
+            )
+        }
+        if (!root.success || rootStatus != "SUCCESS") {
+            val code = rootMessageCode
+            val message = rootMessage ?: "No recharge offers are available"
+            throw Way2ApiException(
+                upstreamStatusCode = root.status_code,
+                providerMessageCode = code,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = buildString {
+                    append("Recharge offers lookup failed")
+                    if (code != null) append(" [$code]")
+                    append(": ")
+                    append(message)
+                }
+            )
+        }
+
+        val result = root.data?.result
+            ?: throw Way2ApiException(
+                upstreamStatusCode = root.status_code,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = "Way2API R-Offer returned success without offer data"
+            )
+
         if (!result.operator.equals(way2Operator, ignoreCase = true)) {
-            error("Way2API returned a different operator than requested")
+            throw Way2ApiException(
+                upstreamStatusCode = 502,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data.order_id,
+                message = "Way2API returned a different operator than requested"
+            )
         }
 
         return result.offers.mapIndexed { index, offer ->

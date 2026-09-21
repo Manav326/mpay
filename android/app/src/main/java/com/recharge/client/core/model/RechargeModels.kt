@@ -17,7 +17,8 @@ data class RechargeResponse(
     val amount: BigDecimal,
     val commission: BigDecimal,
     val walletDebitAmount: BigDecimal,
-    val walletBalance: BigDecimal
+    val walletBalance: BigDecimal,
+    val walletAvailableBalance: BigDecimal = walletBalance
 )
 
 data class RechargeTransactionStatusResponse(
@@ -40,5 +41,6 @@ data class RechargeTransactionStatusResponse(
     val companyCommission: BigDecimal = BigDecimal.ZERO,
     val message: String? = null,
     val completedAt: String? = null,
-    val walletBalance: BigDecimal
+    val walletBalance: BigDecimal,
+    val walletAvailableBalance: BigDecimal = walletBalance
 )

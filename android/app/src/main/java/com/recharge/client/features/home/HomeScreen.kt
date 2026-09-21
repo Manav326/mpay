@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -37,7 +38,7 @@ fun HomeScreen(
     user: CurrentUserResponse?, wallet: WalletResponse?, loading: Boolean,
     commission: RechargeCommissionSummaryResponse?, latestRecharge: RechargeHistoryItem?, error: String?, isVisible: Boolean,
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
-    onRecharge: () -> Unit, onAddMoney: () -> Unit, onRechargeHistory: () -> Unit
+    onRecharge: () -> Unit, onAddMoney: () -> Unit, onRechargeHistory: () -> Unit, onCarRental: () -> Unit
 ) {
     LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
     var greetingVisible by remember { mutableStateOf(false) }
@@ -68,7 +69,11 @@ fun HomeScreen(
                         Text("Wallet balance", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f), modifier = Modifier.weight(1f))
                         IconButton(onClick = onRefreshBalance, enabled = !loading) { Icon(Icons.Default.Refresh, "Refresh balance", tint = MaterialTheme.colorScheme.onPrimary) }
                     }
-                    Text(if (loading) "Loading…" else "₹${formatMoney(wallet?.balance ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, softWrap = false)
+                    Text(if (loading) "Loading…" else "₹${formatMoney(wallet?.availableBalance ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, softWrap = false)
+                    if ((wallet?.reservedBalance ?: BigDecimal.ZERO) > BigDecimal.ZERO) {
+                        Spacer(Modifier.height(6.dp))
+                        Text("₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)} reserved in pending transactions", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
+                    }
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                         Button(onClick = onAddMoney, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimary, contentColor = AppColors.Primary), modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
@@ -88,6 +93,9 @@ fun HomeScreen(
                 ActionCard("Mobile Recharge", Icons.Default.PhoneAndroid, AppColors.Success, onRecharge, Modifier.weight(1f))
                 ActionCard("Add Money", Icons.Default.Add, AppColors.PrimaryDark, onAddMoney, Modifier.weight(1f))
             }
+        }
+        item {
+            ActionCard("Car Rental", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onCarRental, Modifier.fillMaxWidth())
         }
         item { ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.fillMaxWidth()) }
         if (latestRecharge != null) {

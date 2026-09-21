@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,11 +36,13 @@ fun RechargeScreen(
     state: RechargeUiState,
     commissionRate: BigDecimal?,
     onMobileChange: (String) -> Unit,
+    onChooseContact: () -> Unit,
     onDetect: () -> Unit,
     onRefreshPlans: () -> Unit,
     onSelectPlan: (RechargePlan) -> Unit,
     onExecuteRecharge: () -> Unit,
-    onDismissResult: () -> Unit,
+    onGatewayPay: () -> Unit,
+    onDone: () -> Unit,
     onAddMoney: () -> Unit,
     onRefreshWallet: () -> Unit,
     onExit: () -> Unit
@@ -63,6 +66,7 @@ fun RechargeScreen(
             commissionRate = commissionRate,
             onDismiss = { showConfirmation = false },
             onConfirm = { showConfirmation = false; onExecuteRecharge() },
+            onGatewayPay = { showConfirmation = false; onGatewayPay() },
             onAddMoney = { showConfirmation = false; onAddMoney() }
         )
     }
@@ -73,21 +77,21 @@ fun RechargeScreen(
             body = "₹${formatMoney(action.response.amount)} recharge completed. Wallet charged ₹${formatMoney(action.response.walletDebitAmount)} after commission.",
             detail = "${state.mobile} • ${operatorLabel(state.operator?.operator.orEmpty())}",
             positive = true,
-            onDismiss = onDismissResult
+            onDismiss = onDone
         )
         is RechargeActionState.Pending -> RechargeResultDialog(
             title = "Recharge is processing",
             body = "Your recharge has been accepted and is still being processed.",
             detail = "Wallet debit reserved: ₹${formatMoney(action.response.walletDebitAmount)}",
             positive = false,
-            onDismiss = onDismissResult
+            onDismiss = onDone
         )
         is RechargeActionState.Failure -> RechargeResultDialog(
             title = "Recharge not completed",
             body = action.message,
             detail = "No permanent wallet debit is made for a failed recharge.",
             positive = false,
-            onDismiss = onDismissResult
+            onDismiss = onDone
         )
         else -> Unit
     }
@@ -117,6 +121,22 @@ fun RechargeScreen(
                         leadingIcon = { Icon(Icons.Default.SimCard, null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         shape = RoundedCornerShape(16.dp)
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onChooseContact,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(Icons.Default.Contacts, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Choose from phone contacts")
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "You can also enter the number manually above.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(10.dp))
                     Button(
@@ -194,16 +214,14 @@ fun RechargeScreen(
                             Spacer(Modifier.height(10.dp))
                             RechargePriceBreakdown(selected.amount, commission, walletDebit)
                             Spacer(Modifier.height(12.dp))
-                            Button(onClick = { showConfirmation = true }, enabled = !state.executing && !insufficient, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                                if (state.executing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Processing…")
-                                } else {
-                                    Icon(Icons.Default.Wallet, null); Spacer(Modifier.width(8.dp)); Text("Recharge ₹${formatMoney(selected.amount)}")
-                                }
+                            Button(onClick = { showConfirmation = true }, enabled = !state.executing, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                                Icon(Icons.Default.Wallet, null); Spacer(Modifier.width(8.dp)); Text("Choose payment method")
                             }
                             if (insufficient) {
                                 Spacer(Modifier.height(8.dp))
-                                OutlinedButton(onClick = onAddMoney, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Add money to wallet") }
+                                OutlinedButton(onClick = onAddMoney, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                                    Text("Add money to wallet")
+                                }
                             }
                         }
                     }
@@ -295,7 +313,14 @@ private fun RechargePlanCard(plan: RechargePlan, selected: Boolean, enabled: Boo
 }
 
 @Composable
-private fun RechargeConfirmationDialog(state: RechargeUiState, commissionRate: BigDecimal?, onDismiss: () -> Unit, onConfirm: () -> Unit, onAddMoney: () -> Unit) {
+private fun RechargeConfirmationDialog(
+    state: RechargeUiState,
+    commissionRate: BigDecimal?,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    onGatewayPay: () -> Unit,
+    onAddMoney: () -> Unit
+) {
     val plan = state.selectedPlan ?: return
     val balance = state.walletBalance ?: BigDecimal.ZERO
     val rate = commissionRate?.max(BigDecimal.ZERO) ?: BigDecimal.ZERO
@@ -319,7 +344,16 @@ private fun RechargeConfirmationDialog(state: RechargeUiState, commissionRate: B
                 if (insufficient) Text("Your available wallet balance is not sufficient.", color = AppColors.Error)
             }
         },
-        confirmButton = { Button(onClick = if (insufficient) onAddMoney else onConfirm) { Text(if (insufficient) "Add money" else "Confirm recharge") } },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onGatewayPay) {
+                    Text("UPI / Bank")
+                }
+                Button(onClick = if (insufficient) onAddMoney else onConfirm) {
+                    Text(if (insufficient) "Add money" else "Use wallet")
+                }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

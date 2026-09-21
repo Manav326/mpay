@@ -1,9 +1,20 @@
 package com.recharge.backend.provider
 
-/**
- * Provider abstraction for recharge plan discovery.
- * Android never talks to an upstream provider directly.
- */
 interface PlanCatalogProvider {
+    val providerName: String
+        get() = this::class.simpleName.orEmpty().lowercase()
+
+    fun isConfigured(): Boolean = true
+
+    fun supportsOperator(operator: String): Boolean = false
+
     fun getPlans(mobileNumber: String, operator: String, circle: String): List<RechargePlan>
+
+    fun getPlans(
+        mobileNumber: String,
+        operator: String,
+        circle: String,
+        providerOperator: String?,
+        providerCircle: String?
+    ): List<RechargePlan> = getPlans(mobileNumber, operator, circle)
 }

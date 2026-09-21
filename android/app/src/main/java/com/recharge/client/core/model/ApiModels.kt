@@ -43,10 +43,14 @@ data class OperatorCheckResponse(
     val mobileNumber: String,
     val operator: String,
     val providerOperator: String? = null,
+    val providerCircle: String? = null,
     val circle: String,
     val type: String? = null,
     val providerOrderId: String? = null,
-    val rechargeStatus: String = "UNKNOWN"
+    val rechargeStatus: String = "UNKNOWN",
+    val pending: Boolean = false,
+    val message: String? = null,
+    val providerMessageCode: String? = null
 )
 
 data class RechargePlan(

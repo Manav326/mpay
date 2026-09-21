@@ -29,13 +29,17 @@ class RazorpayService(
     private val paymentOrders: PaymentOrderRepository,
     private val walletService: WalletService,
     private val objectMapper: ObjectMapper,
+    private val paymentSettlementService: PaymentSettlementService,
     @Value("\${app.razorpay.key-id:}") private val keyId: String,
     @Value("\${app.razorpay.key-secret:}") private val keySecret: String,
     @Value("\${app.razorpay.base-url:https://api.razorpay.com/v1}") private val baseUrl: String
-) {
+) : PaymentGatewayProvider {
+    override val providerName: String = "razorpay"
+    override fun isConfigured(): Boolean = keyId.isNotBlank() && keySecret.isNotBlank()
+
     private val httpClient: HttpClient = HttpClient.newBuilder().build()
 
-    fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
+    override fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
         require(keyId.isNotBlank() && keySecret.isNotBlank()) {
             "Razorpay test keys are not configured on the backend"
         }
@@ -49,10 +53,11 @@ class RazorpayService(
         if (existing.isPresent) {
             val order = existing.get()
             return CreatePaymentOrderResponse(
-                order.razorpayOrderId,
-                order.amount,
-                order.currency,
-                keyId
+                provider = providerName,
+                orderId = order.razorpayOrderId,
+                amount = order.amount,
+                currency = order.currency,
+                keyId = keyId
             )
         }
 
@@ -79,37 +84,42 @@ class RazorpayService(
                 razorpayOrderId = orderId,
                 amount = normalizedAmount,
                 currency = "INR",
-                status = "CREATED"
+                status = "CREATED",
+                purpose = request.purpose,
+                rechargeMobileNumber = request.rechargeMobileNumber,
+                rechargeOperator = request.rechargeOperator,
+                rechargeCircle = request.rechargeCircle,
+                rechargePlanId = request.rechargePlanId
             )
         )
 
-        return CreatePaymentOrderResponse(orderId, normalizedAmount, "INR", keyId)
+        return CreatePaymentOrderResponse(provider = providerName, orderId = orderId, amount = normalizedAmount, currency = "INR", keyId = keyId)
     }
 
     @Transactional
-    fun verifyWalletPayment(userId: Long, request: VerifyPaymentRequest): VerifyPaymentResponse {
-        require(keyId.isNotBlank() && keySecret.isNotBlank()) {
+    override fun verifyWalletPayment(userId: Long, request: VerifyPaymentRequest): VerifyPaymentResponse {
+        require(isConfigured()) {
             "Razorpay test keys are not configured on the backend"
         }
-
-        val order = paymentOrders.findByRazorpayOrderIdAndUserId(request.razorpayOrderId, userId)
+        val order = paymentOrders.findByRazorpayOrderIdAndUserId(request.orderId.orEmpty(), userId)
             .orElseThrow { IllegalArgumentException("Payment order not found") }
-
+        require(order.providerName.equals(providerName, true)) { "Payment order belongs to another gateway" }
+        
         if (order.status == "CAPTURED") {
-            return VerifyPaymentResponse("CAPTURED", walletService.getBalance(userId))
+            return paymentSettlementService.responseForCaptured(userId, order)
         }
 
         val expectedSignature = hmacSha256(
-            "${order.razorpayOrderId}|${request.razorpayPaymentId}",
+            "${order.razorpayOrderId}|${request.paymentId.orEmpty()}",
             keySecret
         )
-        require(MessageDigest.isEqual(expectedSignature.toByteArray(StandardCharsets.UTF_8), request.razorpaySignature.toByteArray(StandardCharsets.UTF_8))) {
+        require(MessageDigest.isEqual(expectedSignature.toByteArray(StandardCharsets.UTF_8), request.signature.orEmpty().toByteArray(StandardCharsets.UTF_8))) {
             order.status = "SIGNATURE_FAILED"
             paymentOrders.save(order)
             throw IllegalArgumentException("Invalid Razorpay payment signature")
         }
 
-        val paymentJson = razorpayRequest("GET", "/payments/${request.razorpayPaymentId}", null).body
+        val paymentJson = razorpayRequest("GET", "/payments/${request.paymentId.orEmpty()}", null).body
         val paymentOrderId = paymentJson["order_id"]?.asText()
         require(paymentOrderId == order.razorpayOrderId) { "Razorpay payment does not belong to this order" }
 
@@ -124,15 +134,15 @@ class RazorpayService(
         val balance = walletService.credit(
             userId = userId,
             amount = order.amount,
-            externalRef = "RAZORPAY:${request.razorpayPaymentId}",
+            externalRef = "RAZORPAY:${request.paymentId.orEmpty()}",
             referenceType = "ADD_MONEY",
-            referenceId = request.razorpayPaymentId,
+            referenceId = request.paymentId.orEmpty(),
             description = "Wallet top-up via Razorpay"
         )
 
         order.status = "CAPTURED"
-        order.razorpayPaymentId = request.razorpayPaymentId
-        order.razorpaySignature = request.razorpaySignature
+        order.razorpayPaymentId = request.paymentId.orEmpty()
+        order.razorpaySignature = request.signature.orEmpty()
         order.verifiedAt = Instant.now()
         paymentOrders.save(order)
 
