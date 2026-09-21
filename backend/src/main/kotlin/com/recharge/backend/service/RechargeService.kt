@@ -221,7 +221,7 @@ class RechargeService(
         val byName = executionProviders.associateBy { it.providerName.lowercase() }
         for (name in configuredNames) {
             val provider = byName[name]
-            if (provider != null && provider.supportsOperator(operator)) return provider
+            if (provider != null && provider.isConfigured() && provider.supportsOperator(operator)) return provider
         }
         throw IllegalArgumentException("No configured recharge execution provider supports " + operator.uppercase())
     }
