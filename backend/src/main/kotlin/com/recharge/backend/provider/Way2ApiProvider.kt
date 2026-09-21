@@ -110,11 +110,17 @@ class Way2ApiProvider(
 
         if (!root.success || status != "SUCCESS") {
             val code = messageCode
-            error(buildString {
-                append("Operator detection failed")
-                if (code != null) append(" [$code]")
-                if (message != null) append(": $message")
-            })
+            throw Way2ApiException(
+                upstreamStatusCode = root.status_code,
+                providerMessageCode = code,
+                charged = root.charged,
+                providerOrderId = providerOrderId,
+                message = buildString {
+                    append("Operator detection failed")
+                    if (code != null) append(" [$code]")
+                    if (message != null) append(": $message")
+                }
+            )
         }
 
         val result = root.data?.result
