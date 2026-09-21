@@ -30,6 +30,7 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
 }
 
 $workflow = "Docker Compose CI"
+$artifactName = "mpay-android-debug-apk"
 $headSha = (git rev-parse HEAD).Trim()
 
 Write-Host ""
@@ -39,21 +40,25 @@ Write-Host "Commit    : $headSha"
 Write-Host "ADB       : $adbPath"
 Write-Host ""
 
-Write-Host "Finding a successful GitHub Actions build for this exact commit..." -ForegroundColor Yellow
-$runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt
+Write-Host "Finding a successful Android artifact build for this exact commit..." -ForegroundColor Yellow
+$runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
 if ($LASTEXITCODE -ne 0) {
     throw "Could not query GitHub Actions runs."
 }
 
 $runs = $runJson | ConvertFrom-Json
+
+# The Android job is intentionally restricted to push events in Docker Compose CI.
+# PR validation runs can be successful but do not produce the APK artifact.
 $run = $runs | Where-Object {
     $_.headSha -eq $headSha -and
     $_.status -eq "completed" -and
-    $_.conclusion -eq "success"
+    $_.conclusion -eq "success" -and
+    $_.event -eq "push"
 } | Sort-Object createdAt -Descending | Select-Object -First 1
 
 if (-not $run) {
-    throw "No successful Android APK build exists yet for commit $headSha."
+    throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
 }
 
 $targetDir = Join-Path $repoRoot "android\app\build\outputs\apk\debug"
@@ -67,10 +72,10 @@ New-Item -ItemType Directory -Path $tempDir | Out-Null
 New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
 try {
-    Write-Host "Downloading artifact from Actions run $($run.databaseId)..." -ForegroundColor Yellow
-    gh run download $run.databaseId --name mpay-android-debug-apk --dir $tempDir
+    Write-Host "Downloading $artifactName from Actions run $($run.databaseId)..." -ForegroundColor Yellow
+    gh run download $run.databaseId --name $artifactName --dir $tempDir
     if ($LASTEXITCODE -ne 0) {
-        throw "GitHub Actions artifact download failed."
+        throw "GitHub Actions artifact download failed for run $($run.databaseId)."
     }
 
     $downloadedApk = Get-ChildItem -Path $tempDir -Filter "*.apk" -File -Recurse | Select-Object -First 1
