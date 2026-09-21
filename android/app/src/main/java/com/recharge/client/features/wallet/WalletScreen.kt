@@ -47,7 +47,7 @@ fun WalletScreen(
     onRefreshCommission: () -> Unit, onSelectWalletHistoryFilter: (WalletHistoryFilter) -> Unit,
     onSetWalletHistoryToday: () -> Unit, onSetWalletHistoryLast7: () -> Unit, onSetWalletHistoryMonth: () -> Unit, onSetWalletHistoryCustom: (LocalDate, LocalDate) -> Unit,
     onRefreshWalletHistory: () -> Unit, onLoadMoreWalletHistory: () -> Unit,
-    onWithdraw: (String, String) -> Unit, onClearWithdrawMessage: () -> Unit, onOpenWalletDetail: (WalletHistoryItem) -> Unit, onCloseWalletDetail: () -> Unit,
+    onWithdraw: (String, String, String) -> Unit, onClearWithdrawMessage: () -> Unit, onOpenWalletDetail: (WalletHistoryItem) -> Unit, onCloseWalletDetail: () -> Unit,
     isVisible: Boolean
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
