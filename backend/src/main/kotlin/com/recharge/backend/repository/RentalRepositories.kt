@@ -20,6 +20,8 @@ interface RentalCarRepository : JpaRepository<RentalCarEntity, Long> {
 }
 
 interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
+    fun findByBookingIdAndUserId(bookingId: String, userId: Long): java.util.Optional<RentalBookingEntity>
+
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
 
     @Query("""

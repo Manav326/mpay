@@ -21,6 +21,12 @@ class RentalController(private val rentalService: RentalService) {
         @RequestParam(defaultValue = "25") size: Int
     ): RentalBookingPageResponse = rentalService.bookings(userId(authentication), page, size)
 
+    @PostMapping("/bookings/{bookingId}/cancel")
+    fun cancelBooking(
+        authentication: Authentication,
+        @PathVariable bookingId: String
+    ): RentalBookingResponse = rentalService.cancelBooking(userId(authentication), bookingId)
+
     @PostMapping("/bookings")
     fun createBooking(
         authentication: Authentication,

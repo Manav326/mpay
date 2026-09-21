@@ -284,7 +284,7 @@ export default function Portal() {
         </div>
         <div className="portal-panel"><div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
           {bookings.length ? <div className="history-list">{bookings.map(b =>
-            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong>{status(b.status)}</div>)}</div>
+            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}{b.status === 'CONFIRMED' && b.startDate > new Date().toISOString().slice(0,10) && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
           : <div className="empty-state">No rental bookings yet.</div>}
         </div>
       </section>}

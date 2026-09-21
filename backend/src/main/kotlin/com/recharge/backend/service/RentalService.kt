@@ -84,6 +84,28 @@ class RentalService(
         return toBookingResponse(saved, car.name)
     }
 
+    @Transactional
+    fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
+        val booking = bookings.findByBookingIdAndUserId(bookingId, userId)
+            .orElseThrow { IllegalArgumentException("Rental booking not found") }
+        check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
+        check(booking.startDate.isAfter(LocalDate.now())) { "Bookings starting today cannot be cancelled" }
+
+        booking.status = "CANCELLED"
+        booking.updatedAt = Instant.now()
+        wallet.credit(
+            userId = userId,
+            amount = booking.totalAmount,
+            externalRef = "RENTAL_REFUND:$bookingId",
+            referenceType = "RENTAL_REFUND",
+            referenceId = bookingId,
+            description = "Car rental refund"
+        )
+        val car = cars.findById(booking.carId).orElse(null)
+        bookings.save(booking)
+        return toBookingResponse(booking, car?.name ?: "Car")
+    }
+
     private fun toCarResponse(car: RentalCarEntity) = RentalCarResponse(
         id = requireNotNull(car.id).toString(),
         name = car.name,
