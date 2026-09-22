@@ -513,10 +513,16 @@ private fun AppNavHost(
             ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
         composable("car-rental") {
-            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() })
+            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car", car); nav.navigate("rental-booking") })
         }
         composable("rental-vendor") {
             RentalVendorOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVendor, onBack = { nav.popBackStack() }, onAddVehicle = { nav.navigate("rental-vehicle") })
+        }
+        composable("rental-booking") {
+            val car = nav.previousBackStackEntry?.savedStateHandle?.get<RentalCarResponse>("rental_car")
+            if (car != null) {
+                RentalBookingScreen(car = car, state = rentalViewModel.state.collectAsState().value, onQuote = rentalViewModel::quoteBooking, onBack = { nav.popBackStack() }, onConfirm = rentalViewModel::createBooking)
+            }
         }
         composable("rental-vehicle") {
             RentalVehicleOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVehicle, onBack = { nav.popBackStack() })
