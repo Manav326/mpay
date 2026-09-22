@@ -41,6 +41,7 @@ import com.recharge.client.features.services.CarRentalComingSoonScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
 import com.recharge.client.features.rental.CarRentalMarketplaceScreen
 import com.recharge.client.features.rental.RentalVehicleOnboardingScreen
+import com.recharge.client.features.rental.RentalBookingScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
 import com.recharge.client.core.payment.PayUCheckoutBridge
