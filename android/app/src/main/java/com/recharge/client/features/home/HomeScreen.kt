@@ -44,7 +44,7 @@ fun HomeScreen(
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
     onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: (String, String, String) -> Unit,
     onClearWithdrawMessage: () -> Unit, walletUiState: WalletUiState,
-    onRechargeHistory: () -> Unit, onMarketplace: () -> Unit, onRentalBookings: () -> Unit
+    onRechargeHistory: () -> Unit, onRentalBookings: () -> Unit, onCarRental: () -> Unit
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
@@ -108,20 +108,85 @@ fun HomeScreen(
             }
         }
         error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
-        item { Text("Quick actions", style = MaterialTheme.typography.titleLarge) }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ActionCard("Mobile Recharge", Icons.Default.PhoneAndroid, AppColors.Success, onRecharge, Modifier.weight(1f))
-                ActionCard("Add Money", Icons.Default.Add, AppColors.PrimaryDark, onAddMoney, Modifier.weight(1f))
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FF))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                    Text("Quick actions", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActionCard(
+                            "Mobile Recharge",
+                            Icons.Default.PhoneAndroid,
+                            AppColors.Success,
+                            onRecharge,
+                            Modifier.weight(1f)
+                        )
+                        ActionCard(
+                            "Add Money",
+                            Icons.Default.Add,
+                            AppColors.PrimaryDark,
+                            onAddMoney,
+                            Modifier.weight(1f)
+                        )
+                        ActionCard(
+                            "My Bookings",
+                            Icons.Default.History,
+                            Color(0xFF7C3AED),
+                            onRentalBookings,
+                            Modifier.weight(1f)
+                        )
+                    }
+                }
             }
         }
         item {
-            ActionCard("Marketplace", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onMarketplace, Modifier.fillMaxWidth())
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Marketplace", style = MaterialTheme.typography.titleLarge)
+                Card(
+                    onClick = onCarRental,
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF8FF))
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(shape = RoundedCornerShape(15.dp), color = Color(0xFFDDF1FF)) {
+                            Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF1677B8), modifier = Modifier.padding(11.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Car Rental", style = MaterialTheme.typography.titleLarge)
+                            Text("Chauffeur-driven cars, available directly from here.", color = AppColors.TextSecondary)
+                        }
+                        Text("Explore", color = Color(0xFF1677B8), style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ActionCard("My Bookings", Icons.Default.History, Color(0xFF7C3AED), onRentalBookings, Modifier.weight(1f))
-                ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.weight(1f))
+            Card(
+                onClick = onRechargeHistory,
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF4DF))
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFFFE8B8)) {
+                        Icon(Icons.Default.History, null, tint = Color(0xFFB26A00), modifier = Modifier.padding(11.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Recharge History", style = MaterialTheme.typography.titleLarge)
+                        Text("View your submitted and completed mobile recharges.", color = AppColors.TextSecondary)
+                    }
+                    Text("View", color = Color(0xFF9A6408), style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
         if (latestRecharge != null) {
@@ -151,13 +216,23 @@ fun HomeScreen(
 
 @Composable
 private fun ActionCard(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, iconTint: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier = modifier, shape = RoundedCornerShape(20.dp), onClick = onClick) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(14.dp), color = iconTint.copy(alpha = .12f)) {
-                Icon(icon, null, modifier = Modifier.padding(10.dp), tint = iconTint)
+    Card(modifier = modifier, shape = RoundedCornerShape(18.dp), onClick = onClick) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Surface(shape = RoundedCornerShape(13.dp), color = iconTint.copy(alpha = .12f)) {
+                Icon(icon, null, modifier = Modifier.padding(9.dp), tint = iconTint)
             }
-            Spacer(Modifier.width(10.dp))
-            Text(text, style = MaterialTheme.typography.titleMedium, maxLines = 1, softWrap = false)
+            Text(
+                text,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 2,
+                minLines = 2,
+                softWrap = true,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }

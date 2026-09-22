@@ -91,6 +91,124 @@ class RentalServiceTest {
     }
 
     @Test
+    fun completingBookingLocksItAndSettlesPayoutOnlyOnce() {
+        val booking = RentalBookingEntity(
+            bookingId = "RNT-COMPLETE",
+            userId = 42L,
+            carId = 7L,
+            totalAmount = BigDecimal("6000.00"),
+            status = "CONFIRMED",
+            startDate = LocalDateTime.now().minusDays(4),
+            endDate = LocalDateTime.now().minusHours(1)
+        )
+        val car = RentalCarEntity(id = 7L, name = "Test Sedan", vendorId = 9L, driverId = 10L)
+        val completedPayout = com.recharge.backend.domain.RentalPayoutEntity(
+            payoutId = "RNPY-1",
+            bookingId = "RNT-COMPLETE",
+            vendorId = 9L,
+            vendorUserId = 99L,
+            grossAmount = BigDecimal("6000.00"),
+            platformFeePercent = BigDecimal("10.00"),
+            platformFeeAmount = BigDecimal("600.00"),
+            vendorNetAmount = BigDecimal("5400.00"),
+            status = "PAID"
+        )
+
+        Mockito.doReturn(Optional.of(booking)).`when`(bookings).findByBookingIdForUpdate("RNT-COMPLETE")
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(7L)
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalDriverEntity>()).`when`(drivers).findById(10L)
+        Mockito.doReturn(booking).`when`(bookings).save(Mockito.any(RentalBookingEntity::class.java))
+        Mockito.doReturn(completedPayout).`when`(rentalPayouts).settleCompletedBooking(booking)
+
+        val first = service.completeBooking("RNT-COMPLETE", 1L)
+
+        assertEquals("COMPLETED", first.status)
+        Mockito.verify(bookings).findByBookingIdForUpdate("RNT-COMPLETE")
+        Mockito.verify(rentalPayouts).settleCompletedBooking(booking)
+
+        assertThrows(IllegalStateException::class.java) {
+            service.completeBooking("RNT-COMPLETE", 1L)
+        }
+        Mockito.verify(rentalPayouts, Mockito.times(1)).settleCompletedBooking(booking)
+    }
+
+    @Test
+    fun cancellingBookingLocksStateAndRefundsOnlyOnce() {
+        val booking = RentalBookingEntity(
+            bookingId = "RNT-CANCEL",
+            userId = 42L,
+            carId = 7L,
+            totalAmount = BigDecimal("2500.00"),
+            status = "CONFIRMED",
+            startDate = LocalDateTime.now().plusDays(2),
+            endDate = LocalDateTime.now().plusDays(3)
+        )
+        val payment = com.recharge.backend.domain.RentalPaymentEntity(
+            id = 31L,
+            paymentId = "RNP-CANCEL",
+            bookingId = "RNT-CANCEL",
+            userId = 42L,
+            amount = BigDecimal("2500.00"),
+            method = "WALLET",
+            status = "PAID",
+            walletLedgerRef = "RENTAL:RNT-CANCEL"
+        )
+
+        Mockito.doReturn(Optional.of(booking)).`when`(bookings).findByBookingIdForUpdate("RNT-CANCEL")
+        Mockito.doReturn(Optional.of(payment)).`when`(rentalPaymentRepository).findByBookingIdAndUserId("RNT-CANCEL", 42L)
+        Mockito.doReturn(payment).`when`(rentalPayments).refund(payment)
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalCarEntity>()).`when`(cars).findById(7L)
+        Mockito.doReturn(booking).`when`(bookings).save(Mockito.any(RentalBookingEntity::class.java))
+
+        val first = service.cancelBooking(42L, "RNT-CANCEL")
+
+        assertEquals("CANCELLED", first.status)
+        Mockito.verify(bookings).findByBookingIdForUpdate("RNT-CANCEL")
+        Mockito.verify(rentalPayments, Mockito.times(1)).refund(payment)
+
+        assertThrows(IllegalStateException::class.java) {
+            service.cancelBooking(42L, "RNT-CANCEL")
+        }
+        Mockito.verify(rentalPayments, Mockito.times(1)).refund(payment)
+    }
+    @Test
+    fun createBookingRechecksIdempotencyAfterCarLock() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusDays(1)
+        val car = RentalCarEntity(
+            id = 30L, name = "Test MPV", category = "MPV", seats = 6, transmission = "Automatic",
+            pricePerDay = BigDecimal("1800.00"), active = true, vendorId = 90L, driverId = 91L, approvalStatus = "APPROVED"
+        )
+        val existingBooking = RentalBookingEntity(
+            bookingId = "RNT-EXISTING", userId = 42L, carId = 30L,
+            pickupLocation = "Patna", dropLocation = "Gaya", startDate = start, endDate = end,
+            totalAmount = BigDecimal("1800.00"), status = "CONFIRMED"
+        )
+        val existingPayment = com.recharge.backend.domain.RentalPaymentEntity(
+            id = 41L, paymentId = "RNP-EXISTING", bookingId = "RNT-EXISTING", userId = 42L,
+            amount = BigDecimal("1800.00"), method = "WALLET", status = "PAID",
+            clientRequestId = "client-race", walletLedgerRef = "RENTAL:RNT-EXISTING"
+        )
+
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalPaymentEntity>())
+            .doReturn(Optional.of(existingPayment)).`when`(rentalPaymentRepository)
+            .findByUserIdAndClientRequestId(42L, "client-race")
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(30L)
+        Mockito.doReturn(Optional.of(existingBooking)).`when`(bookings).findByBookingIdAndUserId("RNT-EXISTING", 42L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(30L)
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalDriverEntity>()).`when`(drivers).findById(91L)
+
+        val result = service.createBooking(
+            42L,
+            RentalBookingRequest("client-race", "30", "Patna", "Gaya", start, end)
+        )
+
+        assertEquals("RNT-EXISTING", result.bookingId)
+        assertEquals(BigDecimal("1800.00"), result.total)
+        Mockito.verifyNoInteractions(rentalPayments)
+        Mockito.verify(bookings, Mockito.never()).save(Mockito.any(RentalBookingEntity::class.java))
+    }
+    @Test
     fun vendorCannotBookOwnVehicle() {
         val car = RentalCarEntity(
             id = 8L, name = "Vendor Sedan", category = "Sedan", seats = 5,

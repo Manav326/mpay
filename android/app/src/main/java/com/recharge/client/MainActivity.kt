@@ -468,8 +468,8 @@ private fun AppNavHost(
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
                 walletUiState = walletViewModel.state.collectAsState().value,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
-                onMarketplace = { nav.navigate("marketplace") },
-                onRentalBookings = { nav.navigate("rental-bookings") }
+                onRentalBookings = { nav.navigate("rental-bookings") },
+                onCarRental = { nav.navigate("car-rental") }
             )
         }
         composable("recharge") {
@@ -516,13 +516,13 @@ private fun AppNavHost(
             )
         }
         composable("profile") {
-            ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
+            ProfileScreen(profileViewModel.state.collectAsState().value, rentalViewModel.state.collectAsState().value.vendor, profileViewModel::load, rentalViewModel::loadVendor, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
         composable("marketplace") {
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
         }
         composable("car-rental") {
-            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") })
+            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") }, onRefresh = rentalViewModel::loadCars)
         }
         composable("rental-vendor") {
             RentalVendorOnboardingScreen(

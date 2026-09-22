@@ -279,6 +279,19 @@ class RentalService(
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
         val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
+        val racedExistingPayment = rentalPaymentRepository
+            .findByUserIdAndClientRequestId(userId, request.clientRequestId.trim())
+            .orElse(null)
+        if (racedExistingPayment != null) {
+            val existingBooking = bookings.findByBookingIdAndUserId(racedExistingPayment.bookingId, userId)
+                .orElseThrow { IllegalStateException("Rental payment exists without its booking") }
+            val existingCar = cars.findById(existingBooking.carId).orElse(null)
+            return toBookingResponse(
+                existingBooking,
+                existingCar?.name ?: "Car",
+                existingCar?.driverId?.let { drivers.findById(it).orElse(null) }
+            )
+        }
         requireNotOwnVehicle(userId, car)
         require(request.paymentMethod.equals("WALLET", true)) { "This booking flow currently supports wallet payment" }
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
@@ -314,7 +327,7 @@ class RentalService(
 
     @Transactional
     fun completeBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
-        val booking = bookings.findByBookingId(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be completed" }
         check(!booking.endDate.isAfter(LocalDateTime.now())) { "Rental booking has not ended yet" }
         booking.status = "COMPLETED"
@@ -327,7 +340,8 @@ class RentalService(
 
     @Transactional
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
-        val booking = bookings.findByBookingIdAndUserId(bookingId, userId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        require(booking.userId == userId) { "Rental booking not found" }
         check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
         check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
         booking.status = "CANCELLED"

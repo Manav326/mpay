@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -146,6 +147,15 @@ fun RentalVendorOnboardingScreen(
             state.error?.let { item { Text(it, color = AppColors.Error) } }
         }
     } else {
+        val vendorStatus = state.vendor?.status?.uppercase() ?: "NOT_ONBOARDED"
+        val isPending = vendorStatus == "PENDING"
+        val isRejected = vendorStatus == "REJECTED"
+        val title = when {
+            isPending -> "Vendor application"
+            isRejected -> "Vendor application"
+            else -> "Become a Vendor"
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
             contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
@@ -154,29 +164,61 @@ fun RentalVendorOnboardingScreen(
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
-                    Text("Become a Vendor", style = MaterialTheme.typography.headlineSmall)
+                    Text(title, style = MaterialTheme.typography.headlineSmall)
                 }
             }
-            item {
-                Text(
-                    if (state.vendor?.status?.uppercase() == "REJECTED")
-                        "Your application was returned for correction."
-                    else
-                        "Rent your car with a professional driver through mPay.",
-                    color = AppColors.TextSecondary
-                )
+            if (isPending) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7E6))
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            Text(
+                                "Submitted for verification",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color(0xFF9A6408)
+                            )
+                            Text(
+                                "Status: PENDING",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color(0xFF9A6408)
+                            )
+                            Text(
+                                "Your vendor application has been saved successfully and is waiting for admin verification. You do not need to submit it again.",
+                                color = AppColors.TextSecondary
+                            )
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Text(
+                        if (isRejected)
+                            "Your application was returned for correction."
+                        else
+                            "Rent your car with a professional driver through mPay.",
+                        color = AppColors.TextSecondary
+                    )
+                }
             }
-            if (state.vendor?.status?.uppercase() == "REJECTED") {
+            if (isRejected) {
                 item { state.vendor?.rejectionReason?.let { Text("Admin note: " + it, color = AppColors.Error) } }
             }
-            item { VendorField("Full name", fullName) { fullName = it } }
-            item { VendorField("Business / fleet name (optional)", businessName) { businessName = it } }
-            item { VendorField("Address", address) { address = it } }
-            item { VendorField("City", city) { city = it } }
-            item { VendorField("State", stateName) { stateName = it } }
-            item { VendorField("PIN code", pin) { pin = it } }
-            item { VendorField("PAN (optional for now)", pan) { pan = it } }
-            item { VendorField("Payout UPI (optional)", upi) { upi = it } }
+
+            val fieldsEnabled = !isPending
+            item { VendorField("Full name", fullName, fieldsEnabled) { fullName = it } }
+            item { VendorField("Business / fleet name (optional)", businessName, fieldsEnabled) { businessName = it } }
+            item { VendorField("Address", address, fieldsEnabled) { address = it } }
+            item { VendorField("City", city, fieldsEnabled) { city = it } }
+            item { VendorField("State", stateName, fieldsEnabled) { stateName = it } }
+            item { VendorField("PIN code", pin, fieldsEnabled) { pin = it } }
+            item { VendorField("PAN (optional for now)", pan, fieldsEnabled) { pan = it } }
+            item { VendorField("Payout UPI (optional)", upi, fieldsEnabled) { upi = it } }
+
             state.error?.let { item { Text(it, color = AppColors.Error) } }
             item {
                 Button(
@@ -195,20 +237,37 @@ fun RentalVendorOnboardingScreen(
                             ), {}
                         )
                     },
-                    enabled = !state.saving && fullName.isNotBlank() && address.isNotBlank() &&
+                    enabled = !state.saving && !isPending &&
+                        fullName.isNotBlank() && address.isNotBlank() &&
                         city.isNotBlank() && stateName.isNotBlank() && pin.isNotBlank(),
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)
                 ) {
-                    if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text(if (state.vendor?.status?.uppercase() == "REJECTED") "Resubmit for verification" else "Submit for verification")
+                    when {
+                        state.saving -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        isPending -> Text("Submitted • Pending verification")
+                        isRejected -> Text("Resubmit for verification")
+                        else -> Text("Submit for verification")
+                    }
                 }
             }
         }
     }
 }
 @Composable
-private fun VendorField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(value, onValueChange, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+private fun VendorField(
+    label: String,
+    value: String,
+    enabled: Boolean = true,
+    onValueChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
 }
 
 private val rentalDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
@@ -293,7 +352,7 @@ fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
 }
 
 @Composable
-fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit) {
+fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit, onRefresh: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
@@ -303,7 +362,37 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook:
         item { Text("Chauffeur-driven cars available for your trip.", color = AppColors.TextSecondary) }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         if (state.loading && state.cars.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-        if (!state.loading && state.cars.isEmpty()) item { Text("No approved vehicles are available yet.", color = AppColors.TextSecondary) }
+        if (!state.loading && state.cars.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F8FC))
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(9.dp)
+                    ) {
+                        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xFFE2F2FC)) {
+                            Icon(
+                                Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = Color(0xFF1677B8),
+                                modifier = Modifier.padding(14.dp).size(30.dp)
+                            )
+                        }
+                        Text("No cars available right now.", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.",
+                            color = AppColors.TextSecondary
+                        )
+                        OutlinedButton(onClick = onRefresh, shape = RoundedCornerShape(12.dp)) {
+                            Text("Check again")
+                        }
+                    }
+                }
+            }
+        }
         items(state.cars, key = { it.id }) { car ->
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -455,6 +544,13 @@ fun RentalBookingScreen(
         item { VendorField("Drop location", drop) { drop = it } }
         item { RentalDateTimeField("Start date & time", start) { start = it } }
         item { RentalDateTimeField("End date & time", end) { end = it } }
+        item {
+            Text(
+                "Pricing is per day (24 hours). Any partial day is charged as one full day; time is used for availability and the exact rental duration.",
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
         quote?.let { q ->
             item {
                 Card(shape = RoundedCornerShape(18.dp)) {
