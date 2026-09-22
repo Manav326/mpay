@@ -79,6 +79,9 @@ interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
     fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalPaymentEntity>
 
+    @Query("select coalesce(sum(p.amount), 0) from RentalPaymentEntity p where p.status = 'REFUNDED'")
+    fun sumRefundedAmount(): BigDecimal
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from RentalPaymentEntity p where p.id = :id")
     fun findByIdForUpdate(@Param("id") id: Long): Optional<RentalPaymentEntity>
@@ -90,4 +93,10 @@ interface RentalPayoutRepository : JpaRepository<RentalPayoutEntity, Long> {
 
     @Query("select p from RentalPayoutEntity p where p.vendorUserId = :vendorUserId order by p.createdAt desc")
     fun findAllByVendorUserIdOrderByCreatedAtDesc(@Param("vendorUserId") vendorUserId: Long): List<RentalPayoutEntity>
+
+    @Query("select coalesce(sum(p.vendorNetAmount), 0) from RentalPayoutEntity p where p.status = 'PAID'")
+    fun sumPaidVendorAmount(): BigDecimal
+
+    @Query("select coalesce(sum(p.platformFeeAmount), 0) from RentalPayoutEntity p where p.status = 'PAID'")
+    fun sumPlatformFeeAmount(): BigDecimal
 }
