@@ -68,7 +68,6 @@ class RentalService(
         val vendorId = requireNotNull(vendor.id)
         require(request.seats in 1..20) { "Seats must be between 1 and 20" }
         require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
-        require(!drivers.existsById(0L)) { "" }
         require(!cars.existsByRegistrationNumberIgnoreCase(request.registrationNumber.trim())) { "A vehicle with this registration number already exists" }
         require(request.driver.licenseExpiry.isAfter(LocalDate.now())) { "Driver licence must be valid" }
 
