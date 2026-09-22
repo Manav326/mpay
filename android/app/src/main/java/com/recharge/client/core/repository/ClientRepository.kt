@@ -217,6 +217,13 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+
+    suspend fun rentalVendorPayouts(): Result<List<com.recharge.client.core.model.RentalVendorPayoutResponse>> = runCatching {
+        val response = api.rentalVendorPayouts()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun rentalVendorVehicles(): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
         val response = api.rentalVendorVehicles()
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
