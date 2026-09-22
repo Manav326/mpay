@@ -196,3 +196,46 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 }
+
+
+    suspend fun rentalVendor(): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
+        val response = api.rentalVendor()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun onboardRentalVendor(request: com.recharge.client.core.model.RentalVendorOnboardingRequest): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
+        val response = api.onboardRentalVendor(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalCars(): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
+        val response = api.rentalCars()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalVendorVehicles(): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
+        val response = api.rentalVendorVehicles()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun onboardRentalVehicle(request: com.recharge.client.core.model.RentalVehicleOnboardingRequest): Result<com.recharge.client.core.model.RentalCarResponse> = runCatching {
+        val response = api.onboardRentalVehicle(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun createRentalBooking(request: com.recharge.client.core.model.RentalBookingRequest): Result<com.recharge.client.core.model.RentalBookingResponse> = runCatching {
+        val response = api.createRentalBooking(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalBookings(page: Int = 0, size: Int = 25): Result<com.recharge.client.core.model.RentalBookingPageResponse> = runCatching {
+        val response = api.rentalBookings(page, size)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
