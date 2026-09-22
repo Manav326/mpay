@@ -6,6 +6,7 @@ import com.recharge.backend.repository.UserRepository
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/api/v1/car-rental")
@@ -18,8 +19,15 @@ class RentalController(
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
 
     @GetMapping("/cars")
-    fun cars(authentication: Authentication): List<RentalCarResponse> =
-        rentalService.availableCars(userId(authentication))
+    fun cars(
+        authentication: Authentication,
+        @RequestParam(required = false) startDate: String?,
+        @RequestParam(required = false) endDate: String?
+    ): List<RentalCarResponse> {
+        val parsedStart = startDate?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
+        val parsedEnd = endDate?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
+        return rentalService.availableCars(userId(authentication), parsedStart, parsedEnd)
+    }
 
     @GetMapping("/vendor")
     fun vendor(authentication: Authentication): RentalVendorResponse =
