@@ -59,3 +59,10 @@ interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
     @Query("select p from RentalPaymentEntity p where p.id = :id")
     fun findByIdForUpdate(@Param("id") id: Long): Optional<RentalPaymentEntity>
 }
+
+
+interface RentalPayoutRepository : JpaRepository<RentalPayoutEntity, Long> {
+    fun findByBookingId(bookingId: String): Optional<RentalPayoutEntity>
+
+    fun findAllByVendorUserIdOrderByCreatedAtDesc(vendorUserId: Long): List<RentalPayoutEntity>
+}
