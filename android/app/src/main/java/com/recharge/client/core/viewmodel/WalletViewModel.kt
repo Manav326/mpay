@@ -19,6 +19,7 @@ enum class WalletDateFilter { TODAY, LAST_7_DAYS, THIS_MONTH, CUSTOM }
 
 data class WalletUiState(
     val items: List<WalletHistoryItem> = emptyList(),
+    val withdrawals: List<com.recharge.client.core.model.WithdrawalHistoryItem> = emptyList(),
     val filter: WalletHistoryFilter = WalletHistoryFilter.ALL,
     val dateFilter: WalletDateFilter = WalletDateFilter.TODAY,
     val fromDate: LocalDate = todayIndia(),
@@ -92,10 +93,16 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _state.value = _state.value.copy(loadingHistory = !refresh, refreshing = refresh, historyError = null)
             val page = if (refresh) 0 else _state.value.page + 1
-            repository.walletHistory(
+            val walletResult = repository.walletHistory(
                 page = page, size = 20, kind = selectedKind(),
                 from = _state.value.fromDate.toString(), to = _state.value.toDate.toString()
-            ).onSuccess { response ->
+            )
+            if (refresh) {
+                repository.withdrawalHistory(page = 0, size = 20).onSuccess { response ->
+                    _state.value = _state.value.copy(withdrawals = response.items)
+                }
+            }
+            walletResult.onSuccess { response ->
                 val items = if (refresh) response.items else _state.value.items + response.items
                 _state.value = _state.value.copy(
                     items = items.distinctBy { it.id }, page = response.page, hasNext = response.hasNext,
