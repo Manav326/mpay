@@ -234,10 +234,18 @@ private fun OperatorSummaryCard(response: OperatorCheckResponse, balance: BigDec
                     Text("${response.circle} • ${response.type ?: "Prepaid"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 AssistChip(
-                    onClick = {}, enabled = false,
-                    colors = AssistChipDefaults.assistChipColors(containerColor = ColorLightGreen, labelColor = AppColors.Success, leadingIconContentColor = AppColors.Success),
-                    label = { Text("Detected", fontWeight = FontWeight.Bold) },
-                    leadingIcon = { Icon(Icons.Default.CheckCircle, null) }
+                    onClick = {},
+                    enabled = false,
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = ColorLightGreen,
+                        labelColor = AppColors.Success,
+                        leadingIconContentColor = AppColors.Success,
+                        disabledContainerColor = ColorLightGreen,
+                        disabledLabelColor = AppColors.Success,
+                        disabledLeadingIconContentColor = AppColors.Success
+                    ),
+                    label = { Text("Detected", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Icon(Icons.Default.CheckCircle, null, tint = AppColors.Success, modifier = Modifier.size(17.dp)) }
                 )
             }
             Spacer(Modifier.height(14.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
@@ -282,24 +290,32 @@ private fun RechargePlanCard(plan: RechargePlan, selected: Boolean, enabled: Boo
     val borderColor = if (selected) AppColors.Primary else MaterialTheme.colorScheme.outlineVariant
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor),
+        shape = RoundedCornerShape(15.dp),
+        border = androidx.compose.foundation.BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor),
         color = if (selected) AppColors.SurfaceWarm else MaterialTheme.colorScheme.surface,
-        tonalElevation = if (selected) 1.dp else 0.dp
+        tonalElevation = if (selected) 2.dp else 1.dp
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) {
-                    Text("₹${formatMoney(plan.amount)}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    plan.validity?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold) }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("₹" + formatMoney(plan.amount), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    plan.validity?.takeIf { it.isNotBlank() }?.let {
+                        Surface(shape = RoundedCornerShape(7.dp), color = AppColors.Primary.copy(alpha = .08f)) {
+                            Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp))
+                        }
+                    }
                 }
-                if (selected) Icon(Icons.Default.CheckCircle, "Selected", tint = AppColors.Success)
+                Text(plan.description?.takeIf { it.isNotBlank() } ?: "Recharge offer", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 2)
             }
-            Spacer(Modifier.height(8.dp))
-            Text(plan.description?.takeIf { it.isNotBlank() } ?: "Recharge offer", color = AppColors.TextSecondary)
+            if (selected) {
+                Surface(shape = CircleShape, color = ColorLightGreen) {
+                    Icon(Icons.Default.CheckCircle, "Selected", tint = AppColors.Success, modifier = Modifier.padding(2.dp).size(21.dp))
+                }
+            }
         }
     }
 }
+
 
 @Composable
 private fun RechargeConfirmationDialog(
