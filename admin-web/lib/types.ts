@@ -183,6 +183,21 @@ export interface RentalAdminVendor {
 }
 
 
+export interface RentalAdminVehicleUnavailability {
+  id: string;
+  carId: string;
+  carName: string;
+  vendorId: string;
+  startDate: string;
+  endDate: string;
+  reasonCode: string;
+  reasonLabel: string;
+  reasonNote?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+
 export interface RentalAdminBooking {
   bookingId: string;
   userId: string;
