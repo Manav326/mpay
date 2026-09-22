@@ -252,7 +252,18 @@ class RentalService(
     fun approveVehicle(carId: Long): RentalCarResponse {
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
         require(car.vendorId != null && car.driverId != null) { "Vehicle is not fully onboarded" }
-        car.approvalStatus = "APPROVED"; car.active = true; cars.save(car)
+        car.approvalStatus = "APPROVED"; car.rejectionReason = null; car.active = true; cars.save(car)
+        return toCarResponse(car)
+    }
+
+    @Transactional
+    fun rejectVehicle(carId: Long, reason: String?): RentalCarResponse {
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.approvalStatus != "APPROVED") { "Approved vehicles cannot be rejected from this action" }
+        car.approvalStatus = "REJECTED"
+        car.rejectionReason = reason?.trim()?.takeIf { it.isNotBlank() } ?: "Additional vehicle information is required"
+        car.active = false
+        cars.save(car)
         return toCarResponse(car)
     }
 
@@ -269,7 +280,8 @@ class RentalService(
             seats = car.seats, transmission = car.transmission, fuelType = car.fuelType,
             registrationYear = car.registrationYear, city = car.city, pickupAddress = car.pickupAddress,
             imageUrl = car.imageUrl, pricePerDay = car.pricePerDay.setScale(2),
-            driverName = driver?.fullName ?: "Driver assigned", driverMobile = driver?.mobile
+            driverName = driver?.fullName ?: "Driver assigned", driverMobile = driver?.mobile,
+            approvalStatus = car.approvalStatus, rejectionReason = car.rejectionReason
         )
     }
 
