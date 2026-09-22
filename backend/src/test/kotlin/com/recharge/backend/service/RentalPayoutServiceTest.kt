@@ -37,7 +37,7 @@ class RentalPayoutServiceTest {
         assertEquals(BigDecimal("600.00"), result.platformFeeAmount)
         assertEquals(BigDecimal("5400.00"), result.vendorNetAmount)
         assertEquals("PAID", result.status)
-        Mockito.verify(wallet).credit(99L, BigDecimal("5400.00"), result.walletLedgerRef, "RENTAL_PAYOUT", "RNT-1", "Rental vendor payout")
+        Mockito.verify(wallet).credit(99L, BigDecimal("5400.00"), requireNotNull(result.walletLedgerRef), "RENTAL_PAYOUT", "RNT-1", "Rental vendor payout")
     }
 
     @Test
