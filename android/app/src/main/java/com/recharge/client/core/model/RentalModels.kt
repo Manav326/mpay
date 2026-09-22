@@ -10,7 +10,15 @@ data class RentalVendorResponse(
     val businessName: String?,
     val city: String?,
     val state: String?,
-    val vehicleCount: Int
+    val vehicleCount: Int,
+    val address: String? = null,
+    val pinCode: String? = null,
+    val panNumber: String? = null,
+    val payoutUpiId: String? = null,
+    val bankAccountNumber: String? = null,
+    val bankIfsc: String? = null,
+    val rejectionReason: String? = null,
+    val submittedAt: String? = null
 )
 
 data class RentalVendorOnboardingRequest(
