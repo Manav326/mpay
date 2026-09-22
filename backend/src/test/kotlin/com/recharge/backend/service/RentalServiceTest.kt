@@ -133,6 +133,45 @@ class RentalServiceTest {
     }
 
     @Test
+    fun cancellingBookingLocksStateAndRefundsOnlyOnce() {
+        val booking = RentalBookingEntity(
+            bookingId = "RNT-CANCEL",
+            userId = 42L,
+            carId = 7L,
+            totalAmount = BigDecimal("2500.00"),
+            status = "CONFIRMED",
+            startDate = LocalDateTime.now().plusDays(2),
+            endDate = LocalDateTime.now().plusDays(3)
+        )
+        val payment = com.recharge.backend.domain.RentalPaymentEntity(
+            id = 31L,
+            paymentId = "RNP-CANCEL",
+            bookingId = "RNT-CANCEL",
+            userId = 42L,
+            amount = BigDecimal("2500.00"),
+            method = "WALLET",
+            status = "PAID",
+            walletLedgerRef = "RENTAL:RNT-CANCEL"
+        )
+
+        Mockito.doReturn(Optional.of(booking)).`when`(bookings).findByBookingIdForUpdate("RNT-CANCEL")
+        Mockito.doReturn(Optional.of(payment)).`when`(rentalPaymentRepository).findByBookingIdAndUserId("RNT-CANCEL", 42L)
+        Mockito.doReturn(payment).`when`(rentalPayments).refund(payment)
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalCarEntity>()).`when`(cars).findById(7L)
+        Mockito.doReturn(booking).`when`(bookings).save(Mockito.any(RentalBookingEntity::class.java))
+
+        val first = service.cancelBooking(42L, "RNT-CANCEL")
+
+        assertEquals("CANCELLED", first.status)
+        Mockito.verify(bookings).findByBookingIdForUpdate("RNT-CANCEL")
+        Mockito.verify(rentalPayments, Mockito.times(1)).refund(payment)
+
+        assertThrows(IllegalStateException::class.java) {
+            service.cancelBooking(42L, "RNT-CANCEL")
+        }
+        Mockito.verify(rentalPayments, Mockito.times(1)).refund(payment)
+    }
+    @Test
     fun vendorCannotBookOwnVehicle() {
         val car = RentalCarEntity(
             id = 8L, name = "Vendor Sedan", category = "Sedan", seats = 5,
