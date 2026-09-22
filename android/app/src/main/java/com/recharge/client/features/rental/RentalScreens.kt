@@ -244,14 +244,18 @@ private fun RentalDateTimeField(label: String, value: String, onValueChange: (St
     val display = runCatching {
         LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalDateTimeDisplayFormatter)
     }.getOrElse { "Select date & time" }
-    OutlinedTextField(
-        value = display,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth().clickable { showDateTimePicker(context, value, onValueChange) },
-        singleLine = true
-    )
+    OutlinedButton(
+        onClick = { showDateTimePicker(context, value, onValueChange) },
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
+            Spacer(Modifier.height(2.dp))
+            Text(display, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
 }
 
 @Composable
