@@ -30,7 +30,7 @@ class PaymentGatewayServiceTest {
             .`when`(orders).save(Mockito.any())
 
         val created = provider.createWalletOrder(
-            1L, CreatePaymentOrderRequest(BigDecimal("100.00"), "REQ-MOCK-1", "mock")
+            1L, CreatePaymentOrderRequest(amount = BigDecimal("100.00"), provider = "mock", clientRequestId = "REQ-MOCK-1")
         )
         assertEquals("mock", created.provider)
         assertEquals("MOCK-PAY-1", created.orderId)
@@ -52,7 +52,7 @@ class PaymentGatewayServiceTest {
 
         val response = service.createWalletOrder(
             1L,
-            CreatePaymentOrderRequest(BigDecimal("100.00"), "REQ-12345678", "razorpay")
+            CreatePaymentOrderRequest(amount = BigDecimal("100.00"), provider = "razorpay", clientRequestId = "REQ-12345678")
         )
 
         assertEquals("razorpay", response.provider)
@@ -69,7 +69,7 @@ class PaymentGatewayServiceTest {
         org.junit.jupiter.api.assertThrows<ProviderNotConfiguredException> {
             service.createWalletOrder(
                 1L,
-                CreatePaymentOrderRequest(BigDecimal("100.00"), "REQ-UNCONFIG", "payu")
+                CreatePaymentOrderRequest(amount = BigDecimal("100.00"), provider = "payu", clientRequestId = "REQ-UNCONFIG")
             )
         }
     }
