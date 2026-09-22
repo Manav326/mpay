@@ -38,6 +38,8 @@ import com.recharge.client.features.profile.ProfileScreen
 import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.services.CarRentalComingSoonScreen
+import com.recharge.client.features.rental.RentalVendorOnboardingScreen
+import com.recharge.client.features.rental.CarRentalMarketplaceScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
 import com.recharge.client.core.payment.PayUCheckoutBridge
@@ -290,6 +292,7 @@ private fun AppRoot(
     authViewModel: AuthViewModel = viewModel(), homeViewModel: HomeViewModel = viewModel(),
     profileViewModel: ProfileViewModel = viewModel(), rechargeViewModel: RechargeViewModel = viewModel(),
     rechargeHistoryViewModel: RechargeHistoryViewModel = viewModel(),
+    rentalViewModel: RentalViewModel = viewModel(),
     walletViewModel: WalletViewModel = viewModel(),
     passwordResetViewModel: PasswordResetViewModel = viewModel()
 ) {
@@ -299,6 +302,7 @@ private fun AppRoot(
     val rechargeState by rechargeViewModel.state.collectAsState()
     val historyState by rechargeHistoryViewModel.state.collectAsState()
     val profileState by profileViewModel.state.collectAsState()
+    val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
     var authRoute by rememberSaveable { mutableStateOf("login") }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
@@ -411,7 +415,7 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.weight(1f))
+            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.weight(1f))
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
@@ -432,7 +436,7 @@ private fun ColoredNavigationRailItem(d: TopLevelDestination, currentRoute: Stri
 @Composable
 private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
-    rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
+    rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
     authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier
 ) {
@@ -502,10 +506,15 @@ private fun AppNavHost(
             )
         }
         composable("profile") {
-            ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, currentRoute == "profile")
+            ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
         composable("car-rental") {
-            CarRentalComingSoonScreen(onBack = { nav.popBackStack() })
+            rentalViewModel.loadCars()
+            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() })
+        }
+        composable("rental-vendor") {
+            rentalViewModel.loadVendor()
+            RentalVendorOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVendor, onBack = { nav.popBackStack() })
         }
         composable("recharge-history") {
             RechargeHistoryScreen(
