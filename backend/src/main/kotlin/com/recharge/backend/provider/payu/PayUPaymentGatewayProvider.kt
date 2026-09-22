@@ -122,8 +122,14 @@ class PayUPaymentGatewayProvider(
     fun generateHash(hashName: String, hashString: String, postSalt: String? = null, hashType: String? = null): String {
         check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
         require(hashName.isNotBlank() && hashString.isNotBlank()) { "PayU hash request is incomplete" }
-        val data = if (!postSalt.isNullOrBlank()) hashString + properties.effectivePgSalt() + postSalt else hashString + properties.effectivePgSalt()
-        return sha512(data)
+
+        val normalizedHashType = hashType?.trim()?.uppercase()
+        return when {
+            normalizedHashType == "V2" -> hmacSha256(hashString, properties.effectivePgSalt())
+            hashName.equals("mcpLookup", ignoreCase = true) -> hmacSha1(hashString, properties.effectivePgSalt())
+            !postSalt.isNullOrBlank() -> sha512(hashString + properties.effectivePgSalt() + postSalt)
+            else -> sha512(hashString + properties.effectivePgSalt())
+        }
     }
 
     private fun responseFor(userId: Long, order: PaymentOrderEntity): CreatePaymentOrderResponse {
@@ -146,7 +152,7 @@ class PayUPaymentGatewayProvider(
                 "surl" to properties.pgSuccessUrl,
                 "furl" to properties.pgFailureUrl,
                 "userCredential" to "${properties.effectivePgKey()}:$phone",
-                "vasForMobileSdkHash" to sha512("${properties.effectivePgKey()}|vas_for_mobile_sdk|${order.amount.toPlainString()}|${properties.effectivePgSalt()}"),
+                "vasForMobileSdkHash" to sha512("${properties.effectivePgKey()}|vas_for_mobile_sdk|default|${properties.effectivePgSalt()}"),
                 "paymentRelatedDetailsHash" to sha512("${properties.effectivePgKey()}|payment_related_details_for_mobile_sdk|${properties.effectivePgKey()}:$phone|${properties.effectivePgSalt()}"),
                 "isProduction" to properties.pgProduction.toString()
             )
@@ -170,6 +176,19 @@ class PayUPaymentGatewayProvider(
         MessageDigest.getInstance("SHA-512")
             .digest(value.toByteArray(StandardCharsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
+
+    private fun hmacSha256(message: String, secret: String): String =
+        hmac("HmacSHA256", message, secret)
+
+    private fun hmacSha1(message: String, secret: String): String =
+        hmac("HmacSHA1", message, secret)
+
+    private fun hmac(algorithm: String, message: String, secret: String): String {
+        val mac = javax.crypto.Mac.getInstance(algorithm)
+        mac.init(javax.crypto.spec.SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), algorithm))
+        return mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }
 
     private fun enc(value: String): String = java.net.URLEncoder.encode(value, Charsets.UTF_8)
 }
