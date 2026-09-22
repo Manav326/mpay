@@ -19,6 +19,7 @@ import com.recharge.client.core.model.WalletResponse
 import com.recharge.client.core.model.WalletHistoryResponse
 import com.recharge.client.core.model.WithdrawMoneyRequest
 import com.recharge.client.core.model.WithdrawMoneyResponse
+import com.recharge.client.core.model.WithdrawalHistoryResponse
 import com.recharge.client.core.model.ProfileUpdateRequest
 import com.recharge.client.core.network.ApiError
 import com.recharge.client.core.network.ClientApi
