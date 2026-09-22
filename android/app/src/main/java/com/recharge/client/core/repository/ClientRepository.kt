@@ -195,7 +195,6 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
-}
 
 
     suspend fun rentalVendor(): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
@@ -239,3 +238,4 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
+}
