@@ -14,6 +14,38 @@ class RentalController(private val rentalService: RentalService) {
     @GetMapping("/cars")
     fun cars(): List<RentalCarResponse> = rentalService.availableCars()
 
+    @GetMapping("/vendor")
+    fun vendor(authentication: Authentication): RentalVendorResponse =
+        rentalService.vendor(userId(authentication))
+
+    @PostMapping("/vendor")
+    fun onboardVendor(
+        authentication: Authentication,
+        @Valid @RequestBody request: RentalVendorOnboardingRequest
+    ): RentalVendorResponse = rentalService.onboardVendor(userId(authentication), request)
+
+    @GetMapping("/vendor/vehicles")
+    fun vendorVehicles(authentication: Authentication): List<RentalCarResponse> =
+        rentalService.vendorCars(userId(authentication))
+
+    @PostMapping("/vendor/vehicles")
+    fun onboardVehicle(
+        authentication: Authentication,
+        @Valid @RequestBody request: RentalVehicleOnboardingRequest
+    ): RentalCarResponse = rentalService.onboardVehicle(userId(authentication), request)
+
+    @PostMapping("/admin/vendors/{vendorId}/approve")
+    fun approveVendor(authentication: Authentication, @PathVariable vendorId: Long): RentalVendorResponse {
+        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+        return rentalService.approveVendor(vendorId)
+    }
+
+    @PostMapping("/admin/vehicles/{carId}/approve")
+    fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
+        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+        return rentalService.approveVehicle(carId)
+    }
+
     @GetMapping("/bookings")
     fun bookings(
         authentication: Authentication,
