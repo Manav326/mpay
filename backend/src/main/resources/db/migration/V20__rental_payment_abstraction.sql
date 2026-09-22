@@ -25,6 +25,35 @@ CREATE INDEX idx_rental_payment_booking
 ALTER TABLE rental_bookings
     ADD COLUMN payment_id BIGINT REFERENCES rental_payments(id);
 
+INSERT INTO rental_payments (
+    payment_id, booking_id, user_id, amount, method, provider,
+    provider_transaction_id, client_request_id, status, wallet_ledger_ref,
+    created_at, updated_at
+)
+SELECT
+    'RNP-L-' || md5(b.booking_id),
+    b.booking_id,
+    b.user_id,
+    b.total_amount,
+    b.payment_method,
+    'INTERNAL_WALLET',
+    b.wallet_ledger_ref,
+    'LEGACY:' || b.booking_id,
+    CASE WHEN b.status = 'CANCELLED' THEN 'REFUNDED' ELSE 'PAID' END,
+    b.wallet_ledger_ref,
+    b.created_at,
+    b.updated_at
+FROM rental_bookings b
+WHERE NOT EXISTS (
+    SELECT 1 FROM rental_payments p WHERE p.booking_id = b.booking_id
+);
+
+UPDATE rental_bookings b
+SET payment_id = p.id
+FROM rental_payments p
+WHERE p.booking_id = b.booking_id
+  AND b.payment_id IS NULL;
+
 CREATE UNIQUE INDEX uq_rental_booking_payment
     ON rental_bookings(payment_id)
     WHERE payment_id IS NOT NULL;
