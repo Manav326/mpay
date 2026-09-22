@@ -49,3 +49,12 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
         @Param("endDate") endDate: LocalDate
     ): Boolean
 }
+
+
+interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
+    fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from RentalPaymentEntity p where p.id = :id")
+    fun findByIdForUpdate(@Param("id") id: Long): Optional<RentalPaymentEntity>
+}
