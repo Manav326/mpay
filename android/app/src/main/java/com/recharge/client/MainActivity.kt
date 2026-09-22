@@ -547,7 +547,11 @@ private fun AppNavHost(
                 onAddVehicleWithCar = { car ->
                     nav.currentBackStackEntry?.savedStateHandle?.set("rental_edit_car_id", car.id)
                     nav.navigate("rental-vehicle")
-                }
+                },
+                onLoadVehicleAvailability = rentalViewModel::loadVehicleUnavailability,
+                onTakeVehicleOffMarket = rentalViewModel::takeVehicleOffMarket,
+                onRestoreVehicleToMarket = rentalViewModel::restoreVehicleToMarket,
+                onLoadVehicleCalendar = rentalViewModel::loadVehicleCalendar
             )
         }
         composable("rental-booking") {
