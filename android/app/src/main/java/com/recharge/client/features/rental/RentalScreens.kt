@@ -992,51 +992,69 @@ fun CarRentalMarketplaceScreen(
                 }
             }
         }
-        items(state.cars, key = { it.id }) { car ->
-            val images = rentalPhotoSlots(car.imageUrl)
-            Card(shape = RoundedCornerShape(18.dp)) {
-                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(112.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            RentalCarImageTile(images[0], Modifier.weight(1f).aspectRatio(1.12f))
-                            RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.12f))
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.12f))
-                            RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.12f))
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text(car.category + " • " + car.seats + " seats • " + car.transmission, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(car.driverName, style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                        }
-                        Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("Chauffeur included", color = AppColors.Success, style = MaterialTheme.typography.labelSmall)
+        items(state.cars.chunked(2), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                rowCars.forEach { car ->
+                    val images = rentalPhotoSlots(car.imageUrl)
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box {
+                                RentalCarImageTile(images[0], Modifier.fillMaxWidth().aspectRatio(1.28f))
+                                Surface(
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(7.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color.Black.copy(alpha = .58f)
+                                ) {
+                                    Text(
+                                        car.category,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.18f))
+                                RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.18f))
+                                RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.18f))
+                            }
+                            Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, color = Color(0xFF172033))
+                            Text(car.seats.toString() + " seats • " + car.transmission, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(car.driverName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                            Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF0FDF4)) {
+                                Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp)) {
+                                    Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
+                                    Text("Chauffeur included", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                             Button(
                                 onClick = { onBook(car, start, end) },
                                 enabled = !filterApplied || canApplyFilter,
-                                contentPadding = PaddingValues(horizontal = 11.dp, vertical = 7.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) { Text("Book", style = MaterialTheme.typography.labelLarge) }
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 7.dp),
+                                shape = RoundedCornerShape(11.dp)
+                            ) {
+                                Text("Book", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
+                if (rowCars.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
-
-
-
 @Composable
 private fun VehiclePhotoField(
     title: String,
