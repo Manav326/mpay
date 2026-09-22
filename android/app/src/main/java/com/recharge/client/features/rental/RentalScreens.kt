@@ -33,6 +33,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import com.recharge.client.core.model.*
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.viewmodel.RentalUiState
@@ -376,8 +379,45 @@ private fun RentalDateTimeField(label: String, value: String, onValueChange: (St
     }
 }
 
+private fun rentalCarImageUrls(imageUrl: String?): List<String?> {
+    val urls = imageUrl.orEmpty()
+        .split("|", "\n")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .take(4)
+
+    return List(4) { index ->
+        urls.getOrNull(index) ?: urls.lastOrNull()
+    }
+}
+
 @Composable
-private fun EarningsMetric(
+private fun RentalCarImageTile(url: String?, modifier: Modifier) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(9.dp)),
+        color = AppColors.Primary.copy(alpha = .07f)
+    ) {
+        if (url.isNullOrBlank()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.DirectionsCar,
+                    contentDescription = null,
+                    tint = AppColors.Primary.copy(alpha = .45f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        } else {
+            AsyncImage(
+                model = url,
+                contentDescription = "Car photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
+$helperAnchor
     label: String,
     amount: BigDecimal,
     alignEnd: Boolean = false,
@@ -526,29 +566,88 @@ fun CarRentalMarketplaceScreen(
             }
         }
         items(state.cars, key = { it.id }) { car ->
-            Card(shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Primary.copy(alpha = .10f)) {
-                            Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.padding(12.dp))
+            val images = rentalCarImageUrls(car.imageUrl)
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.width(112.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            RentalCarImageTile(images[0], Modifier.weight(1f).aspectRatio(1.12f))
+                            RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.12f))
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(car.name, style = MaterialTheme.typography.titleLarge)
-                            Text(car.category + " • " + car.seats + " seats • " + car.transmission, color = AppColors.TextSecondary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.12f))
+                            RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.12f))
                         }
                     }
-                    Text("Driver: " + car.driverName, style = MaterialTheme.typography.titleMedium)
-                    Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary)
-                    Text("₹" + car.pricePerDay.setScale(0) + " / day", style = MaterialTheme.typography.headlineSmall)
-                    Button(
-                        onClick = { onBook(car, start, end) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        Icon(Icons.Default.Person, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Book with driver")
+                        Text(
+                            car.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                        Text(
+                            car.category + " • " + car.seats + " seats • " + car.transmission,
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = AppColors.Primary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                car.driverName,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1
+                            )
+                        }
+                        Text(
+                            (car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"),
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "₹" + car.pricePerDay.setScale(0) + "/day",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "Chauffeur included",
+                                    color = AppColors.Success,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                            Button(
+                                onClick = { onBook(car, start, end) },
+                                contentPadding = PaddingValues(horizontal = 11.dp, vertical = 7.dp),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Book", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
                     }
                 }
             }
@@ -610,7 +709,7 @@ fun RentalVehicleOnboardingScreen(
         item { VendorField("City", city) { city = it } }
         item { VendorField("State", stateName) { stateName = it } }
         item { VendorField("Price per day (₹)", pricePerDay) { pricePerDay = it } }
-        item { VendorField("Vehicle image URL (optional)", imageUrl) { imageUrl = it } }
+        item { VendorField("Vehicle photo URLs (up to 4, separate with |)", imageUrl) { imageUrl = it } }
         item { Text("Driver details", style = MaterialTheme.typography.titleLarge) }
         item { VendorField("Driver full name", driverName) { driverName = it } }
         item { VendorField("Driver mobile", driverMobile) { driverMobile = it } }
