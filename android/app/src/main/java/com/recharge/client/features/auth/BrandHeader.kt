@@ -2,6 +2,7 @@ package com.recharge.client.features.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -31,15 +33,20 @@ import com.recharge.client.core.theme.AppColors
 
 @Composable
 fun MpayBrandHeader(compact: Boolean = false) {
-    val logoSize = if (compact) 64.dp else 74.dp
+    val shellSize = if (compact) 82.dp else 96.dp
+    val logoSize = if (compact) 52.dp else 60.dp
+    val cornerRadius = if (compact) 26.dp else 30.dp
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Box(
             modifier = Modifier
-                .size(if (compact) 78.dp else 90.dp)
+                .size(shellSize)
                 .shadow(
-                    elevation = 14.dp,
-                    shape = RoundedCornerShape(25.dp),
+                    elevation = 18.dp,
+                    shape = RoundedCornerShape(cornerRadius),
                     clip = false
                 )
                 .background(
@@ -47,31 +54,32 @@ fun MpayBrandHeader(compact: Boolean = false) {
                         colors = listOf(
                             AppColors.PrimaryDark,
                             AppColors.Primary,
-                            AppColors.Accent
+                            AppColors.Accent.copy(alpha = 0.92f)
                         )
                     ),
-                    shape = RoundedCornerShape(25.dp)
+                    shape = RoundedCornerShape(cornerRadius)
                 )
                 .border(
                     width = 1.dp,
-                    color = Color.White.copy(alpha = 0.55f),
-                    shape = RoundedCornerShape(25.dp)
+                    color = Color.White.copy(alpha = 0.48f),
+                    shape = RoundedCornerShape(cornerRadius)
                 ),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(if (compact) 58.dp else 68.dp)
+                    .size(shellSize - 10.dp)
                     .background(
-                        Color.White.copy(alpha = 0.94f),
-                        RoundedCornerShape(20.dp)
+                        color = Color.White.copy(alpha = 0.10f),
+                        shape = RoundedCornerShape(cornerRadius - 5.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     painter = painterResource(R.drawable.mpay_logo),
                     contentDescription = "mPay logo",
-                    modifier = Modifier.size(logoSize)
+                    modifier = Modifier.size(logoSize),
+                    contentScale = ContentScale.Fit
                 )
             }
         }
