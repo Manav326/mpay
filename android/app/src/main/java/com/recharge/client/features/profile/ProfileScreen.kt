@@ -31,7 +31,7 @@ import java.math.BigDecimal
 @Composable
 fun ProfileScreen(
     state: ProfileUiState, onLoad: () -> Unit, onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
-    onLogout: () -> Unit, onProfileUpdated: () -> Unit, isVisible: Boolean
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) onLoad() }
@@ -67,6 +67,14 @@ fun ProfileScreen(
             }
         }
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), onClick = onBecomeVendor) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(if (user?.role?.equals("VENDOR", true) == true) "Vendor Dashboard" else "Become a Vendor", style = MaterialTheme.typography.titleLarge)
+                    Text("Rent your car with a professional driver through mPay.", color = AppColors.TextSecondary)
+                }
+            }
+        }
         item {
             OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Error), shape = RoundedCornerShape(14.dp)) {
                 Icon(Icons.Default.Logout, null); Spacer(Modifier.width(8.dp)); Text("Logout", maxLines = 1, softWrap = false)
