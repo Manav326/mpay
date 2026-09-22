@@ -71,8 +71,8 @@ private fun VehicleOffMarketDialog(
                     color = AppColors.TextSecondary
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RentalDateField("From", startDate, onStartDate)
-                    RentalDateField("To", endDate, onEndDate)
+                    RentalDateField("From", startDate, onStartDate, Modifier.weight(1f))
+                    RentalDateField("To", endDate, onEndDate, Modifier.weight(1f))
                 }
                 Box {
                     OutlinedButton(
@@ -130,12 +130,17 @@ private fun VehicleCalendarDialog(
                     IconButton(onClick = onPrevious) { Text("‹", style = MaterialTheme.typography.headlineSmall) }
                     IconButton(onClick = onNext) { Text("›", style = MaterialTheme.typography.headlineSmall) }
                 }
-                Row {
-                    listOf("M", "T", "W", "T", "F", "S", "S").forEach {
-                        Text(it, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                if (calendar == null) {
+                    Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
-                }
-                cells.chunked(7).forEach { week ->
+                } else {
+                    Row {
+                        listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+                            Text(it, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                        }
+                    }
+                    cells.chunked(7).forEach { week ->
                     Row(Modifier.fillMaxWidth()) {
                         week.forEach { date ->
                             if (date == null) {
@@ -170,6 +175,7 @@ private fun VehicleCalendarDialog(
                         }
                     }
                 }
+                    }
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Booked", color = AppColors.Error, style = MaterialTheme.typography.labelSmall)
                     Text("Off market", color = Color(0xFF9A6408), style = MaterialTheme.typography.labelSmall)
@@ -807,9 +813,10 @@ fun CarRentalMarketplaceScreen(
 private fun VehiclePhotoField(
     title: String,
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Card(shape = RoundedCornerShape(14.dp)) {
+    Card(modifier = modifier, shape = RoundedCornerShape(14.dp)) {
         Column(
             Modifier.fillMaxWidth().padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -920,12 +927,12 @@ fun RentalVehicleOnboardingScreen(
                         style = MaterialTheme.typography.labelSmall
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        VehiclePhotoField("Front 3/4 URL", photoFront) { photoFront = it }
-                        VehiclePhotoField("Side URL", photoSide) { photoSide = it }
+                        VehiclePhotoField("Front 3/4 URL", photoFront, { photoFront = it }, Modifier.weight(1f))
+                        VehiclePhotoField("Side URL", photoSide, { photoSide = it }, Modifier.weight(1f))
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        VehiclePhotoField("Rear 3/4 URL", photoRear) { photoRear = it }
-                        VehiclePhotoField("Interior URL", photoInterior) { photoInterior = it }
+                        VehiclePhotoField("Rear 3/4 URL", photoRear, { photoRear = it }, Modifier.weight(1f))
+                        VehiclePhotoField("Interior URL", photoInterior, { photoInterior = it }, Modifier.weight(1f))
                     }
                 }
             }
