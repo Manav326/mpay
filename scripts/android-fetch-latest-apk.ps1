@@ -26,14 +26,14 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
     throw "Could not determine the current Git branch."
 }
 
-$workflow = "Docker Compose CI"
+$workflow = "Android APK CI"
 $safeBranch = ($Branch.ToLowerInvariant() -replace '[^a-z0-9_.-]', '-')
-$artifactName = "mpay-android-$safeBranch"
+$artifactName = "mpay-android-release-$safeBranch"
 $packageName = "com.recharge.client"
 $headSha = (git rev-parse HEAD).Trim()
 
-$targetDir = Join-Path $repoRoot "android\app\build\outputs\apk\debug"
-$targetApk = Join-Path $targetDir "app-debug.apk"
+$targetDir = Join-Path $repoRoot "android\app\build\outputs\apk\release"
+$targetApk = Join-Path $targetDir "app-release.apk"
 $cacheCommitFile = "$targetApk.commit"
 $tempDir = Join-Path $repoRoot ".android-apk-download"
 
@@ -42,6 +42,8 @@ Write-Host "mPay Android APK retrieval" -ForegroundColor Cyan
 Write-Host "Branch    : $Branch"
 Write-Host "Commit    : $headSha"
 Write-Host "ADB       : $adbPath"
+Write-Host "Workflow  : $workflow"
+Write-Host "Artifact  : $artifactName"
 Write-Host ""
 
 New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
@@ -58,7 +60,7 @@ if (-not $ForceDownload -and (Test-Path $targetApk)) {
         $useCachedApk = $true
         Write-Host "Cached APK matches the current commit. No GitHub download is needed." -ForegroundColor Green
     } elseif ([string]::IsNullOrWhiteSpace($cachedCommit)) {
-        Write-Host "An APK already exists at the Gradle output location, but its source commit is unknown." -ForegroundColor Yellow
+        Write-Host "An APK already exists at the release output location, but its source commit is unknown." -ForegroundColor Yellow
         Write-Host "This can happen for APKs downloaded by an older version of this helper." -ForegroundColor Yellow
         $reuseAnswer = Read-Host "Use this existing APK for the current commit without downloading again? (Y/N)"
 
@@ -86,7 +88,6 @@ try {
 
         # Prefer GitHub CLI when available. If it is not installed, fall back to the
         # GitHub REST API using a token from the environment or Git Credential Manager.
-        # This keeps the helper usable on machines that have Git configured but not gh.
         $githubToken = $env:GH_TOKEN
         if ([string]::IsNullOrWhiteSpace($githubToken)) {
             $githubToken = $env:GITHUB_TOKEN
@@ -111,23 +112,31 @@ try {
             }
         }
 
+        $runId = $null
+        $artifactZip = $null
+
         if (Get-Command gh -ErrorAction SilentlyContinue) {
-            Write-Host "Finding the latest Android artifact build for this branch..." -ForegroundColor Yellow
+            Write-Host "Finding the successful Android release build for this exact commit..." -ForegroundColor Yellow
             $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
             if ($LASTEXITCODE -ne 0) {
                 throw "Could not query GitHub Actions runs."
             }
 
-            $runs = $runJson | ConvertFrom-Json
-
-            $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
+            $runs = @($runJson | ConvertFrom-Json)
+            $run = $runs |
+                Where-Object {
+                    $_.status -eq "completed" -and
+                    $_.conclusion -eq "success" -and
+                    $_.headSha -eq $headSha
+                } |
+                Sort-Object createdAt -Descending |
+                Select-Object -First 1
 
             if (-not $run) {
-                throw "No GitHub Actions run exists yet for branch $Branch."
+                throw "No successful '$workflow' run was found for branch $Branch at commit $headSha."
             }
 
             $runId = [string]$run.databaseId
-            $artifactZip = $null
         } else {
             if ([string]::IsNullOrWhiteSpace($githubToken)) {
                 throw "GitHub CLI (gh) is not installed and no GitHub token could be obtained from GH_TOKEN, GITHUB_TOKEN, or Git Credential Manager. Install gh from https://cli.github.com/ and run 'gh auth login', or configure a GitHub token in one of those supported locations."
@@ -140,7 +149,7 @@ try {
                 "X-GitHub-Api-Version" = "2022-11-28"
             }
 
-            $workflowPath = [uri]::EscapeDataString(".github/workflows/docker-compose.yml")
+            $workflowPath = [uri]::EscapeDataString(".github/workflows/android-apk.yml")
             $branchQuery = [uri]::EscapeDataString($Branch)
             $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&per_page=30"
             try {
@@ -149,14 +158,21 @@ try {
                 throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
             }
 
-            $run = $runsResponse.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1
+            $run = $runsResponse.workflow_runs |
+                Where-Object {
+                    $_.status -eq "completed" -and
+                    $_.conclusion -eq "success" -and
+                    $_.head_sha -eq $headSha
+                } |
+                Sort-Object created_at -Descending |
+                Select-Object -First 1
 
             if (-not $run) {
-                throw "No GitHub Actions run exists yet for branch $Branch."
+                throw "No successful '$workflow' run was found for branch $Branch at commit $headSha."
             }
 
             $runId = [string]$run.id
-            Write-Host "Found latest Actions run $runId for branch $Branch." -ForegroundColor Green
+            Write-Host "Found successful Android run $runId for commit $headSha." -ForegroundColor Green
 
             $artifactsUrl = "https://api.github.com/repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
             try {
@@ -170,7 +186,7 @@ try {
             } | Sort-Object created_at -Descending | Select-Object -First 1
 
             if (-not $artifact) {
-                throw "The successful run $runId does not have a non-expired '$artifactName' artifact."
+                throw "The successful Android run $runId does not have a non-expired '$artifactName' artifact."
             }
 
             $artifactZip = Join-Path $tempDir "$artifactName.zip"
