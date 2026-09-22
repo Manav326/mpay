@@ -327,7 +327,8 @@ class RentalService(
 
     @Transactional
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
-        val booking = bookings.findByBookingIdAndUserId(bookingId, userId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        require(booking.userId == userId) { "Rental booking not found" }
         check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
         check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
         booking.status = "CANCELLED"
