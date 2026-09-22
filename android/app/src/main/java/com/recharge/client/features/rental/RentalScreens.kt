@@ -662,6 +662,7 @@ fun RentalVendorOnboardingScreen(
                         }
                     }
                 }
+            }
             item {
                 OutlinedButton(onClick = onAddVehicle, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Text("Add another vehicle")
