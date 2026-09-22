@@ -78,6 +78,7 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
 interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
     fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalPaymentEntity>
+    fun findAllByBookingIdIn(bookingIds: Collection<String>): List<RentalPaymentEntity>
 
     @Query("select coalesce(sum(p.amount), 0) from RentalPaymentEntity p where p.status = 'REFUNDED'")
     fun sumRefundedAmount(): BigDecimal
