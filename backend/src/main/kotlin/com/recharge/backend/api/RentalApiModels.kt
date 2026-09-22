@@ -115,6 +115,27 @@ data class RentalVehicleOnboardingRequest(
     val driver: RentalDriverRequest
 )
 
+data class RentalBookingQuoteRequest(
+    @field:NotBlank val carId: String,
+    @field:NotBlank val pickupLocation: String,
+    @field:NotBlank val dropLocation: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate
+)
+
+data class RentalBookingQuoteResponse(
+    val carId: String,
+    val carName: String,
+    val driverName: String,
+    val pickup: String,
+    val drop: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val days: Long,
+    val pricePerDay: BigDecimal,
+    val total: BigDecimal
+)
+
 data class RentalBookingRequest(
     @field:NotBlank val carId: String,
     @field:NotBlank val pickupLocation: String,
