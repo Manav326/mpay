@@ -557,9 +557,9 @@ fun RentalVendorOnboardingScreen(
                     val blackouts = state.vehicleUnavailabilityByCar[car.id].orEmpty()
                     val today = LocalDate.now()
                     val activeBlackout = blackouts.firstOrNull {
-                        val start = runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()
-                        val end = runCatching { LocalDate.parse(it.endDate, rentalDateFormatter) }.getOrNull()
-                        start != null && end != null && !start.isAfter(today) && !end.isBefore(today)
+                        val startDate = runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()
+                        val endDate = runCatching { LocalDate.parse(it.endDate, rentalDateFormatter) }.getOrNull()
+                        startDate != null && endDate != null && !startDate.isAfter(today) && !endDate.isBefore(today)
                     }
                     val scheduledBlackout = blackouts.firstOrNull {
                         runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()?.isAfter(today) == true
@@ -567,86 +567,72 @@ fun RentalVendorOnboardingScreen(
                     val displayedBlackout = activeBlackout ?: scheduledBlackout
                     val displayedOffMarket = activeBlackout != null
                     Card(
-                        shape = RoundedCornerShape(18.dp),
-                        onClick = { detailsCar = car }
+                        shape = RoundedCornerShape(20.dp),
+                        onClick = { detailsCar = car },
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = RoundedCornerShape(10.dp), color = AppColors.Primary.copy(alpha = .08f)) {
-                                    Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.padding(8.dp).size(22.dp))
-                                }
-                                Spacer(Modifier.width(9.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-                                        Surface(
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = when {
-                                                status == "REJECTED" -> AppColors.Error.copy(alpha = .12f)
-                                                status == "APPROVED" && (activeBlackout != null || scheduledBlackout != null) -> Color(0xFFFEF3C7)
-                                                status == "APPROVED" -> AppColors.Success.copy(alpha = .12f)
-                                                else -> Color(0xFFFFF7E6)
-                                            }
-                                        ) {
-                                            Text(
-                                                when {
-                                                    status == "REJECTED" -> "REJECTED"
-                                                    displayedOffMarket -> "OFF MARKET"
-                                                    scheduledBlackout != null -> "SCHEDULED"
-                                                    else -> status.replace("_", " ")
-                                                },
-                                                color = when {
-                                                    status == "REJECTED" -> AppColors.Error
-                                                    displayedOffMarket || scheduledBlackout != null -> Color(0xFF9A6408)
-                                                    status == "APPROVED" -> AppColors.Success
-                                                    else -> Color(0xFF9A6408)
-                                                },
-                                                style = MaterialTheme.typography.labelSmall,
-                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                                            )
-                                        }
+                                    Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text(car.category + " • " + car.seats + " seats", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = when {
+                                        status == "REJECTED" -> AppColors.Error.copy(alpha = .12f)
+                                        displayedOffMarket || scheduledBlackout != null -> Color(0xFFFFF3CD)
+                                        status == "APPROVED" -> AppColors.Success.copy(alpha = .12f)
+                                        else -> Color(0xFFFFF7E6)
                                     }
+                                ) {
                                     Text(
-                                        car.category + " • " + car.seats + " seats • " + car.transmission + " • " + (car.fuelType ?: "Fuel"),
-                                        color = AppColors.TextSecondary,
+                                        when {
+                                            status == "REJECTED" -> "REJECTED"
+                                            displayedOffMarket -> "OFF MARKET"
+                                            scheduledBlackout != null -> "SCHEDULED"
+                                            else -> status.replace("_", " ")
+                                        },
+                                        color = when {
+                                            status == "REJECTED" -> AppColors.Error
+                                            displayedOffMarket || scheduledBlackout != null -> Color(0xFF9A6408)
+                                            status == "APPROVED" -> AppColors.Success
+                                            else -> Color(0xFF9A6408)
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        "₹" + car.pricePerDay.setScale(0) + " / day • " + car.driverName + " • " + (car.city ?: "Location unavailable"),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
                                     )
                                 }
                             }
+                            Text("₹" + car.pricePerDay.setScale(0) + " / day", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF176B4D))
+                            Text(car.transmission + " • " + (car.fuelType ?: "Fuel") + " • " + car.driverName, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Text("Tap for full vehicle and driver details", color = Color(0xFF2563EB), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
 
                             displayedBlackout?.let {
-                                Text(
-                                    (if (displayedOffMarket) "Off market: " else "Scheduled off market: ") + formatRentalDate(it.startDate) + " → " + formatRentalDate(it.endDate) + " • " + it.reasonLabel,
-                                    color = Color(0xFF9A6408),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
+                                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFFFF8E1)) {
+                                    Text(
+                                        (if (displayedOffMarket) "Off market: " else "Scheduled: ") + formatRentalDate(it.startDate) + " → " + formatRentalDate(it.endDate) + " • " + it.reasonLabel,
+                                        color = Color(0xFF8A5A00),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
                             }
 
                             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 OutlinedButton(
-                                    onClick = {
-                                        calendarCarId = car.id
-                                        calendarMonth = YearMonth.now()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    onClick = { calendarCarId = car.id; calendarMonth = YearMonth.now() },
+                                    contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                                     shape = RoundedCornerShape(10.dp)
                                 ) { Text("Calendar", style = MaterialTheme.typography.labelMedium) }
 
                                 if (displayedBlackout != null) {
                                     OutlinedButton(
-                                        onClick = {
-                                            onRestoreVehicleToMarket(car.id, displayedBlackout.id) {
-                                                onLoadVehicleAvailability(car.id)
-                                            }
-                                        },
+                                        onClick = { onRestoreVehicleToMarket(car.id, displayedBlackout.id) { onLoadVehicleAvailability(car.id) } },
                                         enabled = !state.saving,
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                                         shape = RoundedCornerShape(10.dp)
                                     ) { Text("Restore", color = AppColors.Success, style = MaterialTheme.typography.labelMedium) }
                                 } else if (status == "APPROVED") {
@@ -659,7 +645,7 @@ fun RentalVendorOnboardingScreen(
                                             offMarketNote = ""
                                         },
                                         enabled = !state.saving,
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                                         shape = RoundedCornerShape(10.dp)
                                     ) { Text("Take off market", style = MaterialTheme.typography.labelMedium) }
                                 }
@@ -667,18 +653,15 @@ fun RentalVendorOnboardingScreen(
                                 if (status == "REJECTED") {
                                     OutlinedButton(
                                         onClick = { onAddVehicleWithCar(car) },
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                                         shape = RoundedCornerShape(10.dp)
                                     ) { Text("Correct & resubmit", style = MaterialTheme.typography.labelMedium) }
                                 }
                             }
-
                             car.rejectionReason?.let { Text("Review note: " + it, color = AppColors.Error, style = MaterialTheme.typography.labelSmall) }
                         }
                     }
                 }
-            }
-
             item {
                 OutlinedButton(onClick = onAddVehicle, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Text("Add another vehicle")
