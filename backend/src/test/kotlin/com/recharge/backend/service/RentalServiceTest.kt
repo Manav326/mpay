@@ -9,6 +9,7 @@ import com.recharge.backend.repository.RentalVendorRepository
 import com.recharge.backend.repository.RentalDriverRepository
 import com.recharge.backend.repository.RentalVendorReviewRepository
 import com.recharge.backend.repository.RentalCarReviewRepository
+import com.recharge.backend.repository.RentalVehicleUnavailabilityRepository
 import com.recharge.backend.repository.RentalPaymentRepository
 import com.recharge.backend.repository.UserRepository
 import org.junit.jupiter.api.Assertions.assertEquals
