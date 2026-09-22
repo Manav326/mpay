@@ -43,7 +43,7 @@ class RentalController(
     private fun requireAdmin(authentication: Authentication) {
         val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
         val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
-        roleAccessService.requirePermission(user, "VIEW_USERS")
+        roleAccessService.requirePermission(user, "MANAGE_VENDORS")
     }
 
     @GetMapping("/admin/vendors")
