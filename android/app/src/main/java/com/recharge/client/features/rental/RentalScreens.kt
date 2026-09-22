@@ -293,7 +293,7 @@ fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
 }
 
 @Composable
-fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit) {
+fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit, onRefresh: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
@@ -303,7 +303,37 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook:
         item { Text("Chauffeur-driven cars available for your trip.", color = AppColors.TextSecondary) }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         if (state.loading && state.cars.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
-        if (!state.loading && state.cars.isEmpty()) item { Text("No approved vehicles are available yet.", color = AppColors.TextSecondary) }
+        if (!state.loading && state.cars.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F8FC))
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(9.dp)
+                    ) {
+                        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xFFE2F2FC)) {
+                            Icon(
+                                Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = Color(0xFF1677B8),
+                                modifier = Modifier.padding(14.dp).size(30.dp)
+                            )
+                        }
+                        Text("No cars available right now.", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.",
+                            color = AppColors.TextSecondary
+                        )
+                        OutlinedButton(onClick = onRefresh, shape = RoundedCornerShape(12.dp)) {
+                            Text("Check again")
+                        }
+                    }
+                }
+            }
+        }
         items(state.cars, key = { it.id }) { car ->
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
