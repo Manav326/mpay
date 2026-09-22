@@ -87,7 +87,7 @@ interface ClientApi {
     suspend fun restoreRentalVehicleToMarket(
         @retrofit2.http.Path("carId") carId: String,
         @retrofit2.http.Path("unavailableId") unavailableId: String
-    ): Response<Unit>
+    ): Response<Void>
 
     @GET("api/v1/car-rental/vendor/vehicles/{carId}/calendar")
     suspend fun rentalVehicleCalendar(
