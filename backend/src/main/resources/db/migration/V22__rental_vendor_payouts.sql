@@ -1,7 +1,7 @@
 CREATE TABLE rental_payouts (
     id BIGSERIAL PRIMARY KEY,
     payout_id VARCHAR(40) NOT NULL UNIQUE,
-    booking_id VARCHAR(40) NOT NULL UNIQUE,
+    booking_id VARCHAR(40) NOT NULL UNIQUE REFERENCES rental_bookings(booking_id),
     vendor_id BIGINT NOT NULL REFERENCES rental_vendors(id),
     vendor_user_id BIGINT NOT NULL REFERENCES users(id),
     gross_amount NUMERIC(19,2) NOT NULL,
