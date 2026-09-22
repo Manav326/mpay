@@ -468,7 +468,6 @@ private fun AppNavHost(
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
                 walletUiState = walletViewModel.state.collectAsState().value,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
-                onMarketplace = { nav.navigate("marketplace") },
                 onRentalBookings = { nav.navigate("rental-bookings") },
                 onCarRental = { nav.navigate("car-rental") }
             )
