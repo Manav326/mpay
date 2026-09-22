@@ -116,6 +116,7 @@ export default function Portal() {
     setNotice('');
     setSelectedCar(undefined);
     setRentalQuote(undefined);
+    setRentalForm(f => ({ ...f, startDate, endDate }));
     loadRentalData(startDate, endDate);
   }
 
