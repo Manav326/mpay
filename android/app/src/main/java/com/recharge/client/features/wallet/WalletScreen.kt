@@ -325,6 +325,9 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
             if (item.mobileNumber != null) Text("Mobile: ${item.mobileNumber}")
             if (item.operator != null) Text("Operator: ${operatorLabel(item.operator)}")
             Text("External reference: ${item.externalRef}")
+            item.provider?.takeIf { it.isNotBlank() }?.let {
+                Text("Provider: ${it.uppercase()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
             item.description?.let { Text(it, color = AppColors.TextSecondary) }
             Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             if (isWithdraw) Text("UPI ID: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
