@@ -69,6 +69,10 @@ export default function Portal() {
   };
   const walletAmountClass = (item: WalletItem) =>
     String(item.type || '').toUpperCase() === 'DEBIT' ? 'amount-debit' : 'amount-credit';
+  const walletAmountLabel = (item: WalletItem) => {
+    const amount = Math.abs(Number(item.amount || 0));
+    return (walletSignedAmount(item) > 0 ? '+' : '-') + money(amount);
+  };
   async function copyText(value: string, successMessage = 'Copied to clipboard.') {
     try {
       await navigator.clipboard.writeText(value);
@@ -312,7 +316,7 @@ export default function Portal() {
           {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i) =>
             <div className="history-row" key={String(x.id || i)}>
               <div><ReceiptText size={18}/><b>{x.description || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {x.createdAt ? new Date(x.createdAt).toLocaleString('en-IN') : '—'}</small></div>
-              <strong className={walletAmountClass(x)}>{walletSignedAmount(x) > 0 ? '+' : ''}{money(walletSignedAmount(x))}</strong>
+              <strong className={walletAmountClass(x)}>{walletAmountLabel(x)}</strong>
               <div className="history-actions">{status(x.status)}{x.referenceId && <button className="copy-btn" title="Copy transaction reference" onClick={() => copyText(String(x.referenceId), 'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
             </div>)}</div>
           : <div className="empty-state">No wallet transactions were returned.</div>}
