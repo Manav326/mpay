@@ -132,6 +132,56 @@ class RentalService(
         return toCarResponse(car)
     }
 
+    @Transactional
+    fun resubmitVehicle(userId: Long, carId: Long, request: RentalVehicleUpdateRequest): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        require(car.approvalStatus == "REJECTED") { "Only rejected vehicles can be corrected and resubmitted" }
+        val driverId = requireNotNull(car.driverId) { "Vehicle driver is missing" }
+        val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Vehicle driver not found") }
+
+        require(request.seats in 1..20) { "Seats must be between 1 and 20" }
+        require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
+        require(!cars.existsByRegistrationNumberIgnoreCaseAndIdNot(request.registrationNumber.trim(), carId)) {
+            "A vehicle with this registration number already exists"
+        }
+        require(request.driver.licenseExpiry.isAfter(LocalDate.now())) { "Driver licence must be valid" }
+
+        val now = Instant.now()
+        driver.fullName = request.driver.fullName.trim()
+        driver.mobile = request.driver.mobile.trim()
+        driver.licenseNumber = request.driver.licenseNumber.trim().uppercase()
+        driver.licenseExpiry = request.driver.licenseExpiry
+        driver.address = request.driver.address?.trim()?.takeIf { it.isNotBlank() }
+        driver.rejectionReason = null
+        driver.updatedAt = now
+        drivers.save(driver)
+
+        car.name = request.name.trim()
+        car.category = request.category.trim()
+        car.seats = request.seats
+        car.transmission = request.transmission.trim()
+        car.pricePerDay = request.pricePerDay.setScale(2, RoundingMode.HALF_UP)
+        car.registrationNumber = request.registrationNumber.trim().uppercase()
+        car.make = request.make.trim()
+        car.model = request.model.trim()
+        car.variant = request.variant?.trim()?.takeIf { it.isNotBlank() }
+        car.manufacturingYear = request.manufacturingYear
+        car.fuelType = request.fuelType.trim()
+        car.registrationYear = request.registrationYear
+        car.pickupAddress = request.pickupAddress.trim()
+        car.city = request.city.trim()
+        car.state = request.state.trim()
+        car.imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() }
+        car.approvalStatus = "PENDING_REVIEW"
+        car.rejectionReason = null
+        car.active = false
+        cars.save(car)
+        return toCarResponse(car)
+    }
+
     fun availableCars(): List<RentalCarResponse> =
         cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
             .map(::toCarResponse)
@@ -295,7 +345,11 @@ class RentalService(
             registrationYear = car.registrationYear, city = car.city, pickupAddress = car.pickupAddress,
             imageUrl = car.imageUrl, pricePerDay = car.pricePerDay.setScale(2),
             driverName = driver?.fullName ?: "Driver assigned", driverMobile = driver?.mobile,
-            approvalStatus = car.approvalStatus, rejectionReason = car.rejectionReason
+            approvalStatus = car.approvalStatus, rejectionReason = car.rejectionReason,
+            make = car.make, model = car.model, variant = car.variant,
+            manufacturingYear = car.manufacturingYear, registrationNumber = car.registrationNumber,
+            state = car.state, driverLicenseNumber = driver?.licenseNumber,
+            driverLicenseExpiry = driver?.licenseExpiry, driverAddress = driver?.address
         )
     }
 
