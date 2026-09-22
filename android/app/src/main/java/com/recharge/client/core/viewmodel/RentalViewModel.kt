@@ -34,6 +34,10 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun clearCarSearch() {
+        _state.value = _state.value.copy(cars = emptyList(), error = null)
+    }
+
     fun loadCars(startDate: String? = null, endDate: String? = null) {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
