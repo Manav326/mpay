@@ -20,8 +20,8 @@ fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (Str
         title = { Text("Withdraw to UPI") },
         text = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Choose the payout provider. Withdrawal destination is UPI only.", style = MaterialTheme.typography.bodyMedium)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Button(onClick = { provider = "razorpay" }, enabled = !busy) { Text("Razorpay") }; OutlinedButton(onClick = { provider = "payu" }, enabled = !busy) { Text("PayU") } }
+                Text("Choose the withdrawal mode. Mock is for development/testing.", style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {\n                    ProviderButton("Mock", provider == "mock", { provider = "mock" }, !busy)\n                    ProviderButton("Razorpay", provider == "razorpay", { provider = "razorpay" }, !busy)\n                    ProviderButton("PayU", provider == "payu", { provider = "payu" }, !busy)\n                }
                 OutlinedTextField(amount, { if (it.length <= 10 && it.all { c -> c.isDigit() || c == '.' }) amount = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Amount (INR)") }, prefix = { Text("₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !busy)
                 OutlinedTextField(upiId, { if (it.length <= 120) upiId = it }, modifier = Modifier.fillMaxWidth(), label = { Text("UPI ID") }, placeholder = { Text("name@upi") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), enabled = !busy)
                 state.withdrawError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -36,3 +36,4 @@ fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (Str
         dismissButton = { TextButton(onClick = { onClearMessage(); onDismiss() }, enabled = !busy) { Text("Close") } }
     )
 }
+\n@Composable\nprivate fun ProviderButton(label: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean) {\n    if (selected) {\n        Button(onClick = onClick, enabled = enabled, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1) }\n    } else {\n        OutlinedButton(onClick = onClick, enabled = enabled, modifier = Modifier.weight(1f)) { Text(label, maxLines = 1) }\n    }\n}\n
