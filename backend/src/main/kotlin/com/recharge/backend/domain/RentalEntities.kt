@@ -4,6 +4,7 @@ import jakarta.persistence.*
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Entity
 @Table(name = "rental_vendors")
@@ -35,7 +36,7 @@ class RentalDriverEntity(
     @Column(name="full_name", nullable=false, length=120) var fullName: String = "",
     @Column(nullable=false, length=20) var mobile: String = "",
     @Column(name="license_number", nullable=false, length=64) var licenseNumber: String = "",
-    @Column(name="license_expiry", nullable=false) var licenseExpiry: LocalDate = LocalDate.now(),
+    @Column(name="license_expiry", nullable=false) var licenseExpiry: LocalDateTime = LocalDateTime.now(),
     @Column(length=300) var address: String? = null,
     @Column(nullable=false) var active: Boolean = true,
     @Column(name="rejection_reason", length=500) var rejectionReason: String? = null,
@@ -79,8 +80,8 @@ class RentalBookingEntity(
     @Column(name = "car_id", nullable = false) var carId: Long = 0,
     @Column(name = "pickup_location", nullable = false, length = 300) var pickupLocation: String = "",
     @Column(name = "drop_location", nullable = false, length = 300) var dropLocation: String = "",
-    @Column(name = "start_date", nullable = false) var startDate: LocalDate = LocalDate.now(),
-    @Column(name = "end_date", nullable = false) var endDate: LocalDate = LocalDate.now().plusDays(1),
+    @Column(name = "start_date", nullable = false) var startDate: LocalDateTime = LocalDateTime.now(),
+    @Column(name = "end_date", nullable = false) var endDate: LocalDateTime = LocalDateTime.now().plusDays(1),
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2) var totalAmount: BigDecimal = BigDecimal.ZERO,
     @Column(nullable = false, length = 30) var status: String = "CONFIRMED",
     @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
