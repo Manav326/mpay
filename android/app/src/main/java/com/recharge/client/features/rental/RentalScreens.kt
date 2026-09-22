@@ -1,5 +1,10 @@
 package com.recharge.client.features.rental
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Context
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 import androidx.compose.foundation.layout.*
@@ -14,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.*
 import com.recharge.client.core.theme.AppColors
@@ -188,6 +195,83 @@ private fun VendorField(label: String, value: String, onValueChange: (String) ->
     OutlinedTextField(value, onValueChange, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
 }
 
+private val rentalDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+private val rentalDateTimeDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
+
+private fun showDateTimePicker(context: Context, current: String?, onSelected: (String) -> Unit) {
+    val initial = runCatching {
+        LocalDateTime.parse(current.orEmpty(), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }.getOrElse { LocalDateTime.now().withSecond(0).withNano(0) }
+
+    DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    onSelected(LocalDateTime.of(year, month + 1, day, hour, minute).format(rentalDateTimeFormatter))
+                },
+                initial.hour,
+                initial.minute,
+                false
+            ).show()
+        },
+        initial.year,
+        initial.monthValue - 1,
+        initial.dayOfMonth
+    ).show()
+}
+
+@Composable
+private fun RentalDateTimeField(label: String, value: String, onValueChange: (String) -> Unit) {
+    val context = LocalContext.current
+    val display = runCatching {
+        LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalDateTimeDisplayFormatter)
+    }.getOrElse { "Select date & time" }
+    OutlinedTextField(
+        value = display,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth().clickable { showDateTimePicker(context, value, onValueChange) },
+        singleLine = true
+    )
+}
+
+@Composable
+fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                Column {
+                    Text("Marketplace", style = MaterialTheme.typography.headlineSmall)
+                    Text("Explore mPay services", color = AppColors.TextSecondary)
+                }
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), onClick = onCarRental) {
+                Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Primary.copy(alpha = .10f)) {
+                        Icon(Icons.Default.DirectionsCar, "Car Rental", tint = AppColors.Primary, modifier = Modifier.padding(12.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Car Rental", style = MaterialTheme.typography.titleLarge)
+                        Text("Chauffeur-driven cars for your trip", color = AppColors.TextSecondary)
+                    }
+                    Text("NEW", style = MaterialTheme.typography.labelMedium, color = AppColors.Primary)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit) {
     LazyColumn(
@@ -195,7 +279,7 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook:
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Car Rental", style = MaterialTheme.typography.headlineSmall) } }
+        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall) } }
         item { Text("Chauffeur-driven cars available for your trip.", color = AppColors.TextSecondary) }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         if (state.loading && state.cars.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
@@ -277,7 +361,7 @@ fun RentalVehicleOnboardingScreen(
         item { VendorField("Driver full name", driverName) { driverName = it } }
         item { VendorField("Driver mobile", driverMobile) { driverMobile = it } }
         item { VendorField("Driving licence number", licenseNumber) { licenseNumber = it } }
-        item { VendorField("Licence expiry (YYYY-MM-DD)", licenseExpiry) { licenseExpiry = it } }
+        item { RentalDateTimeField("Licence expiry", licenseExpiry) { licenseExpiry = it } }
         item { VendorField("Driver address (optional)", driverAddress) { driverAddress = it } }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         item {
@@ -349,8 +433,8 @@ fun RentalBookingScreen(
         item { Text("Driver: " + car.driverName + (car.driverMobile?.let { " · " + it } ?: ""), color = AppColors.TextSecondary) }
         item { VendorField("Pickup location", pickup) { pickup = it } }
         item { VendorField("Drop location", drop) { drop = it } }
-        item { VendorField("Start date (YYYY-MM-DD)", start) { start = it } }
-        item { VendorField("End date (YYYY-MM-DD)", end) { end = it } }
+        item { RentalDateTimeField("Start date & time", start) { start = it } }
+        item { RentalDateTimeField("End date & time", end) { end = it } }
         quote?.let { q ->
             item {
                 Card(shape = RoundedCornerShape(18.dp)) {
@@ -370,12 +454,58 @@ fun RentalBookingScreen(
             }
         } ?: item {
             Button(
-                enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && start.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && end.matches(Regex("\\d{4}-\\d{2}-\\d{2}")),
+                enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess && runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess,
                 onClick = { onQuote(RentalBookingQuoteRequest(car.id, pickup.trim(), drop.trim(), start, end)) { quote = it } },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp)
             ) { Text("Check fare") }
         }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
+    }
+}
+
+@Composable
+fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: () -> Unit) {
+    LaunchedEffect(Unit) { onRefresh() }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                Column {
+                    Text("My Bookings", style = MaterialTheme.typography.headlineSmall)
+                    Text("Your chauffeur-driven rental bookings", color = AppColors.TextSecondary)
+                }
+            }
+        }
+        state.error?.let { item { Text(it, color = AppColors.Error) } }
+        if (state.loading && state.bookings.isEmpty()) {
+            item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        }
+        if (!state.loading && state.bookings.isEmpty()) {
+            item { Text("No rental bookings yet.", color = AppColors.TextSecondary) }
+        }
+        items(state.bookings, key = { it.bookingId }) { booking ->
+            Card(shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(booking.carName, style = MaterialTheme.typography.titleLarge)
+                            Text("Booking " + booking.bookingId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text(booking.status, style = MaterialTheme.typography.labelLarge, color = AppColors.Primary)
+                    }
+                    Text("Driver: " + booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""))
+                    Text(booking.pickup + " → " + booking.drop, color = AppColors.TextSecondary)
+                    Text(booking.startDate.toString() + " to " + booking.endDate.toString(), color = AppColors.TextSecondary)
+                    Text("₹" + booking.total.setScale(2).toPlainString() + " • " + booking.paymentMethod, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
     }
 }
