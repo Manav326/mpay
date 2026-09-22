@@ -37,13 +37,18 @@ class WithdrawalService(
         require(normalizedRequestId.isNotBlank()) { "Client request id is required" }
         require(normalizedRequestId.length <= 100) { "Client request id is too long" }
 
-        val provider = resolveProvider(providerName)
         val user = users.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
 
         val existing = withdrawals.findByUserIdAndClientRequestId(userId, normalizedRequestId)
         if (existing.isPresent) {
-            return responseFor(existing.get())
+            val entity = existing.get()
+            if (providerName.isNotBlank() && !entity.providerName.equals(providerName.trim(), true)) {
+                throw IllegalArgumentException("Client request id already belongs to ${entity.providerName} withdrawal")
+            }
+            return responseFor(entity)
         }
+
+        val provider = resolveProvider(providerName)
 
         val saved = persistence.createOrGetPending(
             userId = userId,
