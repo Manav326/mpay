@@ -162,6 +162,14 @@ class ClientController(
             upiId = request.upiId
         )
 
+    @GetMapping("/wallet/withdrawals")
+    fun withdrawalHistory(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): WithdrawalHistoryResponse =
+        withdrawalService.history(authenticatedUserId(authentication), page, size)
+
     @GetMapping("/wallet/withdrawals/{withdrawalId}")
     fun withdrawalStatus(
         authentication: Authentication,
@@ -348,6 +356,15 @@ class AdminController(
         @RequestParam(defaultValue = "25") size: Int
     ): WalletHistoryResponse =
         adminService.walletHistory(currentUser(authentication), publicId, page, size)
+
+    @GetMapping("/users/{publicId}/withdrawals")
+    fun userWithdrawals(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int
+    ): WithdrawalHistoryResponse =
+        adminService.withdrawalHistory(currentUser(authentication), publicId, page, size)
 
     @GetMapping("/users/{publicId}/profile-image")
     fun userProfileImage(
