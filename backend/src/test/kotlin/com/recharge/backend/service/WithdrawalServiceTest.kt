@@ -48,7 +48,7 @@ class WithdrawalServiceTest {
         Mockito.doReturn(WalletSnapshot(BigDecimal("1000.00"), BigDecimal("0.00"), BigDecimal("1000.00")))
             .`when`(wallet).getWalletSnapshot(42L)
 
-        val response = service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-MOCK", "")
+        val response = service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-MOCK", "test@mockupi")
 
         assertEquals("SUCCESS", response.status)
         assertEquals("mock", response.provider)
