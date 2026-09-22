@@ -70,6 +70,22 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun resubmitVehicle(carId: String, request: RentalVehicleUpdateRequest, onDone: () -> Unit) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.resubmitRentalVehicle(carId, request)
+                .onSuccess { updated ->
+                    _state.value = _state.value.copy(
+                        vendorCars = _state.value.vendorCars.map { if (it.id == updated.id) updated else it },
+                        saving = false
+                    )
+                    onDone()
+                }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to resubmit vehicle") }
+        }
+    }
+
     fun onboardVehicle(request: RentalVehicleOnboardingRequest, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
