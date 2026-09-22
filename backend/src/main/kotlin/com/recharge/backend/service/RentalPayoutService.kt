@@ -5,6 +5,7 @@ import com.recharge.backend.domain.RentalPayoutEntity
 import com.recharge.backend.repository.RentalCarRepository
 import com.recharge.backend.repository.RentalPayoutRepository
 import com.recharge.backend.repository.RentalVendorRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -18,7 +19,7 @@ class RentalPayoutService(
     private val cars: RentalCarRepository,
     private val vendors: RentalVendorRepository,
     private val wallet: WalletService,
-    private val platformFeePercent: BigDecimal = BigDecimal("10.00")
+    @Value("\${app.rental.platform-fee-percent:10.00}") private val platformFeePercent: BigDecimal
 ) {
     @Transactional
     fun settleCompletedBooking(booking: RentalBookingEntity): RentalPayoutEntity {
