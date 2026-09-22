@@ -30,8 +30,14 @@ class WithdrawalService(
         val normalizedAmount = amount.setScale(2)
         require(normalizedAmount >= BigDecimal("1.00")) { "Minimum withdrawal amount is ₹1" }
 
+        val requestedProvider = providerName.trim().lowercase()
         val normalizedUpi = upiId.trim()
-        require(Regex("^[A-Za-z0-9._-]+@[A-Za-z0-9._-]{2,}$").matches(normalizedUpi)) { "Enter a valid UPI ID" }
+        val upiPattern = if (requestedProvider == "mock") {
+            Regex("^[^\\s@]+@[^\\s@]+$")
+        } else {
+            Regex("^[A-Za-z0-9._-]+@[A-Za-z0-9._-]{2,}$")
+        }
+        require(upiPattern.matches(normalizedUpi)) { "Enter a valid UPI ID" }
 
         val normalizedRequestId = clientRequestId.trim()
         require(normalizedRequestId.isNotBlank()) { "Client request id is required" }
@@ -42,13 +48,13 @@ class WithdrawalService(
         val existing = withdrawals.findByUserIdAndClientRequestId(userId, normalizedRequestId)
         if (existing.isPresent) {
             val entity = existing.get()
-            if (providerName.isNotBlank() && !entity.providerName.equals(providerName.trim(), true)) {
+            if (requestedProvider.isNotBlank() && !entity.providerName.equals(requestedProvider, true)) {
                 throw IllegalArgumentException("Client request id already belongs to ${entity.providerName} withdrawal")
             }
             return responseFor(entity)
         }
 
-        val provider = resolveProvider(providerName)
+        val provider = resolveProvider(requestedProvider)
 
         val saved = persistence.createOrGetPending(
             userId = userId,
