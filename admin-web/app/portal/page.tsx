@@ -59,6 +59,7 @@ export default function Portal() {
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
   const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
   const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
+  const [rentalSearchApplied, setRentalSearchApplied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
 
@@ -92,6 +93,32 @@ export default function Portal() {
       setBookings(existing?.items || existing?.content || existing || []);
     } catch (e: any) {
       setNotice(e.message || 'Unable to load rental inventory.');
+    }
+  }
+
+  async function searchRentalCars() {
+    if (!rentalForm.startDate || !rentalForm.endDate) {
+      setNotice('Select the From and To date and time first.');
+      return;
+    }
+    setBusy(true);
+    setNotice('');
+    setSelectedCar(undefined);
+    setRentalQuote(undefined);
+    try {
+      const query = new URLSearchParams({
+        startDate: rentalForm.startDate,
+        endDate: rentalForm.endDate
+      });
+      const available = await api<any>('/api/v1/car-rental/cars?' + query.toString());
+      setCars(available?.items || available || []);
+      setRentalSearchApplied(true);
+    } catch (e: any) {
+      setRentalSearchApplied(true);
+      setCars([]);
+      setNotice(e.message || 'Unable to find available rental cars.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -338,37 +365,71 @@ export default function Portal() {
       </section>}
 
       {view === 'rental' && <section className="portal-content">
-        <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Set your trip details, review the fare and submit a booking request.</p></div><Car size={28}/></div>
+        <div className="portal-panel">
+          <div className="panel-head"><div><h2>Find a car</h2><p>Choose the exact time window first. Only cars available for that period will be shown.</p></div><Car size={28}/></div>
+          <div className="rental-search-panel">
+            <div className="rental-search-fields">
+              <label>From<input type="datetime-local" value={rentalForm.startDate}
+                min={new Date().toISOString().slice(0,16)}
+                onChange={e => { setRentalForm({...rentalForm,startDate:e.target.value}); setRentalSearchApplied(false); setSelectedCar(undefined); setRentalQuote(undefined); }}/></label>
+              <label>To<input type="datetime-local" value={rentalForm.endDate}
+                min={rentalForm.startDate || new Date().toISOString().slice(0,16)}
+                onChange={e => { setRentalForm({...rentalForm,endDate:e.target.value}); setRentalSearchApplied(false); setSelectedCar(undefined); setRentalQuote(undefined); }}/></label>
+            </div>
+            <p>Location-based filtering will be added later. For now, availability is determined by the selected date and time.</p>
+            <button className="landing-primary" disabled={busy || !rentalForm.startDate || !rentalForm.endDate}
+              onClick={searchRentalCars}>{busy ? 'Finding cars…' : 'Find available cars'} <ArrowRight size={16}/></button>
+          </div>
+        </div>
+
+        {rentalSearchApplied && !cars.length && !busy && <div className="rental-empty-state">
+          <div className="rental-empty-icon"><Car size={28}/></div>
+          <b>No cars available for this time</b>
+          <span>There are no approved chauffeur-driven cars available for your selected date and time. Try another time window.</span>
+          <button className="landing-secondary" onClick={() => { setRentalSearchApplied(false); setRentalForm({...rentalForm,startDate:'',endDate:''}); setSelectedCar(undefined); setRentalQuote(undefined); }}>
+            <RefreshCw size={15}/> Change time
+          </button>
+        </div>}
+
+        {rentalSearchApplied && cars.length > 0 && <div className="portal-panel">
+          <div className="panel-head"><div><h2>Available cars</h2><p>Matched to your selected date and time.</p></div></div>
+          <div className="rental-car-grid">{cars.map(car =>
+            <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')}
+              onClick={() => { setSelectedCar(car); setRentalQuote(undefined); }}>
+              <div className="rental-car-icon"><Car size={26}/></div>
+              <b>{car.name}</b>
+              <span>{car.category} · {car.seats} seats · {car.transmission}</span>
+              <strong>{money(car.pricePerDay)} / day</strong>
+            </button>)}</div>
+        </div>}
+
+        {selectedCar && <div className="portal-panel">
+          <div className="panel-head"><div><h2>Booking details</h2><p>{selectedCar.name} · chauffeur-driven</p></div><Car size={22}/></div>
           <div className="rental-form">
             <input placeholder="Pickup location" value={rentalForm.pickup} onChange={e => setRentalForm({...rentalForm,pickup:e.target.value})}/>
             <input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e => setRentalForm({...rentalForm,drop:e.target.value})}/>
-            <label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
-            <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
           </div>
-          {cars.length ? <div className="rental-car-grid">{cars.map(car =>
-            <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => { setSelectedCar(car); setRentalQuote(undefined); }}>
-              <div className="rental-car-icon"><Car size={26}/></div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong>
-            </button>)}</div> : <div className="rental-empty-state">
-              <div className="rental-empty-icon"><Car size={28}/></div>
-              <b>No cars available right now</b>
-              <span>There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.</span>
-              <button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Check again</button>
-            </div>}
-          {selectedCar && <div className="rental-summary">
+          <div className="rental-summary">
             <div><span>Selected</span><b>{selectedCar.name}</b></div>
             <div><span>Billing</span><b>{rentalQuote ? rentalQuote.days + ' day' + (rentalQuote.days > 1 ? 's' : '') : 'Check fare'}</b></div>
             <div><span>Total</span><strong>{rentalQuote ? money(rentalQuote.total) : '—'}</strong></div>
+            <div><span>Payment</span><b>From your wallet</b></div>
             {!rentalQuote
-              ? <button className="landing-primary" disabled={busy} onClick={checkRentalFare}>{busy ? 'Calculating…' : 'Check fare'} <ArrowRight size={16}/></button>
-              : <button className="landing-primary" disabled={busy} onClick={bookCar}>{busy ? 'Confirming…' : 'Confirm booking'} <ArrowRight size={16}/></button>}
-            <p className="rental-pricing-note">Price is per 24-hour day. Any partial day is charged as one full day; time is used for duration and availability.</p>
-          </div>}
-        </div>
-        <div className="portal-panel"><div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
-          {bookings.length ? <div className="history-list">{bookings.map(b =>
+              ? <button className="landing-primary" disabled={busy || !rentalForm.pickup || !rentalForm.startDate || !rentalForm.endDate} onClick={checkRentalFare}>
+                  {busy ? 'Calculating…' : 'Check fare'} <ArrowRight size={16}/></button>
+              : <button className="landing-primary" disabled={busy} onClick={bookCar}>
+                  {busy ? 'Confirming…' : 'Confirm booking'} <ArrowRight size={16}/></button>}
+            <p className="rental-pricing-note">Price is per 24-hour day. Any partial day is charged as one full day; time is used for duration and availability. Payment is taken from your wallet.</p>
+          </div>
+        </div>}
+
+        {bookings.length > 0 && <div className="portal-panel">
+          <div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
+          <div className="history-list">{bookings.map(b =>
             <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}{b.status === 'CONFIRMED' && new Date(b.startDate).getTime() > Date.now() && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
-          : <div className="empty-state">No rental bookings yet.</div>}
-        </div>
+        </div>}
+
+        {bookings.length === 0 && <div className="portal-panel"><div className="empty-state">No rental bookings yet.</div></div>}
       </section>}
     </main>
   </div>;
