@@ -321,14 +321,14 @@ class RentalServiceTest {
             licenseNumber = "DL", licenseExpiry = end.minusMinutes(1), active = true
         )
         Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalPaymentEntity>())
-            .`when(rentalPaymentRepository)
+            .`when`(rentalPaymentRepository)
             .findByUserIdAndClientRequestId(42L, "expired-driver")
-        Mockito.doReturn(Optional.of(car)).`when(cars).findByIdForUpdate(44L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(44L)
         Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalVendorEntity(
             id = 55L, userId = 99L, fullName = "Vendor", address = "Address",
             city = "Patna", state = "Bihar", pinCode = "800001"
-        ))).`when(vendors).findById(55L)
-        Mockito.doReturn(Optional.of(driver)).`when(drivers).findById(56L)
+        ))).`when`(vendors).findById(55L)
+        Mockito.doReturn(Optional.of(driver)).`when`(drivers).findById(56L)
 
         assertThrows(IllegalStateException::class.java) {
             service.createBooking(
