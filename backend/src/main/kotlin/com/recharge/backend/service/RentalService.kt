@@ -314,7 +314,7 @@ class RentalService(
 
     @Transactional
     fun completeBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
-        val booking = bookings.findByBookingId(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be completed" }
         check(!booking.endDate.isAfter(LocalDateTime.now())) { "Rental booking has not ended yet" }
         booking.status = "COMPLETED"
