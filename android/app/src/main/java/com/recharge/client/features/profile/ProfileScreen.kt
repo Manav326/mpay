@@ -18,8 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.CurrentUserResponse
+import com.recharge.client.core.model.RentalVendorResponse
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.CopyableValue
 import com.recharge.client.core.ui.ProfileAvatar
@@ -30,11 +32,12 @@ import java.math.BigDecimal
 
 @Composable
 fun ProfileScreen(
-    state: ProfileUiState, onLoad: () -> Unit, onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
+    state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
+    onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
     onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
-    LaunchedEffect(isVisible) { if (isVisible) onLoad() }
+    LaunchedEffect(isVisible) { if (isVisible) { onLoad(); onRefreshVendor() } }
     LaunchedEffect(state.saved) { if (state.saved) { editing = false; onProfileUpdated() } }
     val user = state.user
 
@@ -44,7 +47,7 @@ fun ProfileScreen(
             Text("Manage your account and identity", color = AppColors.TextSecondary)
         }
         item {
-            Card(shape = RoundedCornerShape(26.dp)) {
+            Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7))) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ProfileAvatar(user, 92.dp)
                     Text(user?.name?.takeIf { it.isNotBlank() } ?: "Your name", style = MaterialTheme.typography.headlineSmall)
@@ -55,7 +58,7 @@ fun ProfileScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F0FF))) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Account", style = MaterialTheme.typography.titleLarge)
                     CopyableValue("Account ID", user?.publicUserId.orEmpty())
@@ -68,10 +71,30 @@ fun ProfileScreen(
         }
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
         item {
-            Card(shape = RoundedCornerShape(20.dp), onClick = onBecomeVendor) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(if (user?.role?.equals("VENDOR", true) == true) "Vendor Dashboard" else "Become a Vendor", style = MaterialTheme.typography.titleLarge)
-                    Text("Rent your car with a professional driver through mPay.", color = AppColors.TextSecondary)
+            val hasVendorProfile = !vendor?.vendorId.isNullOrBlank()
+            val vendorTitle = when {
+                hasVendorProfile && vendor?.status.equals("VERIFIED", true) -> "Rental Vendor Dashboard"
+                hasVendorProfile && vendor?.status.equals("REJECTED", true) -> "Rental Vendor Application"
+                hasVendorProfile -> "Rental Vendor Dashboard"
+                else -> "Become a Vendor"
+            }
+            val vendorSubtitle = when {
+                hasVendorProfile && vendor?.status.equals("VERIFIED", true) -> "Manage your chauffeur-driven fleet, bookings and earnings."
+                hasVendorProfile && vendor?.status.equals("REJECTED", true) -> "Review the rejection note and resubmit your vendor details."
+                hasVendorProfile -> "Your vendor application is under review. Open it to see the latest status."
+                else -> "Rent your car with a professional driver through mPay."
+            }
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                onClick = onBecomeVendor,
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEDF8F3))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = Color(0xFF176B4D))
+                    Text(vendorSubtitle, color = AppColors.TextSecondary)
+                    if (hasVendorProfile) {
+                        Text("Status: " + (vendor?.status ?: "—"), style = MaterialTheme.typography.labelMedium, color = Color(0xFF176B4D))
+                    }
                 }
             }
         }
