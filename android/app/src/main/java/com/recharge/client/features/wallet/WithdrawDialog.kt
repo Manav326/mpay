@@ -27,7 +27,24 @@ fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (Str
                     ProviderButton("PayU", provider == "payu", { provider = "payu" }, !busy, Modifier.weight(1f))
                 }
                 OutlinedTextField(amount, { if (it.length <= 10 && it.all { c -> c.isDigit() || c == '.' }) amount = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Amount (INR)") }, prefix = { Text("₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !busy)
-                OutlinedTextField(upiId, { if (it.length <= 120) upiId = it }, modifier = Modifier.fillMaxWidth(), label = { Text("UPI ID") }, placeholder = { Text("name@upi") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), enabled = !busy)
+                if (provider == "mock") {
+                    Text(
+                        "Mock mode: UPI ID is not required.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    OutlinedTextField(
+                        upiId,
+                        { if (it.length <= 120) upiId = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("UPI ID") },
+                        placeholder = { Text("name@upi") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        enabled = !busy
+                    )
+                }
                 state.withdrawError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 state.withdrawSuccess?.let { Text(it, color = com.recharge.client.core.theme.AppColors.Success) }
             }
