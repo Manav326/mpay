@@ -413,7 +413,7 @@ class RentalService(
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
         require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
         return vehicleUnavailability.findAllByCarIdOrderByStartDateAsc(carId)
-            .filter { it.status == "ACTIVE" }
+            .filter { it.status == "ACTIVE" && !it.endDate.isBefore(LocalDate.now()) }
             .map(::toVehicleUnavailabilityResponse)
     }
 
@@ -491,7 +491,7 @@ class RentalService(
 
     fun adminVehicleUnavailability(): List<RentalAdminVehicleUnavailabilityResponse> =
         vehicleUnavailability.findAll()
-            .filter { it.status == "ACTIVE" }
+            .filter { it.status == "ACTIVE" && !it.endDate.isBefore(LocalDate.now()) }
             .sortedBy { it.startDate }
             .map { row ->
                 val car = cars.findById(row.carId).orElse(null)
