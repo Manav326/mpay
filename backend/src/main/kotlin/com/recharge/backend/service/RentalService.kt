@@ -10,6 +10,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
@@ -96,7 +97,7 @@ class RentalService(
         require(request.seats in 1..20) { "Seats must be between 1 and 20" }
         require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
         require(!cars.existsByRegistrationNumberIgnoreCase(request.registrationNumber.trim())) { "A vehicle with this registration number already exists" }
-        require(request.driver.licenseExpiry.isAfter(LocalDate.now())) { "Driver licence must be valid" }
+        require(request.driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver licence must be valid" }
 
         val now = Instant.now()
         val driver = drivers.save(
@@ -231,9 +232,10 @@ class RentalService(
         requireNotOwnVehicle(userId, car)
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
-        require(!request.startDate.isBefore(LocalDate.now())) { "Start date cannot be in the past" }
+        require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
-        val days = ChronoUnit.DAYS.between(request.startDate, request.endDate)
+        val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
+        val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
         val driver = drivers.findById(requireNotNull(car.driverId)).orElseThrow { IllegalArgumentException("Driver not found") }
         return RentalBookingQuoteResponse(request.carId, car.name, driver.fullName, request.pickupLocation.trim(), request.dropLocation.trim(), request.startDate, request.endDate, days, car.pricePerDay.setScale(2), total)
@@ -263,7 +265,8 @@ class RentalService(
         require(!request.startDate.isBefore(LocalDate.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
 
-        val days = ChronoUnit.DAYS.between(request.startDate, request.endDate)
+        val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
+        val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
         val bookingId = "RNT-" + UUID.randomUUID().toString().replace("-", "").take(20).uppercase()
         val payment = rentalPayments.pay(
