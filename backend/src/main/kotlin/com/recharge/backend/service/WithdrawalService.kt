@@ -74,6 +74,30 @@ class WithdrawalService(
                     customerMobile = user.mobile
                 )
             )
+        } catch (e: org.springframework.web.client.RestClientResponseException) {
+            val providerMessage = e.responseBodyAsString
+                .takeIf { it.isNotBlank() }
+                ?.take(500)
+                ?: e.message
+                ?: "Provider request failed"
+
+            if (e.statusCode.is4xxClientError) {
+                val failed = persistence.markFailed(
+                    saved.withdrawalId,
+                    provider.providerName,
+                    providerMessage
+                )
+                return responseFor(failed)
+            }
+
+            val processing = persistence.markProcessing(
+                saved.withdrawalId,
+                provider.providerName,
+                providerReference = null,
+                providerStatus = "UNKNOWN",
+                message = "Provider outcome could not be confirmed: " + providerMessage
+            )
+            return responseFor(processing)
         } catch (e: Exception) {
             // A network/transport error does not prove the provider rejected the payout.
             // Keep the wallet reservation until a provider status/webhook resolves it.
