@@ -802,6 +802,24 @@ fun CarRentalMarketplaceScreen(
 }
 
 
+
+@Composable
+private fun VehiclePhotoField(
+    title: String,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    Card(shape = RoundedCornerShape(14.dp)) {
+        Column(
+            Modifier.fillMaxWidth().padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            RentalCarImageTile(value.takeIf { it.isNotBlank() }, Modifier.fillMaxWidth().height(72.dp))
+            VendorField(title, value, onValueChange = onValueChange)
+        }
+    }
+}
+
 @Composable
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
@@ -825,75 +843,194 @@ fun RentalVehicleOnboardingScreen(
     var city by remember(editingCar?.id) { mutableStateOf(editingCar?.city.orEmpty()) }
     var stateName by remember(editingCar?.id) { mutableStateOf(editingCar?.state.orEmpty()) }
     var pricePerDay by remember(editingCar?.id) { mutableStateOf(editingCar?.pricePerDay?.toPlainString().orEmpty()) }
-    var imageUrl by remember(editingCar?.id) { mutableStateOf(editingCar?.imageUrl.orEmpty()) }
+    val existingPhotos = remember(editingCar?.id) { rentalPhotoUrls(editingCar?.imageUrl) }
+    var photoFront by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(0).orEmpty()) }
+    var photoSide by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(1).orEmpty()) }
+    var photoRear by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(2).orEmpty()) }
+    var photoInterior by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(3).orEmpty()) }
+
     var driverName by remember(editingCar?.id) { mutableStateOf(editingCar?.driverName.orEmpty()) }
     var driverMobile by remember(editingCar?.id) { mutableStateOf(editingCar?.driverMobile.orEmpty()) }
     var licenseNumber by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseNumber.orEmpty()) }
     var licenseExpiry by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseExpiry.orEmpty()) }
     var driverAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.driverAddress.orEmpty()) }
 
+    val combinedPhotos = listOf(photoFront, photoSide, photoRear, photoInterior)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .joinToString("|")
+        .ifBlank { null }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text(if (editingCar == null) "Add vehicle" else "Correct vehicle", style = MaterialTheme.typography.headlineSmall) } }
-        item { Text(if (editingCar == null) "Submit the vehicle and assigned chauffeur for admin review." else "Correct the rejected details and resubmit this same vehicle for admin review.", color = AppColors.TextSecondary) }
-        item { Text("Vehicle details", style = MaterialTheme.typography.titleLarge) }
-        item { VendorField("Vehicle name", name) { name = it } }
-        item { VendorField("Make", make) { make = it } }
-        item { VendorField("Model", model) { model = it } }
-        item { VendorField("Variant (optional)", variant) { variant = it } }
-        item { VendorField("Category", category) { category = it } }
-        item { VendorField("Seats", seats) { seats = it } }
-        item { VendorField("Transmission", transmission) { transmission = it } }
-        item { VendorField("Fuel type", fuel) { fuel = it } }
-        item { VendorField("Manufacturing year", manufacturingYear) { manufacturingYear = it } }
-        item { VendorField("Registration year", registrationYear) { registrationYear = it } }
-        item { VendorField("Registration number", registrationNumber) { registrationNumber = it } }
-        item { VendorField("Pickup address", pickupAddress) { pickupAddress = it } }
-        item { VendorField("City", city) { city = it } }
-        item { VendorField("State", stateName) { stateName = it } }
-        item { VendorField("Price per day (₹)", pricePerDay) { pricePerDay = it } }
-        item { VendorField("Vehicle photo URLs (up to 4, separate with |)", imageUrl) { imageUrl = it } }
-        item { Text("Driver details", style = MaterialTheme.typography.titleLarge) }
-        item { VendorField("Driver full name", driverName) { driverName = it } }
-        item { VendorField("Driver mobile", driverMobile) { driverMobile = it } }
-        item { VendorField("Driving licence number", licenseNumber) { licenseNumber = it } }
-        item { RentalDateTimeField("Licence expiry", licenseExpiry) { licenseExpiry = it } }
-        item { VendorField("Driver address (optional)", driverAddress) { driverAddress = it } }
-        state.error?.let { item { Text(it, color = AppColors.Error) } }
         item {
-            val valid = name.isNotBlank() && make.isNotBlank() && model.isNotBlank() && registrationNumber.isNotBlank() &&
-                pickupAddress.isNotBlank() && city.isNotBlank() && stateName.isNotBlank() && driverName.isNotBlank() &&
-                driverMobile.isNotBlank() && licenseNumber.isNotBlank() && licenseExpiry.isNotBlank() &&
-                pricePerDay.toBigDecimalOrNull() != null && seats.toIntOrNull() != null &&
-                manufacturingYear.toIntOrNull() != null && registrationYear.toIntOrNull() != null
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (editingCar == null) "Add your vehicle" else "Correct vehicle details",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(
+                        if (editingCar == null) "Two quick sections: vehicle details first, then the assigned driver." else "Update the rejected details and resubmit for review.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+
+        item {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(9.dp), color = AppColors.Primary.copy(alpha = .08f)) {
+                            Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.padding(7.dp).size(20.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("1. Vehicle details", style = MaterialTheme.typography.titleMedium)
+                            Text("Identity, specifications, pickup and daily price", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+
+                    CompactFieldRow("Vehicle name", name, { name = it }, "Make", make, { make = it })
+                    CompactFieldRow("Model", model, { model = it }, "Variant (optional)", variant, { variant = it })
+                    CompactFieldRow("Category", category, { category = it }, "Seats", seats, { seats = it })
+                    CompactFieldRow("Transmission", transmission, { transmission = it }, "Fuel type", fuel, { fuel = it })
+                    CompactFieldRow("Manufacturing year", manufacturingYear, { manufacturingYear = it }, "Registration year", registrationYear, { registrationYear = it })
+                    VendorField("Registration number", registrationNumber) { registrationNumber = it }
+                    CompactFieldRow("City", city, { city = it }, "State", stateName, { stateName = it })
+                    VendorField("Pickup address", pickupAddress) { pickupAddress = it }
+                    VendorField("Price per day (₹)", pricePerDay) { pricePerDay = it }
+                }
+            }
+        }
+
+        item {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Vehicle photos (optional)", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Add up to 4 photo URLs. For a professional listing, use different angles: front 3/4, side, rear 3/4 and interior.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        VehiclePhotoField("Front 3/4 URL", photoFront) { photoFront = it }
+                        VehiclePhotoField("Side URL", photoSide) { photoSide = it }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        VehiclePhotoField("Rear 3/4 URL", photoRear) { photoRear = it }
+                        VehiclePhotoField("Interior URL", photoInterior) { photoInterior = it }
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(9.dp), color = AppColors.Success.copy(alpha = .10f)) {
+                            Icon(Icons.Default.Person, null, tint = AppColors.Success, modifier = Modifier.padding(7.dp).size(20.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("2. Driver details", style = MaterialTheme.typography.titleMedium)
+                            Text("The chauffeur assigned to this vehicle", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
+                    CompactFieldRow("Driving licence no.", licenseNumber, { licenseNumber = it }, "Licence expiry", licenseExpiry, { })
+                    RentalDateTimeField("Licence expiry", licenseExpiry) { licenseExpiry = it }
+                    VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
+                }
+            }
+        }
+
+        item {
+            Text(
+                "All vehicle details and the assigned chauffeur are reviewed before the car appears in the customer marketplace.",
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+
+        item {
+            val valid = name.isNotBlank() &&
+                make.isNotBlank() &&
+                model.isNotBlank() &&
+                registrationNumber.isNotBlank() &&
+                pickupAddress.isNotBlank() &&
+                city.isNotBlank() &&
+                stateName.isNotBlank() &&
+                driverName.isNotBlank() &&
+                driverMobile.isNotBlank() &&
+                licenseNumber.isNotBlank() &&
+                licenseExpiry.isNotBlank() &&
+                pricePerDay.toBigDecimalOrNull() != null &&
+                seats.toIntOrNull() != null &&
+                manufacturingYear.toIntOrNull() != null &&
+                registrationYear.toIntOrNull() != null
+
             Button(
                 onClick = {
                     val driver = RentalDriverRequest(
-                        driverName.trim(), driverMobile.trim(), licenseNumber.trim(), licenseExpiry.trim(), driverAddress.ifBlank { null }
+                        driverName.trim(),
+                        driverMobile.trim(),
+                        licenseNumber.trim(),
+                        licenseExpiry.trim(),
+                        driverAddress.trim().ifBlank { null }
                     )
                     if (editingCar != null && onResubmit != null) {
                         onResubmit(
                             editingCar.id,
                             RentalVehicleUpdateRequest(
-                                name = name.trim(), category = category.trim(), seats = seats.toInt(), transmission = transmission.trim(),
-                                fuelType = fuel.trim(), manufacturingYear = manufacturingYear.toInt(), registrationYear = registrationYear.toInt(),
-                                registrationNumber = registrationNumber.trim(), make = make.trim(), model = model.trim(),
-                                variant = variant.ifBlank { null }, pickupAddress = pickupAddress.trim(), city = city.trim(), state = stateName.trim(),
-                                pricePerDay = pricePerDay.toBigDecimal(), imageUrl = imageUrl.ifBlank { null }, driver = driver
+                                name = name.trim(),
+                                category = category.trim(),
+                                seats = seats.toInt(),
+                                transmission = transmission.trim(),
+                                fuelType = fuel.trim(),
+                                manufacturingYear = manufacturingYear.toInt(),
+                                registrationYear = registrationYear.toInt(),
+                                registrationNumber = registrationNumber.trim(),
+                                make = make.trim(),
+                                model = model.trim(),
+                                variant = variant.trim().ifBlank { null },
+                                pickupAddress = pickupAddress.trim(),
+                                city = city.trim(),
+                                state = stateName.trim(),
+                                pricePerDay = pricePerDay.toBigDecimal(),
+                                imageUrl = combinedPhotos,
+                                driver = driver
                             ),
                             onBack
                         )
                     } else {
                         onSubmit(
                             RentalVehicleOnboardingRequest(
-                                name = name.trim(), category = category.trim(), seats = seats.toInt(), transmission = transmission.trim(),
-                                fuelType = fuel.trim(), manufacturingYear = manufacturingYear.toInt(), registrationYear = registrationYear.toInt(),
-                                registrationNumber = registrationNumber.trim(), make = make.trim(), model = model.trim(),
-                                variant = variant.ifBlank { null }, pickupAddress = pickupAddress.trim(), city = city.trim(), state = stateName.trim(),
-                                pricePerDay = pricePerDay.toBigDecimal(), imageUrl = imageUrl.ifBlank { null }, driver = driver
+                                name = name.trim(),
+                                category = category.trim(),
+                                seats = seats.toInt(),
+                                transmission = transmission.trim(),
+                                fuelType = fuel.trim(),
+                                manufacturingYear = manufacturingYear.toInt(),
+                                registrationYear = registrationYear.toInt(),
+                                registrationNumber = registrationNumber.trim(),
+                                make = make.trim(),
+                                model = model.trim(),
+                                variant = variant.trim().ifBlank { null },
+                                pickupAddress = pickupAddress.trim(),
+                                city = city.trim(),
+                                state = stateName.trim(),
+                                pricePerDay = pricePerDay.toBigDecimal(),
+                                imageUrl = combinedPhotos,
+                                driver = driver
                             ),
                             onBack
                         )
@@ -901,12 +1038,14 @@ fun RentalVehicleOnboardingScreen(
                 },
                 enabled = valid && !state.saving,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp)
-            ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(if (editingCar == null) "Submit vehicle for review" else "Resubmit vehicle for review") }
+                shape = RoundedCornerShape(13.dp)
+            ) {
+                if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Text(if (editingCar == null) "Submit vehicle for review" else "Resubmit vehicle for review")
+            }
         }
     }
 }
-
 
 @Composable
 fun RentalBookingScreen(
