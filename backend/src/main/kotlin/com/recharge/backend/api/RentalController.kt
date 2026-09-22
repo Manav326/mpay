@@ -83,6 +83,12 @@ class RentalController(
         return rentalService.rejectVendor(vendorId, request?.reason, userId(authentication))
     }
 
+    @PostMapping("/admin/bookings/{bookingId}/complete")
+    fun completeBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
+        requireAdmin(authentication)
+        return rentalService.completeBooking(bookingId, userId(authentication))
+    }
+
     @PostMapping("/admin/vehicles/{carId}/approve")
     fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
         requireAdmin(authentication)
