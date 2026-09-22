@@ -323,11 +323,19 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
     val isAdd = item.referenceType.equals("ADD_MONEY", true)
     val isRecharge = item.referenceType.equals("RECHARGE", true)
     val isWithdraw = item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true)
-    val title = when { isAdd -> "Added money"; isWithdraw -> "Withdrawn money"; else -> item.referenceType ?: item.type }
+    val isRental = item.referenceType.equals("RENTAL_PAYMENT", true) || item.referenceType.equals("RENTAL_REFUND", true)
+    val isCredit = item.type.equals("CREDIT", true)
+    val title = when {
+        item.referenceType.equals("RENTAL_REFUND", true) -> "Car rental refund"
+        isRental -> "Car rental payment"
+        isAdd -> "Added money"
+        isWithdraw -> "Withdrawn money"
+        else -> item.referenceType ?: item.type
+    }
     val copyText = buildString {
         appendLine("Wallet transaction")
         appendLine("Type: $title")
-        appendLine("Amount: ₹${formatMoney(item.amount)}")
+        appendLine("Amount: ${(if (isCredit) "+" else "-")}₹${formatMoney(item.amount)}")
         appendLine("Status: ${item.status}")
         appendLine("Reference type: ${item.referenceType ?: "—"}")
         appendLine("Reference ID: ${item.referenceId ?: "—"}")
@@ -340,7 +348,7 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("₹${formatMoney(item.amount)}", style = MaterialTheme.typography.headlineSmall, color = if (isAdd) androidx.compose.ui.graphics.Color(0xFF16A34A) else if (isWithdraw) androidx.compose.ui.graphics.Color(0xFFDC2626) else androidx.compose.ui.graphics.Color(0xFFD97706), fontWeight = FontWeight.Bold)
+                    Text("${if (isCredit) "+" else "-"}₹${formatMoney(item.amount)}", style = MaterialTheme.typography.headlineSmall, color = if (isCredit) Color(0xFF16A34A) else Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                 }
                 IconButton(onClick = { clipboard.setText(AnnotatedString(copyText.trimEnd())); copied = true }) { Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, if (copied) "Copied" else "Copy details", tint = if (copied) AppColors.Success else MaterialTheme.colorScheme.primary) }
             }
