@@ -945,7 +945,7 @@ fun RentalVehicleOnboardingScreen(
                         }
                     }
                     CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
-                    CompactFieldRow("Driving licence no.", licenseNumber, { licenseNumber = it }, "Licence expiry", licenseExpiry, { })
+                    VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
                     RentalDateTimeField("Licence expiry", licenseExpiry) { licenseExpiry = it }
                     VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                 }
