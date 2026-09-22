@@ -88,8 +88,8 @@ class ClientRepository(context: Context) {
         response.body()!!.also { profileCache.save(it) }
     }
 
-    suspend fun createPaymentOrder(amount: BigDecimal, clientRequestId: String): Result<PaymentOrderResponse> = runCatching {
-        val response = api.createPaymentOrder(CreatePaymentOrderRequest(amount, clientRequestId))
+    suspend fun createPaymentOrder(amount: BigDecimal, clientRequestId: String, provider: String = "razorpay"): Result<PaymentOrderResponse> = runCatching {
+        val response = api.createPaymentOrder(CreatePaymentOrderRequest(amount, provider, clientRequestId))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
