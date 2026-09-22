@@ -529,6 +529,7 @@ private fun AppNavHost(
                 onBack = { nav.popBackStack() },
                 onAddVehicle = { nav.navigate("rental-vehicle") },
                 onRefreshVehicles = rentalViewModel::loadVendorVehicles,
+                onRefreshPayouts = rentalViewModel::loadVendorPayouts,
                 onAddVehicleWithCar = { car ->
                     nav.currentBackStackEntry?.savedStateHandle?.set("rental_edit_car_id", car.id)
                     nav.navigate("rental-vehicle")
