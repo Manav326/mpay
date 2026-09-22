@@ -486,6 +486,13 @@ fun RentalBookingScreen(
         item { VendorField("Drop location", drop) { drop = it } }
         item { RentalDateTimeField("Start date & time", start) { start = it } }
         item { RentalDateTimeField("End date & time", end) { end = it } }
+        item {
+            Text(
+                "Pricing is per day (24 hours). Any partial day is charged as one full day; time is used for availability and the exact rental duration.",
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
         quote?.let { q ->
             item {
                 Card(shape = RoundedCornerShape(18.dp)) {
