@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { createVendor, getDashboard, getPortalRoles, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import { completeRentalBooking, createVendor, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
-import { DashboardSummary, RechargeHistoryItem, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem } from '@/lib/types';
+import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -33,7 +33,9 @@ export default function Page() {
 
   useEffect(()=>{ if(session) { getDashboard().then(setDashboard); getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); loadUsers(); if(session.permissions?.includes('MANAGE_VENDORS')) getVendors().then(setVendors); } },[session]);
   async function loadUsers(){ setUsers(await getUsers(roleFilter, sort)); }
+  async function loadRental(){ try { const [summary, page] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus)]); setRentalDashboard(summary); setRentalBookings(page.items); setRentalBookingHasNext(page.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
   useEffect(()=>{ if(session) loadUsers(); },[roleFilter, sort]);
+  useEffect(()=>{ if(session && view==='rental' && permissionsForSession(session).includes('MANAGE_VENDORS')) loadRental(); },[session,view,rentalBookingPage,rentalBookingStatus]);
 
   async function doLogin(e: React.FormEvent){ e.preventDefault(); setBusy(true); setNotice(''); try { const r = await login(mobile, password, selectedPortalRole); const s={token:r.accessToken, refreshToken:r.refreshToken, role:r.role, name:r.name||r.role, permissions:r.permissions||[]}; localStorage.setItem('mpay_admin_session', JSON.stringify(s)); localStorage.setItem('mpay_admin_token', r.accessToken); setSession(s); } catch(err:any){ setNotice(err.message||'Login failed'); } finally { setBusy(false); } }
   async function doReset(e: React.FormEvent){ e.preventDefault(); setBusy(true); try { if(!resetRequested){ await requestPasswordReset(mobile); setResetRequested(true); setNotice('OTP requested. Enter the OTP sent to the registered mobile number.'); } else { await resetPassword(mobile, otp, newPassword); setNotice('Password reset successful. You can now sign in.'); setLoginState('login'); setResetRequested(false); setOtp(''); setNewPassword(''); } } catch(err:any){ setNotice(err.message||'Reset failed'); } finally { setBusy(false); } }
@@ -42,9 +44,10 @@ export default function Page() {
   if(!session) return <AuthScreen resetRequested={resetRequested} setResetRequested={setResetRequested} state={loginState} setState={setLoginState} mobile={mobile} setMobile={setMobile} password={password} setPassword={setPassword} otp={otp} setOtp={setOtp} newPassword={newPassword} setNewPassword={setNewPassword} busy={busy} notice={notice} onLogin={doLogin} onReset={doReset} portalRoles={portalRoles} selectedPortalRole={selectedPortalRole} setSelectedPortalRole={setSelectedPortalRole}/>;
 
   const permissions = session.permissions || [];
+  function permissionsForSession(s: typeof session){ return s?.permissions || []; }
   const canVendors = permissions.includes('MANAGE_VENDORS');
   const menu = [
-    ['dashboard','Dashboard',LayoutDashboard], ['users','Users',Users], ...(canVendors ? [['vendors','Vendors',CarFront] as const] : []),
+    ['dashboard','Dashboard',LayoutDashboard], ['users','Users',Users], ...(canVendors ? [['vendors','Vendors',CarFront] as const, ['rental','Rental Operations',CalendarDays] as const] : []),
   ] as const;
 
   return <div className="shell">
@@ -54,10 +57,11 @@ export default function Page() {
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><div className="profile-mini"><div className="avatar">{session.name.charAt(0)}</div><div><b>{session.name}</b><span>{session.role}</span></div></div><button className="nav" onClick={logout}><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':'Vendors & Services'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><button className="icon-btn"><UserCog size={18}/></button></div></header>
+    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':view==='vendors'?'Vendors & Services':'Rental Operations'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><button className="icon-btn"><UserCog size={18}/></button></div></header>
       {view==='dashboard' && <Dashboard data={dashboard} onUsers={()=>setView('users')} />}
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected}/>} 
-      {view==='vendors' && canVendors && <VendorsView vendors={vendors} newVendor={newVendor} setNewVendor={setNewVendor} onAdd={async()=>{const v=await createVendor(newVendor);setVendors(x=>[v,...x]);setNewVendor({name:'',category:'CAR_RENT',city:'',phone:'',commissionRate:5,active:true});}}/>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
+      {view==='vendors' && canVendors && <VendorsView vendors={vendors} newVendor={newVendor} setNewVendor={setNewVendor} onAdd={async()=>{const v=await createVendor(newVendor);setVendors(x=>[v,...x]);setNewVendor({name:'',category:'CAR_RENT',city:'',phone:'',commissionRate:5,active:true});}}/>}
+      {view==='rental' && canVendors && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }
@@ -219,4 +223,53 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
 }
 function VendorsView({vendors,newVendor,setNewVendor,onAdd}:{vendors:Vendor[];newVendor:any;setNewVendor:(v:any)=>void;onAdd:()=>void}){
   return <div className="content"><div className="split"><section className="panel"><div className="panel-head"><div><h2>Add vendor</h2><p>These partner services will later appear as quick actions for clients.</p></div></div><div className="form vendor-form"><label>Vendor name<input value={newVendor.name} onChange={e=>setNewVendor({...newVendor,name:e.target.value})}/></label><div className="two"><label>Category<select value={newVendor.category} onChange={e=>setNewVendor({...newVendor,category:e.target.value})}><option value="CAR_RENT">Car rental</option><option value="TRAVEL">Travel</option><option value="SERVICES">Other service</option></select></label><label>City<input value={newVendor.city} onChange={e=>setNewVendor({...newVendor,city:e.target.value})}/></label></div><label>Phone<input value={newVendor.phone} onChange={e=>setNewVendor({...newVendor,phone:e.target.value})}/></label><label>Commission %<input type="number" value={newVendor.commissionRate} onChange={e=>setNewVendor({...newVendor,commissionRate:Number(e.target.value)})}/></label><button className="primary" onClick={onAdd} disabled={!newVendor.name||!newVendor.city}>Add vendor</button></div></section><section className="panel"><div className="panel-head"><div><h2>Partner directory</h2><p>Active and inactive service vendors.</p></div></div><div className="vendor-list">{vendors.map(v=><div className="vendor-row" key={v.id}><div className="vendor-icon"><CarFront size={18}/></div><div className="vendor-main"><b>{v.name}</b><span>{v.category.replace('_',' ')} · {v.city} · {v.phone}</span></div><span className={`status ${v.active?'active':'blocked'}`}>{v.active?'ACTIVE':'INACTIVE'}</span></div>)}</div></section></div></div>
+}
+
+
+function RentalOperations(p:{
+  dashboard?: RentalAdminDashboard;
+  bookings: RentalAdminBooking[];
+  status: string;
+  setStatus:(v:string)=>void;
+  page:number;
+  hasNext:boolean;
+  onPrev:()=>void;
+  onNext:()=>void;
+  onRefresh:()=>void;
+  onComplete:(id:string)=>void;
+  busy:boolean;
+}){
+  const d=p.dashboard;
+  const money=(v:number)=>INR.format(v);
+  const statusClass=(s:string)=>(s||'UNKNOWN').toLowerCase().replace(/_/g,'-');
+  return <div className="content">
+    <section className="metric-grid">
+      <div className="metric-card"><div className="metric-head"><span>Total bookings</span><div className="metric-icon"><CalendarDays size={18}/></div></div><strong>{d?.totalBookings ?? '—'}</strong><small>All persisted rental bookings</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Active</span><div className="metric-icon"><Clock3 size={18}/></div></div><strong>{d?.activeBookings ?? '—'}</strong><small>Currently in progress</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Booking value</span><div className="metric-icon"><CircleDollarSign size={18}/></div></div><strong>{d ? money(d.totalBookingValue) : '—'}</strong><small>Total rental value</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Platform fees</span><div className="metric-icon"><TrendingUp size={18}/></div></div><strong>{d ? money(d.totalPlatformFees) : '—'}</strong><small>Settled vendor fees</small></div>
+    </section>
+    <section className="panel">
+      <div className="panel-head wrap">
+        <div><h2>Rental bookings</h2><p>Wallet-paid bookings and their operational lifecycle.</p></div>
+        <div className="filters">
+          <select value={p.status} onChange={e=>p.setStatus(e.target.value)}><option>ALL</option><option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option></select>
+          <button className="secondary" onClick={p.onRefresh}>Refresh</button>
+        </div>
+      </div>
+      {p.bookings.length===0 ? <div className="empty-state">No rental bookings found.</div> :
+      <div className="table-wrap"><table><thead><tr><th>Booking</th><th>Customer</th><th>Car / Vendor</th><th>Trip</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>
+        {p.bookings.map(b=><tr key={b.bookingId}>
+          <td><b className="mono">{b.bookingId}</b><span>{dateTime(b.createdAt)}</span></td>
+          <td><b>{b.userName || 'Customer'}</b><span>{b.userMobile || b.userId}</span></td>
+          <td><b>{b.carName}</b><span>{b.vendorName || 'Vendor'}</span></td>
+          <td><b>{b.pickup}</b><span>→ {b.drop}</span><span>{dateTime(b.startDate)} → {dateTime(b.endDate)}</span></td>
+          <td><b>{money(b.total)}</b><span>{b.paymentMethod} · {b.paymentStatus}</span></td>
+          <td><span className={'status '+statusClass(b.status)}>{b.status}</span></td>
+          <td>{b.status==='CONFIRMED' && new Date(b.endDate).getTime()<=Date.now() ? <button className="secondary" disabled={p.busy} onClick={()=>p.onComplete(b.bookingId)}>Complete & settle</button> : <span>—</span>}</td>
+        </tr>)}
+      </tbody></table></div>}
+      <div className="panel-head"><span>Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>
+    </section>
+  </div>;
 }
