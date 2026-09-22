@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Lock
 import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.Optional
 
 interface RentalVendorRepository : JpaRepository<RentalVendorEntity, Long> {
@@ -45,8 +45,8 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
     fun existsOverlapping(
         @Param("carId") carId: Long,
         @Param("statuses") statuses: Collection<String>,
-        @Param("startDate") startDate: LocalDate,
-        @Param("endDate") endDate: LocalDate
+        @Param("startDate") startDate: LocalDateTime,
+        @Param("endDate") endDate: LocalDateTime
     ): Boolean
 }
 
