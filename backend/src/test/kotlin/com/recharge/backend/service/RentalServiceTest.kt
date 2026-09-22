@@ -62,7 +62,7 @@ class RentalServiceTest {
             .save(any(RentalBookingEntity::class.java))
 
         val payment = com.recharge.backend.domain.RentalPaymentEntity(id = 21L, paymentId = "RNP-TEST", bookingId = "RNT-TEST", userId = 42L, amount = BigDecimal("6000.00"), method = "WALLET", status = "PAID", walletLedgerRef = "RENTAL:RNT-TEST")
-        Mockito.doReturn(payment).`when`(rentalPayments).pay(42L, Mockito.anyString(), BigDecimal("6000.00"), "WALLET", "client-1")
+        Mockito.doReturn(payment).`when`(rentalPayments).pay(42L, anyStringValue(), anyBigDecimalValue(), "WALLET", "client-1")
 
         val result = service.createBooking(
             42L,
@@ -74,6 +74,16 @@ class RentalServiceTest {
         Mockito.verify(rentalPayments, Mockito.times(1)).pay(42L, result.bookingId, BigDecimal("6000.00"), "WALLET", "client-1")
     }
 
+
+    private fun anyStringValue(): String {
+        Mockito.anyString()
+        return ""
+    }
+
+    private fun anyBigDecimalValue(): BigDecimal {
+        Mockito.any(BigDecimal::class.java)
+        return BigDecimal.ZERO
+    }
 
     @Test
     fun vendorCannotBookOwnVehicle() {
