@@ -199,7 +199,8 @@ class RentalService(
     fun availableCars(
         userId: Long,
         startDate: LocalDateTime? = null,
-        endDate: LocalDateTime? = null
+        endDate: LocalDateTime? = null,
+        location: String? = null
     ): List<RentalCarResponse> {
         if ((startDate == null) != (endDate == null)) {
             throw IllegalArgumentException("Both rental start and end dates are required")
@@ -208,6 +209,7 @@ class RentalService(
             require(endDate.isAfter(startDate)) { "End date must be after start date" }
             require(!startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         }
+        val normalizedLocation = location?.trim()?.takeIf { it.isNotBlank() }
 
         val available = cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
         if (available.isEmpty()) return emptyList()
@@ -240,7 +242,10 @@ class RentalService(
                 val rentalEnd = endDate ?: now
                 val hasUsableDriver = driver?.active == true && driver.licenseExpiry.isAfter(rentalEnd)
                 val isDateAvailable = requireNotNull(car.id) !in blockedCarIds
-                !isOwnVehicle && hasUsableDriver && isDateAvailable
+                val matchesLocation = normalizedLocation == null ||
+                    car.city?.contains(normalizedLocation, ignoreCase = true) == true ||
+                    car.pickupAddress?.contains(normalizedLocation, ignoreCase = true) == true
+                !isOwnVehicle && hasUsableDriver && isDateAvailable && matchesLocation
             }
             .map(::toCarResponse)
     }
