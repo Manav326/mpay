@@ -71,7 +71,6 @@ class RentalServiceTest {
         assertEquals("CONFIRMED", result.status)
         Mockito.verify(rentalPayments, Mockito.times(1)).pay(42L, result.bookingId, BigDecimal("6000.00"), "WALLET", "client-1")
     }
-}
 
 
     @Test
