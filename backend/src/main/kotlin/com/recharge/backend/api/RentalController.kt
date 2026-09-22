@@ -18,7 +18,8 @@ class RentalController(
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
 
     @GetMapping("/cars")
-    fun cars(): List<RentalCarResponse> = rentalService.availableCars()
+    fun cars(authentication: Authentication): List<RentalCarResponse> =
+        rentalService.availableCars(userId(authentication))
 
     @GetMapping("/vendor")
     fun vendor(authentication: Authentication): RentalVendorResponse =
