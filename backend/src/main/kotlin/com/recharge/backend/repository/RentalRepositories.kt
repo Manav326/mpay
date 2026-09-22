@@ -26,6 +26,7 @@ interface RentalCarRepository : JpaRepository<RentalCarEntity, Long> {
     fun findAllByVendorIdOrderByIdDesc(vendorId: Long): List<RentalCarEntity>
     fun countByVendorId(vendorId: Long): Int
     fun existsByRegistrationNumberIgnoreCase(registrationNumber: String): Boolean
+    fun existsByRegistrationNumberIgnoreCaseAndIdNot(registrationNumber: String, id: Long): Boolean
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from RentalCarEntity c where c.id = :id")
