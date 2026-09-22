@@ -114,7 +114,7 @@ export default function Portal() {
       setCars(available?.items || available || []);
       setRentalSearchApplied(true);
     } catch (e: any) {
-      setRentalSearchApplied(true);
+      setRentalSearchApplied(false);
       setCars([]);
       setNotice(e.message || 'Unable to find available rental cars.');
     } finally {
