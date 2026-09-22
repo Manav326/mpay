@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -352,13 +353,88 @@ fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
 }
 
 @Composable
-fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit, onRefresh: () -> Unit) {
+private fun AvailabilityFilterCard(
+    onFind: (String, String) -> Unit,
+    onClear: () -> Unit,
+    loading: Boolean
+) {
+    var from by remember { mutableStateOf("") }
+    var to by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5FAFD))
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Text("Find cars available for your trip", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Choose the rental window first. Only cars available for the full selected window will be shown.",
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+            RentalDateTimeField("From", from) { from = it }
+            RentalDateTimeField("To", to) { to = it }
+            error?.let { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        from = ""
+                        to = ""
+                        error = null
+                        onClear()
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Clear") }
+                Button(
+                    onClick = {
+                        val start = runCatching { LocalDateTime.parse(from, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+                        val end = runCatching { LocalDateTime.parse(to, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+                        error = when {
+                            start == null || end == null -> "Select both From and To date & time."
+                            !end.isAfter(start) -> "To date & time must be after From date & time."
+                            start.isBefore(LocalDateTime.now()) -> "From date & time cannot be in the past."
+                            else -> null
+                        }
+                        if (error == null) onFind(from, to)
+                    },
+                    enabled = !loading,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Find available cars") }
+            }
+            Text(
+                "Place / city filtering will be added next.",
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
+}
+
+@Composable
+fun CarRentalMarketplaceScreen(
+    state: RentalUiState,
+    onBack: () -> Unit,
+    onBook: (RentalCarResponse) -> Unit,
+    onRefresh: () -> Unit,
+    onSearch: (String, String) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall) } }
+        item {
+            AvailabilityFilterCard(
+                onFind = onSearch,
+                onClear = onRefresh,
+                loading = state.loading
+            )
+        }
         item { Text("Chauffeur-driven cars available for your trip.", color = AppColors.TextSecondary) }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         if (state.loading && state.cars.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
@@ -558,7 +634,20 @@ fun RentalBookingScreen(
                         Text("Fare summary", style = MaterialTheme.typography.titleLarge)
                         Text("${q.days} day(s) × ₹${q.pricePerDay}")
                         Text("Total: ₹${q.total}", style = MaterialTheme.typography.titleLarge)
-                        Text("Payment: Wallet")
+                        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFEAF8EF)) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(11.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.AccountBalanceWallet, null, tint = Color(0xFF16713B))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Payment: From your wallet",
+                                    color = Color(0xFF16713B),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
                         Button(
                             enabled = !state.saving,
                             onClick = { onConfirm(RentalBookingRequest(UUID.randomUUID().toString(), car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
