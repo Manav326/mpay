@@ -40,6 +40,14 @@ class RentalController(
         @Valid @RequestBody request: RentalVehicleOnboardingRequest
     ): RentalCarResponse = rentalService.onboardVehicle(userId(authentication), request)
 
+    @PutMapping("/vendor/vehicles/{carId}")
+    fun resubmitVehicle(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @Valid @RequestBody request: RentalVehicleUpdateRequest
+    ): RentalCarResponse =
+        rentalService.resubmitVehicle(userId(authentication), carId, request)
+
     private fun requireAdmin(authentication: Authentication) {
         val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
         val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
