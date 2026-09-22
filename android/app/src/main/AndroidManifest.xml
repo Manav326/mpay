@@ -11,6 +11,10 @@
         android:icon="@drawable/mpay_logo"
         android:roundIcon="@drawable/mpay_logo"
         tools:replace="android:theme,android:allowBackup,android:label">
+        <!-- PayU Checkout Pro test environment endpoints. Remove/disable these for production. -->
+        <meta-data android:name="payu_debug_mode_enabled" android:value="true" />
+        <meta-data android:name="payu_web_service_url" android:value="https://test.payu.in" />
+        <meta-data android:name="payu_post_url" android:value="https://test.payu.in" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
