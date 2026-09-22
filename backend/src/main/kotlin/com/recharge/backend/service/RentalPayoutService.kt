@@ -21,6 +21,9 @@ class RentalPayoutService(
     private val wallet: WalletService,
     @Value("\${app.rental.platform-fee-percent:10.00}") private val platformFeePercent: BigDecimal
 ) {
+    fun findByVendorUserId(vendorUserId: Long): List<RentalPayoutEntity> =
+        payouts.findAllByVendorUserIdOrderByCreatedAtDesc(vendorUserId)
+
     @Transactional
     fun settleCompletedBooking(booking: RentalBookingEntity): RentalPayoutEntity {
         check(booking.status == "COMPLETED") { "Only completed rental bookings can be settled" }
