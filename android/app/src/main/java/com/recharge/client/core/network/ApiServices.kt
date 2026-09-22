@@ -72,6 +72,30 @@ interface ClientApi {
         @Body request: RentalVehicleUpdateRequest
     ): Response<RentalCarResponse>
 
+    @POST("api/v1/car-rental/vendor/vehicles/{carId}/unavailability")
+    suspend fun takeRentalVehicleOffMarket(
+        @retrofit2.http.Path("carId") carId: String,
+        @Body request: RentalVehicleUnavailabilityRequest
+    ): Response<RentalVehicleUnavailabilityResponse>
+
+    @GET("api/v1/car-rental/vendor/vehicles/{carId}/unavailability")
+    suspend fun rentalVehicleUnavailability(
+        @retrofit2.http.Path("carId") carId: String
+    ): Response<List<RentalVehicleUnavailabilityResponse>>
+
+    @POST("api/v1/car-rental/vendor/vehicles/{carId}/unavailability/{unavailableId}/restore")
+    suspend fun restoreRentalVehicleToMarket(
+        @retrofit2.http.Path("carId") carId: String,
+        @retrofit2.http.Path("unavailableId") unavailableId: String
+    ): Response<Unit>
+
+    @GET("api/v1/car-rental/vendor/vehicles/{carId}/calendar")
+    suspend fun rentalVehicleCalendar(
+        @retrofit2.http.Path("carId") carId: String,
+        @Query("year") year: Int,
+        @Query("month") month: Int
+    ): Response<RentalVehicleCalendarResponse>
+
     @POST("api/v1/car-rental/bookings/quote")
     suspend fun rentalBookingQuote(@Body request: RentalBookingQuoteRequest): Response<RentalBookingQuoteResponse>
 
