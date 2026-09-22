@@ -310,7 +310,7 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
                 if (isRecharge) Text("${operator ?: "Operator"} • ${item.referenceId.orEmpty()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            Text(signedPrefix + "₹\${formatMoney(item.amount)}", color = amountColor, fontWeight = FontWeight.Bold)
+            Text(signedPrefix + "₹${formatMoney(item.amount)}", color = amountColor, fontWeight = FontWeight.Bold)
         }
     }
 }
