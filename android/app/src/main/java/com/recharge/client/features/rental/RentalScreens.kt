@@ -358,8 +358,8 @@ private fun AvailabilityFilterCard(
     onClear: () -> Unit,
     loading: Boolean
 ) {
-    var from by remember { mutableStateOf("") }
-    var to by remember { mutableStateOf("") }
+    var from by remember(state.searchStartDate, state.searchEndDate) { mutableStateOf(state.searchStartDate.orEmpty()) }
+    var to by remember(state.searchStartDate, state.searchEndDate) { mutableStateOf(state.searchEndDate.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
 
     Card(
