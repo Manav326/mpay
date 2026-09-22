@@ -19,7 +19,7 @@ WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar app.jar
 
-RUN mkdir -p /app/config /app/data/profile-images
+RUN mkdir -p /app/config /app/data/profile-images /app/data/rental-images
 
 EXPOSE 8080
 
