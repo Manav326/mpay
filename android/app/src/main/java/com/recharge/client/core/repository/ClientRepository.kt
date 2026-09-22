@@ -2,6 +2,7 @@ package com.recharge.client.core.repository
 
 import android.content.Context
 import android.net.Uri
+import com.google.gson.Gson
 import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
@@ -35,6 +36,7 @@ class ClientRepository(context: Context) {
     private val appContext = context.applicationContext
     private val api: ClientApi = NetworkModule.clientApi(context.applicationContext)
     private val profileCache = ProfileCacheStore(appContext)
+    private val gson = Gson()
 
     suspend fun currentUser(): Result<CurrentUserResponse> {
         val result = runCatching {
@@ -180,7 +182,10 @@ class ClientRepository(context: Context) {
             clientRequestId = UUID.randomUUID().toString(),
             upiId = upiId.trim()
         )
-        val response = api.withdraw(request)
+        val json = gson.toJson(request)
+        require(json.isNotBlank() && json != "{}") { "Unable to create withdrawal request body" }
+        val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val response = api.withdraw(requestBody)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
