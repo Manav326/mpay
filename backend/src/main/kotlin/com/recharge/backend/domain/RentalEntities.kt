@@ -23,7 +23,8 @@ class RentalVendorEntity(
     @Column(name="bank_account_number", length=64) var bankAccountNumber: String? = null,
     @Column(name="bank_ifsc", length=20) var bankIfsc: String? = null,
     @Column(name="created_at", nullable=false) var createdAt: Instant = Instant.now(),
-    @Column(name="updated_at", nullable=false) var updatedAt: Instant = Instant.now()
+    @Column(name="updated_at", nullable=false) var updatedAt: Instant = Instant.now(),
+    @Column(name="rejection_reason", length=500) var rejectionReason: String? = null
 )
 
 @Entity
@@ -37,6 +38,7 @@ class RentalDriverEntity(
     @Column(name="license_expiry", nullable=false) var licenseExpiry: LocalDate = LocalDate.now(),
     @Column(length=300) var address: String? = null,
     @Column(nullable=false) var active: Boolean = true,
+    @Column(name="rejection_reason", length=500) var rejectionReason: String? = null,
     @Column(name="created_at", nullable=false) var createdAt: Instant = Instant.now(),
     @Column(name="updated_at", nullable=false) var updatedAt: Instant = Instant.now()
 )
