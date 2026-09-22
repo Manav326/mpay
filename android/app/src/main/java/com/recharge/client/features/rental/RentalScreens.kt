@@ -4,7 +4,9 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
@@ -125,7 +127,7 @@ fun RentalVendorOnboardingScreen(
 
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -290,7 +292,8 @@ private fun VendorField(
     label: String,
     value: String,
     enabled: Boolean = true,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
         value = value,
@@ -312,6 +315,66 @@ private val rentalBookingDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM 
 private fun formatRentalBookingDateTime(value: String): String =
     runCatching { LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalBookingDisplayFormatter) }
         .getOrElse { value }
+
+private fun rentalPhotoUrls(imageUrl: String?): List<String> =
+    imageUrl.orEmpty().split("|", "\n").map { it.trim() }.filter { it.isNotBlank() }.take(4)
+
+private val rentalOffMarketReasons = listOf(
+    "SERVICE_MAINTENANCE" to "Service / maintenance",
+    "PRIVATE_USE" to "Private use",
+    "DRIVER_UNAVAILABLE" to "Driver unavailable",
+    "LEGAL_DOCUMENTATION" to "Documentation / compliance",
+    "PERSONAL_REASON" to "Personal reason",
+    "OTHER" to "Other"
+)
+
+private val rentalDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+private val rentalDateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+
+private fun formatRentalDate(value: String): String =
+    runCatching { LocalDate.parse(value, rentalDateFormatter).format(rentalDateDisplayFormatter) }.getOrElse { value }
+
+@Composable
+private fun CompactFieldRow(
+    leftLabel: String,
+    leftValue: String,
+    onLeftChange: (String) -> Unit,
+    rightLabel: String,
+    rightValue: String,
+    onRightChange: (String) -> Unit,
+    enabled: Boolean = true
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        VendorField(leftLabel, leftValue, enabled, onLeftChange, Modifier.weight(1f))
+        VendorField(rightLabel, rightValue, enabled, onRightChange, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun RentalDateField(label: String, value: String, onValueChange: (String) -> Unit) {
+    val context = LocalContext.current
+    val display = if (value.isBlank()) "Select date" else formatRentalDate(value)
+    OutlinedButton(
+        onClick = {
+            val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { LocalDate.now() }
+            DatePickerDialog(
+                context,
+                { _, year, month, day -> onValueChange(LocalDate.of(year, month + 1, day).format(rentalDateFormatter)) },
+                initial.year,
+                initial.monthValue - 1,
+                initial.dayOfMonth
+            ).show()
+        },
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(11.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+            Text(display, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
 
 private fun rentalStatusColor(status: String): Color = when (status.uppercase()) {
     "CONFIRMED", "COMPLETED", "REFUNDED", "PAID" -> AppColors.Success
