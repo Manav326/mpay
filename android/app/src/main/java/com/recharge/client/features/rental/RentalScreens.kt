@@ -9,6 +9,8 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -378,16 +380,65 @@ fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
 }
 
 @Composable
-fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit, onRefresh: () -> Unit) {
+fun CarRentalMarketplaceScreen(
+    state: RentalUiState,
+    onBack: () -> Unit,
+    onBook: (RentalCarResponse, String, String) -> Unit,
+    onSearch: (String, String) -> Unit,
+    onRefresh: () -> Unit
+) {
+    var start by remember { mutableStateOf("") }
+    var end by remember { mutableStateOf("") }
+    val canSearch = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess &&
+        runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess &&
+        runCatching {
+            val s = LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            val e = LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            e.isAfter(s) && !s.isBefore(LocalDateTime.now())
+        }.getOrDefault(false)
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall) } }
-        item { Text("Chauffeur-driven cars available for your trip.", color = AppColors.TextSecondary) }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                Column(Modifier.weight(1f)) {
+                    Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall)
+                    Text("Find cars available for your selected trip time.", color = AppColors.TextSecondary)
+                }
+                IconButton(onClick = onRefresh, enabled = !state.loading) { Icon(Icons.Default.Refresh, "Refresh") }
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Trip availability", style = MaterialTheme.typography.titleLarge)
+                    RentalDateTimeField("From", start) { start = it }
+                    RentalDateTimeField("To", end) { end = it }
+                    Text(
+                        "Only cars available for the selected time window will be shown. Final availability is checked again before booking.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Button(
+                        onClick = { onSearch(start, end) },
+                        enabled = canSearch && !state.loading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (state.loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text("Search available cars")
+                    }
+                }
+            }
+        }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
-        if (state.loading && state.cars.isEmpty()) item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        if (state.loading && state.cars.isEmpty()) {
+            item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+        }
         if (!state.loading && state.cars.isEmpty()) {
             item {
                 Card(
@@ -407,9 +458,12 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook:
                                 modifier = Modifier.padding(14.dp).size(30.dp)
                             )
                         }
-                        Text("No cars available right now.", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.",
+                            if (canSearch) "No cars available for this time window." else "Select your trip time to search.",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            "Cars already booked for an overlapping period are removed from these results.",
                             color = AppColors.TextSecondary
                         )
                         OutlinedButton(onClick = onRefresh, shape = RoundedCornerShape(12.dp)) {
@@ -423,14 +477,27 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook:
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Primary.copy(alpha = .10f)) { Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.padding(12.dp)) }
+                        Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Primary.copy(alpha = .10f)) {
+                            Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.padding(12.dp))
+                        }
                         Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) { Text(car.name, style = MaterialTheme.typography.titleLarge); Text(car.category + " • " + car.seats + " seats • " + car.transmission, color = AppColors.TextSecondary) }
+                        Column(Modifier.weight(1f)) {
+                            Text(car.name, style = MaterialTheme.typography.titleLarge)
+                            Text(car.category + " • " + car.seats + " seats • " + car.transmission, color = AppColors.TextSecondary)
+                        }
                     }
                     Text("Driver: " + car.driverName, style = MaterialTheme.typography.titleMedium)
                     Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary)
                     Text("₹" + car.pricePerDay.setScale(0) + " / day", style = MaterialTheme.typography.headlineSmall)
-                    Button(onClick = { onBook(car) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Person, null); Spacer(Modifier.width(6.dp)); Text("Book with driver") }
+                    Button(
+                        onClick = { onBook(car, start, end) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Person, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Book with driver")
+                    }
                 }
             }
         }
@@ -619,6 +686,7 @@ fun RentalMyBookingsScreen(
     val clipboard = LocalClipboardManager.current
     var copiedBookingId by remember { mutableStateOf<String?>(null) }
     var cancelBookingId by remember { mutableStateOf<String?>(null) }
+    var statusFilter by remember { mutableStateOf("ALL") }
     LaunchedEffect(Unit) { onRefresh() }
     cancelBookingId?.let { bookingId ->
         AlertDialog(
@@ -653,13 +721,33 @@ fun RentalMyBookingsScreen(
             }
         }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
+        item {
+            val filters = listOf("ALL", "CONFIRMED", "CANCELLED", "COMPLETED", "PENDING")
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                filters.forEach { filter ->
+                    FilterChip(
+                        selected = statusFilter.equals(filter, true),
+                        onClick = { statusFilter = filter },
+                        label = { Text(if (filter == "ALL") "All" else filter.replace("_", " ")) }
+                    )
+                }
+            }
+        }
+
         if (state.loading && state.bookings.isEmpty()) {
             item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         }
         if (!state.loading && state.bookings.isEmpty()) {
             item { Text("No rental bookings yet.", color = AppColors.TextSecondary) }
         }
-        items(state.bookings, key = { it.bookingId }) { booking ->
+        val filteredBookings = state.bookings.filter { statusFilter == "ALL" || it.status.equals(statusFilter, true) }
+        if (!state.loading && filteredBookings.isEmpty() && state.bookings.isNotEmpty()) {
+            item { Text("No bookings match the selected status.", color = AppColors.TextSecondary) }
+        }
+        items(filteredBookings, key = { it.bookingId }) { booking ->
             val statusColor = rentalStatusColor(booking.status)
             Card(shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
