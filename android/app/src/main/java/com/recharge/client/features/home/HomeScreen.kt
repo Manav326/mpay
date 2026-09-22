@@ -44,7 +44,7 @@ fun HomeScreen(
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
     onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: (String, String, String) -> Unit,
     onClearWithdrawMessage: () -> Unit, walletUiState: WalletUiState,
-    onRechargeHistory: () -> Unit, onMarketplace: () -> Unit, onRentalBookings: () -> Unit
+    onRechargeHistory: () -> Unit, onMarketplace: () -> Unit, onRentalBookings: () -> Unit, onCarRental: () -> Unit
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
@@ -116,12 +116,32 @@ fun HomeScreen(
             }
         }
         item {
-            ActionCard("Marketplace", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onMarketplace, Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = onMarketplace) { Text("Marketplace") }
+                TextButton(onClick = onRentalBookings) { Text("My Bookings") }
+                TextButton(onClick = onRechargeHistory) { Text("Recharge History") }
+            }
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ActionCard("My Bookings", Icons.Default.History, Color(0xFF7C3AED), onRentalBookings, Modifier.weight(1f))
-                ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.weight(1f))
+            Card(
+                onClick = onCarRental,
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF8FF))
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(shape = RoundedCornerShape(15.dp), color = Color(0xFFDDF1FF)) {
+                        Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF1677B8), modifier = Modifier.padding(11.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Car Rental", style = MaterialTheme.typography.titleLarge)
+                        Text("Chauffeur-driven cars, available directly from here.", color = AppColors.TextSecondary)
+                    }
+                    Text("Explore", color = Color(0xFF1677B8), style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
         if (latestRecharge != null) {
