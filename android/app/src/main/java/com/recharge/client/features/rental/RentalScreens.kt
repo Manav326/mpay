@@ -140,3 +140,91 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit) {
         }
     }
 }
+
+
+@Composable
+fun RentalVehicleOnboardingScreen(
+    state: RentalUiState,
+    onSubmit: (RentalVehicleOnboardingRequest, () -> Unit) -> Unit,
+    onBack: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var make by remember { mutableStateOf("") }
+    var model by remember { mutableStateOf("") }
+    var variant by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Sedan") }
+    var seats by remember { mutableStateOf("5") }
+    var transmission by remember { mutableStateOf("Automatic") }
+    var fuel by remember { mutableStateOf("Petrol") }
+    var manufacturingYear by remember { mutableStateOf("") }
+    var registrationYear by remember { mutableStateOf("") }
+    var registrationNumber by remember { mutableStateOf("") }
+    var pickupAddress by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var stateName by remember { mutableStateOf("") }
+    var pricePerDay by remember { mutableStateOf("") }
+    var imageUrl by remember { mutableStateOf("") }
+    var driverName by remember { mutableStateOf("") }
+    var driverMobile by remember { mutableStateOf("") }
+    var licenseNumber by remember { mutableStateOf("") }
+    var licenseExpiry by remember { mutableStateOf("") }
+    var driverAddress by remember { mutableStateOf("") }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Add vehicle", style = MaterialTheme.typography.headlineSmall) } }
+        item { Text("Submit the vehicle and assigned chauffeur for admin review.", color = AppColors.TextSecondary) }
+        item { Text("Vehicle details", style = MaterialTheme.typography.titleLarge) }
+        item { VendorField("Vehicle name", name) { name = it } }
+        item { VendorField("Make", make) { make = it } }
+        item { VendorField("Model", model) { model = it } }
+        item { VendorField("Variant (optional)", variant) { variant = it } }
+        item { VendorField("Category", category) { category = it } }
+        item { VendorField("Seats", seats) { seats = it } }
+        item { VendorField("Transmission", transmission) { transmission = it } }
+        item { VendorField("Fuel type", fuel) { fuel = it } }
+        item { VendorField("Manufacturing year", manufacturingYear) { manufacturingYear = it } }
+        item { VendorField("Registration year", registrationYear) { registrationYear = it } }
+        item { VendorField("Registration number", registrationNumber) { registrationNumber = it } }
+        item { VendorField("Pickup address", pickupAddress) { pickupAddress = it } }
+        item { VendorField("City", city) { city = it } }
+        item { VendorField("State", stateName) { stateName = it } }
+        item { VendorField("Price per day (₹)", pricePerDay) { pricePerDay = it } }
+        item { VendorField("Vehicle image URL (optional)", imageUrl) { imageUrl = it } }
+        item { Text("Driver details", style = MaterialTheme.typography.titleLarge) }
+        item { VendorField("Driver full name", driverName) { driverName = it } }
+        item { VendorField("Driver mobile", driverMobile) { driverMobile = it } }
+        item { VendorField("Driving licence number", licenseNumber) { licenseNumber = it } }
+        item { VendorField("Licence expiry (YYYY-MM-DD)", licenseExpiry) { licenseExpiry = it } }
+        item { VendorField("Driver address (optional)", driverAddress) { driverAddress = it } }
+        state.error?.let { item { Text(it, color = AppColors.Error) } }
+        item {
+            val valid = name.isNotBlank() && make.isNotBlank() && model.isNotBlank() && registrationNumber.isNotBlank() &&
+                pickupAddress.isNotBlank() && city.isNotBlank() && stateName.isNotBlank() && driverName.isNotBlank() &&
+                driverMobile.isNotBlank() && licenseNumber.isNotBlank() && licenseExpiry.isNotBlank() &&
+                pricePerDay.toBigDecimalOrNull() != null && seats.toIntOrNull() != null &&
+                manufacturingYear.toIntOrNull() != null && registrationYear.toIntOrNull() != null
+            Button(
+                onClick = {
+                    onSubmit(
+                        RentalVehicleOnboardingRequest(
+                            name = name.trim(), category = category.trim(), seats = seats.toInt(), transmission = transmission.trim(),
+                            fuelType = fuel.trim(), manufacturingYear = manufacturingYear.toInt(), registrationYear = registrationYear.toInt(),
+                            registrationNumber = registrationNumber.trim(), make = make.trim(), model = model.trim(),
+                            variant = variant.ifBlank { null }, pickupAddress = pickupAddress.trim(), city = city.trim(), state = stateName.trim(),
+                            pricePerDay = pricePerDay.toBigDecimal(), imageUrl = imageUrl.ifBlank { null },
+                            driver = RentalDriverRequest(driverName.trim(), driverMobile.trim(), licenseNumber.trim(), licenseExpiry.trim(), driverAddress.ifBlank { null })
+                        ),
+                        onBack
+                    )
+                },
+                enabled = valid && !state.saving,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Submit vehicle for review") }
+        }
+    }
+}
