@@ -13,6 +13,12 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import com.recharge.client.core.model.RentalVendorOnboardingRequest
+import com.recharge.client.core.model.RentalVendorResponse
+import com.recharge.client.core.model.RentalVehicleOnboardingRequest
+import com.recharge.client.core.model.RentalCarResponse
+import com.recharge.client.core.model.RentalBookingRequest
+import com.recharge.client.core.model.RentalBookingResponse
 
 interface AuthApi {
     @POST("api/v1/auth/login")
@@ -37,6 +43,27 @@ interface ClientApi {
 
     @GET("api/v1/wallet")
     suspend fun wallet(): Response<WalletResponse>
+
+    @GET("api/v1/car-rental/cars")
+    suspend fun rentalCars(): Response<List<RentalCarResponse>>
+
+    @GET("api/v1/car-rental/vendor")
+    suspend fun rentalVendor(): Response<RentalVendorResponse>
+
+    @POST("api/v1/car-rental/vendor")
+    suspend fun onboardRentalVendor(@Body request: RentalVendorOnboardingRequest): Response<RentalVendorResponse>
+
+    @GET("api/v1/car-rental/vendor/vehicles")
+    suspend fun rentalVendorVehicles(): Response<List<RentalCarResponse>>
+
+    @POST("api/v1/car-rental/vendor/vehicles")
+    suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
+
+    @POST("api/v1/car-rental/bookings")
+    suspend fun createRentalBooking(@Body request: RentalBookingRequest): Response<RentalBookingResponse>
+
+    @GET("api/v1/car-rental/bookings")
+    suspend fun rentalBookings(@Query("page") page: Int = 0, @Query("size") size: Int = 25): Response<com.recharge.client.core.model.RentalBookingPageResponse>
 
     @GET("api/v1/profile")
     suspend fun profile(): Response<CurrentUserResponse>
