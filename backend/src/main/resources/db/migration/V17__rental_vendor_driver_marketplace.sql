@@ -58,3 +58,5 @@ CREATE INDEX idx_rental_vendors_status ON rental_vendors(status);
 CREATE INDEX idx_rental_cars_vendor ON rental_cars(vendor_id);
 CREATE INDEX idx_rental_cars_marketplace ON rental_cars(active, approval_status, city);
 CREATE INDEX idx_rental_drivers_vendor ON rental_drivers(vendor_id);
+
+ALTER TABLE rental_bookings ADD COLUMN payment_method VARCHAR(30) NOT NULL DEFAULT 'WALLET';
