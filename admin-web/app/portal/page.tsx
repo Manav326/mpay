@@ -41,7 +41,7 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
 
 
 export default function Portal() {
-  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'rental'|'account'>('home');
+  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'rental'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
   const [wallet, setWallet] = useState<Wallet>();
   const [me, setMe] = useState<Me>();
@@ -177,7 +177,7 @@ export default function Portal() {
 
   const menu = [
     ['home','Home',Home], ['recharge','Recharge',Smartphone], ['wallet','Wallet',WalletCards],
-    ['history','History',History], ['rental','Car Rental',Car], ['account','Account',UserRound]
+    ['history','History',History], ['rental','Marketplace',Car], ['bookings','My Bookings',Clock3], ['account','Account',UserRound]
   ] as const;
 
   const status = (s?: string) => {
@@ -194,7 +194,7 @@ export default function Portal() {
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
       <nav>{menu.map(([key,label,Icon]) =>
         <button key={key} className={view === key ? 'portal-nav active' : 'portal-nav'}
-          onClick={() => { setView(key); setDrawer(false); if (key === 'history') loadHistory(); if (key === 'rental') loadRentalData(); }}>
+          onClick={() => { setView(key); setDrawer(false); if (key === 'history') loadHistory(); if (key === 'rental' || key === 'bookings') loadRentalData(); }}>
           <Icon size={18}/>{label}
         </button>)}</nav>
       <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/>Logout</button>
@@ -206,7 +206,7 @@ export default function Portal() {
         <div><span>mPay personal workspace</span><h1>
           {view === 'home' ? 'Good to see you.' : view === 'recharge' ? 'Mobile recharge' :
            view === 'wallet' ? 'Your wallet' : view === 'history' ? 'Transaction history' :
-           view === 'rental' ? 'Car Rental' : 'Your account'}
+           view === 'rental' ? 'Marketplace · Car Rental' : view === 'bookings' ? 'My Bookings' : 'Your account'}
         </h1></div>
         <div className="portal-avatar">{(me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
@@ -222,7 +222,8 @@ export default function Portal() {
           <button onClick={() => setView('recharge')}><Smartphone/><b>Mobile recharge</b><span>Detect operator, compare plans and submit a recharge.</span></button>
           <button onClick={() => setView('wallet')}><WalletCards/><b>Wallet</b><span>See available, reserved and ledger balances.</span></button>
           <button onClick={() => setView('history')}><History/><b>History</b><span>Track every recharge and wallet transaction.</span></button>
-          <button onClick={() => setView('rental')}><Car/><b>Car Rental</b><span>Choose a vehicle and submit a rental booking.</span></button>
+          <button onClick={() => setView('rental')}><Car/><b>Marketplace</b><span>Open the marketplace and explore Car Rental.</span></button>
+          <button onClick={() => setView('bookings')}><Clock3/><b>My Bookings</b><span>See booked cars, driver details, dates and payment status.</span></button>
         </div>
       </section>}
 
@@ -268,13 +269,24 @@ export default function Portal() {
         {operator && !plans.length && !busy && <div className="empty-state">No plans were returned for this number.</div>}
       </div></section>}
 
+
+      {view === 'bookings' && <section className="portal-content">
+        <div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing and payment status.</p></div><button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Refresh</button></div>
+          {bookings.length ? <div className="history-list">{bookings.map(b =>
+            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b>
+              <small>{b.bookingId} · {b.pickup} → {b.drop} · {new Date(b.startDate).toLocaleString('en-IN')} to {new Date(b.endDate).toLocaleString('en-IN')}</small>
+            </div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}<span>{new Date(b.createdAt || b.startDate).toLocaleString('en-IN')}</span></div></div>
+          )}</div> : <div className="empty-state">No rental bookings yet.</div>}
+        </div>
+      </section>}
+
       {view === 'rental' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Set your trip details, review the fare and submit a booking request.</p></div><Car size={28}/></div>
           <div className="rental-form">
             <input placeholder="Pickup location" value={rentalForm.pickup} onChange={e => setRentalForm({...rentalForm,pickup:e.target.value})}/>
             <input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e => setRentalForm({...rentalForm,drop:e.target.value})}/>
-            <label>Start date<input type="date" value={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
-            <label>End date<input type="date" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
+            <label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
+            <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
           </div>
           <div className="rental-car-grid">{cars.map(car =>
             <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => setSelectedCar(car)}>
