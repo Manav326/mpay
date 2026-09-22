@@ -19,6 +19,7 @@ import com.recharge.client.core.model.RentalVehicleOnboardingRequest
 import com.recharge.client.core.model.RentalCarResponse
 import com.recharge.client.core.model.RentalBookingRequest
 import com.recharge.client.core.model.RentalBookingResponse
+import com.recharge.client.core.model.RentalVendorPayoutResponse
 
 interface AuthApi {
     @POST("api/v1/auth/login")
@@ -52,6 +53,9 @@ interface ClientApi {
 
     @POST("api/v1/car-rental/vendor")
     suspend fun onboardRentalVendor(@Body request: RentalVendorOnboardingRequest): Response<RentalVendorResponse>
+
+    @GET("api/v1/car-rental/vendor/payouts")
+    suspend fun rentalVendorPayouts(): Response<List<RentalVendorPayoutResponse>>
 
     @GET("api/v1/car-rental/vendor/vehicles")
     suspend fun rentalVendorVehicles(): Response<List<RentalCarResponse>>
