@@ -88,3 +88,26 @@ class RentalBookingEntity(
     @Column(nullable = false) var createdAt: Instant = Instant.now(),
     @Column(nullable = false) var updatedAt: Instant = Instant.now()
 )
+
+
+@Entity
+@Table(name = "rental_vendor_review_history")
+class RentalVendorReviewEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "vendor_id", nullable = false) var vendorId: Long = 0,
+    @Column(nullable = false, length = 30) var action: String = "",
+    @Column(length = 500) var reason: String? = null,
+    @Column(name = "actor_user_id", nullable = false) var actorUserId: Long = 0,
+    @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
+)
+
+@Entity
+@Table(name = "rental_car_review_history")
+class RentalCarReviewEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "car_id", nullable = false) var carId: Long = 0,
+    @Column(nullable = false, length = 30) var action: String = "",
+    @Column(length = 500) var reason: String? = null,
+    @Column(name = "actor_user_id", nullable = false) var actorUserId: Long = 0,
+    @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
+)
