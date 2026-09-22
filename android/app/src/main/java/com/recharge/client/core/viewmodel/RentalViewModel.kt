@@ -13,6 +13,7 @@ data class RentalUiState(
     val vendor: RentalVendorResponse? = null,
     val cars: List<RentalCarResponse> = emptyList(),
     val vendorCars: List<RentalCarResponse> = emptyList(),
+    val bookings: List<RentalBookingResponse> = emptyList(),
     val loading: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null
@@ -41,12 +42,22 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+
+    fun loadBookings() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(loading = true, error = null)
+            repository.rentalBookings()
+                .onSuccess { response -> _state.value = _state.value.copy(bookings = response.items, loading = false) }
+                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load rental bookings") }
+        }
+    }
+
     fun createBooking(request: RentalBookingRequest, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
             _state.value = _state.value.copy(saving = true, error = null)
             repository.createRentalBooking(request)
-                .onSuccess { _state.value = _state.value.copy(saving = false); onDone() }
+                .onSuccess { booking -> _state.value = _state.value.copy(bookings = listOf(booking) + _state.value.bookings.filterNot { it.bookingId == booking.bookingId }, saving = false); onDone() }
                 .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to create booking") }
         }
     }
