@@ -14,6 +14,7 @@ data class RentalUiState(
     val cars: List<RentalCarResponse> = emptyList(),
     val vendorCars: List<RentalCarResponse> = emptyList(),
     val bookings: List<RentalBookingResponse> = emptyList(),
+    val payouts: List<RentalVendorPayoutResponse> = emptyList(),
     val loading: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null
@@ -72,6 +73,14 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+
+    fun loadVendorPayouts() {
+        viewModelScope.launch {
+            repository.rentalVendorPayouts()
+                .onSuccess { _state.value = _state.value.copy(payouts = it) }
+                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vendor payouts") }
+        }
+    }
     fun loadVendorVehicles() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
