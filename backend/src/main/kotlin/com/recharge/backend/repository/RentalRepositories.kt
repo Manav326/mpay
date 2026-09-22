@@ -9,6 +9,7 @@ import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.time.LocalDateTime
+import java.math.BigDecimal
 import java.util.Optional
 
 interface RentalVendorRepository : JpaRepository<RentalVendorEntity, Long> {
