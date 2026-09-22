@@ -41,7 +41,7 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
 
 
 export default function Portal() {
-  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'rental'|'bookings'|'account'>('home');
+  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
   const [wallet, setWallet] = useState<Wallet>();
   const [me, setMe] = useState<Me>();
@@ -177,7 +177,7 @@ export default function Portal() {
 
   const menu = [
     ['home','Home',Home], ['recharge','Recharge',Smartphone], ['wallet','Wallet',WalletCards],
-    ['history','History',History], ['rental','Marketplace',Car], ['bookings','My Bookings',Clock3], ['account','Account',UserRound]
+    ['history','History',History], ['marketplace','Marketplace',Car], ['bookings','My Bookings',Clock3], ['account','Account',UserRound]
   ] as const;
 
   const status = (s?: string) => {
@@ -206,7 +206,7 @@ export default function Portal() {
         <div><span>mPay personal workspace</span><h1>
           {view === 'home' ? 'Good to see you.' : view === 'recharge' ? 'Mobile recharge' :
            view === 'wallet' ? 'Your wallet' : view === 'history' ? 'Transaction history' :
-           view === 'rental' ? 'Marketplace · Car Rental' : view === 'bookings' ? 'My Bookings' : 'Your account'}
+           view === 'marketplace' ? 'Marketplace' : view === 'rental' ? 'Marketplace · Car Rental' : view === 'bookings' ? 'My Bookings' : 'Your account'}
         </h1></div>
         <div className="portal-avatar">{(me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
@@ -222,7 +222,7 @@ export default function Portal() {
           <button onClick={() => setView('recharge')}><Smartphone/><b>Mobile recharge</b><span>Detect operator, compare plans and submit a recharge.</span></button>
           <button onClick={() => setView('wallet')}><WalletCards/><b>Wallet</b><span>See available, reserved and ledger balances.</span></button>
           <button onClick={() => setView('history')}><History/><b>History</b><span>Track every recharge and wallet transaction.</span></button>
-          <button onClick={() => setView('rental')}><Car/><b>Marketplace</b><span>Open the marketplace and explore Car Rental.</span></button>
+          <button onClick={() => setView('marketplace')}><Car/><b>Marketplace</b><span>Explore services and open the Car Rental category.</span></button>
           <button onClick={() => setView('bookings')}><Clock3/><b>My Bookings</b><span>See booked cars, driver details, dates and payment status.</span></button>
         </div>
       </section>}
@@ -269,6 +269,15 @@ export default function Portal() {
         {operator && !plans.length && !busy && <div className="empty-state">No plans were returned for this number.</div>}
       </div></section>}
 
+
+
+      {view === 'marketplace' && <section className="portal-content">
+        <div className="portal-panel"><div className="panel-head"><div><h2>Marketplace</h2><p>Explore mPay service categories.</p></div><Car size={28}/></div>
+          <button className="rental-car selected" onClick={() => { setView('rental'); loadRentalData(); }}>
+            <div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong>
+          </button>
+        </div>
+      </section>}
 
       {view === 'bookings' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing and payment status.</p></div><button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Refresh</button></div>
