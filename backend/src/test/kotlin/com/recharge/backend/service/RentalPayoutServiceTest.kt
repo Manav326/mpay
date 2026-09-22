@@ -17,6 +17,7 @@ import java.util.Optional
 
 class RentalPayoutServiceTest {
     private val payouts = Mockito.mock(RentalPayoutRepository::class.java)
+    private val bookings = Mockito.mock(RentalBookingRepository::class.java)
     private val cars = Mockito.mock(RentalCarRepository::class.java)
     private val vendors = Mockito.mock(RentalVendorRepository::class.java)
     private val wallet = Mockito.mock(WalletService::class.java)
