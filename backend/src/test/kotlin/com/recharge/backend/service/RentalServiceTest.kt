@@ -7,6 +7,8 @@ import com.recharge.backend.repository.RentalBookingRepository
 import com.recharge.backend.repository.RentalCarRepository
 import com.recharge.backend.repository.RentalVendorRepository
 import com.recharge.backend.repository.RentalDriverRepository
+import com.recharge.backend.repository.RentalVendorReviewRepository
+import com.recharge.backend.repository.RentalCarReviewRepository
 import com.recharge.backend.repository.UserRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -23,7 +25,9 @@ class RentalServiceTest {
     private val bookings = Mockito.mock(RentalBookingRepository::class.java)
     private val users = Mockito.mock(UserRepository::class.java)
     private val wallet = Mockito.mock(WalletService::class.java)
-    private val service = RentalService(vendors, drivers, cars, bookings, users, wallet)
+    private val vendorReviews = Mockito.mock(RentalVendorReviewRepository::class.java)
+    private val carReviews = Mockito.mock(RentalCarReviewRepository::class.java)
+    private val service = RentalService(vendors, drivers, cars, bookings, users, wallet, vendorReviews, carReviews)
 
     @Test
     fun bookingTotalIsCalculatedServerSideAndWalletIsDebited() {
