@@ -349,6 +349,167 @@ class RentalService(
     }
 
     @Transactional
+    fun takeVehicleOffMarket(
+        userId: Long,
+        carId: Long,
+        request: RentalVehicleUnavailabilityRequest
+    ): RentalVehicleUnavailabilityResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        check(car.active && car.approvalStatus == "APPROVED") { "Only approved active vehicles can be taken off market" }
+        require(!request.startDate.isBefore(LocalDate.now())) { "Off-market period cannot start in the past" }
+        require(!request.endDate.isBefore(request.startDate)) { "End date must be on or after start date" }
+
+        val reasonCode = request.reasonCode.trim().uppercase()
+        require(reasonCode in rentalVehicleOffMarketReasons()) { "Invalid vehicle unavailability reason" }
+
+        check(
+            !bookings.existsOverlapping(
+                carId,
+                listOf("PENDING", "CONFIRMED"),
+                request.startDate.atStartOfDay(),
+                request.endDate.plusDays(1).atStartOfDay()
+            )
+        ) { "This vehicle already has a booking in the selected period" }
+        check(!vehicleUnavailability.existsOverlapping(carId, request.startDate, request.endDate)) {
+            "This vehicle is already marked unavailable for an overlapping period"
+        }
+
+        val now = Instant.now()
+        val saved = vehicleUnavailability.save(
+            RentalVehicleUnavailabilityEntity(
+                carId = carId,
+                vendorId = vendorId,
+                vendorUserId = userId,
+                startDate = request.startDate,
+                endDate = request.endDate,
+                reasonCode = reasonCode,
+                reasonNote = request.reasonNote?.trim()?.takeIf { it.isNotBlank() },
+                status = "ACTIVE",
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+        return toVehicleUnavailabilityResponse(saved)
+    }
+
+    fun vendorVehicleUnavailability(userId: Long, carId: Long): List<RentalVehicleUnavailabilityResponse> {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        return vehicleUnavailability.findAllByCarIdOrderByStartDateAsc(carId)
+            .filter { it.status == "ACTIVE" }
+            .map(::toVehicleUnavailabilityResponse)
+    }
+
+    @Transactional
+    fun restoreVehicleToMarket(userId: Long, carId: Long, unavailableId: Long) {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        val period = vehicleUnavailability.findById(unavailableId)
+            .orElseThrow { IllegalArgumentException("Unavailable period not found") }
+        require(period.carId == carId && period.vendorUserId == userId) { "Unavailable period does not belong to this vendor" }
+        if (period.status != "ACTIVE") return
+        period.status = "CANCELLED"
+        period.updatedAt = Instant.now()
+        vehicleUnavailability.save(period)
+    }
+
+    fun vehicleCalendar(
+        userId: Long,
+        carId: Long,
+        year: Int,
+        month: Int
+    ): RentalVehicleCalendarResponse {
+        require(month in 1..12) { "Month must be between 1 and 12" }
+        val yearMonth = YearMonth.of(year, month)
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+
+        val firstDay = yearMonth.atDay(1)
+        val nextMonth = yearMonth.plusMonths(1).atDay(1)
+        val bookingRows = bookings.findCalendarBookings(
+            carId,
+            listOf("PENDING", "CONFIRMED", "COMPLETED"),
+            firstDay.atStartOfDay(),
+            nextMonth.atStartOfDay()
+        )
+        val unavailableRows = vehicleUnavailability.findAllByCarIdOrderByStartDateAsc(carId)
+            .filter { it.status == "ACTIVE" && !it.endDate.isBefore(firstDay) && !it.startDate.isAfter(yearMonth.atEndOfMonth()) }
+
+        val days = yearMonth.map { day ->
+            val booking = bookingRows.firstOrNull {
+                !it.endDate.toLocalDate().isBefore(day) && it.startDate.toLocalDate().isBefore(day.plusDays(1))
+            }
+            val blackout = unavailableRows.firstOrNull { !it.startDate.isAfter(day) && !it.endDate.isBefore(day) }
+            when {
+                booking != null -> RentalVehicleCalendarDayResponse(
+                    date = day, status = "BOOKED", bookingId = booking.bookingId
+                )
+                blackout != null -> RentalVehicleCalendarDayResponse(
+                    date = day,
+                    status = "OFF_MARKET",
+                    reasonCode = blackout.reasonCode,
+                    reasonLabel = rentalVehicleOffMarketReasonLabel(blackout.reasonCode)
+                )
+                else -> RentalVehicleCalendarDayResponse(date = day, status = "AVAILABLE")
+            }
+        }.toList()
+
+        return RentalVehicleCalendarResponse(
+            carId = carId.toString(),
+            carName = car.name,
+            year = year,
+            month = month,
+            days = days
+        )
+    }
+
+    fun adminVehicleUnavailability(): List<RentalVehicleUnavailabilityResponse> =
+        vehicleUnavailability.findAll()
+            .filter { it.status == "ACTIVE" }
+            .sortedBy { it.startDate }
+            .map(::toVehicleUnavailabilityResponse)
+
+    private fun rentalVehicleOffMarketReasons(): Set<String> = setOf(
+        "SERVICE_MAINTENANCE",
+        "PRIVATE_USE",
+        "DRIVER_UNAVAILABLE",
+        "LEGAL_DOCUMENTATION",
+        "PERSONAL_REASON",
+        "OTHER"
+    )
+
+    private fun rentalVehicleOffMarketReasonLabel(code: String): String = when (code) {
+        "SERVICE_MAINTENANCE" -> "Service / maintenance"
+        "PRIVATE_USE" -> "Private use"
+        "DRIVER_UNAVAILABLE" -> "Driver unavailable"
+        "LEGAL_DOCUMENTATION" -> "Documentation / compliance"
+        "PERSONAL_REASON" -> "Personal reason"
+        else -> "Other"
+    }
+
+    private fun toVehicleUnavailabilityResponse(row: RentalVehicleUnavailabilityEntity) =
+        RentalVehicleUnavailabilityResponse(
+            id = requireNotNull(row.id).toString(),
+            carId = row.carId.toString(),
+            startDate = row.startDate,
+            endDate = row.endDate,
+            reasonCode = row.reasonCode,
+            reasonLabel = rentalVehicleOffMarketReasonLabel(row.reasonCode),
+            reasonNote = row.reasonNote,
+            status = row.status,
+            createdAt = row.createdAt
+        )
+
+    @Transactional
     fun completeBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
         val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be completed" }
