@@ -133,6 +133,7 @@ data class RentalBookingQuoteResponse(
 )
 
 data class RentalBookingRequest(
+    val clientRequestId: String,
     val carId: String,
     val pickupLocation: String,
     val dropLocation: String,
