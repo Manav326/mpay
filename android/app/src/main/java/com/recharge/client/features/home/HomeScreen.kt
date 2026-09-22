@@ -44,7 +44,7 @@ fun HomeScreen(
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
     onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: (String, String, String) -> Unit,
     onClearWithdrawMessage: () -> Unit, walletUiState: WalletUiState,
-    onRechargeHistory: () -> Unit, onMarketplace: () -> Unit, onRentalBookings: () -> Unit, onCarRental: () -> Unit
+    onRechargeHistory: () -> Unit, onRentalBookings: () -> Unit, onCarRental: () -> Unit
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
