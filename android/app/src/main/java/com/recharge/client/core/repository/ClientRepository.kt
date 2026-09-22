@@ -221,6 +221,27 @@ class ClientRepository(context: Context) {
     }
 
 
+    suspend fun uploadRentalVehiclePhoto(
+        carId: String,
+        slot: Int,
+        uri: Uri
+    ): Result<com.recharge.client.core.model.RentalCarResponse> = runCatching {
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+        val resolver = appContext.contentResolver
+        val mime = resolver.getType(uri)?.lowercase() ?: "image/jpeg"
+        require(mime in setOf("image/jpeg", "image/png", "image/webp")) {
+            "Please select a JPG, PNG or WebP image."
+        }
+        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Unable to read selected vehicle photo")
+        require(bytes.size <= 5 * 1024 * 1024) { "Vehicle photo must be 5 MB or smaller." }
+        val body = bytes.toRequestBody(mime.toMediaType())
+        val part = MultipartBody.Part.createFormData("photo", "vehicle-photo-${slot}", body)
+        val response = api.uploadRentalVehiclePhoto(carId, slot, part)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun rentalVendorPayouts(): Result<List<com.recharge.client.core.model.RentalVendorPayoutResponse>> = runCatching {
         val response = api.rentalVendorPayouts()
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
