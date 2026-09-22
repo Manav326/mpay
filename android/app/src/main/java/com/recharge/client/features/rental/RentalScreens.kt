@@ -300,7 +300,7 @@ private fun VendorField(
         onValueChange = onValueChange,
         enabled = enabled,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         singleLine = true
     )
 }
