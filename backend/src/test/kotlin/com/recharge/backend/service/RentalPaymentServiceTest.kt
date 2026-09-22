@@ -23,6 +23,7 @@ class RentalPaymentServiceTest {
         assertEquals("PAID", result.status)
         assertEquals("WALLET", result.method)
         assertEquals("INTERNAL_WALLET", result.provider)
+        assertEquals("client-1", result.clientRequestId)
         assertEquals("RENTAL:RNT-123", result.walletLedgerRef)
         Mockito.verify(wallet).reserve(42L, BigDecimal("6000.00"))
         Mockito.verify(wallet).finalizeReservedDebit(
