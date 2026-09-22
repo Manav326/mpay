@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -245,4 +245,20 @@ export async function createVendor(input: Omit<Vendor, 'id' | 'createdAt'>): Pro
 
 export async function getUserWithdrawalHistory(id: string, page = 0, size = 25): Promise<WithdrawalHistoryResponse> {
   return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/withdrawals?page=' + page + '&size=' + size);
+}
+
+export async function getRentalAdminVendors(): Promise<RentalAdminVendor[]> {
+  return api('/api/v1/car-rental/admin/vendors');
+}
+export async function getRentalAdminVendorVehicles(vendorId: string): Promise<any[]> {
+  return api('/api/v1/car-rental/admin/vendors/' + encodeURIComponent(vendorId) + '/vehicles');
+}
+export async function approveRentalVendor(vendorId: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/vendors/' + encodeURIComponent(vendorId) + '/approve', { method: 'POST' });
+}
+export async function rejectRentalVendor(vendorId: string, reason: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/vendors/' + encodeURIComponent(vendorId) + '/reject', { method: 'POST', body: JSON.stringify({ reason }) });
+}
+export async function approveRentalVehicle(carId: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/vehicles/' + encodeURIComponent(carId) + '/approve', { method: 'POST' });
 }
