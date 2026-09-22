@@ -212,7 +212,7 @@ class RentalService(
 
     fun vendorPayouts(userId: Long): List<RentalVendorPayoutResponse> {
         verifiedVendor(userId)
-        val payoutRows = rentalPayouts.findAllByVendorUserIdOrderByCreatedAtDesc(userId)
+        val payoutRows = rentalPayouts.findByVendorUserId(userId)
         if (payoutRows.isEmpty()) return emptyList()
         val bookingsById = bookings.findAllByBookingIdIn(payoutRows.map { it.bookingId }).associateBy { it.bookingId }
         val carIds = bookingsById.values.map { it.carId }.distinct()
