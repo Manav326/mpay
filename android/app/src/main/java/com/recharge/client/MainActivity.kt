@@ -101,6 +101,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         order.checkoutParams["surl"].orEmpty(),
                         order.checkoutParams["furl"].orEmpty(),
                         order.checkoutParams["userCredential"].orEmpty(),
+                        order.checkoutParams["vasForMobileSdkHash"].orEmpty(),
+                        order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
                         object : PayUCheckoutBridge.Callback {
                             override fun onPaymentSuccess(response: Any?) {
                                 val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
@@ -133,9 +135,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                             override fun onGenerateHash(
                                 hashName: String,
                                 hashString: String,
+                                postSalt: String?,
+                                hashType: String?,
                                 callback: PayUCheckoutBridge.PayUHashCallback
                             ) {
-                                walletPaymentViewModel.generatePayUHash(hashName, hashString) { hash ->
+                                walletPaymentViewModel.generatePayUHash(hashName, hashString, postSalt, hashType) { hash ->
                                     callback.onHashGenerated(hash)
                                 }
                             }
@@ -177,6 +181,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     order.checkoutParams["surl"].orEmpty(),
                     order.checkoutParams["furl"].orEmpty(),
                     order.checkoutParams["userCredential"].orEmpty(),
+                    order.checkoutParams["vasForMobileSdkHash"].orEmpty(),
+                    order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
                     object : PayUCheckoutBridge.Callback {
                         override fun onPaymentSuccess(response: Any?) {
                             val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
@@ -209,9 +215,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         override fun onGenerateHash(
                             hashName: String,
                             hashString: String,
+                            postSalt: String?,
+                            hashType: String?,
                             callback: PayUCheckoutBridge.PayUHashCallback
                         ) {
-                            rechargeViewModel.generatePayUHash(hashName, hashString) { hash ->
+                            rechargeViewModel.generatePayUHash(hashName, hashString, postSalt, hashType) { hash ->
                                 callback.onHashGenerated(hash)
                             }
                         }
