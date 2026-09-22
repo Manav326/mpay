@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.*
 import com.recharge.client.core.theme.AppColors
@@ -271,6 +275,27 @@ private fun VendorField(
 }
 
 private val rentalDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+
+private fun rentalStatusColor(status: String): Color = when (status.uppercase()) {
+    "CONFIRMED", "COMPLETED", "REFUNDED", "PAID" -> AppColors.Success
+    "CANCELLED", "REJECTED", "FAILED", "EXPIRED" -> AppColors.Error
+    "PENDING", "PROCESSING" -> Color(0xFFD97706)
+    "IN_PROGRESS", "ACTIVE" -> Color(0xFF2563EB)
+    else -> AppColors.TextSecondary
+}
+
+private fun rentalBookingShareText(booking: RentalBookingResponse): String = listOf(
+    "mPay Car Rental Booking",
+    "Booking ID: ${booking.bookingId}",
+    "Car: ${booking.carName}",
+    "From: ${booking.pickup}",
+    "To: ${booking.drop}",
+    "Start: ${booking.startDate}",
+    "End: ${booking.endDate}",
+    "Amount: ₹${booking.total.setScale(2).toPlainString()}",
+    "Status: ${booking.status.uppercase()}"
+).joinToString(" | ")
+
 private val rentalDateTimeDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
 
 private fun showDateTimePicker(context: Context, current: String?, onSelected: (String) -> Unit) {
@@ -558,7 +583,8 @@ fun RentalBookingScreen(
                         Text("Fare summary", style = MaterialTheme.typography.titleLarge)
                         Text("${q.days} day(s) × ₹${q.pricePerDay}")
                         Text("Total: ₹${q.total}", style = MaterialTheme.typography.titleLarge)
-                        Text("Payment: Wallet")
+                        Text("Payment: From your wallet", fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                        Text("₹${q.total.setScale(2).toPlainString()} will be deducted from your wallet when you confirm.", color = AppColors.TextSecondary)
                         Button(
                             enabled = !state.saving,
                             onClick = { onConfirm(RentalBookingRequest(UUID.randomUUID().toString(), car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
@@ -580,8 +606,16 @@ fun RentalBookingScreen(
     }
 }
 
+
 @Composable
-fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: () -> Unit) {
+fun RentalMyBookingsScreen(
+    state: RentalUiState,
+    onRefresh: () -> Unit,
+    onBack: () -> Unit,
+    onCancel: (String, () -> Unit) -> Unit
+) {
+    val clipboard = LocalClipboardManager.current
+    var copiedBookingId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { onRefresh() }
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
@@ -591,10 +625,11 @@ fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: 
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text("My Bookings", style = MaterialTheme.typography.headlineSmall)
                     Text("Your chauffeur-driven rental bookings", color = AppColors.TextSecondary)
                 }
+                IconButton(onClick = onRefresh, enabled = !state.loading) { Icon(Icons.Default.Refresh, "Refresh bookings") }
             }
         }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
@@ -605,8 +640,9 @@ fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: 
             item { Text("No rental bookings yet.", color = AppColors.TextSecondary) }
         }
         items(state.bookings, key = { it.bookingId }) { booking ->
+            val statusColor = rentalStatusColor(booking.status)
             Card(shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary)
                         Spacer(Modifier.width(10.dp))
@@ -614,14 +650,32 @@ fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: 
                             Text(booking.carName, style = MaterialTheme.typography.titleLarge)
                             Text("Booking " + booking.bookingId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(booking.status, style = MaterialTheme.typography.labelLarge, color = AppColors.Primary)
+                        Surface(shape = RoundedCornerShape(20.dp), color = statusColor.copy(alpha = .12f)) {
+                            Text(booking.status.uppercase(), style = MaterialTheme.typography.labelLarge, color = statusColor, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                        }
                     }
                     Text("Driver: " + booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""))
                     Text(booking.pickup + " → " + booking.drop, color = AppColors.TextSecondary)
-                    Text(booking.startDate.toString() + " to " + booking.endDate.toString(), color = AppColors.TextSecondary)
-                    Text("₹" + booking.total.setScale(2).toPlainString() + " • " + booking.paymentMethod, style = MaterialTheme.typography.titleMedium)
+                    Text(booking.startDate + " to " + booking.endDate, color = AppColors.TextSecondary)
+                    Text("₹" + booking.total.setScale(2).toPlainString() + " • From your wallet", style = MaterialTheme.typography.titleMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
+                            copiedBookingId = booking.bookingId
+                        }) {
+                            Icon(if (copiedBookingId == booking.bookingId) Icons.Default.Check else Icons.Default.ContentCopy, null)
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (copiedBookingId == booking.bookingId) "Copied" else "Copy details")
+                        }
+                        if (booking.status.equals("CONFIRMED", true) && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
+                            OutlinedButton(onClick = { onCancel(booking.bookingId, onRefresh) }, enabled = !state.saving) {
+                                Text("Cancel", color = AppColors.Error)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
