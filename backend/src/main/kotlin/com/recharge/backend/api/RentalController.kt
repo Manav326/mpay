@@ -103,6 +103,9 @@ class RentalController(
         @PathVariable bookingId: String
     ): RentalBookingResponse = rentalService.cancelBooking(userId(authentication), bookingId)
 
+    @PostMapping("/bookings/quote")
+    fun quoteBooking(authentication: Authentication, @Valid @RequestBody request: RentalBookingQuoteRequest): RentalBookingQuoteResponse = rentalService.quoteBooking(userId(authentication), request)
+
     @PostMapping("/bookings")
     fun createBooking(
         authentication: Authentication,
