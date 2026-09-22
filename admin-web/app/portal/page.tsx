@@ -194,7 +194,7 @@ export default function Portal() {
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
       <nav>{menu.map(([key,label,Icon]) =>
         <button key={key} className={view === key ? 'portal-nav active' : 'portal-nav'}
-          onClick={() => { setView(key); setDrawer(false); if (key === 'history') loadHistory(); if (key === 'rental' || key === 'bookings') loadRentalData(); }}>
+          onClick={() => { setView(key); setDrawer(false); if (key === 'history') loadHistory(); if (key === 'marketplace' || key === 'bookings') loadRentalData(); }}>
           <Icon size={18}/>{label}
         </button>)}</nav>
       <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/>Logout</button>
