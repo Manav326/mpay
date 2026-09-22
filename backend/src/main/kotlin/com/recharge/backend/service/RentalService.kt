@@ -368,7 +368,9 @@ class RentalService(
     ): RentalVehicleUnavailabilityResponse {
         val vendor = verifiedVendor(userId)
         val vendorId = requireNotNull(vendor.id)
-        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        // Serialize vendor availability changes with customer booking creation.
+        // Booking creation also acquires this same pessimistic car-row lock.
+        val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
         require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
         check(car.active && car.approvalStatus == "APPROVED") { "Only approved active vehicles can be taken off market" }
         require(!request.startDate.isBefore(LocalDate.now())) { "Off-market period cannot start in the past" }
