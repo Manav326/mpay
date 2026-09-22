@@ -534,9 +534,13 @@ fun RentalVendorOnboardingScreen(
                     val blackouts = state.vehicleUnavailabilityByCar[car.id].orEmpty()
                     val today = LocalDate.now()
                     val activeBlackout = blackouts.firstOrNull {
-                        !it.startDate.isAfter(today) && !it.endDate.isBefore(today)
+                        val start = runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()
+                        val end = runCatching { LocalDate.parse(it.endDate, rentalDateFormatter) }.getOrNull()
+                        start != null && end != null && !start.isAfter(today) && !end.isBefore(today)
                     }
-                    val scheduledBlackout = blackouts.firstOrNull { it.startDate.isAfter(today) }
+                    val scheduledBlackout = blackouts.firstOrNull {
+                        runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()?.isAfter(today) == true
+                    }
                     val displayedBlackout = activeBlackout ?: scheduledBlackout
                     val displayedOffMarket = activeBlackout != null
                     Card(
@@ -1212,7 +1216,7 @@ fun RentalVehicleOnboardingScreen(
                     }
                     CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
                     VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
-                    RentalDateTimeField("Licence expiry", licenseExpiry) { licenseExpiry = it }
+                    RentalDateField("Licence expiry", licenseExpiry) { licenseExpiry = it }
                     VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                 }
             }
@@ -1397,8 +1401,8 @@ fun RentalBookingScreen(
         item { Text("Driver: " + car.driverName + (car.driverMobile?.let { " · " + it } ?: ""), color = AppColors.TextSecondary) }
         item { VendorField("Pickup location", pickup) { pickup = it } }
         item { VendorField("Drop location", drop) { drop = it } }
-        item { RentalDateTimeField("Start date & time", start) { start = it } }
-        item { RentalDateTimeField("End date & time", end) { end = it } }
+        item { RentalDateTimeField("Start date & time", start, onValueChange = { start = it }) }
+        item { RentalDateTimeField("End date & time", end, onValueChange = { end = it }) }
         item {
             Text(
                 "Pricing is per day (24 hours). Any partial day is charged as one full day; time is used for availability and the exact rental duration.",
