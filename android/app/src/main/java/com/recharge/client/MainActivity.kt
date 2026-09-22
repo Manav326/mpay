@@ -451,6 +451,9 @@ private fun AppNavHost(
                 onRefreshEarnings = rechargeHistoryViewModel::loadCommission,
                 onRecharge = { navigateToTopLevel(nav, "recharge") },
                 onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
+                onWithdraw = { walletViewModel.clearWithdrawMessage() },
+                onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
+                walletUiState = walletViewModel.state.collectAsState().value,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
                 onCarRental = { nav.navigate("car-rental") }
             )
@@ -528,8 +531,13 @@ private fun BottomNavigationBar(nav: NavHostController, destinations: List<TopLe
 }
 
 private fun navigateToTopLevel(nav: NavHostController, route: String) {
+    val startDestinationId = nav.graph.findStartDestination().id
+    if (route == "home") {
+        nav.popBackStack(startDestinationId, false)
+        return
+    }
     nav.navigate(route) {
-        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+        popUpTo(startDestinationId) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
