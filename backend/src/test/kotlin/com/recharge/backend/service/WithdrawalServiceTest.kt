@@ -34,13 +34,13 @@ class WithdrawalServiceTest {
 
     @Test
     fun mockProviderCanCompleteWithdrawal() {
-        val pending = withdrawal("WDR-MOCK", "REQ-MOCK", "PENDING")
-        val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS", "mock")
+        val pending = withdrawal("WDR-MOCK", "REQ-MOCK", "PENDING", upiId = "test@mockupi")
+        val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS", provider = "mock", upiId = "test@mockupi")
         val user = user(42L)
         Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
         Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals).findByUserIdAndClientRequestId(42L, "REQ-MOCK")
         Mockito.doReturn(pending).`when`(persistence).createOrGetPending(
-            42L, BigDecimal("10.00"), "mock@upi", "mock", "REQ-MOCK"
+            42L, BigDecimal("10.00"), "test@mockupi", "mock", "REQ-MOCK"
         )
         mock.result = WithdrawalProviderResult("SUCCESS", "mock_WDR-MOCK", "completed", "PROCESSED")
         Mockito.doReturn(success).`when`(persistence).markSucceeded(
@@ -54,6 +54,8 @@ class WithdrawalServiceTest {
         assertEquals("SUCCESS", response.status)
         assertEquals("mock", response.provider)
         assertEquals("mock_WDR-MOCK", mock.lastReference)
+        assertEquals("test@mockupi", response.upiId)
+        assertEquals("test@mockupi", mock.lastRequest?.upiId)
         assertEquals(1, mock.initiateCalls)
     }
 
@@ -68,6 +70,21 @@ class WithdrawalServiceTest {
             service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-BLANK-UPI", "   ")
         }
 
+        assertEquals(0, mock.initiateCalls)
+    }
+
+    @Test
+    fun malformedUpiIsRejectedBeforePersistenceOrMockProviderCall() {
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals)
+            .findByUserIdAndClientRequestId(42L, "REQ-BAD-UPI")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-BAD-UPI", "not-a-upi")
+        }
+
+        Mockito.verifyNoInteractions(persistence)
         assertEquals(0, mock.initiateCalls)
     }
 
@@ -145,12 +162,18 @@ class WithdrawalServiceTest {
         email = "test@example.com"
     )
 
-    private fun withdrawal(id: String, requestId: String, status: String, provider: String = "razorpay") = WalletWithdrawalEntity(
+    private fun withdrawal(
+        id: String,
+        requestId: String,
+        status: String,
+        provider: String = "razorpay",
+        upiId: String = "user@upi"
+    ) = WalletWithdrawalEntity(
         withdrawalId = id,
         clientRequestId = requestId,
         userId = 42L,
         amount = BigDecimal("100.00"),
-        upiId = "user@upi",
+        upiId = upiId,
         providerName = provider,
         status = status
     )
