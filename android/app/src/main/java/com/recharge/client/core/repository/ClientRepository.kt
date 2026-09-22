@@ -27,10 +27,7 @@ import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.core.cache.ProfileCacheStore
 import java.math.BigDecimal
 import java.util.UUID
-import com.google.gson.Gson
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 
 class ClientRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -181,8 +178,7 @@ class ClientRepository(context: Context) {
             clientRequestId = UUID.randomUUID().toString(),
             upiId = upiId.trim()
         )
-        val requestBody = Gson().toJson(request).toRequestBody("application/json".toMediaType())
-        val response = api.withdraw(requestBody)
+        val response = api.withdraw(request)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
