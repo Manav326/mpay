@@ -250,3 +250,17 @@ data class RentalVehicleCalendarResponse(
     val month: Int,
     val days: List<RentalVehicleCalendarDayResponse>
 )
+
+data class RentalAdminVehicleUnavailabilityResponse(
+    val id: String,
+    val carId: String,
+    val carName: String,
+    val vendorId: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val reasonCode: String,
+    val reasonLabel: String,
+    val reasonNote: String?,
+    val status: String,
+    val createdAt: Instant
+)
