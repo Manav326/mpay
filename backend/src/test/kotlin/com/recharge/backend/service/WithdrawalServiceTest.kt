@@ -39,7 +39,7 @@ class WithdrawalServiceTest {
         Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
         Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals).findByUserIdAndClientRequestId(42L, "REQ-MOCK")
         Mockito.doReturn(pending).`when`(persistence).createOrGetPending(
-            42L, BigDecimal("10.00"), "user-123@okhdfcbank9", "mock", "REQ-MOCK"
+            42L, BigDecimal("10.00"), "mock@upi", "mock", "REQ-MOCK"
         )
         mock.result = WithdrawalProviderResult("SUCCESS", "mock_WDR-MOCK", "completed", "PROCESSED")
         Mockito.doReturn(success).`when`(persistence).markSucceeded(
@@ -48,7 +48,7 @@ class WithdrawalServiceTest {
         Mockito.doReturn(WalletSnapshot(BigDecimal("1000.00"), BigDecimal("0.00"), BigDecimal("1000.00")))
             .`when`(wallet).getWalletSnapshot(42L)
 
-        val response = service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-MOCK", "user-123@okhdfcbank9")
+        val response = service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-MOCK", "")
 
         assertEquals("SUCCESS", response.status)
         assertEquals("mock", response.provider)
