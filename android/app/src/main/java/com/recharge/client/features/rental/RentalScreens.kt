@@ -114,7 +114,7 @@ private fun VendorField(label: String, value: String, onValueChange: (String) ->
 }
 
 @Composable
-fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit) {
+fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook: (RentalCarResponse) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
@@ -136,7 +136,7 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit) {
                     Text("Driver: " + car.driverName, style = MaterialTheme.typography.titleMedium)
                     Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary)
                     Text("₹" + car.pricePerDay.setScale(0) + " / day", style = MaterialTheme.typography.headlineSmall)
-                    Button(onClick = { }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Person, null); Spacer(Modifier.width(6.dp)); Text("Book with driver") }
+                    Button(onClick = { onBook(car) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Person, null); Spacer(Modifier.width(6.dp)); Text("Book with driver") }
                 }
             }
         }
