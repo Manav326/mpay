@@ -617,12 +617,14 @@ fun RentalBookingScreen(
     state: RentalUiState,
     onQuote: (RentalBookingQuoteRequest, (RentalBookingQuoteResponse) -> Unit) -> Unit,
     onBack: () -> Unit,
-    onConfirm: (RentalBookingRequest, () -> Unit) -> Unit
+    onConfirm: (RentalBookingRequest, () -> Unit) -> Unit,
+    initialStart: String? = null,
+    initialEnd: String? = null
 ) {
     var pickup by remember { mutableStateOf(car.pickupAddress.orEmpty()) }
     var drop by remember { mutableStateOf(car.city.orEmpty()) }
-    var start by remember { mutableStateOf("") }
-    var end by remember { mutableStateOf("") }
+    var start by remember { mutableStateOf(initialStart.orEmpty()) }
+    var end by remember { mutableStateOf(initialEnd.orEmpty()) }
     var quote by remember { mutableStateOf<RentalBookingQuoteResponse?>(null) }
 
     LazyColumn(
