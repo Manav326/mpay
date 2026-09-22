@@ -457,9 +457,18 @@ fun CarRentalMarketplaceScreen(
                                 modifier = Modifier.padding(14.dp).size(30.dp)
                             )
                         }
-                        Text("No cars available right now.", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.",
+                            if (state.searchStartDate != null && state.searchEndDate != null)
+                                "No cars available for the selected time window."
+                            else
+                                "No cars available right now.",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            if (state.searchStartDate != null && state.searchEndDate != null)
+                                "No approved chauffeur-driven car is available for the full selected From → To window. Try another time window."
+                            else
+                                "There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.",
                             color = AppColors.TextSecondary
                         )
                         OutlinedButton(onClick = onRefresh, shape = RoundedCornerShape(12.dp)) {
@@ -598,14 +607,16 @@ fun RentalVehicleOnboardingScreen(
 fun RentalBookingScreen(
     car: RentalCarResponse,
     state: RentalUiState,
+    initialStartDate: String? = null,
+    initialEndDate: String? = null,
     onQuote: (RentalBookingQuoteRequest, (RentalBookingQuoteResponse) -> Unit) -> Unit,
     onBack: () -> Unit,
     onConfirm: (RentalBookingRequest, () -> Unit) -> Unit
 ) {
     var pickup by remember { mutableStateOf(car.pickupAddress.orEmpty()) }
     var drop by remember { mutableStateOf(car.city.orEmpty()) }
-    var start by remember { mutableStateOf("") }
-    var end by remember { mutableStateOf("") }
+    var start by remember(initialStartDate, car.id) { mutableStateOf(initialStartDate.orEmpty()) }
+    var end by remember(initialEndDate, car.id) { mutableStateOf(initialEndDate.orEmpty()) }
     var quote by remember { mutableStateOf<RentalBookingQuoteResponse?>(null) }
 
     LazyColumn(
