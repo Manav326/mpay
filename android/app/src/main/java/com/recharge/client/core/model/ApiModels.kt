@@ -1,10 +1,16 @@
 package com.recharge.client.core.model
 
+import com.google.gson.annotations.SerializedName
 import java.math.BigDecimal
 
 /** Mirrors the backend authentication and client DTOs. */
 data class LoginRequest(val mobile: String, val password: String)
-data class RegisterRequest(val name: String?, val email: String?, val mobile: String, val password: String)
+data class RegisterRequest(
+    @SerializedName("name") val name: String?,
+    @SerializedName("email") val email: String?,
+    @SerializedName("mobile") val mobile: String,
+    @SerializedName("password") val password: String
+)
 data class ForgotPasswordRequest(val mobile: String)
 data class ForgotPasswordResponse(val status: String, val expiresInSeconds: Long, val demoOtp: String? = null, val deliveryMode: String = "twilio")
 data class ResetPasswordRequest(val mobile: String, val otp: String, val newPassword: String)
