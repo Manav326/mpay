@@ -210,6 +210,27 @@ class RentalService(
         require(vendor.userId != userId) { "This vehicle cannot be booked by its owning vendor" }
     }
 
+    fun vendorPayouts(userId: Long): List<RentalVendorPayoutResponse> {
+        val vendor = vendors.findByUserId(userId).orElseThrow { IllegalArgumentException("Complete vendor onboarding first") }
+        val payoutRows = rentalPayouts.findAllByVendorUserIdOrderByCreatedAtDesc(userId)
+        val carIds = payoutRows.mapNotNull { row -> rentalPayoutCarId(row.bookingId) }.distinct()
+        val carsById = cars.findAllById(carIds).associateBy { requireNotNull(it.id) }
+        return payoutRows.map { row ->
+            val carId = requireNotNull(rentalPayoutCarId(row.bookingId))
+            val car = carsById[carId]
+            RentalVendorPayoutResponse(
+                payoutId = row.payoutId, bookingId = row.bookingId, carId = carId.toString(),
+                carName = car?.name ?: "Car", grossAmount = row.grossAmount,
+                platformFeePercent = row.platformFeePercent, platformFeeAmount = row.platformFeeAmount,
+                vendorNetAmount = row.vendorNetAmount, status = row.status,
+                createdAt = row.createdAt, paidAt = row.paidAt
+            )
+        }
+    }
+
+    private fun rentalPayoutCarId(bookingId: String): Long? =
+        bookings.findByBookingId(bookingId).orElse(null)?.carId
+
     fun bookings(userId: Long, page: Int, size: Int): RentalBookingPageResponse {
         require(page >= 0)
         require(size in 1..100)
