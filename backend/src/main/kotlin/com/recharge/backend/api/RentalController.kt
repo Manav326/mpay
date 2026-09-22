@@ -46,10 +46,32 @@ class RentalController(
         roleAccessService.requirePermission(user, "VIEW_USERS")
     }
 
+    @GetMapping("/admin/vendors")
+    fun adminVendors(authentication: Authentication): List<RentalAdminVendorResponse> {
+        requireAdmin(authentication)
+        return rentalService.adminVendors()
+    }
+
+    @GetMapping("/admin/vendors/{vendorId}/vehicles")
+    fun adminVendorVehicles(authentication: Authentication, @PathVariable vendorId: Long): List<RentalCarResponse> {
+        requireAdmin(authentication)
+        return rentalService.adminVendorCars(vendorId)
+    }
+
     @PostMapping("/admin/vendors/{vendorId}/approve")
     fun approveVendor(authentication: Authentication, @PathVariable vendorId: Long): RentalVendorResponse {
         requireAdmin(authentication)
         return rentalService.approveVendor(vendorId)
+    }
+
+    @PostMapping("/admin/vendors/{vendorId}/reject")
+    fun rejectVendor(
+        authentication: Authentication,
+        @PathVariable vendorId: Long,
+        @RequestBody(required = false) request: RentalAdminDecisionRequest?
+    ): RentalVendorResponse {
+        requireAdmin(authentication)
+        return rentalService.rejectVendor(vendorId, request?.reason)
     }
 
     @PostMapping("/admin/vehicles/{carId}/approve")
