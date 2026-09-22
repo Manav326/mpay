@@ -377,6 +377,8 @@ private fun AppRoot(
     LaunchedEffect(currentRoute) {
         when (currentRoute) {
             "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
+            "car-rental" -> rentalViewModel.loadCars()
+            "rental-vendor" -> rentalViewModel.loadVendor()
             else -> if (currentRoute != "recharge" && currentRoute != "recharge-history") highlightTransactionId = null
         }
     }
@@ -419,7 +421,7 @@ private fun AppRoot(
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.padding(inner))
+            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.padding(inner))
         }
     }
 }
@@ -509,11 +511,9 @@ private fun AppNavHost(
             ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
         composable("car-rental") {
-            rentalViewModel.loadCars()
             CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() })
         }
         composable("rental-vendor") {
-            rentalViewModel.loadVendor()
             RentalVendorOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVendor, onBack = { nav.popBackStack() })
         }
         composable("recharge-history") {
