@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Car, CheckCircle2, Clock3, History, Home, LogOut, Menu,
+  ArrowRight, Car, Check, CheckCircle2, Clock3, Copy, History, Home, LogOut, Menu,
   ReceiptText, RefreshCw, Smartphone, UserRound, WalletCards, X
 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ type RechargeItem = {
 };
 type WalletItem = {
   id?: string | number; type?: string; amount?: number; status?: string;
-  referenceId?: string; description?: string; createdAt?: string;
+  referenceType?: string; referenceId?: string; description?: string; createdAt?: string;
 };
 type RentalCar = { id: string; name: string; category: string; seats: number; transmission: string; pricePerDay: number };
 type RentalQuote = {
@@ -62,6 +62,7 @@ export default function Portal() {
   const [rentalSearch, setRentalSearch] = useState({ startDate: '', endDate: '' });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [copiedBookingId, setCopiedBookingId] = useState<string>();
 
   const money = (n: any) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
   const days = useMemo(() => {
@@ -242,6 +243,44 @@ export default function Portal() {
     ['history','History',History], ['marketplace','Marketplace',Car], ['bookings','My Bookings',Clock3], ['account','Account',UserRound]
   ] as const;
 
+  function walletMovement(x: WalletItem) {
+    const referenceType = String(x.referenceType || '').toUpperCase();
+    const type = String(x.type || '').toUpperCase();
+
+    if (referenceType === 'RENTAL_REFUND') return { sign: '+', className: 'wallet-amount-credit', label: 'Car rental refund' };
+    if (referenceType === 'RENTAL_PAYMENT') return { sign: '-', className: 'wallet-amount-debit', label: 'Car rental payment' };
+    if (referenceType === 'ADD_MONEY' || type === 'CREDIT') return { sign: '+', className: 'wallet-amount-credit', label: 'Added money' };
+    if (referenceType === 'RECHARGE') return { sign: '-', className: 'wallet-amount-debit', label: 'Recharge' };
+    if (referenceType === 'WITHDRAWAL' || type === 'WITHDRAW' || type === 'DEBIT') return { sign: '-', className: 'wallet-amount-debit', label: 'Withdrawn money' };
+
+    return { sign: '', className: 'wallet-amount-neutral', label: x.description || x.type || 'Wallet transaction' };
+  }
+
+  function bookingCopyText(b: RentalBooking) {
+    return [
+      'mPay Car Rental Booking',
+      'Booking ID: ' + b.bookingId,
+      'Status: ' + String(b.status || 'UNKNOWN').toUpperCase(),
+      'Car: ' + b.carName,
+      'Pickup: ' + b.pickup,
+      'Drop: ' + b.drop,
+      'Start: ' + new Date(b.startDate).toLocaleString('en-IN'),
+      'End: ' + new Date(b.endDate).toLocaleString('en-IN'),
+      'Total: ' + money(b.total),
+    ].join('\n');
+  }
+
+  async function copyBooking(b: RentalBooking) {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard is not available in this browser.');
+      await navigator.clipboard.writeText(bookingCopyText(b));
+      setCopiedBookingId(b.bookingId);
+      window.setTimeout(() => setCopiedBookingId(current => current === b.bookingId ? undefined : current), 1500);
+    } catch (e: any) {
+      setNotice(e.message || 'Unable to copy booking details.');
+    }
+  }
+
   const status = (s?: string) => {
     const value = String(s || 'UNKNOWN').toUpperCase();
     return <span className={'status-pill status-' + value.toLowerCase()}>{value}</span>;
@@ -316,8 +355,10 @@ export default function Portal() {
         </div>
         <div className="portal-panel"><div className="panel-head"><div><h2>Wallet ledger</h2><p>Authoritative balance movements recorded by mPay.</p></div>
           <button className="landing-secondary" onClick={loadHistory}><RefreshCw size={15}/> Refresh</button></div>
-          {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i) =>
-            <div className="history-row" key={String(x.id || i)}><div><ReceiptText size={18}/><b>{x.description || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {x.createdAt ? new Date(x.createdAt).toLocaleString('en-IN') : '—'}</small></div><strong>{money(x.amount)}</strong>{status(x.status)}</div>)}</div>
+          {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i) => {
+            const movement = walletMovement(x);
+            return <div className="history-row" key={String(x.id || i)}><div><ReceiptText size={18}/><b>{movement.label}</b><small>{(x.description ? x.description + ' · ' : '') + (x.referenceId || '—')} · {x.createdAt ? new Date(x.createdAt).toLocaleString('en-IN') : '—'}</small></div><strong className={movement.className}>{movement.sign}{money(x.amount)}</strong>{status(x.status)}</div>;
+          })}</div>
           : <div className="empty-state">No wallet transactions were returned.</div>}
         </div>
       </section>}
@@ -365,7 +406,7 @@ export default function Portal() {
           {bookings.length ? <div className="history-list">{bookings.map(b =>
             <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b>
               <small>{b.bookingId} · {b.pickup} → {b.drop} · {new Date(b.startDate).toLocaleString('en-IN')} to {new Date(b.endDate).toLocaleString('en-IN')}</small>
-            </div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}<span>{new Date(b.createdAt || b.startDate).toLocaleString('en-IN')}</span></div></div>
+            </div><strong>{money(b.total)}</strong><div className="history-actions"><button className="copy-booking-btn" title={copiedBookingId === b.bookingId ? 'Copied' : 'Copy booking details'} onClick={() => copyBooking(b)}>{copiedBookingId === b.bookingId ? <Check size={15}/> : <Copy size={15}/>}</button>{status(b.status)}<span>{new Date(b.createdAt || b.startDate).toLocaleString('en-IN')}</span></div></div>
           )}</div> : <div className="empty-state">No rental bookings yet.</div>}
         </div>
       </section>}
@@ -416,7 +457,7 @@ export default function Portal() {
         </div>
         <div className="portal-panel"><div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
           {bookings.length ? <div className="history-list">{bookings.map(b =>
-            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}{b.status === 'CONFIRMED' && new Date(b.startDate).getTime() > Date.now() && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
+            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions"><button className="copy-booking-btn" title={copiedBookingId === b.bookingId ? 'Copied' : 'Copy booking details'} onClick={() => copyBooking(b)}>{copiedBookingId === b.bookingId ? <Check size={15}/> : <Copy size={15}/>}</button>{status(b.status)}{b.status === 'CONFIRMED' && new Date(b.startDate).getTime() > Date.now() && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
           : <div className="empty-state">No rental bookings yet.</div>}
         </div>
       </section>}
