@@ -151,6 +151,20 @@ class RentalService(
         )
     }
 
+    fun quoteBooking(userId: Long, request: RentalBookingQuoteRequest): RentalBookingQuoteResponse {
+        val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
+        check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
+        require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
+        require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
+        require(!request.startDate.isBefore(LocalDate.now())) { "Start date cannot be in the past" }
+        check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
+        val days = ChronoUnit.DAYS.between(request.startDate, request.endDate)
+        val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
+        val driver = drivers.findById(requireNotNull(car.driverId)).orElseThrow { IllegalArgumentException("Driver not found") }
+        return RentalBookingQuoteResponse(request.carId, car.name, driver.fullName, request.pickupLocation.trim(), request.dropLocation.trim(), request.startDate, request.endDate, days, car.pricePerDay.setScale(2), total)
+    }
+
     @Transactional
     fun createBooking(userId: Long, request: RentalBookingRequest): RentalBookingResponse {
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
