@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
