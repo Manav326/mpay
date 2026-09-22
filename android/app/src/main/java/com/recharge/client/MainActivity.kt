@@ -382,7 +382,7 @@ private fun AppRoot(
         when (currentRoute) {
             "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
             "marketplace" -> Unit
-            "car-rental" -> rentalViewModel.loadCars()
+            "car-rental" -> rentalViewModel.clearCarSearch()
             "rental-bookings" -> rentalViewModel.loadBookings()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
@@ -534,7 +534,7 @@ private fun AppNavHost(
                     nav.navigate("rental-booking")
                 },
                 onSearch = rentalViewModel::loadCars,
-                onRefresh = rentalViewModel::loadCars
+                onRefresh = rentalViewModel::clearCarSearch
             )
         }
         composable("rental-vendor") {
