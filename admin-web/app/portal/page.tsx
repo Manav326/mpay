@@ -20,6 +20,10 @@ type WalletItem = {
   referenceId?: string; description?: string; createdAt?: string;
 };
 type RentalCar = { id: string; name: string; category: string; seats: number; transmission: string; pricePerDay: number };
+type RentalQuote = {
+  carId: string; carName: string; driverName: string; pickup: string; drop: string;
+  startDate: string; endDate: string; days: number; pricePerDay: number; total: number;
+};
 type RentalBooking = {
   bookingId: string; carName: string; pickup: string; drop: string;
   startDate: string; endDate: string; total: number; status: string; createdAt?: string;
@@ -53,6 +57,7 @@ export default function Portal() {
   const [cars, setCars] = useState<RentalCar[]>([]);
   const [bookings, setBookings] = useState<RentalBooking[]>([]);
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
+  const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
   const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -148,9 +153,32 @@ export default function Portal() {
     } finally { setBusy(false); }
   }
 
-  async function bookCar() {
+  async function checkRentalFare() {
     if (!selectedCar || !rentalForm.pickup || !rentalForm.startDate || !rentalForm.endDate) {
       setNotice('Select a car, pickup location and valid rental dates.');
+      return;
+    }
+    setBusy(true); setNotice(''); setRentalQuote(undefined);
+    try {
+      const quote = await api<RentalQuote>('/api/v1/car-rental/bookings/quote', {
+        method: 'POST',
+        body: JSON.stringify({
+          carId: selectedCar.id,
+          pickupLocation: rentalForm.pickup,
+          dropLocation: rentalForm.drop || rentalForm.pickup,
+          startDate: rentalForm.startDate,
+          endDate: rentalForm.endDate
+        })
+      });
+      setRentalQuote(quote);
+    } catch (e: any) {
+      setNotice(e.message || 'Unable to calculate rental fare.');
+    } finally { setBusy(false); }
+  }
+
+  async function bookCar() {
+    if (!rentalQuote || !selectedCar) {
+      setNotice('Check the fare before confirming the booking.');
       return;
     }
     setBusy(true); setNotice('');
@@ -160,15 +188,16 @@ export default function Portal() {
         body: JSON.stringify({
           clientRequestId: crypto.randomUUID(),
           carId: selectedCar.id,
-          pickupLocation: rentalForm.pickup,
-          dropLocation: rentalForm.drop || rentalForm.pickup,
-          startDate: rentalForm.startDate,
-          endDate: rentalForm.endDate,
+          pickupLocation: rentalQuote.pickup,
+          dropLocation: rentalQuote.drop,
+          startDate: rentalQuote.startDate,
+          endDate: rentalQuote.endDate
         })
       });
       setBookings(b => [result, ...b]);
-      setNotice('Booking request submitted. Your booking status is shown below.');
+      setNotice('Booking confirmed. Your booking status is shown below.');
       setSelectedCar(undefined);
+      setRentalQuote(undefined);
       await loadRentalData();
     } catch (e: any) {
       setNotice(e.message || 'Car rental booking could not be submitted.');
@@ -305,7 +334,7 @@ export default function Portal() {
             <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
           </div>
           {cars.length ? <div className="rental-car-grid">{cars.map(car =>
-            <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => setSelectedCar(car)}>
+            <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => { setSelectedCar(car); setRentalQuote(undefined); }}>
               <div className="rental-car-icon"><Car size={26}/></div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong>
             </button>)}</div> : <div className="rental-empty-state">
               <div className="rental-empty-icon"><Car size={28}/></div>
@@ -313,8 +342,15 @@ export default function Portal() {
               <span>There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.</span>
               <button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Check again</button>
             </div>}
-          {selectedCar && <div className="rental-summary"><div><span>Selected</span><b>{selectedCar.name}</b></div><div><span>Duration</span><b>{days} day{days > 1 ? 's' : ''}</b></div><div><span>Estimated total</span><strong>{money(selectedCar.pricePerDay * days)}</strong></div>
-            <button className="landing-primary" disabled={busy} onClick={bookCar}>{busy ? 'Submitting…' : 'Request booking'} <ArrowRight size={16}/></button></div>}
+          {selectedCar && <div className="rental-summary">
+            <div><span>Selected</span><b>{selectedCar.name}</b></div>
+            <div><span>Billing</span><b>{rentalQuote ? rentalQuote.days + ' day' + (rentalQuote.days > 1 ? 's' : '') : 'Check fare'}</b></div>
+            <div><span>Total</span><strong>{rentalQuote ? money(rentalQuote.total) : '—'}</strong></div>
+            {!rentalQuote
+              ? <button className="landing-primary" disabled={busy} onClick={checkRentalFare}>{busy ? 'Calculating…' : 'Check fare'} <ArrowRight size={16}/></button>
+              : <button className="landing-primary" disabled={busy} onClick={bookCar}>{busy ? 'Confirming…' : 'Confirm booking'} <ArrowRight size={16}/></button>}
+            <p className="rental-pricing-note">Price is per 24-hour day. Any partial day is charged as one full day; time is used for duration and availability.</p>
+          </div>}
         </div>
         <div className="portal-panel"><div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
           {bookings.length ? <div className="history-list">{bookings.map(b =>
