@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.mockito.Mockito
 import java.math.BigDecimal
 import java.util.Optional
@@ -73,6 +75,34 @@ class WithdrawalServiceTest {
         assertEquals(0, mock.initiateCalls)
     }
 
+    @Test
+    fun withdrawalHistoryMapsPersistedRowsWithoutLosingUpiOrProviderDetails() {
+        val entity = withdrawal(
+            id = "WDR-HISTORY",
+            requestId = "REQ-HISTORY",
+            status = "SUCCESS",
+            provider = "mock",
+            upiId = "test@mockupi"
+        )
+        entity.providerReference = "mock_WDR-HISTORY"
+        entity.providerStatus = "PROCESSED"
+        Mockito.doReturn(
+            PageImpl(
+                listOf(entity),
+                PageRequest.of(0, 20),
+                1
+            )
+        ).`when`(withdrawals).findByUserIdOrderByCreatedAtDesc(42L, PageRequest.of(0, 20))
+
+        val response = service.history(42L, 0, 20)
+
+        assertEquals(1, response.items.size)
+        assertEquals("WDR-HISTORY", response.items.single().withdrawalId)
+        assertEquals("test@mockupi", response.items.single().upiId)
+        assertEquals("mock", response.items.single().provider)
+        assertEquals("SUCCESS", response.items.single().status)
+        assertEquals("mock_WDR-HISTORY", response.items.single().providerReference)
+    }
     @Test
     fun malformedUpiIsRejectedBeforePersistenceOrMockProviderCall() {
         val user = user(42L)
