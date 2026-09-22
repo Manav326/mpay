@@ -32,7 +32,7 @@ class PaymentGatewayServiceTest {
             1L, CreatePaymentOrderRequest(BigDecimal("100.00"), "REQ-MOCK-1", "mock")
         )
         assertEquals("mock", created.provider)
-        assertEquals("MOCK-PAY-1", saved.razorpayOrderId.takeIf { created.orderId == "MOCK-PAY-1" } ?: created.orderId)
+        assertEquals("MOCK-PAY-1", created.orderId)
 
         val settlementResponse = VerifyPaymentResponse("CAPTURED", BigDecimal("100.00"))
         Mockito.doReturn(java.util.Optional.of(saved)).`when`(orders).findByRazorpayOrderIdAndUserId("MOCK-PAY-1", 1L)
