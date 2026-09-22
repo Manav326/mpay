@@ -47,3 +47,14 @@
   .home-marketplace-copy p{font-size:10px}
   .home-recharge-history{padding:15px}
 }
+
+/* Rental search and wallet payment surfaces */
+.rental-search-panel{margin-top:16px;padding:18px;border:1px solid #e4d9fb;border-radius:18px;background:#faf8ff}
+.rental-search-fields{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.rental-search-fields label{font-size:10px;color:#746b7f;font-weight:800}
+.rental-search-fields input{display:block;width:100%;box-sizing:border-box;margin-top:6px;border:1px solid #e7e0ef;border-radius:12px;padding:11px;background:#fff}
+.rental-search-panel p{margin:12px 0;color:#80768d;font-size:10px;line-height:1.55}
+.rental-search-panel .landing-primary{border:0;cursor:pointer}
+.rental-search-panel .landing-primary:disabled{opacity:.55;cursor:not-allowed}
+.rental-summary{grid-template-columns:1fr 1fr 1fr 1fr auto}
+@media(max-width:800px){.rental-search-fields{grid-template-columns:1fr}.rental-summary{grid-template-columns:1fr}.rental-summary .landing-primary{width:100%}}
