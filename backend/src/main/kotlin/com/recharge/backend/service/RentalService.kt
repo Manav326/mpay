@@ -21,6 +21,7 @@ class RentalService(
     private val drivers: RentalDriverRepository,
     private val cars: RentalCarRepository,
     private val bookings: RentalBookingRepository,
+    private val vehicleUnavailability: RentalVehicleUnavailabilityRepository,
     private val users: UserRepository,
     private val rentalPayments: RentalPaymentService,
     private val rentalPaymentRepository: RentalPaymentRepository,
@@ -212,12 +213,19 @@ class RentalService(
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
         val availabilityWindow = if (startDate != null && endDate != null) startDate to endDate else null
         val blockedCarIds = availabilityWindow?.let { (windowStart, windowEnd) ->
-            bookings.findOverlappingCarIds(
-                available.mapNotNull { it.id },
+            val carIds = available.mapNotNull { it.id }
+            val blockedByBookings = bookings.findOverlappingCarIds(
+                carIds,
                 listOf("PENDING", "CONFIRMED"),
                 windowStart,
                 windowEnd
             )
+            val blockedByOffMarket = vehicleUnavailability.findOverlappingCarIds(
+                carIds,
+                windowStart.toLocalDate(),
+                windowEnd.toLocalDate()
+            )
+            blockedByBookings + blockedByOffMarket
         } ?: emptySet()
         return available
             .filter { car ->
@@ -280,6 +288,7 @@ class RentalService(
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
+        check(!vehicleUnavailability.existsOverlapping(carId, request.startDate.toLocalDate(), request.endDate.toLocalDate())) { "This vehicle is unavailable for the selected dates" }
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
         val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
@@ -323,6 +332,7 @@ class RentalService(
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
+        check(!vehicleUnavailability.existsOverlapping(carId, request.startDate.toLocalDate(), request.endDate.toLocalDate())) { "This vehicle is unavailable for the selected dates" }
 
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
         val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
