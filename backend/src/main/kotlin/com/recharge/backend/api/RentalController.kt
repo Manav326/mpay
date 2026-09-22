@@ -1,13 +1,19 @@
 package com.recharge.backend.api
 
 import com.recharge.backend.service.RentalService
+import com.recharge.backend.service.RoleAccessService
+import com.recharge.backend.repository.UserRepository
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/car-rental")
-class RentalController(private val rentalService: RentalService) {
+class RentalController(
+    private val rentalService: RentalService,
+    private val users: UserRepository,
+    private val roleAccessService: RoleAccessService
+) {
     private fun userId(authentication: Authentication): Long =
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
 
@@ -34,15 +40,21 @@ class RentalController(private val rentalService: RentalService) {
         @Valid @RequestBody request: RentalVehicleOnboardingRequest
     ): RentalCarResponse = rentalService.onboardVehicle(userId(authentication), request)
 
+    private fun requireAdmin(authentication: Authentication) {
+        val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+        val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
+        roleAccessService.requirePermission(user, "VIEW_USERS")
+    }
+
     @PostMapping("/admin/vendors/{vendorId}/approve")
     fun approveVendor(authentication: Authentication, @PathVariable vendorId: Long): RentalVendorResponse {
-        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+        requireAdmin(authentication)
         return rentalService.approveVendor(vendorId)
     }
 
     @PostMapping("/admin/vehicles/{carId}/approve")
     fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
-        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+        requireAdmin(authentication)
         return rentalService.approveVehicle(carId)
     }
 
