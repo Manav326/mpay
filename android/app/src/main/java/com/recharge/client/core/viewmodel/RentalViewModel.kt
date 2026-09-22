@@ -15,6 +15,8 @@ data class RentalUiState(
     val vendorCars: List<RentalCarResponse> = emptyList(),
     val bookings: List<RentalBookingResponse> = emptyList(),
     val payouts: List<RentalVendorPayoutResponse> = emptyList(),
+    val vehicleUnavailabilityByCar: Map<String, List<RentalVehicleUnavailabilityResponse>> = emptyMap(),
+    val vehicleCalendar: RentalVehicleCalendarResponse? = null,
     val loading: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null
@@ -107,6 +109,66 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
             repository.rentalVendorVehicles()
                 .onSuccess { _state.value = _state.value.copy(vendorCars = it, loading = false) }
                 .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load vendor vehicles") }
+        }
+    }
+
+    fun takeVehicleOffMarket(
+        carId: String,
+        request: RentalVehicleUnavailabilityRequest,
+        onDone: () -> Unit
+    ) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.takeRentalVehicleOffMarket(carId, request)
+                .onSuccess { created ->
+                    val current = _state.value.vehicleUnavailabilityByCar[carId].orEmpty()
+                    _state.value = _state.value.copy(
+                        vehicleUnavailabilityByCar = _state.value.vehicleUnavailabilityByCar + (carId to (current + created).sortedBy { it.startDate }),
+                        saving = false
+                    )
+                    onDone()
+                }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to take vehicle off market") }
+        }
+    }
+
+    fun loadVehicleUnavailability(carId: String) {
+        viewModelScope.launch {
+            repository.rentalVehicleUnavailability(carId)
+                .onSuccess { rows ->
+                    _state.value = _state.value.copy(
+                        vehicleUnavailabilityByCar = _state.value.vehicleUnavailabilityByCar + (carId to rows)
+                    )
+                }
+                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vehicle availability") }
+        }
+    }
+
+    fun restoreVehicleToMarket(carId: String, unavailableId: String, onDone: () -> Unit = {}) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.restoreRentalVehicleToMarket(carId, unavailableId)
+                .onSuccess {
+                    val rows = _state.value.vehicleUnavailabilityByCar[carId].orEmpty()
+                        .filterNot { it.id == unavailableId }
+                    _state.value = _state.value.copy(
+                        vehicleUnavailabilityByCar = _state.value.vehicleUnavailabilityByCar + (carId to rows),
+                        saving = false
+                    )
+                    onDone()
+                }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to restore vehicle to market") }
+        }
+    }
+
+    fun loadVehicleCalendar(carId: String, year: Int, month: Int) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(error = null)
+            repository.rentalVehicleCalendar(carId, year, month)
+                .onSuccess { _state.value = _state.value.copy(vehicleCalendar = it) }
+                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vehicle calendar") }
         }
     }
 
