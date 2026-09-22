@@ -14,6 +14,7 @@ import java.time.LocalDateTime
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import java.util.UUID
+import org.springframework.web.multipart.MultipartFile
 
 @Service
 class RentalService(
@@ -26,6 +27,7 @@ class RentalService(
     private val rentalPayments: RentalPaymentService,
     private val rentalPaymentRepository: RentalPaymentRepository,
     private val rentalPayouts: RentalPayoutService,
+    private val rentalImageStorage: RentalImageStorage,
     private val vendorReviews: RentalVendorReviewRepository,
     private val carReviews: RentalCarReviewRepository
 ) {
@@ -376,6 +378,53 @@ class RentalService(
     }
 
     @Transactional
+    fun uploadVehiclePhoto(
+        userId: Long,
+        carId: Long,
+        slot: Int,
+        photo: MultipartFile
+    ): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+
+        val car = cars.findByIdForUpdate(carId)
+            .orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+
+        val slots = rentalPhotoSlots(car.imageUrl)
+        val oldValue = slots[slot]
+        val oldStoredKey = oldValue
+            .removePrefix(RENTAL_PHOTO_URL_PREFIX)
+            .takeIf { oldValue.startsWith(RENTAL_PHOTO_URL_PREFIX) }
+
+        val newKey = rentalImageStorage.save(carId, slot, photo)
+        slots[slot] = RENTAL_PHOTO_URL_PREFIX + newKey
+        val combined = slots.joinToString("|").takeIf { slots.any { it.isNotBlank() } }
+        require(combined == null || combined.length <= 500) {
+            rentalImageStorage.delete(newKey)
+            "Vehicle photo references exceed the maximum supported length"
+        }
+
+        try {
+            car.imageUrl = combined
+            car.updatedAt = Instant.now()
+            cars.save(car)
+        } catch (error: Exception) {
+            rentalImageStorage.delete(newKey)
+            throw error
+        }
+
+        if (oldStoredKey != null) {
+            rentalImageStorage.delete(oldStoredKey)
+        }
+        return toCarResponse(car)
+    }
+
+    fun rentalImage(key: String): RentalImageStorage.StoredImage =
+        rentalImageStorage.load(key) ?: throw IllegalArgumentException("Vehicle photo not found")
+
+    @Transactional
     fun takeVehicleOffMarket(
         userId: Long,
         carId: Long,
@@ -669,6 +718,15 @@ class RentalService(
         return vendor
     }
 
+    private fun rentalPhotoSlots(imageUrl: String?): MutableList<String> {
+        val values = imageUrl.orEmpty()
+            .replace("\n", "|")
+            .split("|")
+            .take(4)
+            .map { it.trim() }
+        return MutableList(4) { index -> values.getOrNull(index).orEmpty() }
+    }
+
     private fun toCarResponse(car: RentalCarEntity): RentalCarResponse {
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
         return RentalCarResponse(
@@ -683,6 +741,10 @@ class RentalService(
             state = car.state, driverLicenseNumber = driver?.licenseNumber,
             driverLicenseExpiry = driver?.licenseExpiry, driverAddress = driver?.address
         )
+    }
+
+    companion object {
+        private const val RENTAL_PHOTO_URL_PREFIX = "/api/v1/car-rental/photos/"
     }
 
     private fun toBookingResponse(b: RentalBookingEntity, carName: String, driver: RentalDriverEntity?) =
