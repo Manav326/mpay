@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - 'android/**'
+      - '.github/workflows/android-apk.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'android/**'
+      - '.github/workflows/android-apk.yml'
 
 concurrency:
   group: mpay-android-ci-${{ github.head_ref || github.ref_name }}
@@ -44,30 +46,13 @@ jobs:
         run: |
           rm -rf ~/.gradle/caches/*/transforms
 
-      - name: Build debug APK (PR validation)
-        if: github.event_name == 'pull_request'
-        working-directory: android
-        run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleDebug
-
-      - name: Build optimized release APK (main)
-        if: github.event_name == 'push' && github.ref_name == 'main'
+      - name: Build optimized release APK
         working-directory: android
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace :app:assembleRelease
 
-      - name: Verify debug APK and report size
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          test -f android/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
-          stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Verify release APK and report size
-        if: github.event_name == 'push' && github.ref_name == 'main'
+      - name: Verify optimized release APK and report size
         shell: bash
         run: |
           test -f android/app/build/outputs/apk/release/app-release.apk
@@ -79,25 +64,10 @@ jobs:
         run: |
           branch_name="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "MPAY_APK_ARTIFACT_NAME=mpay-android-debug-${safe_branch}" >> "${GITHUB_ENV}"
-            echo "APK artifact: mpay-android-debug-${safe_branch}"
-          else
-            echo "MPAY_APK_ARTIFACT_NAME=mpay-android-release-${safe_branch}" >> "${GITHUB_ENV}"
-            echo "APK artifact: mpay-android-release-${safe_branch}"
-          fi
-
-      - name: Upload debug APK
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30
+          echo "MPAY_APK_ARTIFACT_NAME=mpay-android-release-${safe_branch}" >> "${GITHUB_ENV}"
+          echo "APK artifact: mpay-android-release-${safe_branch}"
 
       - name: Upload optimized release APK
-        if: github.event_name == 'push' && github.ref_name == 'main'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
