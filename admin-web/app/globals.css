@@ -47,3 +47,17 @@
   .home-marketplace-copy p{font-size:10px}
   .home-recharge-history{padding:15px}
 }
+
+.rental-search-card{margin-top:17px;padding:18px;border:1px solid #d9ebf8;border-radius:18px;background:#f5faff;display:grid;gap:12px}
+.rental-search-card>div:first-child b,.rental-search-card>div:first-child span{display:block}
+.rental-search-card>div:first-child b{font-size:15px;color:#294655}
+.rental-search-card>div:first-child span{margin-top:4px;color:#75848d;font-size:11px;line-height:1.5}
+.rental-search-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.rental-search-grid label{font-size:10px;color:#6f7f89;font-weight:800}
+.rental-search-grid input{display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid #dce9f0;border-radius:11px;padding:10px;background:#fff}
+.rental-search-actions{display:flex;justify-content:flex-end;gap:8px}
+.rental-search-card small{color:#7b8a92;font-size:10px}
+.rental-payment-source{grid-column:1 / -1;display:flex;align-items:center;gap:7px;padding-top:8px;border-top:1px solid rgba(151,117,56,.14);color:#6f4b0b}
+.rental-payment-source span{font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.rental-payment-source b{font-size:11px}
+@media(max-width:800px){.rental-search-grid{grid-template-columns:1fr}.rental-search-actions{width:100%}.rental-search-actions button{flex:1}}
