@@ -1359,53 +1359,150 @@ private fun RentalVehicleDetailsDialog(
     car: RentalCarResponse,
     onDismiss: () -> Unit
 ) {
+    val status = car.approvalStatus?.replace("_", " ")?.uppercase() ?: "—"
+    val statusColor = when (car.approvalStatus?.uppercase()) {
+        "APPROVED" -> AppColors.Success
+        "REJECTED" -> AppColors.Error
+        else -> Color(0xFFB45309)
+    }
     Dialog(onDismissRequest = onDismiss) {
-        Card(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(20.dp)) {
+        Card(
+            Modifier.fillMaxWidth().padding(10.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
             LazyColumn(
-                Modifier.fillMaxWidth().padding(15.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(car.name, style = MaterialTheme.typography.titleLarge)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(car.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF102A43))
                             Text(
-                                car.category + " • " + car.seats + " seats • " + car.transmission,
-                                color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.bodySmall
+                                listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category },
+                                color = Color(0xFF2563EB),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                        TextButton(onClick = onDismiss) { Text("Close") }
+                        Surface(shape = RoundedCornerShape(14.dp), color = statusColor.copy(alpha = .12f)) {
+                            Text(status, color = statusColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
+                        }
                     }
                 }
                 item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        rentalPhotoSlots(car.imageUrl).forEach { photo ->
-                            RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1f))
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Vehicle photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                rentalPhotoSlots(car.imageUrl).forEach { photo ->
+                                    RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1.05f))
+                                }
+                            }
                         }
                     }
                 }
-                item { Text("Vehicle details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-                item { Text("Make / model: " + listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { "—" }) }
-                item { Text("Category / seats: " + car.category + " / " + car.seats) }
-                item { Text("Transmission / fuel: " + car.transmission + " / " + (car.fuelType ?: "—")) }
-                item { Text("Manufacturing year: " + (car.manufacturingYear?.toString() ?: "—")) }
-                item { Text("Registration year: " + (car.registrationYear?.toString() ?: "—")) }
-                item { Text("Registration number: " + (car.registrationNumber ?: "—")) }
-                item { Text("Price per day: ₹" + car.pricePerDay.setScale(2).toPlainString()) }
-                item { Text("Pickup address: " + (car.pickupAddress ?: "—")) }
-                item { Text("City / state: " + listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }) }
-                item { Text("Approval status: " + (car.approvalStatus ?: "—")) }
-                car.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
-                    item { Text("Review note: " + reason, color = AppColors.Error) }
+                item {
+                    RentalDetailSection(
+                        title = "Vehicle overview",
+                        tint = Color(0xFF1D4ED8),
+                        rows = listOf(
+                            "Make / model" to listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { "—" },
+                            "Category / seats" to (car.category + " / " + car.seats),
+                            "Transmission / fuel" to (car.transmission + " / " + (car.fuelType ?: "—")),
+                            "Manufacturing year" to (car.manufacturingYear?.toString() ?: "—"),
+                            "Registration year" to (car.registrationYear?.toString() ?: "—")
+                        )
+                    )
                 }
-                item { Text("Driver details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-                item { Text("Name: " + car.driverName) }
-                item { Text("Mobile: " + (car.driverMobile ?: "—")) }
-                item { Text("Licence number: " + (car.driverLicenseNumber ?: "—")) }
-                item { Text("Licence expiry: " + (car.driverLicenseExpiry ?: "—")) }
-                item { Text("Driver address: " + (car.driverAddress ?: "—")) }
+                item {
+                    RentalDetailSection(
+                        title = "Pricing & location",
+                        tint = Color(0xFF0F766E),
+                        rows = listOf(
+                            "Price per day" to ("₹" + car.pricePerDay.setScale(2).toPlainString()),
+                            "Registration number" to (car.registrationNumber ?: "—"),
+                            "Pickup address" to (car.pickupAddress ?: "—"),
+                            "City / state" to listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }
+                        )
+                    )
+                }
+                car.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
+                    item {
+                        Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Error.copy(alpha = .08f)) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Review note", style = MaterialTheme.typography.labelLarge, color = AppColors.Error, fontWeight = FontWeight.Bold)
+                                Text(reason, color = Color(0xFF7F1D1D), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+                item {
+                    RentalDetailSection(
+                        title = "Driver details",
+                        tint = Color(0xFF7C3AED),
+                        rows = listOf(
+                            "Name" to car.driverName,
+                            "Mobile" to (car.driverMobile ?: "—"),
+                            "Licence number" to (car.driverLicenseNumber ?: "—"),
+                            "Licence expiry" to (car.driverLicenseExpiry ?: "—"),
+                            "Driver address" to (car.driverAddress ?: "—")
+                        )
+                    )
+                }
+                item {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                        Text("Close details")
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun RentalDetailSection(
+    title: String,
+    tint: Color,
+    rows: List<Pair<String, String>>
+) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = tint)
+            HorizontalDivider()
+            rows.forEach { (label, value) ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                    Text(label, modifier = Modifier.weight(.85f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text(value, modifier = Modifier.weight(1.15f), textAlign = androidx.compose.ui.text.style.TextAlign.End, color = Color(0xFF1F2937), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VendorEarningsCard(
+    label: String,
+    value: BigDecimal,
+    background: Color,
+    valueColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = background),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary, maxLines = 1)
+            Text("₹" + value.setScale(2).toPlainString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = valueColor, maxLines = 1)
         }
     }
 }
