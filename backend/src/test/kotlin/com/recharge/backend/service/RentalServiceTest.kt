@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.RentalBookingRequest
+import com.recharge.backend.api.RentalVehicleUnavailabilityRequest
 import com.recharge.backend.domain.RentalBookingEntity
 import com.recharge.backend.domain.RentalCarEntity
 import com.recharge.backend.repository.RentalBookingRepository
@@ -9,6 +10,7 @@ import com.recharge.backend.repository.RentalVendorRepository
 import com.recharge.backend.repository.RentalDriverRepository
 import com.recharge.backend.repository.RentalVendorReviewRepository
 import com.recharge.backend.repository.RentalCarReviewRepository
+import com.recharge.backend.repository.RentalVehicleUnavailabilityRepository
 import com.recharge.backend.repository.RentalPaymentRepository
 import com.recharge.backend.repository.UserRepository
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -26,13 +28,15 @@ class RentalServiceTest {
     private val drivers = Mockito.mock(RentalDriverRepository::class.java)
     private val cars = Mockito.mock(RentalCarRepository::class.java)
     private val bookings = Mockito.mock(RentalBookingRepository::class.java)
+    private val vehicleUnavailability = Mockito.mock(RentalVehicleUnavailabilityRepository::class.java)
     private val users = Mockito.mock(UserRepository::class.java)
     private val rentalPayments = Mockito.mock(RentalPaymentService::class.java)
     private val rentalPaymentRepository = Mockito.mock(RentalPaymentRepository::class.java)
     private val rentalPayouts = Mockito.mock(RentalPayoutService::class.java)
+    private val rentalImageStorage = Mockito.mock(RentalImageStorage::class.java)
     private val vendorReviews = Mockito.mock(RentalVendorReviewRepository::class.java)
     private val carReviews = Mockito.mock(RentalCarReviewRepository::class.java)
-    private val service = RentalService(vendors, drivers, cars, bookings, users, rentalPayments, rentalPaymentRepository, rentalPayouts, vendorReviews, carReviews)
+    private val service = RentalService(vendors, drivers, cars, bookings, vehicleUnavailability, users, rentalPayments, rentalPaymentRepository, rentalPayouts, rentalImageStorage, vendorReviews, carReviews)
 
     @Test
     fun bookingTotalIsCalculatedServerSideAndRentalPaymentIsUsed() {
@@ -90,6 +94,77 @@ class RentalServiceTest {
         return BigDecimal.ZERO
     }
 
+    @Test
+    fun vendorCanTakeApprovedVehicleOffMarketWithReason() {
+        val vendor = com.recharge.backend.domain.RentalVendorEntity(
+            id = 9L, userId = 99L, status = "VERIFIED", fullName = "Vendor",
+            address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+        )
+        val car = RentalCarEntity(
+            id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
+            transmission = "Automatic", active = true, vendorId = 9L, driverId = 10L, approvalStatus = "APPROVED"
+        )
+        val start = LocalDate.now().plusDays(3)
+        val end = start.plusDays(4)
+        val saved = com.recharge.backend.domain.RentalVehicleUnavailabilityEntity(
+            id = 55L, carId = 7L, vendorId = 9L, vendorUserId = 99L,
+            startDate = start, endDate = end, reasonCode = "SERVICE_MAINTENANCE", reasonNote = "Routine service"
+        )
+
+        Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findByUserId(99L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(7L)
+        Mockito.doReturn(false).`when`(bookings).existsOverlapping(
+            7L, listOf("PENDING", "CONFIRMED"), start.atStartOfDay(), end.plusDays(1).atStartOfDay()
+        )
+        Mockito.doReturn(false).`when`(vehicleUnavailability).existsOverlapping(7L, start, end)
+        Mockito.doReturn(saved).`when`(vehicleUnavailability).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
+
+        val result = service.takeVehicleOffMarket(
+            99L, 7L,
+            RentalVehicleUnavailabilityRequest(
+                reasonCode = "SERVICE_MAINTENANCE", reasonNote = "Routine service", startDate = start, endDate = end
+            )
+        )
+
+        assertEquals("55", result.id)
+        assertEquals("SERVICE_MAINTENANCE", result.reasonCode)
+        assertEquals(start, result.startDate)
+        assertEquals(end, result.endDate)
+        Mockito.verify(vehicleUnavailability).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
+    }
+
+    @Test
+    fun vendorCannotTakeVehicleOffMarketWhenBookingOverlaps() {
+        val vendor = com.recharge.backend.domain.RentalVendorEntity(
+            id = 9L, userId = 99L, status = "VERIFIED", fullName = "Vendor",
+            address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+        )
+        val car = RentalCarEntity(
+            id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
+            transmission = "Automatic", active = true, vendorId = 9L, driverId = 10L, approvalStatus = "APPROVED"
+        )
+        val start = LocalDate.now().plusDays(2)
+        val end = start.plusDays(2)
+
+        Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findByUserId(99L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(7L)
+        Mockito.doReturn(true).`when`(bookings).existsOverlapping(
+            7L, listOf("PENDING", "CONFIRMED"), start.atStartOfDay(), end.plusDays(1).atStartOfDay()
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            service.takeVehicleOffMarket(
+                99L, 7L,
+                RentalVehicleUnavailabilityRequest(
+                    reasonCode = "PRIVATE_USE",
+                    startDate = start,
+                    endDate = end
+                )
+            )
+        }
+        Mockito.verify(cars).findByIdForUpdate(7L)
+        Mockito.verify(vehicleUnavailability, Mockito.never()).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
+    }
     @Test
     fun completingBookingLocksItAndSettlesPayoutOnlyOnce() {
         val booking = RentalBookingEntity(
@@ -231,6 +306,39 @@ class RentalServiceTest {
             )
         }
         Mockito.verifyNoInteractions(rentalPayments)
+    }
+
+    @Test
+    fun createBookingRejectsDriverWhoseLicenceExpiresDuringRental() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusDays(3)
+        val car = RentalCarEntity(
+            id = 44L, name = "Test SUV", category = "SUV", seats = 5,
+            transmission = "Automatic", pricePerDay = BigDecimal("1500.00"),
+            active = true, vendorId = 55L, driverId = 56L, approvalStatus = "APPROVED"
+        )
+        val driver = com.recharge.backend.domain.RentalDriverEntity(
+            id = 56L, vendorId = 55L, fullName = "Driver", mobile = "9999999999",
+            licenseNumber = "DL", licenseExpiry = end.minusMinutes(1), active = true
+        )
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalPaymentEntity>())
+            .`when`(rentalPaymentRepository)
+            .findByUserIdAndClientRequestId(42L, "expired-driver")
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(44L)
+        Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalVendorEntity(
+            id = 55L, userId = 99L, fullName = "Vendor", address = "Address",
+            city = "Patna", state = "Bihar", pinCode = "800001"
+        ))).`when`(vendors).findById(55L)
+        Mockito.doReturn(Optional.of(driver)).`when`(drivers).findById(56L)
+
+        assertThrows(IllegalStateException::class.java) {
+            service.createBooking(
+                42L,
+                RentalBookingRequest("expired-driver", "44", "Patna", "Gaya", start, end)
+            )
+        }
+        Mockito.verifyNoInteractions(rentalPayments)
+        Mockito.verify(bookings, Mockito.never()).save(Mockito.any(RentalBookingEntity::class.java))
     }
 
     @Test

@@ -173,3 +173,39 @@ data class RentalVendorPayoutResponse(
     val createdAt: String,
     val paidAt: String? = null
 )
+
+
+data class RentalVehicleUnavailabilityRequest(
+    val reasonCode: String,
+    val reasonNote: String? = null,
+    val startDate: String,
+    val endDate: String
+)
+
+data class RentalVehicleUnavailabilityResponse(
+    val id: String,
+    val carId: String,
+    val startDate: String,
+    val endDate: String,
+    val reasonCode: String,
+    val reasonLabel: String,
+    val reasonNote: String? = null,
+    val status: String,
+    val createdAt: String
+)
+
+data class RentalVehicleCalendarDayResponse(
+    val date: String,
+    val status: String,
+    val bookingId: String? = null,
+    val reasonCode: String? = null,
+    val reasonLabel: String? = null
+)
+
+data class RentalVehicleCalendarResponse(
+    val carId: String,
+    val carName: String,
+    val year: Int,
+    val month: Int,
+    val days: List<RentalVehicleCalendarDayResponse>
+)

@@ -41,6 +41,33 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
     fun findByBookingIdForUpdate(@Param("bookingId") bookingId: String): Optional<RentalBookingEntity>
 
     fun findAllByBookingIdIn(bookingIds: Collection<String>): List<RentalBookingEntity>
+    @Query("""
+        select b from RentalBookingEntity b
+        where b.carId = :carId
+          and b.status in :statuses
+          and b.startDate < :rangeEnd
+          and b.endDate > :rangeStart
+        order by b.startDate asc
+    """)
+    fun findCalendarBookings(
+        @Param("carId") carId: Long,
+        @Param("statuses") statuses: Collection<String>,
+        @Param("rangeStart") rangeStart: LocalDateTime,
+        @Param("rangeEnd") rangeEnd: LocalDateTime
+    ): List<RentalBookingEntity>
+
+    @Query("""
+        select distinct b.carId from RentalBookingEntity b
+        where b.carId in :carIds and b.status in :statuses
+          and b.startDate < :endDate and b.endDate > :startDate
+    """)
+    fun findOverlappingCarIds(
+        @Param("carIds") carIds: Collection<Long>,
+        @Param("statuses") statuses: Collection<String>,
+        @Param("startDate") startDate: LocalDateTime,
+        @Param("endDate") endDate: LocalDateTime
+    ): Set<Long>
+
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalBookingEntity>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
 
@@ -55,6 +82,52 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
         @Param("startDate") startDate: LocalDateTime,
         @Param("endDate") endDate: LocalDateTime
     ): Boolean
+}
+
+interface RentalVehicleUnavailabilityRepository : JpaRepository<RentalVehicleUnavailabilityEntity, Long> {
+    @Query("""
+        select u from RentalVehicleUnavailabilityEntity u
+        where u.carId = :carId
+          and u.status = 'ACTIVE'
+          and u.startDate <= :endDate
+          and u.endDate >= :startDate
+        order by u.startDate asc
+    """)
+    fun findOverlapping(
+        @Param("carId") carId: Long,
+        @Param("startDate") startDate: java.time.LocalDate,
+        @Param("endDate") endDate: java.time.LocalDate
+    ): List<RentalVehicleUnavailabilityEntity>
+
+    @Query("""
+        select count(u) > 0 from RentalVehicleUnavailabilityEntity u
+        where u.carId = :carId
+          and u.status = 'ACTIVE'
+          and u.startDate <= :endDate
+          and u.endDate >= :startDate
+    """)
+    fun existsOverlapping(
+        @Param("carId") carId: Long,
+        @Param("startDate") startDate: java.time.LocalDate,
+        @Param("endDate") endDate: java.time.LocalDate
+    ): Boolean
+
+    @Query("""
+        select distinct u.carId from RentalVehicleUnavailabilityEntity u
+        where u.carId in :carIds
+          and u.status = 'ACTIVE'
+          and u.startDate <= :endDate
+          and u.endDate >= :startDate
+    """)
+    fun findOverlappingCarIds(
+        @Param("carIds") carIds: Collection<Long>,
+        @Param("startDate") startDate: java.time.LocalDate,
+        @Param("endDate") endDate: java.time.LocalDate
+    ): Set<Long>
+
+    fun findAllByCarIdOrderByStartDateAsc(carId: Long): List<RentalVehicleUnavailabilityEntity>
+
+    fun findAllByVendorIdOrderByStartDateAsc(vendorId: Long): List<RentalVehicleUnavailabilityEntity>
 }
 
 

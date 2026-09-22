@@ -382,7 +382,7 @@ private fun AppRoot(
         when (currentRoute) {
             "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
             "marketplace" -> Unit
-            "car-rental" -> rentalViewModel.loadCars()
+            "car-rental" -> rentalViewModel.clearCarSearch()
             "rental-bookings" -> rentalViewModel.loadBookings()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
@@ -522,7 +522,20 @@ private fun AppNavHost(
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
         }
         composable("car-rental") {
-            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") }, onRefresh = rentalViewModel::loadCars)
+            CarRentalMarketplaceScreen(
+                state = rentalViewModel.state.collectAsState().value,
+                onBack = { nav.popBackStack() },
+                onBook = { car, startDate, endDate ->
+                    nav.currentBackStackEntry?.savedStateHandle?.apply {
+                        set("rental_car_id", car.id)
+                        set("rental_start_date", startDate)
+                        set("rental_end_date", endDate)
+                    }
+                    nav.navigate("rental-booking")
+                },
+                onSearch = rentalViewModel::loadCars,
+                onClearFilter = { rentalViewModel.loadCars() }
+            )
         }
         composable("rental-vendor") {
             RentalVendorOnboardingScreen(
@@ -535,21 +548,37 @@ private fun AppNavHost(
                 onAddVehicleWithCar = { car ->
                     nav.currentBackStackEntry?.savedStateHandle?.set("rental_edit_car_id", car.id)
                     nav.navigate("rental-vehicle")
-                }
+                },
+                onLoadVehicleAvailability = rentalViewModel::loadVehicleUnavailability,
+                onTakeVehicleOffMarket = rentalViewModel::takeVehicleOffMarket,
+                onRestoreVehicleToMarket = rentalViewModel::restoreVehicleToMarket,
+                onLoadVehicleCalendar = rentalViewModel::loadVehicleCalendar
             )
         }
         composable("rental-booking") {
             val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
             val car = rentalViewModel.state.collectAsState().value.cars.firstOrNull { it.id == carId }
             if (car != null) {
-                RentalBookingScreen(car = car, state = rentalViewModel.state.collectAsState().value, onQuote = rentalViewModel::quoteBooking, onBack = { nav.popBackStack() }, onConfirm = rentalViewModel::createBooking)
+                RentalBookingScreen(
+                    car = car,
+                    state = rentalViewModel.state.collectAsState().value,
+                    onQuote = rentalViewModel::quoteBooking,
+                    onBack = { nav.popBackStack() },
+                    onConfirm = rentalViewModel::createBooking,
+                    initialStart = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_start_date"),
+                    initialEnd = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_end_date")
+                )
             }
         }
         composable("rental-bookings") {
             RentalMyBookingsScreen(
                 state = rentalViewModel.state.collectAsState().value,
                 onRefresh = rentalViewModel::loadBookings,
-                onBack = { nav.popBackStack() }
+                onBack = { nav.popBackStack() },
+                onCancel = { bookingId, onDone ->
+                    rentalViewModel.cancelBooking(bookingId, onDone)
+                },
+                onWalletRefresh = homeViewModel::refreshWallet
             )
         }
         composable("rental-vehicle") {

@@ -46,7 +46,10 @@ interface ClientApi {
     suspend fun wallet(): Response<WalletResponse>
 
     @GET("api/v1/car-rental/cars")
-    suspend fun rentalCars(): Response<List<RentalCarResponse>>
+    suspend fun rentalCars(
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null
+    ): Response<List<RentalCarResponse>>
 
     @GET("api/v1/car-rental/vendor")
     suspend fun rentalVendor(): Response<RentalVendorResponse>
@@ -63,11 +66,43 @@ interface ClientApi {
     @POST("api/v1/car-rental/vendor/vehicles")
     suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
 
+    @Multipart
+    @PUT("api/v1/car-rental/vendor/vehicles/{carId}/photos/{slot}")
+    suspend fun uploadRentalVehiclePhoto(
+        @retrofit2.http.Path("carId") carId: String,
+        @retrofit2.http.Path("slot") slot: Int,
+        @Part photo: MultipartBody.Part
+    ): Response<RentalCarResponse>
+
     @PUT("api/v1/car-rental/vendor/vehicles/{carId}")
     suspend fun resubmitRentalVehicle(
         @retrofit2.http.Path("carId") carId: String,
         @Body request: RentalVehicleUpdateRequest
     ): Response<RentalCarResponse>
+
+    @POST("api/v1/car-rental/vendor/vehicles/{carId}/unavailability")
+    suspend fun takeRentalVehicleOffMarket(
+        @retrofit2.http.Path("carId") carId: String,
+        @Body request: RentalVehicleUnavailabilityRequest
+    ): Response<RentalVehicleUnavailabilityResponse>
+
+    @GET("api/v1/car-rental/vendor/vehicles/{carId}/unavailability")
+    suspend fun rentalVehicleUnavailability(
+        @retrofit2.http.Path("carId") carId: String
+    ): Response<List<RentalVehicleUnavailabilityResponse>>
+
+    @POST("api/v1/car-rental/vendor/vehicles/{carId}/unavailability/{unavailableId}/restore")
+    suspend fun restoreRentalVehicleToMarket(
+        @retrofit2.http.Path("carId") carId: String,
+        @retrofit2.http.Path("unavailableId") unavailableId: String
+    ): Response<Void>
+
+    @GET("api/v1/car-rental/vendor/vehicles/{carId}/calendar")
+    suspend fun rentalVehicleCalendar(
+        @retrofit2.http.Path("carId") carId: String,
+        @Query("year") year: Int,
+        @Query("month") month: Int
+    ): Response<RentalVehicleCalendarResponse>
 
     @POST("api/v1/car-rental/bookings/quote")
     suspend fun rentalBookingQuote(@Body request: RentalBookingQuoteRequest): Response<RentalBookingQuoteResponse>
@@ -77,6 +112,8 @@ interface ClientApi {
 
     @GET("api/v1/car-rental/bookings")
     suspend fun rentalBookings(@Query("page") page: Int = 0, @Query("size") size: Int = 25): Response<com.recharge.client.core.model.RentalBookingPageResponse>
+    @POST("api/v1/car-rental/bookings/{bookingId}/cancel")
+    suspend fun cancelRentalBooking(@retrofit2.http.Path("bookingId") bookingId: String): Response<com.recharge.client.core.model.RentalBookingResponse>
 
     @GET("api/v1/profile")
     suspend fun profile(): Response<CurrentUserResponse>

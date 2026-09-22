@@ -9,9 +9,12 @@ import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import java.util.UUID
+import org.springframework.web.multipart.MultipartFile
 
 @Service
 class RentalService(
@@ -19,10 +22,12 @@ class RentalService(
     private val drivers: RentalDriverRepository,
     private val cars: RentalCarRepository,
     private val bookings: RentalBookingRepository,
+    private val vehicleUnavailability: RentalVehicleUnavailabilityRepository,
     private val users: UserRepository,
     private val rentalPayments: RentalPaymentService,
     private val rentalPaymentRepository: RentalPaymentRepository,
     private val rentalPayouts: RentalPayoutService,
+    private val rentalImageStorage: RentalImageStorage,
     private val vendorReviews: RentalVendorReviewRepository,
     private val carReviews: RentalCarReviewRepository
 ) {
@@ -191,15 +196,51 @@ class RentalService(
         return toCarResponse(car)
     }
 
-    fun availableCars(userId: Long): List<RentalCarResponse> {
+    fun availableCars(
+        userId: Long,
+        startDate: LocalDateTime? = null,
+        endDate: LocalDateTime? = null
+    ): List<RentalCarResponse> {
+        if ((startDate == null) != (endDate == null)) {
+            throw IllegalArgumentException("Both rental start and end dates are required")
+        }
+        if (startDate != null && endDate != null) {
+            require(endDate.isAfter(startDate)) { "End date must be after start date" }
+            require(!startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
+        }
+
         val available = cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
         if (available.isEmpty()) return emptyList()
         val vendorIds = available.mapNotNull { it.vendorId }.distinct()
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
+        val driverIds = available.mapNotNull { it.driverId }.distinct()
+        val driverById = drivers.findAllById(driverIds).associateBy { requireNotNull(it.id) }
+        val availabilityWindow = if (startDate != null && endDate != null) startDate to endDate else null
+        val blockedCarIds = availabilityWindow?.let { (windowStart, windowEnd) ->
+            val carIds = available.mapNotNull { it.id }
+            val blockedByBookings = bookings.findOverlappingCarIds(
+                carIds,
+                listOf("PENDING", "CONFIRMED"),
+                windowStart,
+                windowEnd
+            )
+            val blockedByOffMarket = vehicleUnavailability.findOverlappingCarIds(
+                carIds,
+                windowStart.toLocalDate(),
+                windowEnd.toLocalDate()
+            )
+            blockedByBookings + blockedByOffMarket
+        } ?: emptySet()
+        val now = LocalDateTime.now()
         return available
             .filter { car ->
                 val vendorId = car.vendorId
-                vendorId == null || vendorById[vendorId]?.userId != userId
+                val isOwnVehicle = vendorId != null && vendorById[vendorId]?.userId == userId
+                val driver = car.driverId?.let { driverById[it] }
+                val rentalEnd = endDate ?: now
+                val hasUsableDriver = driver?.active == true && driver.licenseExpiry.isAfter(rentalEnd)
+                val isDateAvailable = requireNotNull(car.id) !in blockedCarIds
+                !isOwnVehicle && hasUsableDriver && isDateAvailable
             }
             .map(::toCarResponse)
     }
@@ -208,6 +249,14 @@ class RentalService(
         val vendorId = requireNotNull(car.vendorId) { "Rental vehicle vendor is missing" }
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Rental vehicle vendor not found") }
         require(vendor.userId != userId) { "This vehicle cannot be booked by its owning vendor" }
+    }
+
+    private fun requireBookableDriver(car: RentalCarEntity, rentalEnd: LocalDateTime): RentalDriverEntity {
+        val driverId = requireNotNull(car.driverId) { "Rental vehicle driver is missing" }
+        val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Driver not found") }
+        check(driver.active) { "Rental vehicle driver is unavailable" }
+        check(driver.licenseExpiry.isAfter(rentalEnd)) { "Rental vehicle driver licence expires before the booking ends" }
+        return driver
     }
 
     fun vendorPayouts(userId: Long): List<RentalVendorPayoutResponse> {
@@ -255,10 +304,11 @@ class RentalService(
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
+        check(!vehicleUnavailability.existsOverlapping(carId, request.startDate.toLocalDate(), request.endDate.toLocalDate())) { "This vehicle is unavailable for the selected dates" }
+        val driver = requireBookableDriver(car, request.endDate)
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
         val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
-        val driver = drivers.findById(requireNotNull(car.driverId)).orElseThrow { IllegalArgumentException("Driver not found") }
         return RentalBookingQuoteResponse(request.carId, car.name, driver.fullName, request.pickupLocation.trim(), request.dropLocation.trim(), request.startDate, request.endDate, days, car.pricePerDay.setScale(2), total)
     }
 
@@ -297,7 +347,9 @@ class RentalService(
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
+        val driver = requireBookableDriver(car, request.endDate)
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
+        check(!vehicleUnavailability.existsOverlapping(carId, request.startDate.toLocalDate(), request.endDate.toLocalDate())) { "This vehicle is unavailable for the selected dates" }
 
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
         val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
@@ -322,8 +374,237 @@ class RentalService(
                 createdAt = now, updatedAt = now
             )
         )
-        return toBookingResponse(saved, car.name, drivers.findById(requireNotNull(car.driverId)).orElse(null))
+        return toBookingResponse(saved, car.name, driver)
     }
+
+    @Transactional
+    fun uploadVehiclePhoto(
+        userId: Long,
+        carId: Long,
+        slot: Int,
+        photo: MultipartFile
+    ): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+
+        val car = cars.findByIdForUpdate(carId)
+            .orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+
+        val slots = rentalPhotoSlots(car.imageUrl)
+        val oldValue = slots[slot]
+        val oldStoredKey = oldValue
+            .removePrefix(RENTAL_PHOTO_URL_PREFIX)
+            .takeIf { oldValue.startsWith(RENTAL_PHOTO_URL_PREFIX) }
+
+        val newKey = rentalImageStorage.save(carId, slot, photo)
+        slots[slot] = RENTAL_PHOTO_URL_PREFIX + newKey
+        val combined = slots.joinToString("|").takeIf { slots.any { it.isNotBlank() } }
+        require(combined == null || combined.length <= 500) {
+            rentalImageStorage.delete(newKey)
+            "Vehicle photo references exceed the maximum supported length"
+        }
+
+        try {
+            car.imageUrl = combined
+            cars.save(car)
+        } catch (error: Exception) {
+            rentalImageStorage.delete(newKey)
+            throw error
+        }
+
+        if (oldStoredKey != null) {
+            rentalImageStorage.delete(oldStoredKey)
+        }
+        return toCarResponse(car)
+    }
+
+    fun rentalImage(key: String): RentalImageStorage.StoredImage =
+        rentalImageStorage.load(key) ?: throw IllegalArgumentException("Vehicle photo not found")
+
+    @Transactional
+    fun takeVehicleOffMarket(
+        userId: Long,
+        carId: Long,
+        request: RentalVehicleUnavailabilityRequest
+    ): RentalVehicleUnavailabilityResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        // Serialize vendor availability changes with customer booking creation.
+        // Booking creation also acquires this same pessimistic car-row lock.
+        val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        check(car.active && car.approvalStatus == "APPROVED") { "Only approved active vehicles can be taken off market" }
+        require(!request.startDate.isBefore(LocalDate.now())) { "Off-market period cannot start in the past" }
+        require(!request.endDate.isBefore(request.startDate)) { "End date must be on or after start date" }
+
+        val reasonCode = request.reasonCode.trim().uppercase()
+        require(reasonCode in rentalVehicleOffMarketReasons()) { "Invalid vehicle unavailability reason" }
+
+        check(
+            !bookings.existsOverlapping(
+                carId,
+                listOf("PENDING", "CONFIRMED"),
+                request.startDate.atStartOfDay(),
+                request.endDate.plusDays(1).atStartOfDay()
+            )
+        ) { "This vehicle already has a booking in the selected period" }
+        check(!vehicleUnavailability.existsOverlapping(carId, request.startDate, request.endDate)) {
+            "This vehicle is already marked unavailable for an overlapping period"
+        }
+
+        val now = Instant.now()
+        val saved = vehicleUnavailability.save(
+            RentalVehicleUnavailabilityEntity(
+                carId = carId,
+                vendorId = vendorId,
+                vendorUserId = userId,
+                startDate = request.startDate,
+                endDate = request.endDate,
+                reasonCode = reasonCode,
+                reasonNote = request.reasonNote?.trim()?.takeIf { it.isNotBlank() },
+                status = "ACTIVE",
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+        return toVehicleUnavailabilityResponse(saved)
+    }
+
+    fun vendorVehicleUnavailability(userId: Long, carId: Long): List<RentalVehicleUnavailabilityResponse> {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        return vehicleUnavailability.findAllByCarIdOrderByStartDateAsc(carId)
+            .filter { it.status == "ACTIVE" && !it.endDate.isBefore(LocalDate.now()) }
+            .map(::toVehicleUnavailabilityResponse)
+    }
+
+    @Transactional
+    fun restoreVehicleToMarket(userId: Long, carId: Long, unavailableId: Long) {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        val period = vehicleUnavailability.findById(unavailableId)
+            .orElseThrow { IllegalArgumentException("Unavailable period not found") }
+        require(period.carId == carId && period.vendorUserId == userId) { "Unavailable period does not belong to this vendor" }
+        if (period.status != "ACTIVE") return
+        period.status = "CANCELLED"
+        period.updatedAt = Instant.now()
+        vehicleUnavailability.save(period)
+    }
+
+    fun vehicleCalendar(
+        userId: Long,
+        carId: Long,
+        year: Int,
+        month: Int
+    ): RentalVehicleCalendarResponse {
+        require(month in 1..12) { "Month must be between 1 and 12" }
+        val yearMonth = YearMonth.of(year, month)
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+
+        val firstDay = yearMonth.atDay(1)
+        val nextMonth = yearMonth.plusMonths(1).atDay(1)
+        val bookingRows = bookings.findCalendarBookings(
+            carId,
+            listOf("PENDING", "CONFIRMED", "COMPLETED"),
+            firstDay.atStartOfDay(),
+            nextMonth.atStartOfDay()
+        )
+        val unavailableRows = vehicleUnavailability.findAllByCarIdOrderByStartDateAsc(carId)
+            .filter { it.status == "ACTIVE" && !it.endDate.isBefore(firstDay) && !it.startDate.isAfter(yearMonth.atEndOfMonth()) }
+
+        val days = (1..yearMonth.lengthOfMonth()).map { dayOfMonth ->
+            val day = yearMonth.atDay(dayOfMonth)
+            val dayStart = day.atStartOfDay()
+            val dayEnd = day.plusDays(1).atStartOfDay()
+            val booking = bookingRows.firstOrNull {
+                it.startDate.isBefore(dayEnd) && it.endDate.isAfter(dayStart)
+            }
+            val blackout = unavailableRows.firstOrNull {
+                !it.startDate.isAfter(day) && !it.endDate.isBefore(day)
+            }
+            when {
+                booking != null -> RentalVehicleCalendarDayResponse(
+                    date = day, status = "BOOKED", bookingId = booking.bookingId
+                )
+                blackout != null -> RentalVehicleCalendarDayResponse(
+                    date = day,
+                    status = "OFF_MARKET",
+                    reasonCode = blackout.reasonCode,
+                    reasonLabel = rentalVehicleOffMarketReasonLabel(blackout.reasonCode)
+                )
+                else -> RentalVehicleCalendarDayResponse(date = day, status = "AVAILABLE")
+            }
+        }
+
+        return RentalVehicleCalendarResponse(
+            carId = carId.toString(),
+            carName = car.name,
+            year = year,
+            month = month,
+            days = days
+        )
+    }
+
+    fun adminVehicleUnavailability(): List<RentalAdminVehicleUnavailabilityResponse> =
+        vehicleUnavailability.findAll()
+            .filter { it.status == "ACTIVE" && !it.endDate.isBefore(LocalDate.now()) }
+            .sortedBy { it.startDate }
+            .map { row ->
+                val car = cars.findById(row.carId).orElse(null)
+                RentalAdminVehicleUnavailabilityResponse(
+                    id = requireNotNull(row.id).toString(),
+                    carId = row.carId.toString(),
+                    carName = car?.name ?: "Car",
+                    vendorId = row.vendorId.toString(),
+                    startDate = row.startDate,
+                    endDate = row.endDate,
+                    reasonCode = row.reasonCode,
+                    reasonLabel = rentalVehicleOffMarketReasonLabel(row.reasonCode),
+                    reasonNote = row.reasonNote,
+                    status = row.status,
+                    createdAt = row.createdAt
+                )
+            }
+
+    private fun rentalVehicleOffMarketReasons(): Set<String> = setOf(
+        "SERVICE_MAINTENANCE",
+        "PRIVATE_USE",
+        "DRIVER_UNAVAILABLE",
+        "LEGAL_DOCUMENTATION",
+        "PERSONAL_REASON",
+        "OTHER"
+    )
+
+    private fun rentalVehicleOffMarketReasonLabel(code: String): String = when (code) {
+        "SERVICE_MAINTENANCE" -> "Service / maintenance"
+        "PRIVATE_USE" -> "Private use"
+        "DRIVER_UNAVAILABLE" -> "Driver unavailable"
+        "LEGAL_DOCUMENTATION" -> "Documentation / compliance"
+        "PERSONAL_REASON" -> "Personal reason"
+        else -> "Other"
+    }
+
+    private fun toVehicleUnavailabilityResponse(row: RentalVehicleUnavailabilityEntity) =
+        RentalVehicleUnavailabilityResponse(
+            id = requireNotNull(row.id).toString(),
+            carId = row.carId.toString(),
+            startDate = row.startDate,
+            endDate = row.endDate,
+            reasonCode = row.reasonCode,
+            reasonLabel = rentalVehicleOffMarketReasonLabel(row.reasonCode),
+            reasonNote = row.reasonNote,
+            status = row.status,
+            createdAt = row.createdAt
+        )
 
     @Transactional
     fun completeBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
@@ -436,6 +717,15 @@ class RentalService(
         return vendor
     }
 
+    private fun rentalPhotoSlots(imageUrl: String?): MutableList<String> {
+        val values = imageUrl.orEmpty()
+            .replace("\n", "|")
+            .split("|")
+            .take(4)
+            .map { it.trim() }
+        return MutableList(4) { index -> values.getOrNull(index).orEmpty() }
+    }
+
     private fun toCarResponse(car: RentalCarEntity): RentalCarResponse {
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
         return RentalCarResponse(
@@ -450,6 +740,10 @@ class RentalService(
             state = car.state, driverLicenseNumber = driver?.licenseNumber,
             driverLicenseExpiry = driver?.licenseExpiry, driverAddress = driver?.address
         )
+    }
+
+    companion object {
+        private const val RENTAL_PHOTO_URL_PREFIX = "/api/v1/car-rental/photos/"
     }
 
     private fun toBookingResponse(b: RentalBookingEntity, carName: String, driver: RentalDriverEntity?) =
