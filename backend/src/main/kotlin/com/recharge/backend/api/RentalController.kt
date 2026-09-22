@@ -7,6 +7,10 @@ import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
+import org.springframework.http.CacheControl
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
+import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/v1/car-rental")
@@ -61,6 +65,18 @@ class RentalController(
     ): RentalCarResponse =
         rentalService.resubmitVehicle(userId(authentication), carId, request)
 
+    @PutMapping(
+        "/vendor/vehicles/{carId}/photos/{slot}",
+        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE]
+    )
+    fun uploadVehiclePhoto(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @PathVariable slot: Int,
+        @RequestPart("photo") photo: MultipartFile
+    ): RentalCarResponse =
+        rentalService.uploadVehiclePhoto(userId(authentication), carId, slot, photo)
+
     @PostMapping("/vendor/vehicles/{carId}/unavailability")
     fun takeVehicleOffMarket(
         authentication: Authentication,
@@ -93,6 +109,16 @@ class RentalController(
         @RequestParam month: Int
     ): RentalVehicleCalendarResponse =
         rentalService.vehicleCalendar(userId(authentication), carId, year, month)
+
+    @GetMapping("/photos/{key:.+}")
+    fun vehiclePhoto(@PathVariable key: String): ResponseEntity<ByteArray> {
+        val stored = rentalService.rentalImage(key)
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(stored.contentType))
+            .contentLength(stored.bytes.size.toLong())
+            .cacheControl(CacheControl.noCache().cachePublic())
+            .body(stored.bytes)
+    }
 
     private fun requireAdmin(authentication: Authentication) {
         val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
