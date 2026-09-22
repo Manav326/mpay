@@ -5,6 +5,7 @@ import com.recharge.backend.domain.RentalPayoutEntity
 import com.recharge.backend.repository.RentalCarRepository
 import com.recharge.backend.repository.RentalPayoutRepository
 import com.recharge.backend.repository.RentalVendorRepository
+import com.recharge.backend.repository.RentalBookingRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -16,6 +17,7 @@ import java.util.UUID
 @Service
 class RentalPayoutService(
     private val payouts: RentalPayoutRepository,
+    private val bookings: RentalBookingRepository,
     private val cars: RentalCarRepository,
     private val vendors: RentalVendorRepository,
     private val wallet: WalletService,
@@ -26,14 +28,16 @@ class RentalPayoutService(
 
     @Transactional
     fun settleCompletedBooking(booking: RentalBookingEntity): RentalPayoutEntity {
-        check(booking.status == "COMPLETED") { "Only completed rental bookings can be settled" }
-        val existing = payouts.findByBookingId(booking.bookingId).orElse(null)
+        val lockedBooking = bookings.findByBookingIdForUpdate(booking.bookingId)
+            .orElseThrow { IllegalArgumentException("Rental booking not found") }
+        check(lockedBooking.status == "COMPLETED") { "Only completed rental bookings can be settled" }
+        val existing = payouts.findByBookingId(lockedBooking.bookingId).orElse(null)
         if (existing != null) {
             if (existing.status == "PAID") return existing
             return settle(existing)
         }
 
-        val car = cars.findById(booking.carId).orElseThrow { IllegalArgumentException("Rental car not found") }
+        val car = cars.findById(lockedBooking.carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         val vendorId = requireNotNull(car.vendorId) { "Rental vendor not found for booking" }
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Rental vendor not found") }
         val gross = booking.totalAmount.setScale(2, RoundingMode.HALF_UP)
@@ -43,7 +47,7 @@ class RentalPayoutService(
         val now = Instant.now()
         val payout = payouts.save(RentalPayoutEntity(
             payoutId = "RNPY-" + UUID.randomUUID().toString().replace("-", "").take(20).uppercase(),
-            bookingId = booking.bookingId,
+            bookingId = lockedBooking.bookingId,
             vendorId = vendorId,
             vendorUserId = vendor.userId,
             grossAmount = gross,
