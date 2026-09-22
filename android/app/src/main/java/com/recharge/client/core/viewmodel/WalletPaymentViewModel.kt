@@ -46,7 +46,8 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
             _state.value = PaymentUiState.CreatingOrder
             repository.createPaymentOrder(
                 amount = amount.setScale(2),
-                clientRequestId = "ANDROID-${UUID.randomUUID()}"
+                clientRequestId = "ANDROID-${UUID.randomUUID()}",
+                provider = provider
             ).onSuccess {
                 if (it.orderId.isBlank() || it.keyId.isBlank()) {
                     _state.value = PaymentUiState.Error("Payment order response is incomplete")
