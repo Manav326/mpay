@@ -32,7 +32,7 @@ class PayUPaymentGatewayProvider(
     override val providerName: String = "payu"
 
     override fun isConfigured(): Boolean =
-        properties.pgKey.isNotBlank() && properties.pgSalt.isNotBlank()
+        properties.effectivePgKey().isNotBlank() && properties.effectivePgSalt().isNotBlank()
 
     override fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
         check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
@@ -122,7 +122,7 @@ class PayUPaymentGatewayProvider(
     fun generateHash(hashName: String, hashString: String, postSalt: String? = null, hashType: String? = null): String {
         check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
         require(hashName.isNotBlank() && hashString.isNotBlank()) { "PayU hash request is incomplete" }
-        val data = if (!postSalt.isNullOrBlank()) hashString + properties.pgSalt + postSalt else hashString + properties.pgSalt
+        val data = if (!postSalt.isNullOrBlank()) hashString + properties.effectivePgSalt() + postSalt else hashString + properties.effectivePgSalt()
         return sha512(data)
     }
 
@@ -137,7 +137,7 @@ class PayUPaymentGatewayProvider(
             orderId = order.razorpayOrderId,
             amount = order.amount,
             currency = order.currency,
-            keyId = properties.pgKey,
+            keyId = properties.effectivePgKey(),
             checkoutParams = mapOf(
                 "productInfo" to "mPay wallet",
                 "firstName" to firstName,
@@ -145,17 +145,17 @@ class PayUPaymentGatewayProvider(
                 "phone" to phone,
                 "surl" to properties.pgSuccessUrl,
                 "furl" to properties.pgFailureUrl,
-                "userCredential" to "${properties.pgKey}:$phone",
-                "vasForMobileSdkHash" to sha512("${properties.pgKey}|vas_for_mobile_sdk|${order.amount.toPlainString()}|${properties.pgSalt}"),
-                "paymentRelatedDetailsHash" to sha512("${properties.pgKey}|payment_related_details_for_mobile_sdk|${properties.pgKey}:$phone|${properties.pgSalt}"),
+                "userCredential" to "${properties.effectivePgKey()}:$phone",
+                "vasForMobileSdkHash" to sha512("${properties.effectivePgKey()}|vas_for_mobile_sdk|${order.amount.toPlainString()}|${properties.effectivePgSalt()}"),
+                "paymentRelatedDetailsHash" to sha512("${properties.effectivePgKey()}|payment_related_details_for_mobile_sdk|${properties.effectivePgKey()}:$phone|${properties.effectivePgSalt()}"),
                 "isProduction" to properties.pgProduction.toString()
             )
         )
     }
 
     private fun verifyWithPayU(txnId: String): JsonNode {
-        val hash = sha512("${properties.pgKey}|verify_payment|$txnId|${properties.pgSalt}")
-        val encoded = "key=${enc(properties.pgKey)}&command=verify_payment&var1=${enc(txnId)}&hash=${enc(hash)}"
+        val hash = sha512("${properties.effectivePgKey()}|verify_payment|$txnId|${properties.effectivePgSalt()}")
+        val encoded = "key=${enc(properties.effectivePgKey())}&command=verify_payment&var1=${enc(txnId)}&hash=${enc(hash)}"
         return RestClient.builder().build()
             .post()
             .uri(properties.pgVerifyUrl)
