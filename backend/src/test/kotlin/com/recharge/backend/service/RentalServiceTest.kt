@@ -62,7 +62,7 @@ class RentalServiceTest {
             .save(any(RentalBookingEntity::class.java))
 
         val payment = com.recharge.backend.domain.RentalPaymentEntity(id = 21L, paymentId = "RNP-TEST", bookingId = "RNT-TEST", userId = 42L, amount = BigDecimal("6000.00"), method = "WALLET", status = "PAID", walletLedgerRef = "RENTAL:RNT-TEST")
-        Mockito.doReturn(payment).`when`(rentalPayments).pay(Mockito.eq(42L), Mockito.anyString(), Mockito.eq(BigDecimal("6000.00")), Mockito.eq("WALLET"), Mockito.eq("client-1"))
+        Mockito.doReturn(payment).`when`(rentalPayments).pay(42L, Mockito.anyString(), BigDecimal("6000.00"), "WALLET", "client-1")
 
         val result = service.createBooking(
             42L,
