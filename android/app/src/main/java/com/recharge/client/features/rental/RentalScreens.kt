@@ -555,14 +555,15 @@ fun RentalVendorOnboardingScreen(
                                         Surface(
                                             shape = RoundedCornerShape(12.dp),
                                             color = when {
-                                                status == "APPROVED" && activeBlackout != null -> Color(0xFFFEF3C7)
-                                                status == "APPROVED" -> AppColors.Success.copy(alpha = .12f)
                                                 status == "REJECTED" -> AppColors.Error.copy(alpha = .12f)
+                                                status == "APPROVED" && (activeBlackout != null || scheduledBlackout != null) -> Color(0xFFFEF3C7)
+                                                status == "APPROVED" -> AppColors.Success.copy(alpha = .12f)
                                                 else -> Color(0xFFFFF7E6)
                                             }
                                         ) {
                                             Text(
                                                 when {
+                                                    status == "REJECTED" -> "REJECTED"
                                                     displayedOffMarket -> "OFF MARKET"
                                                     scheduledBlackout != null -> "SCHEDULED"
                                                     else -> status.replace("_", " ")
