@@ -19,7 +19,7 @@ class PaymentSettlementService(
     private val rechargeService: RechargeService,
     private val rechargeRepository: RechargeTransactionRepository
 ) : PaymentSettlementPort {
-    fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse {
+    override fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse {
         if (order.purpose.equals("RECHARGE", true)) {
             val recharge = rechargeRepository.findByClientRequestIdAndUserId(order.clientRequestId, userId).orElse(null)
             if (recharge != null) {
@@ -41,7 +41,7 @@ class PaymentSettlementService(
     }
 
     @Transactional
-    fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse {
+    override fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse {
         return when (order.purpose.uppercase()) {
             "RECHARGE" -> {
                 val mobile = order.rechargeMobileNumber ?: throw IllegalArgumentException("Recharge payment is missing mobile number")
