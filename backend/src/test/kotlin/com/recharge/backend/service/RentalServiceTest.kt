@@ -245,7 +245,7 @@ class RentalServiceTest {
         Mockito.doReturn(listOf(car)).`when`(cars).findAvailableForWindow(
             "APPROVED", listOf("PENDING", "CONFIRMED"), start, end
         )
-        Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalVendorEntity(
+        Mockito.doReturn(listOf(com.recharge.backend.domain.RentalVendorEntity(
             id = 60L, userId = 99L, fullName = "Vendor", address = "Address",
             city = "Patna", state = "Bihar", pinCode = "800001"
         ))).`when`(vendors).findAllById(listOf(60L))
