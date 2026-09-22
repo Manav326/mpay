@@ -1001,15 +1001,35 @@ fun CarRentalMarketplaceScreen(
 private fun VehiclePhotoField(
     title: String,
     value: String,
+    galleryUri: String?,
     onValueChange: (String) -> Unit,
+    onPickGallery: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val preview = galleryUri ?: value.takeIf { it.isNotBlank() }
     Card(modifier = modifier, shape = RoundedCornerShape(14.dp)) {
-        Column(
-            Modifier.fillMaxWidth().padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            RentalCarImageTile(value.takeIf { it.isNotBlank() }, Modifier.fillMaxWidth().height(72.dp))
+        Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(82.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .clickable(onClick = onPickGallery)
+            ) {
+                RentalCarImageTile(preview, Modifier.fillMaxSize())
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp),
+                    shape = RoundedCornerShape(7.dp),
+                    color = Color.Black.copy(alpha = .62f)
+                ) {
+                    Text(
+                        if (galleryUri != null) "Gallery selected" else "Tap for gallery",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                    )
+                }
+            }
             VendorField(title, value, onValueChange = onValueChange)
         }
     }
@@ -1018,10 +1038,10 @@ private fun VehiclePhotoField(
 @Composable
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
-    onSubmit: (RentalVehicleOnboardingRequest, () -> Unit) -> Unit,
+    onSubmit: (RentalVehicleOnboardingRequest, Map<Int, String>, () -> Unit) -> Unit,
     onBack: () -> Unit,
     editingCar: RentalCarResponse? = null,
-    onResubmit: ((String, RentalVehicleUpdateRequest, () -> Unit) -> Unit)? = null
+    onResubmit: ((String, RentalVehicleUpdateRequest, Map<Int, String>, () -> Unit) -> Unit)? = null
 ) {
     var name by remember(editingCar?.id) { mutableStateOf(editingCar?.name.orEmpty()) }
     var make by remember(editingCar?.id) { mutableStateOf(editingCar?.make.orEmpty()) }
@@ -1038,11 +1058,15 @@ fun RentalVehicleOnboardingScreen(
     var city by remember(editingCar?.id) { mutableStateOf(editingCar?.city.orEmpty()) }
     var stateName by remember(editingCar?.id) { mutableStateOf(editingCar?.state.orEmpty()) }
     var pricePerDay by remember(editingCar?.id) { mutableStateOf(editingCar?.pricePerDay?.toPlainString().orEmpty()) }
-    val existingPhotos = remember(editingCar?.id) { rentalPhotoUrls(editingCar?.imageUrl) }
+    val existingPhotos = remember(editingCar?.id) { rentalPhotoSlots(editingCar?.imageUrl) }
     var photoFront by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(0).orEmpty()) }
     var photoSide by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(1).orEmpty()) }
     var photoRear by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(2).orEmpty()) }
     var photoInterior by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(3).orEmpty()) }
+    var galleryFront by remember(editingCar?.id) { mutableStateOf<String?>(null) }
+    var gallerySide by remember(editingCar?.id) { mutableStateOf<String?>(null) }
+    var galleryRear by remember(editingCar?.id) { mutableStateOf<String?>(null) }
+    var galleryInterior by remember(editingCar?.id) { mutableStateOf<String?>(null) }
 
     var driverName by remember(editingCar?.id) { mutableStateOf(editingCar?.driverName.orEmpty()) }
     var driverMobile by remember(editingCar?.id) { mutableStateOf(editingCar?.driverMobile.orEmpty()) }
@@ -1052,9 +1076,25 @@ fun RentalVehicleOnboardingScreen(
 
     val combinedPhotos = listOf(photoFront, photoSide, photoRear, photoInterior)
         .map { it.trim() }
-        .filter { it.isNotBlank() }
         .joinToString("|")
-        .ifBlank { null }
+        .takeIf { listOf(photoFront, photoSide, photoRear, photoInterior).any { it.isNotBlank() } }
+
+    val galleryPhotos = listOf(galleryFront, gallerySide, galleryRear, galleryInterior)
+        .mapIndexedNotNull { index, uri -> uri?.let { index to it } }
+        .toMap()
+
+    val frontGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        galleryFront = uri?.toString()
+    }
+    val sideGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        gallerySide = uri?.toString()
+    }
+    val rearGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        galleryRear = uri?.toString()
+    }
+    val interiorGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        galleryInterior = uri?.toString()
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
@@ -1110,17 +1150,29 @@ fun RentalVehicleOnboardingScreen(
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Vehicle photos (optional)", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Add up to 4 photo URLs. For a professional listing, use different angles: front 3/4, side, rear 3/4 and interior.",
+                        "For each slot, either enter an image URL or tap the preview to choose one from your gallery. Up to 4 photos are supported: front 3/4, side, rear 3/4 and interior.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        VehiclePhotoField("Front 3/4 URL", photoFront, { photoFront = it }, Modifier.weight(1f))
-                        VehiclePhotoField("Side URL", photoSide, { photoSide = it }, Modifier.weight(1f))
+                        VehiclePhotoField(
+                            "Front 3/4 URL", photoFront, galleryFront, { photoFront = it },
+                            { frontGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                        )
+                        VehiclePhotoField(
+                            "Side URL", photoSide, gallerySide, { photoSide = it },
+                            { sideGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                        )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        VehiclePhotoField("Rear 3/4 URL", photoRear, { photoRear = it }, Modifier.weight(1f))
-                        VehiclePhotoField("Interior URL", photoInterior, { photoInterior = it }, Modifier.weight(1f))
+                        VehiclePhotoField(
+                            "Rear 3/4 URL", photoRear, galleryRear, { photoRear = it },
+                            { rearGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                        )
+                        VehiclePhotoField(
+                            "Interior URL", photoInterior, galleryInterior, { photoInterior = it },
+                            { interiorGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -1204,6 +1256,7 @@ fun RentalVehicleOnboardingScreen(
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
+                            galleryPhotos,
                             onBack
                         )
                     } else {
@@ -1227,6 +1280,7 @@ fun RentalVehicleOnboardingScreen(
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
+                            galleryPhotos,
                             onBack
                         )
                     }
