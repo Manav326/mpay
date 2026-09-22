@@ -179,7 +179,7 @@ class ClientRepository(context: Context) {
                 amount = amount.setScale(2),
                 provider = provider,
                 clientRequestId = UUID.randomUUID().toString(),
-                upiId = upiId.trim().ifBlank { if (provider.equals("mock", true)) "mock@upi" else "" }
+                upiId = upiId.trim()
             )
         )
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
