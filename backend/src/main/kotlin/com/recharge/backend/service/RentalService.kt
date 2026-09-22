@@ -446,11 +446,16 @@ class RentalService(
         val unavailableRows = vehicleUnavailability.findAllByCarIdOrderByStartDateAsc(carId)
             .filter { it.status == "ACTIVE" && !it.endDate.isBefore(firstDay) && !it.startDate.isAfter(yearMonth.atEndOfMonth()) }
 
-        val days = yearMonth.map { day ->
+        val days = (1..yearMonth.lengthOfMonth()).map { dayOfMonth ->
+            val day = yearMonth.atDay(dayOfMonth)
+            val dayStart = day.atStartOfDay()
+            val dayEnd = day.plusDays(1).atStartOfDay()
             val booking = bookingRows.firstOrNull {
-                !it.endDate.toLocalDate().isBefore(day) && it.startDate.toLocalDate().isBefore(day.plusDays(1))
+                it.startDate.isBefore(dayEnd) && it.endDate.isAfter(dayStart)
             }
-            val blackout = unavailableRows.firstOrNull { !it.startDate.isAfter(day) && !it.endDate.isBefore(day) }
+            val blackout = unavailableRows.firstOrNull {
+                !it.startDate.isAfter(day) && !it.endDate.isBefore(day)
+            }
             when {
                 booking != null -> RentalVehicleCalendarDayResponse(
                     date = day, status = "BOOKED", bookingId = booking.bookingId
@@ -463,7 +468,7 @@ class RentalService(
                 )
                 else -> RentalVehicleCalendarDayResponse(date = day, status = "AVAILABLE")
             }
-        }.toList()
+        }
 
         return RentalVehicleCalendarResponse(
             carId = carId.toString(),
