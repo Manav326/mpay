@@ -214,3 +214,39 @@ data class RentalVendorPayoutResponse(
     val createdAt: Instant,
     val paidAt: Instant?
 )
+
+
+data class RentalVehicleUnavailabilityRequest(
+    @field:NotBlank val reasonCode: String,
+    @field:Size(max = 300) val reasonNote: String? = null,
+    val startDate: LocalDate,
+    val endDate: LocalDate
+)
+
+data class RentalVehicleUnavailabilityResponse(
+    val id: String,
+    val carId: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val reasonCode: String,
+    val reasonLabel: String,
+    val reasonNote: String?,
+    val status: String,
+    val createdAt: Instant
+)
+
+data class RentalVehicleCalendarDayResponse(
+    val date: LocalDate,
+    val status: String,
+    val bookingId: String? = null,
+    val reasonCode: String? = null,
+    val reasonLabel: String? = null
+)
+
+data class RentalVehicleCalendarResponse(
+    val carId: String,
+    val carName: String,
+    val year: Int,
+    val month: Int,
+    val days: List<RentalVehicleCalendarDayResponse>
+)
