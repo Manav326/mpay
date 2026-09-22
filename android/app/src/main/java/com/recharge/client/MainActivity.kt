@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         order.checkoutParams["userCredential"].orEmpty(),
                         order.checkoutParams["vasForMobileSdkHash"].orEmpty(),
                         order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
+                        order.checkoutParams["paymentHash"].orEmpty(),
                         object : PayUCheckoutBridge.Callback {
                             override fun onPaymentSuccess(response: Any?) {
                                 val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
@@ -183,6 +184,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     order.checkoutParams["userCredential"].orEmpty(),
                     order.checkoutParams["vasForMobileSdkHash"].orEmpty(),
                     order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
+                    order.checkoutParams["paymentHash"].orEmpty(),
                     object : PayUCheckoutBridge.Callback {
                         override fun onPaymentSuccess(response: Any?) {
                             val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
