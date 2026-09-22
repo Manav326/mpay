@@ -21,12 +21,12 @@ export default function RentalVendorReview() {
   async function refresh() {
     setLoading(true);
     try {
-      const [vendorRows, blackoutRows] = await Promise.all([
+      const [vendorResult, blackoutResult] = await Promise.allSettled([
         getRentalAdminVendors(),
         getRentalAdminVehicleUnavailability(),
       ]);
-      setVendors(vendorRows);
-      setUnavailability(blackoutRows);
+      if (vendorResult.status === 'fulfilled') setVendors(vendorResult.value);
+      if (blackoutResult.status === 'fulfilled') setUnavailability(blackoutResult.value);
     } finally { setLoading(false); }
   }
   useEffect(() => { refresh().catch(() => setLoading(false)); }, []);
