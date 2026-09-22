@@ -13,7 +13,6 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
-import retrofit2.http.Headers
 
 interface AuthApi {
     @POST("api/v1/auth/login")
@@ -102,9 +101,8 @@ interface ClientApi {
         @Query("to") to: String? = null
     ): Response<WalletHistoryResponse>
 
-    @Headers("Content-Type: application/json")
     @POST("api/v1/wallet/withdraw")
-    suspend fun withdraw(@Body request: RequestBody): Response<WithdrawMoneyResponse>
+    suspend fun withdraw(@Body request: WithdrawMoneyRequest): Response<WithdrawMoneyResponse>
 
     @GET("api/v1/wallet/withdrawals")
     suspend fun withdrawalHistory(
