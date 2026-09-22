@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.WithdrawMoneyResponse
+import com.recharge.backend.config.MockWithdrawalProperties
 import com.recharge.backend.api.WithdrawalHistoryItem
 import com.recharge.backend.api.WithdrawalHistoryResponse
 import com.recharge.backend.domain.WalletWithdrawalEntity
@@ -217,4 +218,22 @@ class WithdrawalService(
             }
         )
     }
+}
+
+
+@Service
+class MockWithdrawalProvider(
+    private val properties: MockWithdrawalProperties
+) : WithdrawalProvider {
+    override val providerName: String = "mock"
+
+    override fun isConfigured(): Boolean = properties.enabled
+
+    override fun initiate(request: WithdrawalProviderRequest): WithdrawalProviderResult =
+        WithdrawalProviderResult(
+            status = "SUCCESS",
+            providerReference = "mock_" + request.withdrawalId,
+            providerStatus = "PROCESSED",
+            message = "Mock withdrawal completed successfully"
+        )
 }
