@@ -31,6 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -65,17 +70,35 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(42.dp)
+                    .shadow(2.dp, RoundedCornerShape(14.dp))
+                    .background(AppColors.Background, RoundedCornerShape(14.dp))
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = AppColors.TextPrimary
+                )
             }
         }
-        Spacer(Modifier.height(2.dp))
-        MpayBrandHeader(compact = true)
-        Spacer(Modifier.height(18.dp))
 
-        AuthSectionTitle(
-            title = "Create your account",
-            subtitle = "Set up your wallet once, then recharge and pay with ease."
+        Spacer(Modifier.height(10.dp))
+        MpayBrandHeader(compact = true)
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            "Create your account",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = AppColors.TextPrimary
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            "Set up your wallet once, then recharge and pay with ease.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AppColors.TextSecondary
         )
         Spacer(Modifier.height(18.dp))
 
@@ -87,6 +110,7 @@ fun RegisterScreen(
             placeholder = { Text("Your name") },
             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
             colors = AuthFieldColors()
         )
         Spacer(Modifier.height(10.dp))
@@ -99,6 +123,7 @@ fun RegisterScreen(
             supportingText = { Text("Optional") },
             leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             colors = AuthFieldColors()
         )
@@ -114,6 +139,7 @@ fun RegisterScreen(
             placeholder = { Text("10-digit mobile number") },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             colors = AuthFieldColors()
         )
@@ -127,6 +153,7 @@ fun RegisterScreen(
             supportingText = { Text("Minimum 8 characters") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { showPassword = !showPassword }) {
@@ -148,6 +175,7 @@ fun RegisterScreen(
             label = { Text("Confirm password") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             singleLine = true,
+            shape = RoundedCornerShape(16.dp),
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             colors = AuthFieldColors()
@@ -163,6 +191,7 @@ fun RegisterScreen(
         }
 
         Spacer(Modifier.height(14.dp))
+
         Button(
             onClick = { onRegister(name.trim(), email.trim(), mobile, password) },
             enabled = authState !is AuthUiState.Loading &&
@@ -174,24 +203,35 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(17.dp),
+            shape = RoundedCornerShape(17.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 5.dp,
+                pressedElevation = 2.dp,
+                disabledElevation = 0.dp
+            ),
             colors = ButtonDefaults.buttonColors(
                 containerColor = AppColors.TextPrimary,
-                contentColor = androidx.compose.ui.graphics.Color.White
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFD6D3CD),
+                disabledContentColor = Color(0xFF8A867F)
             )
         ) {
             if (authState is AuthUiState.Loading) {
                 CircularProgressIndicator(
                     strokeWidth = 2.dp,
                     modifier = Modifier.height(22.dp),
-                    color = androidx.compose.ui.graphics.Color.White
+                    color = Color.White
                 )
             } else {
-                Text("Create account", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "Create account",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -203,7 +243,11 @@ fun RegisterScreen(
                 style = MaterialTheme.typography.bodyMedium
             )
             TextButton(onClick = onBack) {
-                Text("Sign in")
+                Text(
+                    "Sign in",
+                    color = AppColors.PrimaryDark,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
