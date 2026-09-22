@@ -1,10 +1,8 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.*
-import com.recharge.backend.domain.RentalBookingEntity
-import com.recharge.backend.domain.RentalCarEntity
-import com.recharge.backend.repository.RentalBookingRepository
-import com.recharge.backend.repository.RentalCarRepository
+import com.recharge.backend.domain.*
+import com.recharge.backend.repository.*
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -17,25 +15,119 @@ import java.util.UUID
 
 @Service
 class RentalService(
+    private val vendors: RentalVendorRepository,
+    private val drivers: RentalDriverRepository,
     private val cars: RentalCarRepository,
     private val bookings: RentalBookingRepository,
     private val wallet: WalletService
 ) {
+    fun vendor(userId: Long): RentalVendorResponse {
+        val vendor = vendors.findByUserId(userId).orElse(null)
+        return vendor?.let {
+            RentalVendorResponse(it.id.toString(), it.status, it.vendorType, it.fullName, it.businessName, it.city, it.state, cars.countByVendorId(requireNotNull(it.id)))
+        } ?: RentalVendorResponse(null, "NOT_ONBOARDED", null, null, null, null, null, 0)
+    }
+
+    @Transactional
+    fun onboardVendor(userId: Long, request: RentalVendorOnboardingRequest): RentalVendorResponse {
+        val existing = vendors.findByUserId(userId)
+        if (existing.isPresent) return vendor(userId)
+        val type = request.vendorType.trim().uppercase()
+        require(type in setOf("INDIVIDUAL", "BUSINESS")) { "Vendor type must be INDIVIDUAL or BUSINESS" }
+        val now = Instant.now()
+        val saved = vendors.save(
+            RentalVendorEntity(
+                userId = userId,
+                vendorType = type,
+                status = "PENDING",
+                fullName = request.fullName.trim(),
+                businessName = request.businessName?.trim()?.takeIf { it.isNotBlank() },
+                address = request.address.trim(),
+                city = request.city.trim(),
+                state = request.state.trim(),
+                pinCode = request.pinCode.trim(),
+                panNumber = request.panNumber?.trim()?.uppercase(),
+                payoutUpiId = request.payoutUpiId?.trim(),
+                bankAccountNumber = request.bankAccountNumber?.trim(),
+                bankIfsc = request.bankIfsc?.trim()?.uppercase(),
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+        return vendor(userId)
+    }
+
+    fun vendorCars(userId: Long): List<RentalCarResponse> {
+        val vendor = verifiedVendor(userId)
+        return cars.findAllByVendorIdOrderByIdDesc(requireNotNull(vendor.id)).map(::toCarResponse)
+    }
+
+    @Transactional
+    fun onboardVehicle(userId: Long, request: RentalVehicleOnboardingRequest): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        require(request.seats in 1..20) { "Seats must be between 1 and 20" }
+        require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
+        require(!drivers.existsById(0L)) { "" }
+        require(!cars.existsByRegistrationNumberIgnoreCase(request.registrationNumber.trim())) { "A vehicle with this registration number already exists" }
+        require(request.driver.licenseExpiry.isAfter(LocalDate.now())) { "Driver licence must be valid" }
+
+        val now = Instant.now()
+        val driver = drivers.save(
+            RentalDriverEntity(
+                vendorId = vendorId,
+                fullName = request.driver.fullName.trim(),
+                mobile = request.driver.mobile,
+                licenseNumber = request.driver.licenseNumber.trim().uppercase(),
+                licenseExpiry = request.driver.licenseExpiry,
+                address = request.driver.address?.trim()?.takeIf { it.isNotBlank() },
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+        val car = cars.save(
+            RentalCarEntity(
+                name = request.name.trim(),
+                category = request.category.trim(),
+                seats = request.seats,
+                transmission = request.transmission.trim(),
+                pricePerDay = request.pricePerDay.setScale(2, RoundingMode.HALF_UP),
+                active = false,
+                vendorId = vendorId,
+                driverId = requireNotNull(driver.id),
+                registrationNumber = request.registrationNumber.trim().uppercase(),
+                make = request.make.trim(),
+                model = request.model.trim(),
+                variant = request.variant?.trim()?.takeIf { it.isNotBlank() },
+                manufacturingYear = request.manufacturingYear,
+                fuelType = request.fuelType.trim(),
+                registrationYear = request.registrationYear,
+                pickupAddress = request.pickupAddress.trim(),
+                city = request.city.trim(),
+                state = request.state.trim(),
+                imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() },
+                approvalStatus = "PENDING_REVIEW"
+            )
+        )
+        return toCarResponse(car)
+    }
+
     fun availableCars(): List<RentalCarResponse> =
-        cars.findAllByActiveTrueOrderByPricePerDayAsc().map(::toCarResponse)
+        cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+            .map(::toCarResponse)
 
     fun bookings(userId: Long, page: Int, size: Int): RentalBookingPageResponse {
-        require(page >= 0) { "Page must be zero or greater" }
-        require(size in 1..100) { "Page size must be between 1 and 100" }
+        require(page >= 0)
+        require(size in 1..100)
         val result = bookings.findAllByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
         val carMap = cars.findAllById(result.content.map { it.carId }).associateBy { it.id }
         return RentalBookingPageResponse(
-            items = result.content.map { toBookingResponse(it, carMap[it.carId]?.name ?: "Car") },
-            page = result.number,
-            size = result.size,
-            totalItems = result.totalElements,
-            totalPages = result.totalPages,
-            hasNext = result.hasNext()
+            result.content.map { b ->
+                val car = carMap[b.carId]
+                val driver = car?.driverId?.let { drivers.findById(it).orElse(null) }
+                toBookingResponse(b, car?.name ?: "Car", driver)
+            },
+            result.number, result.size, result.totalElements, result.totalPages, result.hasNext()
         )
     }
 
@@ -43,87 +135,83 @@ class RentalService(
     fun createBooking(userId: Long, request: RentalBookingRequest): RentalBookingResponse {
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
         val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
-        check(car.active) { "Rental car is not available" }
-        val pickup = request.pickupLocation.trim()
-        val drop = request.dropLocation.trim()
-        require(pickup.isNotBlank()) { "Pickup location is required" }
-        require(drop.isNotBlank()) { "Drop location is required" }
+        check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
+        require(request.paymentMethod.equals("WALLET", true)) { "This booking flow currently supports wallet payment" }
+        require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDate.now())) { "Start date cannot be in the past" }
-
-        val overlappingStatuses = listOf("PENDING", "CONFIRMED")
-        check(!bookings.existsOverlapping(carId, overlappingStatuses, request.startDate, request.endDate)) {
-            "This car is already booked for the selected dates"
-        }
+        check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
 
         val days = ChronoUnit.DAYS.between(request.startDate, request.endDate)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
         val bookingId = "RNT-" + UUID.randomUUID().toString().replace("-", "").take(20).uppercase()
         val ledgerRef = "RENTAL:$bookingId"
-
         wallet.reserve(userId, total)
         wallet.finalizeReservedDebit(userId, total, ledgerRef, bookingId)
 
         val now = Instant.now()
         val saved = bookings.save(
             RentalBookingEntity(
-                bookingId = bookingId,
-                userId = userId,
-                carId = carId,
-                pickupLocation = pickup,
-                dropLocation = drop,
-                startDate = request.startDate,
-                endDate = request.endDate,
-                totalAmount = total,
-                status = "CONFIRMED",
-                walletLedgerRef = ledgerRef,
-                createdAt = now,
-                updatedAt = now
+                bookingId = bookingId, userId = userId, carId = carId,
+                pickupLocation = request.pickupLocation.trim(), dropLocation = request.dropLocation.trim(),
+                startDate = request.startDate, endDate = request.endDate, totalAmount = total,
+                status = "CONFIRMED", walletLedgerRef = ledgerRef, paymentMethod = "WALLET",
+                createdAt = now, updatedAt = now
             )
         )
-        return toBookingResponse(saved, car.name)
+        return toBookingResponse(saved, car.name, drivers.findById(requireNotNull(car.driverId)).orElse(null))
     }
 
     @Transactional
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
-        val booking = bookings.findByBookingIdAndUserId(bookingId, userId)
-            .orElseThrow { IllegalArgumentException("Rental booking not found") }
+        val booking = bookings.findByBookingIdAndUserId(bookingId, userId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
         check(booking.startDate.isAfter(LocalDate.now())) { "Bookings starting today cannot be cancelled" }
-
         booking.status = "CANCELLED"
         booking.updatedAt = Instant.now()
-        wallet.credit(
-            userId = userId,
-            amount = booking.totalAmount,
-            externalRef = "RENTAL_REFUND:$bookingId",
-            referenceType = "RENTAL_REFUND",
-            referenceId = bookingId,
-            description = "Car rental refund"
-        )
+        wallet.credit(userId, booking.totalAmount, "RENTAL_REFUND:$bookingId", "RENTAL_REFUND", bookingId, "Car rental refund")
         val car = cars.findById(booking.carId).orElse(null)
         bookings.save(booking)
-        return toBookingResponse(booking, car?.name ?: "Car")
+        return toBookingResponse(booking, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
     }
 
-    private fun toCarResponse(car: RentalCarEntity) = RentalCarResponse(
-        id = requireNotNull(car.id).toString(),
-        name = car.name,
-        category = car.category,
-        seats = car.seats,
-        transmission = car.transmission,
-        pricePerDay = car.pricePerDay.setScale(2)
-    )
+    @Transactional
+    fun approveVendor(vendorId: Long): RentalVendorResponse {
+        val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }
+        vendor.status = "VERIFIED"; vendor.updatedAt = Instant.now(); vendors.save(vendor)
+        return vendor(vendor.userId)
+    }
 
-    private fun toBookingResponse(booking: RentalBookingEntity, carName: String) = RentalBookingResponse(
-        bookingId = booking.bookingId,
-        carName = carName,
-        pickup = booking.pickupLocation,
-        drop = booking.dropLocation,
-        startDate = booking.startDate,
-        endDate = booking.endDate,
-        total = booking.totalAmount.setScale(2),
-        status = booking.status,
-        createdAt = booking.createdAt
-    )
+    @Transactional
+    fun approveVehicle(carId: Long): RentalCarResponse {
+        val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId != null && car.driverId != null) { "Vehicle is not fully onboarded" }
+        car.approvalStatus = "APPROVED"; car.active = true; cars.save(car)
+        return toCarResponse(car)
+    }
+
+    private fun verifiedVendor(userId: Long): RentalVendorEntity {
+        val vendor = vendors.findByUserId(userId).orElseThrow { IllegalArgumentException("Complete vendor onboarding first") }
+        check(vendor.status == "VERIFIED") { "Vendor onboarding is pending approval" }
+        return vendor
+    }
+
+    private fun toCarResponse(car: RentalCarEntity): RentalCarResponse {
+        val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
+        return RentalCarResponse(
+            id = requireNotNull(car.id).toString(), name = car.name, category = car.category,
+            seats = car.seats, transmission = car.transmission, fuelType = car.fuelType,
+            registrationYear = car.registrationYear, city = car.city, pickupAddress = car.pickupAddress,
+            imageUrl = car.imageUrl, pricePerDay = car.pricePerDay.setScale(2),
+            driverName = driver?.fullName ?: "Driver assigned", driverMobile = driver?.mobile
+        )
+    }
+
+    private fun toBookingResponse(b: RentalBookingEntity, carName: String, driver: RentalDriverEntity?) =
+        RentalBookingResponse(
+            bookingId = b.bookingId, carName = carName, driverName = driver?.fullName ?: "Driver",
+            driverMobile = driver?.mobile, pickup = b.pickupLocation, drop = b.dropLocation,
+            startDate = b.startDate, endDate = b.endDate, total = b.totalAmount.setScale(2),
+            paymentMethod = b.paymentMethod, status = b.status, createdAt = b.createdAt
+        )
 }
