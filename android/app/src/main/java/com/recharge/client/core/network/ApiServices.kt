@@ -66,6 +66,14 @@ interface ClientApi {
     @POST("api/v1/car-rental/vendor/vehicles")
     suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
 
+    @Multipart
+    @PUT("api/v1/car-rental/vendor/vehicles/{carId}/photos/{slot}")
+    suspend fun uploadRentalVehiclePhoto(
+        @retrofit2.http.Path("carId") carId: String,
+        @retrofit2.http.Path("slot") slot: Int,
+        @Part photo: MultipartBody.Part
+    ): Response<RentalCarResponse>
+
     @PUT("api/v1/car-rental/vendor/vehicles/{carId}")
     suspend fun resubmitRentalVehicle(
         @retrofit2.http.Path("carId") carId: String,
