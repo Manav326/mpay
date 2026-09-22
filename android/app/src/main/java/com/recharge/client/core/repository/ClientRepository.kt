@@ -242,6 +242,33 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun takeRentalVehicleOffMarket(
+        carId: String,
+        request: RentalVehicleUnavailabilityRequest
+    ): Result<RentalVehicleUnavailabilityResponse> = runCatching {
+        val response = api.takeRentalVehicleOffMarket(carId, request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalVehicleUnavailability(carId: String): Result<List<RentalVehicleUnavailabilityResponse>> = runCatching {
+        val response = api.rentalVehicleUnavailability(carId)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun restoreRentalVehicleToMarket(carId: String, unavailableId: String): Result<Unit> = runCatching {
+        val response = api.restoreRentalVehicleToMarket(carId, unavailableId)
+        if (!response.isSuccessful) error(ApiError.message(response))
+        Unit
+    }
+
+    suspend fun rentalVehicleCalendar(carId: String, year: Int, month: Int): Result<RentalVehicleCalendarResponse> = runCatching {
+        val response = api.rentalVehicleCalendar(carId, year, month)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun rentalBookingQuote(request: RentalBookingQuoteRequest): Result<RentalBookingQuoteResponse> =
         runCatching {
             val response = api.rentalBookingQuote(request)
