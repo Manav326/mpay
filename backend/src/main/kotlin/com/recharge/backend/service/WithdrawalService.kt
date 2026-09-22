@@ -1,9 +1,12 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.WithdrawMoneyResponse
+import com.recharge.backend.api.WithdrawalHistoryItem
+import com.recharge.backend.api.WithdrawalHistoryResponse
 import com.recharge.backend.domain.WalletWithdrawalEntity
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.repository.WalletWithdrawalRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 
@@ -101,6 +104,36 @@ class WithdrawalService(
         }
 
         return responseFor(finalEntity)
+    }
+
+    fun history(userId: Long, page: Int, size: Int): WithdrawalHistoryResponse {
+        require(page >= 0) { "Page must be non-negative" }
+        require(size in 1..50) { "Page size must be between 1 and 50" }
+        val pageData = withdrawals.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
+        return WithdrawalHistoryResponse(
+            items = pageData.content.map {
+                WithdrawalHistoryItem(
+                    withdrawalId = it.withdrawalId,
+                    clientRequestId = it.clientRequestId,
+                    amount = it.amount.setScale(2),
+                    upiId = it.upiId,
+                    provider = it.providerName,
+                    status = it.status,
+                    providerReference = it.providerReference,
+                    providerStatus = it.providerStatus,
+                    failureReason = it.failureReason,
+                    walletLedgerRef = it.walletLedgerRef,
+                    createdAt = it.createdAt,
+                    updatedAt = it.updatedAt,
+                    completedAt = it.completedAt
+                )
+            },
+            page = pageData.number,
+            size = pageData.size,
+            totalItems = pageData.totalElements,
+            totalPages = pageData.totalPages,
+            hasNext = pageData.hasNext()
+        )
     }
 
     fun get(userId: Long, withdrawalId: String): WithdrawMoneyResponse {
