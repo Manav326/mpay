@@ -181,3 +181,45 @@ export interface RentalAdminVendor {
   submittedAt: string;
   updatedAt: string;
 }
+
+
+export interface RentalAdminBooking {
+  bookingId: string;
+  userId: string;
+  userName?: string | null;
+  userMobile?: string | null;
+  carId: string;
+  carName: string;
+  vendorName?: string | null;
+  pickup: string;
+  drop: string;
+  startDate: string;
+  endDate: string;
+  total: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  walletLedgerRef?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface RentalAdminBookingResponse {
+  items: RentalAdminBooking[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface RentalAdminDashboard {
+  totalBookings: number;
+  confirmedBookings: number;
+  activeBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  totalBookingValue: number;
+  totalRefunded: number;
+  totalVendorPayouts: number;
+  totalPlatformFees: number;
+}
