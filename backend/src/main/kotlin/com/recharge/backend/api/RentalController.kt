@@ -6,6 +6,11 @@ import com.recharge.backend.repository.UserRepository
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
+import java.time.LocalDateTime
+import org.springframework.http.CacheControl
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
+import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/v1/car-rental")
@@ -18,8 +23,15 @@ class RentalController(
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
 
     @GetMapping("/cars")
-    fun cars(authentication: Authentication): List<RentalCarResponse> =
-        rentalService.availableCars(userId(authentication))
+    fun cars(
+        authentication: Authentication,
+        @RequestParam(required = false) startDate: String?,
+        @RequestParam(required = false) endDate: String?
+    ): List<RentalCarResponse> {
+        val parsedStart = startDate?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
+        val parsedEnd = endDate?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
+        return rentalService.availableCars(userId(authentication), parsedStart, parsedEnd)
+    }
 
     @GetMapping("/vendor")
     fun vendor(authentication: Authentication): RentalVendorResponse =
@@ -53,10 +65,71 @@ class RentalController(
     ): RentalCarResponse =
         rentalService.resubmitVehicle(userId(authentication), carId, request)
 
+    @PutMapping(
+        "/vendor/vehicles/{carId}/photos/{slot}",
+        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE]
+    )
+    fun uploadVehiclePhoto(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @PathVariable slot: Int,
+        @RequestPart("photo") photo: MultipartFile
+    ): RentalCarResponse =
+        rentalService.uploadVehiclePhoto(userId(authentication), carId, slot, photo)
+
+    @PostMapping("/vendor/vehicles/{carId}/unavailability")
+    fun takeVehicleOffMarket(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @Valid @RequestBody request: RentalVehicleUnavailabilityRequest
+    ): RentalVehicleUnavailabilityResponse =
+        rentalService.takeVehicleOffMarket(userId(authentication), carId, request)
+
+    @GetMapping("/vendor/vehicles/{carId}/unavailability")
+    fun vehicleUnavailability(
+        authentication: Authentication,
+        @PathVariable carId: Long
+    ): List<RentalVehicleUnavailabilityResponse> =
+        rentalService.vendorVehicleUnavailability(userId(authentication), carId)
+
+    @PostMapping("/vendor/vehicles/{carId}/unavailability/{unavailableId}/restore")
+    fun restoreVehicleToMarket(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @PathVariable unavailableId: Long
+    ) {
+        rentalService.restoreVehicleToMarket(userId(authentication), carId, unavailableId)
+    }
+
+    @GetMapping("/vendor/vehicles/{carId}/calendar")
+    fun vehicleCalendar(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @RequestParam year: Int,
+        @RequestParam month: Int
+    ): RentalVehicleCalendarResponse =
+        rentalService.vehicleCalendar(userId(authentication), carId, year, month)
+
+    @GetMapping("/photos/{key:.+}")
+    fun vehiclePhoto(@PathVariable key: String): ResponseEntity<ByteArray> {
+        val stored = rentalService.rentalImage(key)
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(stored.contentType))
+            .contentLength(stored.bytes.size.toLong())
+            .cacheControl(CacheControl.noCache().cachePublic())
+            .body(stored.bytes)
+    }
+
     private fun requireAdmin(authentication: Authentication) {
         val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
         val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
         roleAccessService.requirePermission(user, "MANAGE_VENDORS")
+    }
+
+    @GetMapping("/admin/vehicle-unavailability")
+    fun adminVehicleUnavailability(authentication: Authentication): List<RentalAdminVehicleUnavailabilityResponse> {
+        requireAdmin(authentication)
+        return rentalService.adminVehicleUnavailability()
     }
 
     @GetMapping("/admin/vendors")
