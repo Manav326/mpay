@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,8 +94,8 @@ private fun VendorField(
     label: String,
     value: String,
     enabled: Boolean = true,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
@@ -117,8 +118,8 @@ private fun CompactFieldRow(
     enabled: Boolean = true
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        VendorField(leftLabel, leftValue, enabled, onLeftChange, Modifier.weight(1f))
-        VendorField(rightLabel, rightValue, enabled, onRightChange, Modifier.weight(1f))
+        VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onLeftChange)
+        VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onRightChange)
     }
 }
 
@@ -379,7 +380,7 @@ fun RentalVendorOnboardingScreen(
 
     if (state.vendor?.status?.uppercase() == "VERIFIED") {
         LaunchedEffect(state.vendor?.vendorId) { onRefreshVehicles(); onRefreshPayouts() }
-        LaunchedEffect(state.vendorCars.map { it.id }) { state.vendorCars.forEach(onLoadVehicleAvailability) }
+        LaunchedEffect(state.vendorCars.map { it.id }) { state.vendorCars.forEach { onLoadVehicleAvailability(it.id) } }
         LaunchedEffect(calendarCarId, calendarMonth) {
             calendarCarId?.let { onLoadVehicleCalendar(it, calendarMonth.year, calendarMonth.monthValue) }
         }
@@ -777,6 +778,29 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
                 contentScale = ContentScale.Crop
             )
         }
+    }
+}
+
+private fun listOfNotBlank(vararg values: String?): List<String> =
+    values.mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
+
+@Composable
+private fun EarningsMetric(
+    label: String,
+    amount: BigDecimal,
+    alignEnd: Boolean = false,
+    emphasize: Boolean = false
+) {
+    Column(horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
+        Text(
+            "₹" + amount.setScale(2).toPlainString(),
+            style = if (emphasize) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = if (emphasize) AppColors.Success else AppColors.TextPrimary,
+            maxLines = 1,
+            softWrap = false
+        )
+        Text(label, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
     }
 }
 
