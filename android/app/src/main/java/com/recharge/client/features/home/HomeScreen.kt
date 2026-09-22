@@ -42,7 +42,7 @@ fun HomeScreen(
     user: CurrentUserResponse?, wallet: WalletResponse?, loading: Boolean,
     commission: RechargeCommissionSummaryResponse?, latestRecharge: RechargeHistoryItem?, error: String?, isVisible: Boolean,
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
-    onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: () -> Unit,
+    onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: (String, String, String) -> Unit,
     onClearWithdrawMessage: () -> Unit, walletUiState: WalletUiState,
     onRechargeHistory: () -> Unit, onCarRental: () -> Unit
 ) {
