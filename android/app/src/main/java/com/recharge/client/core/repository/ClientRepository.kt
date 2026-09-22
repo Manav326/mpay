@@ -229,6 +229,12 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun resubmitRentalVehicle(carId: String, request: com.recharge.client.core.model.RentalVehicleUpdateRequest): Result<com.recharge.client.core.model.RentalCarResponse> = runCatching {
+        val response = api.resubmitRentalVehicle(carId, request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun rentalBookingQuote(request: RentalBookingQuoteRequest): Result<RentalBookingQuoteResponse> =
         runCatching { api.rentalBookingQuote(request).let { response -> if (response.isSuccessful && response.body() != null) response.body()!! else error(response.message().ifBlank { "Unable to calculate rental quote" }) } }
 
