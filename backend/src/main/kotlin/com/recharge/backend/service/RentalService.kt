@@ -293,7 +293,7 @@ class RentalService(
 
     @Transactional
     fun completeBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
-        val booking = bookings.findByBookingIdAndUserId(bookingId, findBookingOwnerUserId(bookingId)).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        val booking = bookings.findByBookingId(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be completed" }
         check(!booking.endDate.isAfter(LocalDateTime.now())) { "Rental booking has not ended yet" }
         booking.status = "COMPLETED"
@@ -303,10 +303,6 @@ class RentalService(
         val car = cars.findById(saved.carId).orElse(null)
         return toBookingResponse(saved, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
     }
-
-    private fun findBookingOwnerUserId(bookingId: String): Long =
-        bookings.findAll().firstOrNull { it.bookingId == bookingId }?.userId
-            ?: throw IllegalArgumentException("Rental booking not found")
 
     @Transactional
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
