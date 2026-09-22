@@ -77,6 +77,20 @@ fun RentalVendorOnboardingScreen(
                 }
             }
             item {
+                val gross = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.grossAmount }
+                val fees = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.platformFeeAmount }
+                val net = state.payouts.filter { it.status == "PAID" }.fold(BigDecimal.ZERO) { total, payout -> total + payout.vendorNetAmount }
+                Card(shape = RoundedCornerShape(18.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text("Rental earnings", style = MaterialTheme.typography.titleLarge)
+                        Text("Gross bookings: ₹" + gross.setScale(2).toPlainString())
+                        Text("Platform fee: ₹" + fees.setScale(2).toPlainString(), color = AppColors.TextSecondary)
+                        Text("Paid to you: ₹" + net.setScale(2).toPlainString(), style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
