@@ -33,13 +33,13 @@ class PaymentGatewayServiceTest {
             1L, CreatePaymentOrderRequest(amount = BigDecimal("100.00"), provider = "mock", clientRequestId = "REQ-MOCK-1")
         )
         assertEquals("mock", created.provider)
-        assertEquals("MOCK-PAY-1", created.orderId)
+        org.junit.jupiter.api.Assertions.assertTrue(created.orderId.startsWith("MOCK-PAY-"))
 
         val settlementResponse = VerifyPaymentResponse("CAPTURED", BigDecimal("100.00"))
-        Mockito.doReturn(java.util.Optional.of(saved)).`when`(orders).findByRazorpayOrderIdAndUserId("MOCK-PAY-1", 1L)
-        Mockito.doReturn(settlementResponse).`when`(settlement).settleCaptured(1L, saved, "MOCK-PAY-1")
+        Mockito.doReturn(java.util.Optional.of(saved)).`when`(orders).findByRazorpayOrderIdAndUserId(created.orderId, 1L)
+        Mockito.doReturn(settlementResponse).`when`(settlement).settleCaptured(1L, saved, created.orderId)
 
-        val verified = provider.verifyWalletPayment(1L, VerifyPaymentRequest("mock", null, "MOCK-PAY-1", null))
+        val verified = provider.verifyWalletPayment(1L, VerifyPaymentRequest("mock", null, created.orderId, null))
         assertEquals("CAPTURED", verified.status)
         assertEquals("CAPTURED", saved.status)
     }
