@@ -51,7 +51,8 @@ class RentalService(
             current.bankIfsc = request.bankIfsc?.trim()?.uppercase()
             current.status = "PENDING"
             current.rejectionReason = null
-            current.updatedAt = Instant.now()
+            val now = Instant.now()
+            current.updatedAt = now
             vendors.save(current)
             vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(current.id), action = "RESUBMITTED", actorUserId = userId, createdAt = now))
             return vendor(userId)
