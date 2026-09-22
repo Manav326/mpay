@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CarFront, ChevronRight, ShieldCheck, X } from 'lucide-react';
 import { approveRentalVehicle, approveRentalVendor, getRentalAdminVendorVehicles, getRentalAdminVendors, getRentalAdminVehicleUnavailability, rejectRentalVendor, rejectRentalVehicle } from '@/lib/api';
-import { RentalAdminVendor } from '@/lib/types';
+import { RentalAdminVendor, RentalAdminVehicleUnavailability } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -16,7 +16,7 @@ export default function RentalVendorReview() {
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [vehicleRejectReason, setVehicleRejectReason] = useState('');
-  const [unavailability, setUnavailability] = useState<any[]>([]);
+  const [unavailability, setUnavailability] = useState<RentalAdminVehicleUnavailability[]>([]);
 
   async function refresh() {
     setLoading(true);
