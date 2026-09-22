@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -137,7 +139,7 @@ fun AuthSectionTitle(
         style = MaterialTheme.typography.headlineMedium,
         color = AppColors.TextPrimary
     )
-    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 4.dp))
+    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
     androidx.compose.material3.Text(
         text = subtitle,
         style = MaterialTheme.typography.bodyMedium,
