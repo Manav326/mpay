@@ -172,29 +172,72 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun resubmitVehicle(carId: String, request: RentalVehicleUpdateRequest, onDone: () -> Unit) {
+    fun resubmitVehicle(
+        carId: String,
+        request: RentalVehicleUpdateRequest,
+        galleryPhotos: Map<Int, String>,
+        onDone: () -> Unit
+    ) {
         if (_state.value.saving) return
         viewModelScope.launch {
             _state.value = _state.value.copy(saving = true, error = null)
             repository.resubmitRentalVehicle(carId, request)
                 .onSuccess { updated ->
                     _state.value = _state.value.copy(
-                        vendorCars = _state.value.vendorCars.map { if (it.id == updated.id) updated else it },
-                        saving = false
+                        vendorCars = _state.value.vendorCars.map { if (it.id == updated.id) updated else it }
                     )
-                    onDone()
+                    uploadRentalVehiclePhotos(carId, galleryPhotos)
+                        .onSuccess {
+                            _state.value = _state.value.copy(saving = false)
+                            onDone()
+                        }
+                        .onFailure {
+                            _state.value = _state.value.copy(
+                                saving = false,
+                                error = it.message ?: "Vehicle submitted, but one or more photos could not be uploaded"
+                            )
+                        }
                 }
                 .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to resubmit vehicle") }
         }
     }
 
-    fun onboardVehicle(request: RentalVehicleOnboardingRequest, onDone: () -> Unit) {
+    fun onboardVehicle(
+        request: RentalVehicleOnboardingRequest,
+        galleryPhotos: Map<Int, String>,
+        onDone: () -> Unit
+    ) {
         if (_state.value.saving) return
         viewModelScope.launch {
             _state.value = _state.value.copy(saving = true, error = null)
             repository.onboardRentalVehicle(request)
-                .onSuccess { _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + it, saving = false); onDone() }
+                .onSuccess { created ->
+                    _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + created)
+                    uploadRentalVehiclePhotos(created.id, galleryPhotos)
+                        .onSuccess {
+                            _state.value = _state.value.copy(saving = false)
+                            onDone()
+                        }
+                        .onFailure {
+                            _state.value = _state.value.copy(
+                                saving = false,
+                                error = it.message ?: "Vehicle created, but one or more photos could not be uploaded"
+                            )
+                        }
+                }
                 .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to submit vehicle") }
+        }
+    }
+
+    private suspend fun uploadRentalVehiclePhotos(
+        carId: String,
+        galleryPhotos: Map<Int, String>
+    ): Result<Unit> = runCatching {
+        galleryPhotos.toSortedMap().forEach { (slot, uri) ->
+            val uploaded = repository.uploadRentalVehiclePhoto(carId, slot, android.net.Uri.parse(uri)).getOrThrow()
+            _state.value = _state.value.copy(
+                vendorCars = _state.value.vendorCars.map { if (it.id == uploaded.id) uploaded else it }
+            )
         }
     }
 
