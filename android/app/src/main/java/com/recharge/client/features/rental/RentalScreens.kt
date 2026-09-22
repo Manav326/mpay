@@ -466,8 +466,10 @@ fun CarRentalMarketplaceScreen(
                             "Cars already booked for an overlapping period are removed from these results.",
                             color = AppColors.TextSecondary
                         )
-                        OutlinedButton(onClick = onRefresh, shape = RoundedCornerShape(12.dp)) {
-                            Text("Check again")
+                        if (canSearch) {
+                            OutlinedButton(onClick = { onSearch(start, end) }, shape = RoundedCornerShape(12.dp)) {
+                                Text("Check again")
+                            }
                         }
                     }
                 }
@@ -724,7 +726,7 @@ fun RentalMyBookingsScreen(
         }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         item {
-            val filters = listOf("ALL", "CONFIRMED", "CANCELLED", "COMPLETED", "PENDING")
+            val filters = listOf("ALL") + state.bookings.map { it.status.uppercase() }.distinct()
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
