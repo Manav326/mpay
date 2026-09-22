@@ -13,8 +13,16 @@ class PaymentGatewayService(
     private val rechargeService: RechargeService,
     @Value("\${app.payment.gateway-providers:payu,razorpay}") private val configuredProviders: String
 ) {
-    fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse =
-        resolveProvider().createWalletOrder(userId, request)
+    fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
+        val requested = request.provider.trim()
+        if (requested.isNotBlank()) {
+            providers.firstOrNull { it.isConfigured() && it.providerName.equals(requested, true) }?.let {
+                return it.createWalletOrder(userId, request)
+            }
+            throw IllegalArgumentException("Requested payment gateway is not configured: $requested")
+        }
+        return resolveProvider().createWalletOrder(userId, request)
+    }
 
     fun createRechargeOrder(userId: Long, request: com.recharge.backend.api.RechargeRequest): CreatePaymentOrderResponse =
         resolveProvider().createWalletOrder(userId, rechargeService.createRechargePaymentOrder(userId, request))

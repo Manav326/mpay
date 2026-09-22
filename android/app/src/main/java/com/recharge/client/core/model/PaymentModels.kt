@@ -5,6 +5,7 @@ import java.math.BigDecimal
 data class CreatePaymentOrderRequest(
     val amount: BigDecimal,
     val clientRequestId: String,
+    val provider: String = "razorpay",
     val purpose: String = "ADD_MONEY",
     val rechargeMobileNumber: String? = null,
     val rechargeOperator: String? = null,

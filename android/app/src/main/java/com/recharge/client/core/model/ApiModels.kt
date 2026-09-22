@@ -137,11 +137,19 @@ data class WalletHistoryResponse(
     val toDate: String
 )
 
-data class WithdrawMoneyRequest(val amount: BigDecimal, val upiId: String)
+data class WithdrawMoneyRequest(
+    val amount: BigDecimal,
+    val provider: String = "razorpay",
+    val clientRequestId: String,
+    val upiId: String
+)
 data class WithdrawMoneyResponse(
+    val withdrawalId: String,
     val status: String,
+    val provider: String,
     val amount: BigDecimal,
     val upiId: String,
     val balance: BigDecimal,
-    val availableBalance: BigDecimal
+    val availableBalance: BigDecimal,
+    val message: String? = null
 )

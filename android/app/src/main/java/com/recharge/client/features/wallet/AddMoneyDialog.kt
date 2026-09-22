@@ -20,6 +20,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -29,10 +32,11 @@ import com.recharge.client.core.viewmodel.PaymentUiState
 fun AddMoneyDialog(
     paymentState: PaymentUiState,
     onDismiss: () -> Unit,
-    onCreateOrder: (String) -> Unit,
+    onCreateOrder: (String, String) -> Unit,
     onClearMessage: () -> Unit
 ) {
     var amount by remember { mutableStateOf("100") }
+    var provider by remember { mutableStateOf("razorpay") }
 
     val busy = paymentState is PaymentUiState.CreatingOrder || paymentState is PaymentUiState.Verifying
     val error = (paymentState as? PaymentUiState.Error)?.message
@@ -43,7 +47,12 @@ fun AddMoneyDialog(
         title = { Text("Add money") },
         text = {
             Column(Modifier.fillMaxWidth()) {
-                Text("Add money securely using Razorpay.", style = MaterialTheme.typography.bodyMedium)
+                Text("Choose a payment gateway for wallet top-up.", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(10.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    SegmentedButton(selected = provider == "razorpay", onClick = { provider = "razorpay" }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Razorpay") }
+                    SegmentedButton(selected = provider == "payu", onClick = { provider = "payu" }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("PayU") }
+                }
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = amount,
@@ -72,7 +81,7 @@ fun AddMoneyDialog(
         confirmButton = {
             if (success == null) {
                 Button(
-                    onClick = { onCreateOrder(amount) },
+                    onClick = { onCreateOrder(amount, provider) },
                     enabled = !busy
                 ) {
                     if (busy) {

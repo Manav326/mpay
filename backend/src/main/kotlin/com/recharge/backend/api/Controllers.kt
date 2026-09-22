@@ -26,7 +26,8 @@ class ClientController(
     private val authService: AuthService,
     private val paymentGatewayService: PaymentGatewayService,
     private val payuPaymentGateway: PayUPaymentGatewayProvider,
-    private val rechargeRepository: RechargeTransactionRepository
+    private val rechargeRepository: RechargeTransactionRepository,
+    private val withdrawalService: com.recharge.backend.service.WithdrawalService
 ) {
     private fun authenticatedUserId(authentication: Authentication): Long =
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
@@ -152,10 +153,21 @@ class ClientController(
     }
 
     @PostMapping("/wallet/withdraw")
-    fun withdraw(authentication: Authentication, @Valid @RequestBody request: WithdrawMoneyRequest): WithdrawMoneyResponse {
-        val snapshot = wallet.withdrawToUpi(authenticatedUserId(authentication), request.amount, request.upiId)
-        return WithdrawMoneyResponse("SUCCESS", request.amount.setScale(2), request.upiId.trim(), snapshot.balance, snapshot.availableBalance)
-    }
+    fun withdraw(authentication: Authentication, @Valid @RequestBody request: WithdrawMoneyRequest): WithdrawMoneyResponse =
+        withdrawalService.withdraw(
+            userId = authenticatedUserId(authentication),
+            amount = request.amount,
+            providerName = request.provider,
+            clientRequestId = request.clientRequestId,
+            upiId = request.upiId
+        )
+
+    @GetMapping("/wallet/withdrawals/{withdrawalId}")
+    fun withdrawalStatus(
+        authentication: Authentication,
+        @PathVariable withdrawalId: String
+    ): WithdrawMoneyResponse =
+        withdrawalService.get(authenticatedUserId(authentication), withdrawalId)
 }
 
 @RestController

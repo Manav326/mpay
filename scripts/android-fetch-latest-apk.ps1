@@ -27,7 +27,8 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
 }
 
 $workflow = "Docker Compose CI"
-$artifactName = "mpay-android-debug-apk"
+$safeBranch = ($Branch.ToLowerInvariant() -replace '[^a-z0-9_.-]', '-')
+$artifactName = "mpay-android-$safeBranch"
 $packageName = "com.recharge.client"
 $headSha = (git rev-parse HEAD).Trim()
 
@@ -111,7 +112,7 @@ try {
         }
 
         if (Get-Command gh -ErrorAction SilentlyContinue) {
-            Write-Host "Finding a successful Android artifact build for this exact commit..." -ForegroundColor Yellow
+            Write-Host "Finding the latest Android artifact build for this branch..." -ForegroundColor Yellow
             $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
             if ($LASTEXITCODE -ne 0) {
                 throw "Could not query GitHub Actions runs."
@@ -119,17 +120,10 @@ try {
 
             $runs = $runJson | ConvertFrom-Json
 
-            # Android artifacts are produced for Android feature PRs and main pushes.
-            # Accept both event types so the helper follows the current CI workflow.
-            $run = $runs | Where-Object {
-                $_.headSha -eq $headSha -and
-                $_.status -eq "completed" -and
-                $_.conclusion -eq "success" -and
-                ($_.event -eq "push" -or $_.event -eq "pull_request")
-            } | Sort-Object createdAt -Descending | Select-Object -First 1
+            $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
 
             if (-not $run) {
-                throw "No successful Android build with an APK artifact exists yet for commit $headSha. Checked push and pull-request workflow runs."
+                throw "No GitHub Actions run exists yet for branch $Branch."
             }
 
             $runId = [string]$run.databaseId
@@ -155,19 +149,14 @@ try {
                 throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
             }
 
-            $run = $runsResponse.workflow_runs | Where-Object {
-                $_.head_sha -eq $headSha -and
-                $_.status -eq "completed" -and
-                $_.conclusion -eq "success" -and
-                ($_.event -eq "push" -or $_.event -eq "pull_request")
-            } | Sort-Object created_at -Descending | Select-Object -First 1
+            $run = $runsResponse.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1
 
             if (-not $run) {
-                throw "No successful push build with an Android APK artifact exists yet for commit $headSha."
+                throw "No GitHub Actions run exists yet for branch $Branch."
             }
 
             $runId = [string]$run.id
-            Write-Host "Found successful Actions run $runId for commit $headSha." -ForegroundColor Green
+            Write-Host "Found latest Actions run $runId for branch $Branch." -ForegroundColor Green
 
             $artifactsUrl = "https://api.github.com/repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
             try {

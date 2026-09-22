@@ -86,6 +86,13 @@ jobs:
           docker push "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           docker push "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
 
+      - name: Verify pushed images
+        if: github.event_name == 'push'
+        run: |
+          docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}"
+          docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"
+          docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
+          docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
       - name: Build summary
         if: always()
         run: |
@@ -97,9 +104,8 @@ jobs:
 
   android-apk:
     if: >
-      (github.event_name == 'pull_request' &&
-        (startsWith(github.head_ref, 'feature/android-') ||
-         startsWith(github.head_ref, 'feature/android/'))) ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')) ||
       (github.event_name == 'push' && github.ref_name == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -132,10 +138,18 @@ jobs:
           test -f android/app/build/outputs/apk/debug/app-debug.apk
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Set APK artifact name
+        shell: bash
+        run: |
+          branch_name="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
+          echo "MPAY_APK_ARTIFACT_NAME=mpay-android-${safe_branch}" >> "${GITHUB_ENV}"
+          echo "APK artifact: mpay-android-${safe_branch}"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: mpay-android-debug-apk
+          name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30

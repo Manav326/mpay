@@ -49,7 +49,9 @@ class SecurityConfig {
                     "/api/v1/auth/portal-login",
                     "/api/v1/auth/admin-login",
                     "/api/v1/auth/manager-login",
-                    "/api/v1/auth/portal-roles"
+                    "/api/v1/auth/portal-roles",
+                    "/api/v1/webhooks/payu/payout",
+                    "/api/v1/webhooks/razorpay/payout"
                 ).permitAll()
                     .anyRequest().authenticated()
             }
