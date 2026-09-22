@@ -549,7 +549,10 @@ private fun AppNavHost(
             RentalMyBookingsScreen(
                 state = rentalViewModel.state.collectAsState().value,
                 onRefresh = rentalViewModel::loadBookings,
-                onBack = { nav.popBackStack() }
+                onBack = { nav.popBackStack() },
+                onCancel = { bookingId, onDone ->
+                    rentalViewModel.cancelBooking(bookingId, onDone)
+                }
             )
         }
         composable("rental-vehicle") {
