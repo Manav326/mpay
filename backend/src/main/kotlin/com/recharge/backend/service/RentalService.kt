@@ -190,9 +190,24 @@ class RentalService(
         return toCarResponse(car)
     }
 
-    fun availableCars(): List<RentalCarResponse> =
-        cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+    fun availableCars(userId: Long): List<RentalCarResponse> {
+        val available = cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+        if (available.isEmpty()) return emptyList()
+        val vendorIds = available.mapNotNull { it.vendorId }.distinct()
+        val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
+        return available
+            .filter { car ->
+                val vendorId = car.vendorId
+                vendorId == null || vendorById[vendorId]?.userId != userId
+            }
             .map(::toCarResponse)
+    }
+
+    private fun requireNotOwnVehicle(userId: Long, car: RentalCarEntity) {
+        val vendorId = requireNotNull(car.vendorId) { "Rental vehicle vendor is missing" }
+        val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Rental vehicle vendor not found") }
+        require(vendor.userId != userId) { "This vehicle cannot be booked by its owning vendor" }
+    }
 
     fun bookings(userId: Long, page: Int, size: Int): RentalBookingPageResponse {
         require(page >= 0)
@@ -213,6 +228,7 @@ class RentalService(
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
+        requireNotOwnVehicle(userId, car)
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDate.now())) { "Start date cannot be in the past" }
@@ -240,6 +256,7 @@ class RentalService(
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
         val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
+        requireNotOwnVehicle(userId, car)
         require(request.paymentMethod.equals("WALLET", true)) { "This booking flow currently supports wallet payment" }
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
