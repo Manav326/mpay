@@ -39,6 +39,8 @@ import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.services.CarRentalComingSoonScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
+import com.recharge.client.features.rental.RentalMyBookingsScreen
+import com.recharge.client.features.rental.MarketplaceScreen
 import com.recharge.client.features.rental.CarRentalMarketplaceScreen
 import com.recharge.client.features.rental.RentalVehicleOnboardingScreen
 import com.recharge.client.features.rental.RentalBookingScreen
