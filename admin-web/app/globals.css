@@ -15,20 +15,35 @@
 
 
 /* Customer portal: distinct home quick-action and rental surfaces */
-.portal-quick-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px;padding:10px;border:1px solid #ece5f8;border-radius:18px;background:#faf8ff}
-.portal-quick-actions button{border:0;background:transparent;color:#635c72;border-radius:11px;padding:9px 11px;display:inline-flex;align-items:center;gap:7px;font-weight:800;font-size:11px;cursor:pointer}
-.portal-quick-actions button:hover{background:#f1ecff;color:#6d4ac4}
-.portal-quick-actions svg{width:16px;height:16px;color:#7c5ac8}
-.home-rental-feature{margin-top:14px;border:1px solid #d9ebf8;border-radius:22px;background:#f3faff;overflow:hidden}
-.home-rental-feature-main{width:100%;border:0;background:transparent;padding:22px;display:flex;align-items:center;gap:14px;text-align:left;cursor:pointer;color:#2f3e49}
-.home-rental-feature-main:hover{background:#edf7fd}
-.home-rental-feature-main>svg{margin-left:auto;color:#1677b8;flex:none}
-.home-rental-feature-main span{display:block;font-size:9px;letter-spacing:.13em;font-weight:900;color:#6e95ad}
-.home-rental-feature-main b{display:block;font-size:21px;margin:4px 0;color:#234b63}
-.home-rental-feature-main p{margin:0;color:#6f7f89;font-size:11px;line-height:1.55}
-.home-rental-feature-icon{width:50px;height:50px;flex:none;border-radius:15px;background:#e2f2fc;color:#1677b8;display:grid;place-items:center}
+.portal-quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px;padding:10px;border:1px solid #ece5f8;border-radius:18px;background:#faf8ff}
+.portal-quick-actions button{border:1px solid #eee7dd;background:#fff;border-radius:14px;color:#635c72;padding:12px 10px;display:flex;align-items:center;justify-content:center;gap:7px;font-weight:800;font-size:11px;cursor:pointer;min-height:46px}
+.portal-quick-actions button:hover{background:#f1ecff;color:#6d4ac4;border-color:#ded2fb}
+.portal-quick-actions svg{width:16px;height:16px;color:#7c5ac8;flex:none}
+.home-marketplace{margin-top:18px}
+.home-section-label{font-size:18px;font-weight:800;color:#3f3932;margin-bottom:9px}
+.home-marketplace-card{width:100%;border:1px solid #d9ebf8;border-radius:22px;background:#f3faff;overflow:hidden;padding:22px;display:flex;align-items:center;gap:14px;text-align:left;cursor:pointer;color:#2f3e49}
+.home-marketplace-card:hover{background:#edf7fd}
+.home-marketplace-card>svg{margin-left:auto;color:#1677b8;flex:none}
+.home-marketplace-copy span{display:block;font-size:9px;letter-spacing:.13em;font-weight:900;color:#6e95ad}
+.home-marketplace-copy b{display:block;font-size:21px;margin:4px 0;color:#234b63}
+.home-marketplace-copy p{margin:0;color:#6f7f89;font-size:11px;line-height:1.55}
+.home-marketplace-icon{width:50px;height:50px;flex:none;border-radius:15px;background:#e2f2fc;color:#1677b8;display:grid;place-items:center}
+.home-recharge-history{width:100%;margin-top:12px;border:1px solid #f1d49a;border-radius:20px;background:#fff7e6;color:#6f4b0b;padding:17px 18px;display:flex;align-items:center;gap:13px;text-align:left;cursor:pointer}
+.home-recharge-history:hover{background:#fff0d0}
+.home-recharge-history>svg{margin-left:auto;flex:none;color:#9a6408}
+.home-recharge-history-icon{width:44px;height:44px;flex:none;border-radius:13px;background:#ffebbf;color:#b26a00;display:grid;place-items:center}
+.home-recharge-history span{display:block;font-size:9px;letter-spacing:.13em;font-weight:900;color:#a0742a}
+.home-recharge-history b{display:block;font-size:17px;margin:3px 0;color:#79520d}
+.home-recharge-history p{margin:0;color:#8a6a2b;font-size:10px;line-height:1.5}
 .rental-empty-state{min-height:250px;border:1px dashed #cfe2ee;border-radius:19px;background:#f6fbfe;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:28px;text-align:center;margin-top:18px}
 .rental-empty-icon{width:58px;height:58px;border-radius:18px;background:#e2f2fc;color:#1677b8;display:grid;place-items:center}
 .rental-empty-state b{font-size:17px;color:#294655}
 .rental-empty-state span{max-width:520px;color:#75848d;font-size:11px;line-height:1.6}
-@media(max-width:600px){.portal-quick-actions{gap:4px}.portal-quick-actions button{padding:8px 7px}.home-rental-feature-main{padding:18px}.home-rental-feature-main p{font-size:10px}}
+@media(max-width:600px){
+  .portal-quick-actions{gap:6px}
+  .portal-quick-actions button{padding:10px 6px;font-size:10px;flex-direction:column;min-height:68px}
+  .home-marketplace-card{padding:18px}
+  .home-marketplace-copy b{font-size:18px}
+  .home-marketplace-copy p{font-size:10px}
+  .home-recharge-history{padding:15px}
+}
