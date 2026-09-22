@@ -31,7 +31,7 @@ class WithdrawalService(
         require(normalizedAmount >= BigDecimal("1.00")) { "Minimum withdrawal amount is ₹1" }
 
         val normalizedUpi = upiId.trim()
-        require(Regex("^[A-Za-z0-9._-]+@[A-Za-z]{2,}$").matches(normalizedUpi)) { "Enter a valid UPI ID" }
+        require(Regex("^[A-Za-z0-9._-]+@[A-Za-z0-9._-]{2,}$").matches(normalizedUpi)) { "Enter a valid UPI ID" }
 
         val normalizedRequestId = clientRequestId.trim()
         require(normalizedRequestId.isNotBlank()) { "Client request id is required" }
