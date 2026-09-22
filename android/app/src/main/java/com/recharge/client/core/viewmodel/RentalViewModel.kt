@@ -41,6 +41,25 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun loadVendorVehicles() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(loading = true, error = null)
+            repository.rentalVendorVehicles()
+                .onSuccess { _state.value = _state.value.copy(vendorCars = it, loading = false) }
+                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load vendor vehicles") }
+        }
+    }
+
+    fun onboardVehicle(request: RentalVehicleOnboardingRequest, onDone: () -> Unit) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.onboardRentalVehicle(request)
+                .onSuccess { _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + it, saving = false); onDone() }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to submit vehicle") }
+        }
+    }
+
     fun onboardVendor(request: RentalVendorOnboardingRequest, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
