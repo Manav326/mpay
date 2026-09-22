@@ -552,7 +552,8 @@ private fun AppNavHost(
                 onBack = { nav.popBackStack() },
                 onCancel = { bookingId, onDone ->
                     rentalViewModel.cancelBooking(bookingId, onDone)
-                }
+                },
+                onWalletRefresh = homeViewModel::refreshWallet
             )
         }
         composable("rental-vehicle") {
