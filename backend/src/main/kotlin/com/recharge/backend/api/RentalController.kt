@@ -31,6 +31,10 @@ class RentalController(
         @Valid @RequestBody request: RentalVendorOnboardingRequest
     ): RentalVendorResponse = rentalService.onboardVendor(userId(authentication), request)
 
+    @GetMapping("/vendor/payouts")
+    fun vendorPayouts(authentication: Authentication): List<RentalVendorPayoutResponse> =
+        rentalService.vendorPayouts(userId(authentication))
+
     @GetMapping("/vendor/vehicles")
     fun vendorVehicles(authentication: Authentication): List<RentalCarResponse> =
         rentalService.vendorCars(userId(authentication))
