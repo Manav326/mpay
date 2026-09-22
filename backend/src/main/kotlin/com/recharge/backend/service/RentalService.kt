@@ -635,6 +635,68 @@ class RentalService(
         return toBookingResponse(booking, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
     }
 
+    fun adminDashboard(): RentalAdminDashboardResponse =
+        RentalAdminDashboardResponse(
+            totalBookings = bookings.count(),
+            confirmedBookings = bookings.countByStatus("CONFIRMED"),
+            activeBookings = bookings.countActive(LocalDateTime.now()),
+            completedBookings = bookings.countByStatus("COMPLETED"),
+            cancelledBookings = bookings.countByStatus("CANCELLED"),
+            totalBookingValue = bookings.sumTotalAmount().setScale(2, RoundingMode.HALF_UP),
+            totalRefunded = rentalPaymentRepository.sumRefundedAmount().setScale(2, RoundingMode.HALF_UP),
+            totalVendorPayouts = rentalPayouts.totalPaidVendorAmount(),
+            totalPlatformFees = rentalPayouts.totalPlatformFeeAmount()
+        )
+
+    fun adminBookings(page: Int, size: Int, status: String?): RentalAdminBookingPageResponse {
+        require(page >= 0)
+        require(size in 1..100)
+        val normalizedStatus = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
+        val result = if (normalizedStatus == null) {
+            bookings.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+        } else {
+            bookings.findAllByStatusOrderByCreatedAtDesc(normalizedStatus, PageRequest.of(page, size))
+        }
+        val bookingRows = result.content
+        val carMap = cars.findAllById(bookingRows.map { it.carId }.distinct()).associateBy { requireNotNull(it.id) }
+        val userMap = users.findAllById(bookingRows.map { it.userId }.distinct()).associateBy { requireNotNull(it.id) }
+        val vendorIds = carMap.values.mapNotNull { it.vendorId }.distinct()
+        val vendorMap = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
+        val paymentMap = rentalPaymentRepository.findAllByBookingIdIn(bookingRows.map { it.bookingId }).associateBy { it.bookingId }
+        return RentalAdminBookingPageResponse(
+            items = bookingRows.map { booking ->
+                val car = carMap[booking.carId]
+                val vendor = car?.vendorId?.let { vendorMap[it] }
+                val user = userMap[booking.userId]
+                val payment = paymentMap[booking.bookingId]
+                RentalAdminBookingResponse(
+                    bookingId = booking.bookingId,
+                    userId = booking.userId.toString(),
+                    userName = user?.name,
+                    userMobile = user?.mobile,
+                    carId = booking.carId.toString(),
+                    carName = car?.name ?: "Car",
+                    vendorName = vendor?.businessName?.takeIf { it.isNotBlank() } ?: vendor?.fullName,
+                    pickup = booking.pickupLocation,
+                    drop = booking.dropLocation,
+                    startDate = booking.startDate,
+                    endDate = booking.endDate,
+                    total = booking.totalAmount.setScale(2),
+                    paymentMethod = booking.paymentMethod,
+                    paymentStatus = payment?.status ?: "UNKNOWN",
+                    walletLedgerRef = booking.walletLedgerRef,
+                    status = booking.status,
+                    createdAt = booking.createdAt
+                )
+            },
+            page = result.number,
+            size = result.size,
+            totalItems = result.totalElements,
+            totalPages = result.totalPages,
+            hasNext = result.hasNext()
+        )
+    }
+
     @Transactional
     fun approveVendor(vendorId: Long, actorUserId: Long): RentalVendorResponse {
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }

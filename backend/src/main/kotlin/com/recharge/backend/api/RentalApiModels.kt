@@ -264,3 +264,45 @@ data class RentalAdminVehicleUnavailabilityResponse(
     val status: String,
     val createdAt: Instant
 )
+
+
+data class RentalAdminBookingResponse(
+    val bookingId: String,
+    val userId: String,
+    val userName: String?,
+    val userMobile: String?,
+    val carId: String,
+    val carName: String,
+    val vendorName: String?,
+    val pickup: String,
+    val drop: String,
+    val startDate: LocalDateTime,
+    val endDate: LocalDateTime,
+    val total: BigDecimal,
+    val paymentMethod: String,
+    val paymentStatus: String,
+    val walletLedgerRef: String?,
+    val status: String,
+    val createdAt: Instant
+)
+
+data class RentalAdminBookingPageResponse(
+    val items: List<RentalAdminBookingResponse>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
+data class RentalAdminDashboardResponse(
+    val totalBookings: Long,
+    val confirmedBookings: Long,
+    val activeBookings: Long,
+    val completedBookings: Long,
+    val cancelledBookings: Long,
+    val totalBookingValue: BigDecimal,
+    val totalRefunded: BigDecimal,
+    val totalVendorPayouts: BigDecimal,
+    val totalPlatformFees: BigDecimal
+)
