@@ -45,6 +45,18 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
 
     @Query("""
+        select b.carId
+        from RentalBookingEntity b
+        where b.status in :statuses
+          and b.startDate < :endDate and b.endDate > :startDate
+    """)
+    fun findBookedCarIds(
+        @Param("statuses") statuses: Collection<String>,
+        @Param("startDate") startDate: LocalDateTime,
+        @Param("endDate") endDate: LocalDateTime
+    ): List<Long>
+
+    @Query("""
         select count(b) > 0 from RentalBookingEntity b
         where b.carId = :carId and b.status in :statuses
           and b.startDate < :endDate and b.endDate > :startDate
