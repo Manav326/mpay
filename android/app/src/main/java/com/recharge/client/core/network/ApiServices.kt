@@ -46,7 +46,10 @@ interface ClientApi {
     suspend fun wallet(): Response<WalletResponse>
 
     @GET("api/v1/car-rental/cars")
-    suspend fun rentalCars(): Response<List<RentalCarResponse>>
+    suspend fun rentalCars(
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null
+    ): Response<List<RentalCarResponse>>
 
     @GET("api/v1/car-rental/vendor")
     suspend fun rentalVendor(): Response<RentalVendorResponse>
