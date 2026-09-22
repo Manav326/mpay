@@ -393,6 +393,7 @@ fun RentalVendorOnboardingScreen(
     var offMarketNote by remember { mutableStateOf("") }
     var calendarCarId by remember { mutableStateOf<String?>(null) }
     var calendarMonth by remember { mutableStateOf(YearMonth.now()) }
+    var detailsCar by remember { mutableStateOf<RentalCarResponse?>(null) }
 
     if (state.vendor?.status?.uppercase() == "VERIFIED") {
         LaunchedEffect(state.vendor?.vendorId) { onRefreshVehicles(); onRefreshPayouts() }
@@ -430,6 +431,10 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             )
+        }
+
+        detailsCar?.let { car ->
+            RentalVehicleDetailsDialog(car = car, onDismiss = { detailsCar = null })
         }
 
         calendarCarId?.let { carId ->
@@ -527,8 +532,17 @@ fun RentalVendorOnboardingScreen(
                 items(state.vendorCars, key = { it.id }) { car ->
                     val status = car.approvalStatus?.uppercase() ?: "PENDING_REVIEW"
                     val blackouts = state.vehicleUnavailabilityByCar[car.id].orEmpty()
-                    val activeBlackout = blackouts.firstOrNull()
-                    Card(shape = RoundedCornerShape(18.dp)) {
+                    val today = LocalDate.now()
+                    val activeBlackout = blackouts.firstOrNull {
+                        !it.startDate.isAfter(today) && !it.endDate.isBefore(today)
+                    }
+                    val scheduledBlackout = blackouts.firstOrNull { it.startDate.isAfter(today) }
+                    val displayedBlackout = activeBlackout ?: scheduledBlackout
+                    val displayedOffMarket = activeBlackout != null
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        onClick = { detailsCar = car }
+                    ) {
                         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Surface(shape = RoundedCornerShape(10.dp), color = AppColors.Primary.copy(alpha = .08f)) {
@@ -548,10 +562,14 @@ fun RentalVendorOnboardingScreen(
                                             }
                                         ) {
                                             Text(
-                                                if (activeBlackout != null) "OFF MARKET" else status.replace("_", " "),
+                                                when {
+                                                    displayedOffMarket -> "OFF MARKET"
+                                                    scheduledBlackout != null -> "SCHEDULED"
+                                                    else -> status.replace("_", " ")
+                                                },
                                                 color = when {
                                                     status == "REJECTED" -> AppColors.Error
-                                                    activeBlackout != null -> Color(0xFF9A6408)
+                                                    displayedOffMarket || scheduledBlackout != null -> Color(0xFF9A6408)
                                                     status == "APPROVED" -> AppColors.Success
                                                     else -> Color(0xFF9A6408)
                                                 },
@@ -574,9 +592,9 @@ fun RentalVendorOnboardingScreen(
                                 }
                             }
 
-                            activeBlackout?.let {
+                            displayedBlackout?.let {
                                 Text(
-                                    "Off market: " + formatRentalDate(it.startDate) + " → " + formatRentalDate(it.endDate) + " • " + it.reasonLabel,
+                                    (if (displayedOffMarket) "Off market: " else "Scheduled off market: ") + formatRentalDate(it.startDate) + " → " + formatRentalDate(it.endDate) + " • " + it.reasonLabel,
                                     color = Color(0xFF9A6408),
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -592,10 +610,10 @@ fun RentalVendorOnboardingScreen(
                                     shape = RoundedCornerShape(10.dp)
                                 ) { Text("Calendar", style = MaterialTheme.typography.labelMedium) }
 
-                                if (activeBlackout != null) {
+                                if (displayedBlackout != null) {
                                     OutlinedButton(
                                         onClick = {
-                                            onRestoreVehicleToMarket(car.id, activeBlackout.id) {
+                                            onRestoreVehicleToMarket(car.id, displayedBlackout.id) {
                                                 onLoadVehicleAvailability(car.id)
                                             }
                                         },
@@ -1291,6 +1309,62 @@ fun RentalVehicleOnboardingScreen(
             ) {
                 if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Text(if (editingCar == null) "Submit vehicle for review" else "Resubmit vehicle for review")
+            }
+        }
+    }
+}
+
+@Composable
+private fun RentalVehicleDetailsDialog(
+    car: RentalCarResponse,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(20.dp)) {
+            LazyColumn(
+                Modifier.fillMaxWidth().padding(15.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(car.name, style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                car.category + " • " + car.seats + " seats • " + car.transmission,
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        TextButton(onClick = onDismiss) { Text("Close") }
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        rentalPhotoSlots(car.imageUrl).forEach { photo ->
+                            RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1f))
+                        }
+                    }
+                }
+                item { Text("Vehicle details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+                item { Text("Make / model: " + listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { "—" }) }
+                item { Text("Category / seats: " + car.category + " / " + car.seats) }
+                item { Text("Transmission / fuel: " + car.transmission + " / " + (car.fuelType ?: "—")) }
+                item { Text("Manufacturing year: " + (car.manufacturingYear?.toString() ?: "—")) }
+                item { Text("Registration year: " + (car.registrationYear?.toString() ?: "—")) }
+                item { Text("Registration number: " + (car.registrationNumber ?: "—")) }
+                item { Text("Price per day: ₹" + car.pricePerDay.setScale(2).toPlainString()) }
+                item { Text("Pickup address: " + (car.pickupAddress ?: "—")) }
+                item { Text("City / state: " + listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }) }
+                item { Text("Approval status: " + (car.approvalStatus ?: "—")) }
+                car.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
+                    item { Text("Review note: " + reason, color = AppColors.Error) }
+                }
+                item { Text("Driver details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+                item { Text("Name: " + car.driverName) }
+                item { Text("Mobile: " + (car.driverMobile ?: "—")) }
+                item { Text("Licence number: " + (car.driverLicenseNumber ?: "—")) }
+                item { Text("Licence expiry: " + (car.driverLicenseExpiry ?: "—")) }
+                item { Text("Driver address: " + (car.driverAddress ?: "—")) }
             }
         }
     }
