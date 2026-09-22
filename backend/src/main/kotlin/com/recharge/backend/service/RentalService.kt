@@ -209,16 +209,19 @@ class RentalService(
         val vendorIds = available.mapNotNull { it.vendorId }.distinct()
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
         val availabilityWindow = if (startDate != null && endDate != null) startDate to endDate else null
+        val blockedCarIds = availabilityWindow?.let { (windowStart, windowEnd) ->
+            bookings.findOverlappingCarIds(
+                available.mapNotNull { it.id },
+                listOf("PENDING", "CONFIRMED"),
+                windowStart,
+                windowEnd
+            )
+        } ?: emptySet()
         return available
             .filter { car ->
                 val vendorId = car.vendorId
                 val isOwnVehicle = vendorId != null && vendorById[vendorId]?.userId == userId
-                val isDateAvailable = availabilityWindow == null || !bookings.existsOverlapping(
-                    requireNotNull(car.id),
-                    listOf("PENDING", "CONFIRMED"),
-                    availabilityWindow.first,
-                    availabilityWindow.second
-                )
+                val isDateAvailable = requireNotNull(car.id) !in blockedCarIds
                 !isOwnVehicle && isDateAvailable
             }
             .map(::toCarResponse)
