@@ -199,3 +199,18 @@ data class RentalBookingPageResponse(
     val totalPages: Int,
     val hasNext: Boolean
 )
+
+
+data class RentalVendorPayoutResponse(
+    val payoutId: String,
+    val bookingId: String,
+    val carId: String,
+    val carName: String,
+    val grossAmount: BigDecimal,
+    val platformFeePercent: BigDecimal,
+    val platformFeeAmount: BigDecimal,
+    val vendorNetAmount: BigDecimal,
+    val status: String,
+    val createdAt: Instant,
+    val paidAt: Instant?
+)
