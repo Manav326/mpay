@@ -224,6 +224,18 @@ class RentalService(
 
     @Transactional
     fun createBooking(userId: Long, request: RentalBookingRequest): RentalBookingResponse {
+        val existingPayment = rentalPaymentRepository.findByUserIdAndClientRequestId(userId, request.clientRequestId.trim()).orElse(null)
+        if (existingPayment != null) {
+            val existingBooking = bookings.findByBookingIdAndUserId(existingPayment.bookingId, userId)
+                .orElseThrow { IllegalStateException("Rental payment exists without its booking") }
+            val existingCar = cars.findById(existingBooking.carId).orElse(null)
+            return toBookingResponse(
+                existingBooking,
+                existingCar?.name ?: "Car",
+                existingCar?.driverId?.let { drivers.findById(it).orElse(null) }
+            )
+        }
+
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
         val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
@@ -236,9 +248,13 @@ class RentalService(
         val days = ChronoUnit.DAYS.between(request.startDate, request.endDate)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
         val bookingId = "RNT-" + UUID.randomUUID().toString().replace("-", "").take(20).uppercase()
-        val ledgerRef = "RENTAL:$bookingId"
-        wallet.reserve(userId, total)
-        wallet.finalizeReservedDebit(userId, total, ledgerRef, bookingId)
+        val payment = rentalPayments.pay(
+            userId = userId,
+            bookingId = bookingId,
+            amount = total,
+            method = request.paymentMethod,
+            clientRequestId = request.clientRequestId.trim()
+        )
 
         val now = Instant.now()
         val saved = bookings.save(
@@ -246,7 +262,8 @@ class RentalService(
                 bookingId = bookingId, userId = userId, carId = carId,
                 pickupLocation = request.pickupLocation.trim(), dropLocation = request.dropLocation.trim(),
                 startDate = request.startDate, endDate = request.endDate, totalAmount = total,
-                status = "CONFIRMED", walletLedgerRef = ledgerRef, paymentMethod = "WALLET",
+                status = "CONFIRMED", walletLedgerRef = payment.walletLedgerRef,
+                paymentMethod = payment.method, paymentId = payment.id,
                 createdAt = now, updatedAt = now
             )
         )
@@ -260,7 +277,9 @@ class RentalService(
         check(booking.startDate.isAfter(LocalDate.now())) { "Bookings starting today cannot be cancelled" }
         booking.status = "CANCELLED"
         booking.updatedAt = Instant.now()
-        wallet.credit(userId, booking.totalAmount, "RENTAL_REFUND:$bookingId", "RENTAL_REFUND", bookingId, "Car rental refund")
+        val payment = rentalPaymentRepository.findByBookingIdAndUserId(bookingId, userId)
+            .orElseThrow { IllegalStateException("Rental payment not found for booking") }
+        rentalPayments.refund(payment)
         val car = cars.findById(booking.carId).orElse(null)
         bookings.save(booking)
         return toBookingResponse(booking, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
