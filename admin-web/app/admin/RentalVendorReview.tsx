@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CarFront, ChevronRight, ShieldCheck, X } from 'lucide-react';
-import { approveRentalVehicle, approveRentalVendor, getRentalAdminVendorVehicles, getRentalAdminVendors, rejectRentalVendor } from '@/lib/api';
+import { approveRentalVehicle, approveRentalVendor, getRentalAdminVendorVehicles, getRentalAdminVendors, rejectRentalVendor, rejectRentalVehicle } from '@/lib/api';
 import { RentalAdminVendor } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -15,6 +15,7 @@ export default function RentalVendorReview() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [vehicleRejectReason, setVehicleRejectReason] = useState('');
 
   async function refresh() {
     setLoading(true);
@@ -43,6 +44,12 @@ export default function RentalVendorReview() {
   async function approveVehicle(id: string) {
     setBusy('vehicle-' + id);
     try { await approveRentalVehicle(id); if (selected) setVehicles(await getRentalAdminVendorVehicles(selected.vendorId)); }
+    finally { setBusy(null); }
+  }
+  async function rejectVehicle(id: string) {
+    if (!vehicleRejectReason.trim()) return;
+    setBusy('vehicle-' + id);
+    try { await rejectRentalVehicle(id, vehicleRejectReason); setVehicleRejectReason(''); if (selected) setVehicles(await getRentalAdminVendorVehicles(selected.vendorId)); }
     finally { setBusy(null); }
   }
 
@@ -107,7 +114,11 @@ export default function RentalVendorReview() {
                   <span>{c.city || '—'} · {INR.format(Number(c.pricePerDay))}/day · Driver: {c.driverName}</span>
                   <span>Status: {c.approvalStatus || 'PENDING_REVIEW'}</span>
                 </div>
-                {c.approvalStatus !== 'APPROVED' && <button className="primary" disabled={busy === 'vehicle-' + c.id} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>}
+                {c.approvalStatus !== 'APPROVED' && <>
+                  <input value={vehicleRejectReason} onChange={e => setVehicleRejectReason(e.target.value)} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
+                  <button className="secondary" disabled={busy === 'vehicle-' + c.id || !vehicleRejectReason.trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
+                  <button className="primary" disabled={busy === 'vehicle-' + c.id} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
+                </>}
               </div>
             )}</div>}
         </section>
