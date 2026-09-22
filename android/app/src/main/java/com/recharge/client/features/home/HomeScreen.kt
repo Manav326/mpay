@@ -108,18 +108,28 @@ fun HomeScreen(
             }
         }
         error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
-        item { Text("Quick actions", style = MaterialTheme.typography.titleLarge) }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ActionCard("Mobile Recharge", Icons.Default.PhoneAndroid, AppColors.Success, onRecharge, Modifier.weight(1f))
-                ActionCard("Add Money", Icons.Default.Add, AppColors.PrimaryDark, onAddMoney, Modifier.weight(1f))
-            }
-        }
-        item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = onMarketplace) { Text("Marketplace") }
-                TextButton(onClick = onRentalBookings) { Text("My Bookings") }
-                TextButton(onClick = onRechargeHistory) { Text("Recharge History") }
+            Card(
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FF))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                    Text("Quick actions", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ActionCard("Mobile Recharge", Icons.Default.PhoneAndroid, AppColors.Success, onRecharge, Modifier.weight(1f))
+                        ActionCard("Add Money", Icons.Default.Add, AppColors.PrimaryDark, onAddMoney, Modifier.weight(1f))
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextButton(onClick = onMarketplace) { Text("Marketplace") }
+                        TextButton(onClick = onRentalBookings) { Text("My Bookings") }
+                        TextButton(onClick = onRechargeHistory) { Text("Recharge History") }
+                    }
+                }
             }
         }
         item {
