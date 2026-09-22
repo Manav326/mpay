@@ -354,12 +354,14 @@ fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
 
 @Composable
 private fun AvailabilityFilterCard(
+    initialFrom: String?,
+    initialTo: String?,
     onFind: (String, String) -> Unit,
     onClear: () -> Unit,
     loading: Boolean
 ) {
-    var from by remember(state.searchStartDate, state.searchEndDate) { mutableStateOf(state.searchStartDate.orEmpty()) }
-    var to by remember(state.searchStartDate, state.searchEndDate) { mutableStateOf(state.searchEndDate.orEmpty()) }
+    var from by remember(initialFrom, initialTo) { mutableStateOf(initialFrom.orEmpty()) }
+    var to by remember(initialFrom, initialTo) { mutableStateOf(initialTo.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
 
     Card(
@@ -430,6 +432,8 @@ fun CarRentalMarketplaceScreen(
         item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall) } }
         item {
             AvailabilityFilterCard(
+                initialFrom = state.searchStartDate,
+                initialTo = state.searchEndDate,
                 onFind = onSearch,
                 onClear = onRefresh,
                 loading = state.loading
