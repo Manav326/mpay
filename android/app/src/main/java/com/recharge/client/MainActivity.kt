@@ -40,6 +40,7 @@ import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.services.CarRentalComingSoonScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
 import com.recharge.client.features.rental.CarRentalMarketplaceScreen
+import com.recharge.client.features.rental.RentalVehicleOnboardingScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
 import com.recharge.client.core.payment.PayUCheckoutBridge
@@ -379,6 +380,7 @@ private fun AppRoot(
             "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
             "car-rental" -> rentalViewModel.loadCars()
             "rental-vendor" -> rentalViewModel.loadVendor()
+            "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
             else -> if (currentRoute != "recharge" && currentRoute != "recharge-history") highlightTransactionId = null
         }
     }
@@ -514,7 +516,10 @@ private fun AppNavHost(
             CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() })
         }
         composable("rental-vendor") {
-            RentalVendorOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVendor, onBack = { nav.popBackStack() })
+            RentalVendorOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVendor, onBack = { nav.popBackStack() }, onAddVehicle = { nav.navigate("rental-vehicle") })
+        }
+        composable("rental-vehicle") {
+            RentalVehicleOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVehicle, onBack = { nav.popBackStack() })
         }
         composable("recharge-history") {
             RechargeHistoryScreen(
