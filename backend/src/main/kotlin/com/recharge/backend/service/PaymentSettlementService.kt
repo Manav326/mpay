@@ -7,12 +7,18 @@ import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
+interface PaymentSettlementPort {
+    fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse
+
+    fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse
+}
+
 @Service
 class PaymentSettlementService(
     private val walletService: WalletService,
     private val rechargeService: RechargeService,
     private val rechargeRepository: RechargeTransactionRepository
-) {
+) : PaymentSettlementPort {
     fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse {
         if (order.purpose.equals("RECHARGE", true)) {
             val recharge = rechargeRepository.findByClientRequestIdAndUserId(order.clientRequestId, userId).orElse(null)
