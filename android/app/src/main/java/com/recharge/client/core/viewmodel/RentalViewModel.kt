@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 data class RentalUiState(
     val vendor: RentalVendorResponse? = null,
     val cars: List<RentalCarResponse> = emptyList(),
+    val searchStartDate: String? = null,
+    val searchEndDate: String? = null,
     val vendorCars: List<RentalCarResponse> = emptyList(),
     val bookings: List<RentalBookingResponse> = emptyList(),
     val payouts: List<RentalVendorPayoutResponse> = emptyList(),
@@ -38,7 +40,14 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             repository.rentalCars(startDate, endDate)
-                .onSuccess { _state.value = _state.value.copy(cars = it, loading = false) }
+                .onSuccess {
+                    _state.value = _state.value.copy(
+                        cars = it,
+                        searchStartDate = startDate,
+                        searchEndDate = endDate,
+                        loading = false
+                    )
+                }
                 .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load rental cars") }
         }
     }
