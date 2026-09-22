@@ -21,7 +21,8 @@ import com.recharge.client.core.viewmodel.RentalUiState
 fun RentalVendorOnboardingScreen(
     state: RentalUiState,
     onSubmit: (RentalVendorOnboardingRequest, () -> Unit) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onAddVehicle: () -> Unit
 ) {
     var fullName by remember { mutableStateOf("") }
     var businessName by remember { mutableStateOf("") }
@@ -64,7 +65,7 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             }
-            item { if (state.vendor?.status?.uppercase() == "VERIFIED") { Button(onClick = { }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Add a vehicle") } } else { Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Back to Profile") } } }
+            item { if (state.vendor?.status?.uppercase() == "VERIFIED") { Button(onClick = onAddVehicle, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Add a vehicle") } } else { Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Back to Profile") } } }
         }
     } else     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
