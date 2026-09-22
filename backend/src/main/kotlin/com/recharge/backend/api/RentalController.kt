@@ -80,6 +80,16 @@ class RentalController(
         return rentalService.approveVehicle(carId)
     }
 
+    @PostMapping("/admin/vehicles/{carId}/reject")
+    fun rejectVehicle(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @RequestBody(required = false) request: RentalAdminDecisionRequest?
+    ): RentalCarResponse {
+        requireAdmin(authentication)
+        return rentalService.rejectVehicle(carId, request?.reason)
+    }
+
     @GetMapping("/bookings")
     fun bookings(
         authentication: Authentication,
