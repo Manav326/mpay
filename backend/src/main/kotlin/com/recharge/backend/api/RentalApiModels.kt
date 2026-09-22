@@ -159,8 +159,8 @@ data class RentalBookingQuoteResponse(
     val driverName: String,
     val pickup: String,
     val drop: String,
-    val startDate: LocalDate,
-    val endDate: LocalDate,
+    val startDate: LocalDateTime,
+    val endDate: LocalDateTime,
     val days: Long,
     val pricePerDay: BigDecimal,
     val total: BigDecimal
