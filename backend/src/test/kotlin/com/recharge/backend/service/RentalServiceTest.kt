@@ -342,6 +342,75 @@ class RentalServiceTest {
     }
 
     @Test
+    fun availableCarsCanBeFilteredByCityOrPickupLocation() {
+        val patnaCar = RentalCarEntity(
+            id = 50L,
+            name = "Patna Sedan",
+            category = "Sedan",
+            seats = 5,
+            transmission = "Automatic",
+            pricePerDay = BigDecimal("2200.00"),
+            active = true,
+            vendorId = 60L,
+            driverId = 70L,
+            pickupAddress = "Airport Road",
+            city = "Patna",
+            approvalStatus = "APPROVED"
+        )
+        val muzaffarpurCar = RentalCarEntity(
+            id = 51L,
+            name = "Muzaffarpur Sedan",
+            category = "Sedan",
+            seats = 5,
+            transmission = "Automatic",
+            pricePerDay = BigDecimal("2000.00"),
+            active = true,
+            vendorId = 60L,
+            driverId = 71L,
+            pickupAddress = "Station Road",
+            city = "Muzaffarpur",
+            approvalStatus = "APPROVED"
+        )
+        Mockito.doReturn(listOf(patnaCar, muzaffarpurCar))
+            .`when`(cars)
+            .findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+        Mockito.doReturn(listOf(
+            com.recharge.backend.domain.RentalVendorEntity(
+                id = 60L,
+                userId = 99L,
+                fullName = "Vendor",
+                address = "Address",
+                city = "Patna",
+                state = "Bihar",
+                pinCode = "800001"
+            )
+        )).`when`(vendors).findAllById(listOf(60L))
+        Mockito.doReturn(listOf(
+            com.recharge.backend.domain.RentalDriverEntity(
+                id = 70L,
+                vendorId = 60L,
+                fullName = "Driver A",
+                mobile = "9999999999",
+                licenseNumber = "DL-A",
+                licenseExpiry = LocalDateTime.now().plusYears(1)
+            ),
+            com.recharge.backend.domain.RentalDriverEntity(
+                id = 71L,
+                vendorId = 60L,
+                fullName = "Driver B",
+                mobile = "8888888888",
+                licenseNumber = "DL-B",
+                licenseExpiry = LocalDateTime.now().plusYears(1)
+            )
+        )).`when`(drivers).findAllById(listOf(70L, 71L))
+
+        val cityResult = service.availableCars(42L, location = "patna")
+        val pickupResult = service.availableCars(42L, location = "airport")
+
+        assertEquals(listOf("50"), cityResult.map { it.id })
+        assertEquals(listOf("50"), pickupResult.map { it.id })
+    }
+    @Test
     fun quoteRoundsPartialDayUpWhenBookingUsesDatetime() {
         val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
         val end = start.plusHours(25)
