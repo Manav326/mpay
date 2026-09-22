@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
@@ -466,25 +467,46 @@ fun RentalVendorOnboardingScreen(
 
             state.vendor?.let { v ->
                 item {
-                    Card(shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Card(
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F7FF)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Vendor profile", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                Surface(shape = RoundedCornerShape(18.dp), color = AppColors.Success.copy(alpha = .12f)) {
-                                    Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFDBEAFE)) {
+                                    Icon(Icons.Default.Person, null, tint = Color(0xFF1D4ED8), modifier = Modifier.padding(9.dp).size(22.dp))
                                 }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                                Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(v.fullName ?: "—", fontWeight = FontWeight.SemiBold)
-                                    v.businessName?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall) }
+                                    Text("Vendor profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
+                                    Text("Business identity & marketplace status", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                                 }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text(v.vehicleCount.toString(), fontWeight = FontWeight.Bold)
-                                    Text("Vehicles", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                Surface(shape = RoundedCornerShape(16.dp), color = AppColors.Success.copy(alpha = .12f)) {
+                                    Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp))
                                 }
                             }
-                            Text(listOfNotBlank(v.city, v.state).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            HorizontalDivider(color = Color(0xFFD7E4F2))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Owner", style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                                    Text(v.fullName ?: "—", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    v.businessName?.takeIf { it.isNotBlank() }?.let {
+                                        Text(it, color = Color(0xFF2563EB), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                                Surface(shape = RoundedCornerShape(16.dp), color = Color.White) {
+                                    Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(v.vehicleCount.toString(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1D4ED8))
+                                        Text("Vehicles", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.LocationOn, null, tint = Color(0xFF2563EB), modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text(listOfNotBlank(v.city, v.state).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }
@@ -494,14 +516,15 @@ fun RentalVendorOnboardingScreen(
                 val gross = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.grossAmount }
                 val fees = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.platformFeeAmount }
                 val net = state.payouts.filter { it.status == "PAID" }.fold(BigDecimal.ZERO) { total, payout -> total + payout.vendorNetAmount }
-                Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Rental earnings", style = MaterialTheme.typography.titleMedium)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            EarningsMetric("Gross", gross)
-                            EarningsMetric("Platform fee", fees, alignEnd = true)
-                            EarningsMetric("Paid to you", net, alignEnd = true, emphasize = true)
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Column {
+                        Text("Rental earnings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("A quick view of marketplace payout performance", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        VendorEarningsCard("Gross", gross, Color(0xFFEFF6FF), Color(0xFF1D4ED8), Modifier.weight(1f))
+                        VendorEarningsCard("Platform fee", fees, Color(0xFFFFF7ED), Color(0xFFC2410C), Modifier.weight(1f))
+                        VendorEarningsCard("Paid to you", net, Color(0xFFECFDF5), AppColors.Success, Modifier.weight(1f))
                     }
                 }
             }
