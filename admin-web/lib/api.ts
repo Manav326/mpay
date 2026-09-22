@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -245,6 +245,10 @@ export async function createVendor(input: Omit<Vendor, 'id' | 'createdAt'>): Pro
 
 export async function getUserWithdrawalHistory(id: string, page = 0, size = 25): Promise<WithdrawalHistoryResponse> {
   return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/withdrawals?page=' + page + '&size=' + size);
+}
+
+export async function getRentalAdminVehicleUnavailability(): Promise<RentalAdminVehicleUnavailability[]> {
+  return api('/api/v1/car-rental/admin/vehicle-unavailability');
 }
 
 export async function getRentalAdminVendors(): Promise<RentalAdminVendor[]> {
