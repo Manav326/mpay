@@ -191,9 +191,27 @@ class RentalService(
         return toCarResponse(car)
     }
 
-    fun availableCars(userId: Long): List<RentalCarResponse> {
-        val available = cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+    fun availableCars(userId: Long, startDate: LocalDateTime? = null, endDate: LocalDateTime? = null): List<RentalCarResponse> {
+        require((startDate == null) == (endDate == null)) {
+            "Both start and end date & time are required for availability filtering"
+        }
+        if (startDate != null && endDate != null) {
+            require(endDate.isAfter(startDate)) { "End date & time must be after start date & time" }
+            require(!startDate.isBefore(LocalDateTime.now())) { "Start date & time cannot be in the past" }
+        }
+
+        val available = if (startDate != null && endDate != null) {
+            cars.findAvailableForWindow(
+                approvalStatus = "APPROVED",
+                statuses = listOf("PENDING", "CONFIRMED"),
+                startDate = startDate,
+                endDate = endDate
+            )
+        } else {
+            cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+        }
         if (available.isEmpty()) return emptyList()
+
         val vendorIds = available.mapNotNull { it.vendorId }.distinct()
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
         return available
