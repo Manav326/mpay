@@ -451,7 +451,7 @@ private fun AppNavHost(
                 onRefreshEarnings = rechargeHistoryViewModel::loadCommission,
                 onRecharge = { navigateToTopLevel(nav, "recharge") },
                 onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
-                onWithdraw = { walletViewModel.clearWithdrawMessage() },
+                onWithdraw = walletViewModel::withdraw,
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
                 walletUiState = walletViewModel.state.collectAsState().value,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
