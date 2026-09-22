@@ -248,19 +248,31 @@ export default function Portal() {
           <button className="landing-primary" onClick={() => setView('recharge')}>Recharge now <ArrowRight size={16}/></button>
         </div>
         <div className="portal-quick-actions">
-          <button onClick={() => setView('recharge')}><Smartphone/><span>Mobile recharge</span></button>
-          <button onClick={() => setView('wallet')}><WalletCards/><span>Wallet</span></button>
-          <button onClick={() => setView('history')}><History/><span>History</span></button>
-          <button onClick={() => setView('marketplace')}><Car/><span>Marketplace</span></button>
-          <button onClick={() => setView('bookings')}><Clock3/><span>My Bookings</span></button>
+          <button onClick={() => setView('recharge')}><Smartphone/><span>Mobile Recharge</span></button>
+          <button onClick={() => setView('recharge')}><WalletCards/><span>Add Money</span></button>
+          <button onClick={() => { setView('bookings'); loadRentalData(); }}><Clock3/><span>My Bookings</span></button>
         </div>
-        <section className="home-rental-feature">
-          <button className="home-rental-feature-main" onClick={() => { setView('rental'); loadRentalData(); }}>
-            <div className="home-rental-feature-icon"><Car size={28}/></div>
-            <div><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose a car, set your trip time and book directly from Home.</p></div>
+        <section className="home-marketplace">
+          <div className="home-section-label">Marketplace</div>
+          <button className="home-marketplace-card" onClick={() => { setView('rental'); loadRentalData(); }}>
+            <div className="home-marketplace-icon"><Car size={27}/></div>
+            <div className="home-marketplace-copy">
+              <span>CHAUFFEUR-DRIVEN MOBILITY</span>
+              <b>Car Rental</b>
+              <p>Choose a chauffeur-driven car, set your trip time and book directly from Home.</p>
+            </div>
             <ArrowRight size={19}/>
           </button>
         </section>
+        <button className="home-recharge-history" onClick={() => { setView('history'); loadHistory(); }}>
+          <div className="home-recharge-history-icon"><History size={22}/></div>
+          <div>
+            <span>TRANSACTION HISTORY</span>
+            <b>Recharge History</b>
+            <p>View your submitted, pending and completed mobile recharges.</p>
+          </div>
+          <ArrowRight size={18}/>
+        </button>
       </section>}
 
       {view === 'wallet' && <section className="portal-content">
