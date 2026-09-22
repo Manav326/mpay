@@ -47,3 +47,34 @@
   .home-marketplace-copy p{font-size:10px}
   .home-recharge-history{padding:15px}
 }
+
+/* Wallet ledger and booking sharing/status semantics */
+.amount-credit{color:#16803c !important}
+.amount-debit{color:#b42318 !important}
+.copy-btn{
+  border:1px solid #e4ddd4;
+  background:#fff;
+  color:#5f584f;
+  border-radius:9px;
+  padding:6px 9px;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.copy-btn:hover{background:#faf7f2;border-color:#d8cec2;color:#8a5a08}
+.status-confirmed{background:#e8f7ed;color:#16713b}
+.status-refunded{background:#e8f7ed;color:#16713b}
+.status-paid{background:#e8f7ed;color:#16713b}
+.status-in-progress,.status-in_progress,.status-active{background:#e8f0ff;color:#2456a6}
+.status-expired,.status-rejected{background:#f1edf8;color:#65439a}
+.status-requested,.status-created{background:#e8f0ff;color:#2456a6}
+.status-unknown{background:#eee;color:#625b52}
+.history-actions{flex-wrap:wrap}
+@media(max-width:800px){
+  .history-actions{justify-content:flex-start}
+  .copy-btn{padding:7px 9px}
+}
