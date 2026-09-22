@@ -384,8 +384,7 @@ fun CarRentalMarketplaceScreen(
     state: RentalUiState,
     onBack: () -> Unit,
     onBook: (RentalCarResponse, String, String) -> Unit,
-    onSearch: (String, String) -> Unit,
-    onRefresh: () -> Unit
+    onSearch: (String, String) -> Unit
 ) {
     var start by remember { mutableStateOf("") }
     var end by remember { mutableStateOf("") }
@@ -409,7 +408,7 @@ fun CarRentalMarketplaceScreen(
                     Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall)
                     Text("Find cars available for your selected trip time.", color = AppColors.TextSecondary)
                 }
-                IconButton(onClick = onRefresh, enabled = !state.loading) { Icon(Icons.Default.Refresh, "Refresh") }
+                IconButton(onClick = { if (canSearch) onSearch(start, end) }, enabled = canSearch && !state.loading) { Icon(Icons.Default.Refresh, "Refresh availability") }
             }
         }
         item {
