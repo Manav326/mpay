@@ -59,6 +59,7 @@ export default function Portal() {
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
   const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
   const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
+  const [rentalSearch, setRentalSearch] = useState({ startDate: '', endDate: '' });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
 
@@ -82,10 +83,13 @@ export default function Portal() {
     }
   }
 
-  async function loadRentalData() {
+  async function loadRentalData(startDate = '', endDate = '') {
     try {
+      const carQuery = startDate && endDate
+        ? '?startDate=' + encodeURIComponent(startDate) + '&endDate=' + encodeURIComponent(endDate)
+        : '';
       const [available, existing] = await Promise.all([
-        api<any>('/api/v1/car-rental/cars'),
+        api<any>('/api/v1/car-rental/cars' + carQuery),
         api<any>('/api/v1/car-rental/bookings?page=0&size=25')
       ]);
       setCars(available?.items || available || []);
@@ -93,6 +97,34 @@ export default function Portal() {
     } catch (e: any) {
       setNotice(e.message || 'Unable to load rental inventory.');
     }
+  }
+
+  function searchRentalCars() {
+    const { startDate, endDate } = rentalSearch;
+    if (!startDate || !endDate) {
+      setNotice('Select both From and To date & time.');
+      return;
+    }
+    if (new Date(endDate).getTime() <= new Date(startDate).getTime()) {
+      setNotice('To date & time must be after From date & time.');
+      return;
+    }
+    if (new Date(startDate).getTime() < Date.now()) {
+      setNotice('From date & time cannot be in the past.');
+      return;
+    }
+    setNotice('');
+    setSelectedCar(undefined);
+    setRentalQuote(undefined);
+    loadRentalData(startDate, endDate);
+  }
+
+  function clearRentalSearch() {
+    setRentalSearch({ startDate: '', endDate: '' });
+    setSelectedCar(undefined);
+    setRentalQuote(undefined);
+    setNotice('');
+    loadRentalData();
   }
 
   useEffect(() => {
@@ -338,12 +370,28 @@ export default function Portal() {
       </section>}
 
       {view === 'rental' && <section className="portal-content">
-        <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Set your trip details, review the fare and submit a booking request.</p></div><Car size={28}/></div>
+        <div className="portal-panel">
+          <div className="panel-head"><div><h2>Choose a car</h2><p>Find cars available for your rental window first, then set pickup and drop details for the selected car.</p></div><Car size={28}/></div>
+          <div className="rental-search-card">
+            <div>
+              <b>Find available cars</b>
+              <span>Only cars available for the full selected From → To window will be shown.</span>
+            </div>
+            <div className="rental-search-grid">
+              <label>From<input type="datetime-local" value={rentalSearch.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalSearch({...rentalSearch,startDate:e.target.value})}/></label>
+              <label>To<input type="datetime-local" value={rentalSearch.endDate} min={rentalSearch.startDate || new Date().toISOString().slice(0,16)} onChange={e => setRentalSearch({...rentalSearch,endDate:e.target.value})}/></label>
+            </div>
+            <div className="rental-search-actions">
+              <button className="landing-secondary" disabled={busy} onClick={clearRentalSearch}>Clear</button>
+              <button className="landing-primary" disabled={busy} onClick={searchRentalCars}>Find available cars <ArrowRight size={15}/></button>
+            </div>
+            <small>Place / city filtering will be added next.</small>
+          </div>
           <div className="rental-form">
             <input placeholder="Pickup location" value={rentalForm.pickup} onChange={e => setRentalForm({...rentalForm,pickup:e.target.value})}/>
             <input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e => setRentalForm({...rentalForm,drop:e.target.value})}/>
-            <label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
-            <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
+            <label>Booking start<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => { setRentalForm({...rentalForm,startDate:e.target.value}); setRentalQuote(undefined); }}/></label>
+            <label>Booking end<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate || new Date().toISOString().slice(0,16)} onChange={e => { setRentalForm({...rentalForm,endDate:e.target.value}); setRentalQuote(undefined); }}/></label>
           </div>
           {cars.length ? <div className="rental-car-grid">{cars.map(car =>
             <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => { setSelectedCar(car); setRentalQuote(undefined); }}>
@@ -358,6 +406,7 @@ export default function Portal() {
             <div><span>Selected</span><b>{selectedCar.name}</b></div>
             <div><span>Billing</span><b>{rentalQuote ? rentalQuote.days + ' day' + (rentalQuote.days > 1 ? 's' : '') : 'Check fare'}</b></div>
             <div><span>Total</span><strong>{rentalQuote ? money(rentalQuote.total) : '—'}</strong></div>
+            <div className="rental-payment-source"><WalletCards size={15}/><span>Payment</span><b>From your wallet</b></div>
             {!rentalQuote
               ? <button className="landing-primary" disabled={busy} onClick={checkRentalFare}>{busy ? 'Calculating…' : 'Check fare'} <ArrowRight size={16}/></button>
               : <button className="landing-primary" disabled={busy} onClick={bookCar}>{busy ? 'Confirming…' : 'Confirm booking'} <ArrowRight size={16}/></button>}
