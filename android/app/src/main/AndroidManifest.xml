@@ -2,7 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- PayU Checkout Pro declares a default application label; explicitly replace it with mPay. -->
+    <!-- PayU Checkout Pro declares a default application label and theme. -->
     <application
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
@@ -10,7 +10,7 @@
         android:label="mPay"
         android:icon="@drawable/mpay_logo"
         android:roundIcon="@drawable/mpay_logo"
-        tools:replace="android:theme,android:allowBackup,android:label">
+        tools:replace="android:theme,android:label">
         <!-- PayU Checkout Pro test environment endpoints. Remove/disable these for production. -->
         <meta-data android:name="payu_debug_mode_enabled" android:value="true" />
         <meta-data android:name="payu_web_service_url" android:value="https://test.payu.in" />
