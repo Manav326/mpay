@@ -152,13 +152,22 @@ class PayUPaymentGatewayProvider(
                 "surl" to properties.pgSuccessUrl,
                 "furl" to properties.pgFailureUrl,
                 "userCredential" to "${properties.effectivePgKey()}:$phone",
-                "vasForMobileSdkHash" to sha512("${properties.effectivePgKey()}|vas_for_mobile_sdk|default|${properties.effectivePgSalt()}"),
+                "vasForMobileSdkHash" to sha512("${properties.effectivePgKey()}|vas_for_mobile_sdk|${order.amount.toPlainString()}|${properties.effectivePgSalt()}"),
                 "paymentRelatedDetailsHash" to sha512("${properties.effectivePgKey()}|payment_related_details_for_mobile_sdk|${properties.effectivePgKey()}:$phone|${properties.effectivePgSalt()}"),
+                "paymentHash" to paymentHash(order, firstName, email),
                 "isProduction" to properties.pgProduction.toString()
             )
         )
     }
 
+    private fun paymentHash(
+        order: PaymentOrderEntity,
+        firstName: String,
+        email: String
+    ): String {
+        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|mPay wallet|$firstName|$email||||||||||||${properties.effectivePgSalt()}"
+        return sha512(data)
+    }
     private fun verifyWithPayU(txnId: String): JsonNode {
         val hash = sha512("${properties.effectivePgKey()}|verify_payment|$txnId|${properties.effectivePgSalt()}")
         val encoded = "key=${enc(properties.effectivePgKey())}&command=verify_payment&var1=${enc(txnId)}&hash=${enc(hash)}"
