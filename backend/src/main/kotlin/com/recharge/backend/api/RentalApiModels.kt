@@ -166,6 +166,7 @@ data class RentalBookingQuoteResponse(
 )
 
 data class RentalBookingRequest(
+    @field:NotBlank @field:Size(max = 100) val clientRequestId: String,
     @field:NotBlank val carId: String,
     @field:NotBlank val pickupLocation: String,
     @field:NotBlank val dropLocation: String,
