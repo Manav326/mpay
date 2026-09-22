@@ -297,6 +297,31 @@ data class WithdrawMoneyResponse(
     val message: String? = null
 )
 
+data class WithdrawalHistoryItem(
+    val withdrawalId: String,
+    val clientRequestId: String,
+    val amount: BigDecimal,
+    val upiId: String,
+    val provider: String,
+    val status: String,
+    val providerReference: String?,
+    val providerStatus: String?,
+    val failureReason: String?,
+    val walletLedgerRef: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val completedAt: Instant?
+)
+
+data class WithdrawalHistoryResponse(
+    val items: List<WithdrawalHistoryItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
 data class RoleCommissionRateResponse(
     val role: String,
     val commissionPercent: BigDecimal,
