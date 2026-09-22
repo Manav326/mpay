@@ -11,6 +11,39 @@ import java.math.BigDecimal
 
 class PaymentGatewayServiceTest {
     @Test
+    fun mockGatewayCanCreateAndSettleAddMoneyOrder() {
+        val orders = Mockito.mock(com.recharge.backend.repository.PaymentOrderRepository::class.java)
+        val settlement = Mockito.mock(PaymentSettlementService::class.java)
+        val provider = MockPaymentGatewayProvider(orders, settlement, true)
+        val saved = com.recharge.backend.domain.PaymentOrderEntity(
+            clientRequestId = "REQ-MOCK-1",
+            userId = 1L,
+            razorpayOrderId = "MOCK-PAY-1",
+            providerName = "mock",
+            amount = BigDecimal("100.00"),
+            currency = "INR",
+            status = "CREATED"
+        )
+        Mockito.doReturn(java.util.Optional.empty<com.recharge.backend.domain.PaymentOrderEntity>())
+            .`when`(orders).findByClientRequestIdAndUserId("REQ-MOCK-1", 1L)
+        Mockito.doReturn(saved).`when`(orders).save(Mockito.any())
+
+        val created = provider.createWalletOrder(
+            1L, CreatePaymentOrderRequest(BigDecimal("100.00"), "REQ-MOCK-1", "mock")
+        )
+        assertEquals("mock", created.provider)
+        assertEquals("MOCK-PAY-1", saved.razorpayOrderId.takeIf { created.orderId == "MOCK-PAY-1" } ?: created.orderId)
+
+        val settlementResponse = VerifyPaymentResponse("CAPTURED", BigDecimal("100.00"))
+        Mockito.doReturn(java.util.Optional.of(saved)).`when`(orders).findByRazorpayOrderIdAndUserId("MOCK-PAY-1", 1L)
+        Mockito.doReturn(settlementResponse).`when`(settlement).settleCaptured(1L, saved, "MOCK-PAY-1")
+
+        val verified = provider.verifyWalletPayment(1L, VerifyPaymentRequest("mock", null, "MOCK-PAY-1", null))
+        assertEquals("CAPTURED", verified.status)
+        assertEquals("CAPTURED", saved.status)
+    }
+
+    @Test
     fun explicitProviderIsSelectedInsteadOfConfiguredFallback() {
         val mock = FakeGateway("mock")
         val razorpay = FakeGateway("razorpay")
