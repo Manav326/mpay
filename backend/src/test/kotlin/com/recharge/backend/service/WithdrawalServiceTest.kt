@@ -18,16 +18,43 @@ class WithdrawalServiceTest {
     private val persistence = Mockito.mock(WithdrawalPersistenceService::class.java)
     private val razorpay = FakeProvider("razorpay", true)
     private val payu = FakeProvider("payu", false)
-    private val properties = com.recharge.backend.config.WithdrawalProperties("razorpay,payu")
+    private val mock = FakeProvider("mock", true)
+    private val properties = com.recharge.backend.config.WithdrawalProperties("mock,razorpay,payu")
 
     private val service = WithdrawalService(
         withdrawals = withdrawals,
         users = users,
         wallet = wallet,
-        providers = listOf(razorpay, payu),
+        providers = listOf(mock, razorpay, payu),
         properties = properties,
         persistence = persistence
     )
+
+
+    @Test
+    fun mockProviderCanCompleteWithdrawal() {
+        val pending = withdrawal("WDR-MOCK", "REQ-MOCK", "PENDING")
+        val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS")
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals).findByUserIdAndClientRequestId(42L, "REQ-MOCK")
+        Mockito.doReturn(pending).`when`(persistence).createOrGetPending(
+            42L, BigDecimal("10.00"), "user@upi", "mock", "REQ-MOCK"
+        )
+        mock.result = WithdrawalProviderResult("SUCCESS", "mock_WDR-MOCK", "completed", "PROCESSED")
+        Mockito.doReturn(success).`when`(persistence).markSucceeded(
+            "WDR-MOCK", "mock", "mock_WDR-MOCK", "PROCESSED", "completed"
+        )
+        Mockito.doReturn(WalletSnapshot(BigDecimal("1000.00"), BigDecimal("0.00"), BigDecimal("1000.00")))
+            .`when`(wallet).getWalletSnapshot(42L)
+
+        val response = service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-MOCK", "user@upi")
+
+        assertEquals("SUCCESS", response.status)
+        assertEquals("mock", response.provider)
+        assertEquals("mock_WDR-MOCK", mock.lastReference)
+        assertEquals(1, mock.initiateCalls)
+    }
 
     @Test
     fun idempotentRequestReturnsExistingWithdrawalWithoutProviderCall() {
