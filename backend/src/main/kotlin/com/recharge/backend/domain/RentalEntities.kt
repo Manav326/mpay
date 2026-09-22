@@ -111,3 +111,32 @@ class RentalCarReviewEntity(
     @Column(name = "actor_user_id", nullable = false) var actorUserId: Long = 0,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
 )
+
+
+@Entity
+@Table(
+    name = "rental_payments",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uq_rental_payment_user_request", columnNames = ["user_id", "client_request_id"])
+    ],
+    indexes = [
+        Index(name = "idx_rental_payment_user_created", columnList = "user_id,created_at"),
+        Index(name = "idx_rental_payment_booking", columnList = "booking_id")
+    ]
+)
+class RentalPaymentEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "payment_id", nullable = false, unique = true, length = 40) var paymentId: String = "",
+    @Column(name = "booking_id", nullable = false, length = 40) var bookingId: String = "",
+    @Column(name = "user_id", nullable = false) var userId: Long = 0,
+    @Column(nullable = false, precision = 19, scale = 2) var amount: BigDecimal = BigDecimal.ZERO,
+    @Column(nullable = false, length = 30) var method: String = "WALLET",
+    @Column(nullable = false, length = 50) var provider: String = "INTERNAL_WALLET",
+    @Column(name = "provider_transaction_id", length = 150) var providerTransactionId: String? = null,
+    @Column(name = "client_request_id", nullable = false, length = 100) var clientRequestId: String = "",
+    @Column(nullable = false, length = 30) var status: String = "PENDING",
+    @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
+    @Column(name = "failure_reason", length = 500) var failureReason: String? = null,
+    @Column(nullable = false) var createdAt: Instant = Instant.now(),
+    @Column(nullable = false) var updatedAt: Instant = Instant.now()
+)
