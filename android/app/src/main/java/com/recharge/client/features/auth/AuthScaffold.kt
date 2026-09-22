@@ -70,7 +70,7 @@ fun AuthScreen(
     ) {
         Canvas(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .graphicsLayer {
                     translationX = orbShift
                     translationY = orbShift * 0.35f
