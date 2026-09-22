@@ -23,6 +23,28 @@ interface RentalDriverRepository : JpaRepository<RentalDriverEntity, Long> {
 
 interface RentalCarRepository : JpaRepository<RentalCarEntity, Long> {
     fun findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc(approvalStatus: String): List<RentalCarEntity>
+
+    @Query("""
+        select c from RentalCarEntity c
+        where c.active = true
+          and c.approvalStatus = :approvalStatus
+          and c.vendorId is not null
+          and not exists (
+              select b.id from RentalBookingEntity b
+              where b.carId = c.id
+                and b.status in :statuses
+                and b.startDate < :endDate
+                and b.endDate > :startDate
+          )
+        order by c.pricePerDay asc
+    """)
+    fun findAvailableForWindow(
+        @Param("approvalStatus") approvalStatus: String,
+        @Param("statuses") statuses: Collection<String>,
+        @Param("startDate") startDate: LocalDateTime,
+        @Param("endDate") endDate: LocalDateTime
+    ): List<RentalCarEntity>
+
     fun findAllByVendorIdOrderByIdDesc(vendorId: Long): List<RentalCarEntity>
     fun countByVendorId(vendorId: Long): Int
     fun existsByRegistrationNumberIgnoreCase(registrationNumber: String): Boolean
