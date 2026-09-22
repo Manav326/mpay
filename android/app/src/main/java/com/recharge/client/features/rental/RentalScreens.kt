@@ -6,6 +6,7 @@ import android.content.Context
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 
 import androidx.compose.foundation.layout.*
@@ -30,6 +31,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.*
 import com.recharge.client.core.theme.AppColors
@@ -73,13 +75,31 @@ fun RentalVendorOnboardingScreen(
             state.vendor?.let { v ->
                 item {
                     Card(shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Vendor profile", style = MaterialTheme.typography.titleLarge)
-                            Text("Status: VERIFIED")
-                            Text("Name: " + (v.fullName ?: "—"))
-                            v.businessName?.let { Text("Business / fleet: " + it) }
-                            Text("Location: " + (v.city ?: "—") + ", " + (v.state ?: "—") + " " + (v.pinCode ?: ""))
-                            Text("Vehicles: " + v.vehicleCount)
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Vendor profile", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Surface(shape = RoundedCornerShape(20.dp), color = AppColors.Success.copy(alpha = .12f)) {
+                                    Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp))
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(v.fullName ?: "—", fontWeight = FontWeight.SemiBold)
+                                    v.businessName?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall) }
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("${v.vehicleCount}", fontWeight = FontWeight.SemiBold)
+                                    Text("Vehicles", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            Text(
+                                listOfNotBlank(v.city, v.state).joinToString(", ").ifBlank { "Location unavailable" },
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
                 }
@@ -89,11 +109,13 @@ fun RentalVendorOnboardingScreen(
                 val fees = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.platformFeeAmount }
                 val net = state.payouts.filter { it.status == "PAID" }.fold(BigDecimal.ZERO) { total, payout -> total + payout.vendorNetAmount }
                 Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Rental earnings", style = MaterialTheme.typography.titleLarge)
-                        Text("Gross bookings: ₹" + gross.setScale(2).toPlainString())
-                        Text("Platform fee: ₹" + fees.setScale(2).toPlainString(), color = AppColors.TextSecondary)
-                        Text("Paid to you: ₹" + net.setScale(2).toPlainString(), style = MaterialTheme.typography.titleMedium)
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Rental earnings", style = MaterialTheme.typography.titleMedium)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            EarningsMetric("Gross", gross)
+                            EarningsMetric("Platform fee", fees, alignEnd = true)
+                            EarningsMetric("Paid to you", net, alignEnd = true, emphasize = true)
+                        }
                     }
                 }
             }
@@ -279,6 +301,15 @@ private fun VendorField(
 
 private val rentalDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
+private fun listOfNotBlank(vararg values: String?): List<String> =
+    values.mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
+
+private val rentalBookingDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, h:mm a", Locale.ENGLISH)
+
+private fun formatRentalBookingDateTime(value: String): String =
+    runCatching { LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalBookingDisplayFormatter) }
+        .getOrElse { value }
+
 private fun rentalStatusColor(status: String): Color = when (status.uppercase()) {
     "CONFIRMED", "COMPLETED", "REFUNDED", "PAID" -> AppColors.Success
     "CANCELLED", "REJECTED", "FAILED", "EXPIRED" -> AppColors.Error
@@ -342,6 +373,26 @@ private fun RentalDateTimeField(label: String, value: String, onValueChange: (St
             Spacer(Modifier.height(2.dp))
             Text(display, style = MaterialTheme.typography.bodyLarge)
         }
+    }
+}
+
+@Composable
+private fun EarningsMetric(
+    label: String,
+    amount: BigDecimal,
+    alignEnd: Boolean = false,
+    emphasize: Boolean = false
+) {
+    Column(horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
+        Text(
+            "₹" + amount.setScale(2).toPlainString(),
+            style = if (emphasize) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = if (emphasize) AppColors.Success else AppColors.TextPrimary,
+            maxLines = 1,
+            softWrap = false
+        )
+        Text(label, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
     }
 }
 
