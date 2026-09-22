@@ -21,6 +21,9 @@ import com.recharge.client.core.model.WalletHistoryResponse
 import com.recharge.client.core.model.WithdrawMoneyRequest
 import com.recharge.client.core.model.WithdrawMoneyResponse
 import com.recharge.client.core.model.WithdrawalHistoryResponse
+import com.recharge.client.core.model.RentalVehicleCalendarResponse
+import com.recharge.client.core.model.RentalVehicleUnavailabilityResponse
+import com.recharge.client.core.model.RentalVehicleUnavailabilityRequest
 import com.recharge.client.core.model.RentalBookingQuoteRequest
 import com.recharge.client.core.model.RentalBookingQuoteResponse
 import com.recharge.client.core.model.ProfileUpdateRequest
