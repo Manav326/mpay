@@ -14,6 +14,7 @@ import java.util.Optional
 interface RentalVendorRepository : JpaRepository<RentalVendorEntity, Long> {
     fun findByUserId(userId: Long): Optional<RentalVendorEntity>
     fun findAllByStatusOrderByCreatedAtAsc(status: String): List<RentalVendorEntity>
+    fun findAllByOrderByCreatedAtDesc(): List<RentalVendorEntity>
 }
 
 interface RentalDriverRepository : JpaRepository<RentalDriverEntity, Long> {
