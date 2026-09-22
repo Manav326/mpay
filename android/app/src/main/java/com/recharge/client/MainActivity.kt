@@ -551,7 +551,15 @@ private fun AppNavHost(
             val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
             val car = rentalViewModel.state.collectAsState().value.cars.firstOrNull { it.id == carId }
             if (car != null) {
-                RentalBookingScreen(car = car, state = rentalViewModel.state.collectAsState().value, onQuote = rentalViewModel::quoteBooking, onBack = { nav.popBackStack() }, onConfirm = rentalViewModel::createBooking)
+                RentalBookingScreen(
+                    car = car,
+                    state = rentalViewModel.state.collectAsState().value,
+                    initialStartDate = rentalViewModel.state.collectAsState().value.searchStartDate,
+                    initialEndDate = rentalViewModel.state.collectAsState().value.searchEndDate,
+                    onQuote = rentalViewModel::quoteBooking,
+                    onBack = { nav.popBackStack() },
+                    onConfirm = rentalViewModel::createBooking
+                )
             }
         }
         composable("rental-bookings") {
