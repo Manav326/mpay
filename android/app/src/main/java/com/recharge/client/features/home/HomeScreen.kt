@@ -44,7 +44,7 @@ fun HomeScreen(
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
     onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: (String, String, String) -> Unit,
     onClearWithdrawMessage: () -> Unit, walletUiState: WalletUiState,
-    onRechargeHistory: () -> Unit, onCarRental: () -> Unit
+    onRechargeHistory: () -> Unit, onMarketplace: () -> Unit, onRentalBookings: () -> Unit
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
@@ -116,9 +116,14 @@ fun HomeScreen(
             }
         }
         item {
-            ActionCard("Car Rental", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onCarRental, Modifier.fillMaxWidth())
+            ActionCard("Marketplace", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onMarketplace, Modifier.fillMaxWidth())
         }
-        item { ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.fillMaxWidth()) }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActionCard("My Bookings", Icons.Default.History, Color(0xFF7C3AED), onRentalBookings, Modifier.weight(1f))
+                ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.weight(1f))
+            }
+        }
         if (latestRecharge != null) {
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
