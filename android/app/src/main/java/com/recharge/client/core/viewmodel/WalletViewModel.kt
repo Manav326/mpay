@@ -142,9 +142,11 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
         val normalizedUpi = upiId.trim()
-        val upiValid = provider.equals("mock", true) && normalizedUpi.isBlank() ||
-            Regex("^[^\\s@]+@[^\\s@]+$").matches(normalizedUpi)
-        if (!upiValid) {
+        if (normalizedUpi.isBlank()) {
+            _state.value = _state.value.copy(withdrawError = "UPI ID is required")
+            return
+        }
+        if (!Regex("^[^\\s@]+@[^\\s@]+$").matches(normalizedUpi)) {
             _state.value = _state.value.copy(withdrawError = "Enter a valid UPI ID")
             return
         }
