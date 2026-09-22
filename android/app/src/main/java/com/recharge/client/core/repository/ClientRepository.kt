@@ -260,4 +260,10 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
+
+    suspend fun cancelRentalBooking(bookingId: String): Result<com.recharge.client.core.model.RentalBookingResponse> = runCatching {
+        val response = api.cancelRentalBooking(bookingId)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
 }
