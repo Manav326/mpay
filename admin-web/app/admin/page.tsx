@@ -20,10 +20,15 @@ export default function Page() {
   const [portalRoles, setPortalRoles] = useState<string[]>(['ADMIN','MANAGER']);
   const [selectedPortalRole, setSelectedPortalRole] = useState('ADMIN');
   const [mobile, setMobile] = useState(''); const [password, setPassword] = useState(''); const [otp, setOtp] = useState(''); const [newPassword, setNewPassword] = useState('');
-  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'vendors'>('dashboard');
+  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'vendors'|'rental'>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']); const [vendors, setVendors] = useState<Vendor[]>([]);
   const [roleFilter, setRoleFilter] = useState<Role|'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high'); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false);
   const [newVendor, setNewVendor] = useState({ name:'', category:'CAR_RENT' as Vendor['category'], city:'', phone:'', commissionRate:5, active:true });
+  const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>();
+  const [rentalBookings, setRentalBookings] = useState<RentalAdminBooking[]>([]);
+  const [rentalBookingPage, setRentalBookingPage] = useState(0);
+  const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
+  const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
