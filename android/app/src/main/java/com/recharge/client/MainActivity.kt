@@ -531,8 +531,8 @@ private fun AppNavHost(
                     nav.currentBackStackEntry?.savedStateHandle?.set("rental_end_date", endDate)
                     nav.navigate("rental-booking")
                 },
-                onRefresh = rentalViewModel::loadCars,
-                onSearch = rentalViewModel::loadCars
+                onRefresh = { rentalViewModel.loadCars() },
+                onSearch = { startDate, endDate -> rentalViewModel.loadCars(startDate, endDate) }
             )
         }
         composable("rental-vendor") {
