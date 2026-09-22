@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.UUID
@@ -262,7 +261,7 @@ class RentalService(
         require(request.paymentMethod.equals("WALLET", true)) { "This booking flow currently supports wallet payment" }
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
-        require(!request.startDate.isBefore(LocalDate.now())) { "Start date cannot be in the past" }
+        require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
 
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
