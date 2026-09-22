@@ -158,6 +158,7 @@ export default function Portal() {
       const result = await api<RentalBooking>('/api/v1/car-rental/bookings', {
         method: 'POST',
         body: JSON.stringify({
+          clientRequestId: crypto.randomUUID(),
           carId: selectedCar.id,
           pickupLocation: rentalForm.pickup,
           dropLocation: rentalForm.drop || rentalForm.pickup,
