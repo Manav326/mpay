@@ -172,6 +172,43 @@ class RentalServiceTest {
         Mockito.verify(rentalPayments, Mockito.times(1)).refund(payment)
     }
     @Test
+    fun createBookingRechecksIdempotencyAfterCarLock() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusDays(1)
+        val car = RentalCarEntity(
+            id = 30L, name = "Test MPV", category = "MPV", seats = 6, transmission = "Automatic",
+            pricePerDay = BigDecimal("1800.00"), active = true, vendorId = 90L, driverId = 91L, approvalStatus = "APPROVED"
+        )
+        val existingBooking = RentalBookingEntity(
+            bookingId = "RNT-EXISTING", userId = 42L, carId = 30L,
+            pickupLocation = "Patna", dropLocation = "Gaya", startDate = start, endDate = end,
+            totalAmount = BigDecimal("1800.00"), status = "CONFIRMED"
+        )
+        val existingPayment = com.recharge.backend.domain.RentalPaymentEntity(
+            id = 41L, paymentId = "RNP-EXISTING", bookingId = "RNT-EXISTING", userId = 42L,
+            amount = BigDecimal("1800.00"), method = "WALLET", status = "PAID",
+            clientRequestId = "client-race", walletLedgerRef = "RENTAL:RNT-EXISTING"
+        )
+
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalPaymentEntity>())
+            .doReturn(Optional.of(existingPayment)).`when`(rentalPaymentRepository)
+            .findByUserIdAndClientRequestId(42L, "client-race")
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(30L)
+        Mockito.doReturn(Optional.of(existingBooking)).`when`(bookings).findByBookingIdAndUserId("RNT-EXISTING", 42L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(30L)
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalDriverEntity>()).`when`(drivers).findById(91L)
+
+        val result = service.createBooking(
+            42L,
+            RentalBookingRequest("client-race", "30", "Patna", "Gaya", start, end)
+        )
+
+        assertEquals("RNT-EXISTING", result.bookingId)
+        assertEquals(BigDecimal("1800.00"), result.total)
+        Mockito.verifyNoInteractions(rentalPayments)
+        Mockito.verify(bookings, Mockito.never()).save(Mockito.any(RentalBookingEntity::class.java))
+    }
+    @Test
     fun vendorCannotBookOwnVehicle() {
         val car = RentalCarEntity(
             id = 8L, name = "Vendor Sedan", category = "Sedan", seats = 5,
