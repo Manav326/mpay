@@ -19,19 +19,40 @@ class RentalService(
     private val drivers: RentalDriverRepository,
     private val cars: RentalCarRepository,
     private val bookings: RentalBookingRepository,
+    private val users: UserRepository,
     private val wallet: WalletService
 ) {
     fun vendor(userId: Long): RentalVendorResponse {
         val vendor = vendors.findByUserId(userId).orElse(null)
         return vendor?.let {
-            RentalVendorResponse(it.id.toString(), it.status, it.vendorType, it.fullName, it.businessName, it.city, it.state, cars.countByVendorId(requireNotNull(it.id)))
+            RentalVendorResponse(it.id.toString(), it.status, it.vendorType, it.fullName, it.businessName, it.city, it.state, cars.countByVendorId(requireNotNull(it.id)), it.address, it.pinCode, it.panNumber, it.payoutUpiId, it.bankAccountNumber, it.bankIfsc, it.rejectionReason, it.createdAt)
         } ?: RentalVendorResponse(null, "NOT_ONBOARDED", null, null, null, null, null, 0)
     }
 
     @Transactional
     fun onboardVendor(userId: Long, request: RentalVendorOnboardingRequest): RentalVendorResponse {
         val existing = vendors.findByUserId(userId)
-        if (existing.isPresent) return vendor(userId)
+        if (existing.isPresent) {
+            val current = existing.get()
+            if (current.status != "REJECTED") return vendor(userId)
+            current.vendorType = request.vendorType.trim().uppercase()
+            require(current.vendorType in setOf("INDIVIDUAL", "BUSINESS")) { "Vendor type must be INDIVIDUAL or BUSINESS" }
+            current.fullName = request.fullName.trim()
+            current.businessName = request.businessName?.trim()?.takeIf { it.isNotBlank() }
+            current.address = request.address.trim()
+            current.city = request.city.trim()
+            current.state = request.state.trim()
+            current.pinCode = request.pinCode.trim()
+            current.panNumber = request.panNumber?.trim()?.uppercase()
+            current.payoutUpiId = request.payoutUpiId?.trim()
+            current.bankAccountNumber = request.bankAccountNumber?.trim()
+            current.bankIfsc = request.bankIfsc?.trim()?.uppercase()
+            current.status = "PENDING"
+            current.rejectionReason = null
+            current.updatedAt = Instant.now()
+            vendors.save(current)
+            return vendor(userId)
+        }
         val type = request.vendorType.trim().uppercase()
         require(type in setOf("INDIVIDUAL", "BUSINESS")) { "Vendor type must be INDIVIDUAL or BUSINESS" }
         val now = Instant.now()
@@ -177,8 +198,54 @@ class RentalService(
     @Transactional
     fun approveVendor(vendorId: Long): RentalVendorResponse {
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }
-        vendor.status = "VERIFIED"; vendor.updatedAt = Instant.now(); vendors.save(vendor)
+        vendor.status = "VERIFIED"
+        vendor.rejectionReason = null
+        vendor.updatedAt = Instant.now()
+        vendors.save(vendor)
         return vendor(vendor.userId)
+    }
+
+    @Transactional
+    fun rejectVendor(vendorId: Long, reason: String?): RentalVendorResponse {
+        val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }
+        require(vendor.status != "VERIFIED") { "Verified vendors cannot be rejected from this action" }
+        vendor.status = "REJECTED"
+        vendor.rejectionReason = reason?.trim()?.takeIf { it.isNotBlank() } ?: "Additional information is required"
+        vendor.updatedAt = Instant.now()
+        vendors.save(vendor)
+        return vendor(vendor.userId)
+    }
+
+    fun adminVendors(): List<RentalAdminVendorResponse> =
+        vendors.findAllByOrderByCreatedAtDesc().map { v ->
+            val user = users.findById(v.userId).orElse(null)
+            RentalAdminVendorResponse(
+                vendorId = requireNotNull(v.id).toString(),
+                userId = v.userId.toString(),
+                fullName = v.fullName,
+                businessName = v.businessName,
+                mobile = user?.mobile,
+                email = user?.email,
+                vendorType = v.vendorType,
+                status = v.status,
+                address = v.address,
+                city = v.city,
+                state = v.state,
+                pinCode = v.pinCode,
+                panNumber = v.panNumber,
+                payoutUpiId = v.payoutUpiId,
+                bankAccountNumber = v.bankAccountNumber,
+                bankIfsc = v.bankIfsc,
+                vehicleCount = cars.countByVendorId(requireNotNull(v.id)),
+                rejectionReason = v.rejectionReason,
+                submittedAt = v.createdAt,
+                updatedAt = v.updatedAt
+            )
+        }
+
+    fun adminVendorCars(vendorId: Long): List<RentalCarResponse> {
+        vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }
+        return cars.findAllByVendorIdOrderByIdDesc(vendorId).map(::toCarResponse)
     }
 
     @Transactional
