@@ -141,7 +141,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             _state.value = _state.value.copy(withdrawError = "Enter a valid withdrawal amount of at least ₹1")
             return
         }
-        if (!Regex("^[A-Za-z0-9._-]+@[A-Za-z]{2,}$").matches(upiId.trim())) {
+        if (!Regex("^[A-Za-z0-9._-]+@[A-Za-z0-9._-]{2,}$").matches(upiId.trim())) {
             _state.value = _state.value.copy(withdrawError = "Enter a valid UPI ID")
             return
         }
