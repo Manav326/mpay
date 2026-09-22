@@ -275,25 +275,80 @@ private fun SingleChoiceSegmentedButtonRowScope.WalletDateButton(filter: WalletD
 
 @Composable
 private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryItem) -> Unit) {
-    val isAdd = item.referenceType.equals("ADD_MONEY", true)
-    val isRecharge = item.referenceType.equals("RECHARGE", true)
-    val isWithdraw = item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true)
-    val label = when { isRecharge -> "Recharge"; isAdd -> "Added money"; isWithdraw -> "Withdrawn money"; else -> item.description ?: item.type }
-    val amountColor = when { isAdd -> androidx.compose.ui.graphics.Color(0xFF16A34A); isRecharge -> androidx.compose.ui.graphics.Color(0xFFD97706); isWithdraw -> androidx.compose.ui.graphics.Color(0xFFDC2626); else -> AppColors.TextPrimary }
+    val referenceType = item.referenceType.orEmpty().uppercase()
+    val isAdd = referenceType == "ADD_MONEY"
+    val isRecharge = referenceType == "RECHARGE"
+    val isWithdraw = referenceType == "WITHDRAWAL" || item.type.equals("WITHDRAW", true)
+    val isRentalPayment = referenceType == "RENTAL_PAYMENT"
+    val isRentalRefund = referenceType == "RENTAL_REFUND"
+    val isCredit = isAdd || isRentalRefund || item.type.equals("CREDIT", true)
+    val isDebit = isRecharge || isWithdraw || isRentalPayment || item.type.equals("DEBIT", true)
+
+    val label = when {
+        isRentalPayment -> "Car rental payment"
+        isRentalRefund -> "Car rental refund"
+        isRecharge -> "Recharge"
+        isAdd -> "Added money"
+        isWithdraw -> "Withdrawn money"
+        else -> item.description ?: item.type
+    }
+    val amountColor = when {
+        isRentalRefund || isAdd -> androidx.compose.ui.graphics.Color(0xFF16A34A)
+        isRentalPayment || isWithdraw -> androidx.compose.ui.graphics.Color(0xFFDC2626)
+        isRecharge -> androidx.compose.ui.graphics.Color(0xFFD97706)
+        isCredit -> androidx.compose.ui.graphics.Color(0xFF16A34A)
+        isDebit -> androidx.compose.ui.graphics.Color(0xFFDC2626)
+        else -> AppColors.TextPrimary
+    }
+    val amountPrefix = when {
+        isCredit -> "+"
+        isDebit -> "-"
+        else -> ""
+    }
     val operator = if (isRecharge) item.operator else null
-    Surface(Modifier.fillMaxWidth().clickable { onClick(item) }, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp), tonalElevation = 1.dp) {
+
+    Surface(
+        Modifier.fillMaxWidth().clickable { onClick(item) },
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 1.dp
+    ) {
         Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
             if (isRecharge) {
                 val op = operator.orEmpty()
-                Surface(shape = RoundedCornerShape(12.dp), color = operatorColor(op).copy(alpha = .12f)) { Text(op.firstOrNull()?.uppercase() ?: "R", modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), color = operatorColor(op), fontWeight = FontWeight.Bold) }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = operatorColor(op).copy(alpha = .12f)
+                ) {
+                    Text(
+                        op.firstOrNull()?.uppercase() ?: "R",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        color = operatorColor(op),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(Modifier.width(10.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(label, fontWeight = FontWeight.SemiBold)
-                if (isRecharge) Text("${operator ?: "Operator"} • ${item.referenceId.orEmpty()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                if (isRecharge) {
+                    Text(
+                        "${operator ?: "Operator"} • ${item.referenceId.orEmpty()}",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Text(
+                    formatExactTimestamp(item.createdAt),
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
-            Text((if (isAdd) "+" else "-") + "₹${formatMoney(item.amount)}", color = amountColor, fontWeight = FontWeight.Bold)
+            Text(
+                amountPrefix + "₹${formatMoney(item.amount)}",
+                color = amountColor,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -303,14 +358,41 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1500); copied = false } }
-    val isAdd = item.referenceType.equals("ADD_MONEY", true)
-    val isRecharge = item.referenceType.equals("RECHARGE", true)
-    val isWithdraw = item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true)
-    val title = when { isAdd -> "Added money"; isWithdraw -> "Withdrawn money"; else -> item.referenceType ?: item.type }
+
+    val referenceType = item.referenceType.orEmpty().uppercase()
+    val isAdd = referenceType == "ADD_MONEY"
+    val isRecharge = referenceType == "RECHARGE"
+    val isWithdraw = referenceType == "WITHDRAWAL" || item.type.equals("WITHDRAW", true)
+    val isRentalPayment = referenceType == "RENTAL_PAYMENT"
+    val isRentalRefund = referenceType == "RENTAL_REFUND"
+    val isCredit = isAdd || isRentalRefund || item.type.equals("CREDIT", true)
+    val isDebit = isRecharge || isWithdraw || isRentalPayment || item.type.equals("DEBIT", true)
+
+    val title = when {
+        isRentalPayment -> "Car rental payment"
+        isRentalRefund -> "Car rental refund"
+        isAdd -> "Added money"
+        isWithdraw -> "Withdrawn money"
+        else -> item.referenceType ?: item.type
+    }
+    val amountColor = when {
+        isRentalRefund || isAdd -> androidx.compose.ui.graphics.Color(0xFF16A34A)
+        isRentalPayment || isWithdraw -> androidx.compose.ui.graphics.Color(0xFFDC2626)
+        isRecharge -> androidx.compose.ui.graphics.Color(0xFFD97706)
+        isCredit -> androidx.compose.ui.graphics.Color(0xFF16A34A)
+        isDebit -> androidx.compose.ui.graphics.Color(0xFFDC2626)
+        else -> AppColors.TextPrimary
+    }
+    val amountPrefix = when {
+        isCredit -> "+"
+        isDebit -> "-"
+        else -> ""
+    }
+
     val copyText = buildString {
         appendLine("Wallet transaction")
         appendLine("Type: $title")
-        appendLine("Amount: ₹${formatMoney(item.amount)}")
+        appendLine("Amount: $amountPrefix₹${formatMoney(item.amount)}")
         appendLine("Status: ${item.status}")
         appendLine("Reference type: ${item.referenceType ?: "—"}")
         appendLine("Reference ID: ${item.referenceId ?: "—"}")
@@ -318,14 +400,33 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
         item.description?.let { appendLine("Description: $it") }
         appendLine("Date & time: ${formatExactTimestamp(item.createdAt)}")
     }
+
     Card(shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("₹${formatMoney(item.amount)}", style = MaterialTheme.typography.headlineSmall, color = if (isAdd) androidx.compose.ui.graphics.Color(0xFF16A34A) else if (isWithdraw) androidx.compose.ui.graphics.Color(0xFFDC2626) else androidx.compose.ui.graphics.Color(0xFFD97706), fontWeight = FontWeight.Bold)
+                    Text(
+                        amountPrefix + "₹${formatMoney(item.amount)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = amountColor,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                IconButton(onClick = { clipboard.setText(AnnotatedString(copyText.trimEnd())); copied = true }) { Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, if (copied) "Copied" else "Copy details", tint = if (copied) AppColors.Success else MaterialTheme.colorScheme.primary) }
+                IconButton(onClick = {
+                    clipboard.setText(AnnotatedString(copyText.trimEnd()))
+                    copied = true
+                }) {
+                    Icon(
+                        if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                        if (copied) "Copied" else "Copy details",
+                        tint = if (copied) AppColors.Success else MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             HorizontalDivider()
             Text("Status: ${item.status}")
@@ -340,6 +441,7 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
             Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             if (isWithdraw) Text("UPI ID: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             if (isRecharge) Text("Recharge transaction: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            if (isRentalPayment || isRentalRefund) Text("Rental booking: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -361,6 +463,8 @@ private fun WalletDatePicker(initial: LocalDate, onSelected: (LocalDate) -> Unit
 }
 
 private fun walletTransactionTitle(item: WalletHistoryItem) = when {
+    item.referenceType.equals("RENTAL_PAYMENT", true) -> "Car rental payment details"
+    item.referenceType.equals("RENTAL_REFUND", true) -> "Car rental refund details"
     item.referenceType.equals("ADD_MONEY", true) -> "Added money details"
     item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true) -> "Withdrawal details"
     else -> "Wallet transaction details"
