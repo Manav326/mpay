@@ -82,9 +82,7 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
         @Param("startDate") startDate: LocalDateTime,
         @Param("endDate") endDate: LocalDateTime
     ): Boolean
-
-
-
+}
 
 interface RentalVehicleUnavailabilityRepository : JpaRepository<RentalVehicleUnavailabilityEntity, Long> {
     @Query("""
