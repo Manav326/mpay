@@ -262,3 +262,7 @@ export async function rejectRentalVendor(vendorId: string, reason: string): Prom
 export async function approveRentalVehicle(carId: string): Promise<unknown> {
   return api('/api/v1/car-rental/admin/vehicles/' + encodeURIComponent(carId) + '/approve', { method: 'POST' });
 }
+
+export async function rejectRentalVehicle(carId: string, reason: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/vehicles/' + encodeURIComponent(carId) + '/reject', { method: 'POST', body: JSON.stringify({ reason }) });
+}
