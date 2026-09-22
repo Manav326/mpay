@@ -27,6 +27,7 @@ class ClientController(
     private val paymentGatewayService: PaymentGatewayService,
     private val payuPaymentGateway: PayUPaymentGatewayProvider,
     private val rechargeRepository: RechargeTransactionRepository,
+    private val withdrawalRepository: com.recharge.backend.repository.WalletWithdrawalRepository,
     private val withdrawalService: com.recharge.backend.service.WithdrawalService
 ) {
     private fun authenticatedUserId(authentication: Authentication): Long =
@@ -144,6 +145,7 @@ class ClientController(
                     id = tx.id ?: 0L, type = tx.type, amount = tx.amount, status = tx.status,
                     referenceType = tx.referenceType, referenceId = tx.referenceId, externalRef = tx.externalRef,
                     description = tx.description, createdAt = tx.createdAt,
+                    provider = walletTransactionProvider(tx.referenceType, tx.referenceId, tx.externalRef, withdrawalRepository),
                     mobileNumber = recharge?.mobileNumber, operator = recharge?.operator, circle = recharge?.circle
                 )
             },
@@ -152,6 +154,21 @@ class ClientController(
         )
     }
 
+    private fun walletTransactionProvider(
+        referenceType: String?,
+        referenceId: String?,
+        externalRef: String,
+        withdrawalRepository: com.recharge.backend.repository.WalletWithdrawalRepository
+    ): String? {
+        val normalizedType = referenceType?.uppercase()
+        if (normalizedType == "ADD_MONEY" && externalRef.startsWith("PAYMENT:", true)) {
+            return externalRef.split(":").getOrNull(1)?.lowercase()
+        }
+        if (normalizedType == "WITHDRAWAL" && !referenceId.isNullOrBlank()) {
+            return withdrawalRepository.findByWithdrawalId(referenceId).orElse(null)?.providerName?.lowercase()
+        }
+        return null
+    }
     @PostMapping("/wallet/withdraw")
     fun withdraw(authentication: Authentication, @Valid @RequestBody request: WithdrawMoneyRequest): WithdrawMoneyResponse =
         withdrawalService.withdraw(
