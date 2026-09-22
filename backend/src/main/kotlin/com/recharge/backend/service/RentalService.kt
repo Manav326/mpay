@@ -363,8 +363,8 @@ class RentalService(
             cancelledBookings = bookings.countByStatus("CANCELLED"),
             totalBookingValue = bookings.sumTotalAmount().setScale(2, RoundingMode.HALF_UP),
             totalRefunded = rentalPaymentRepository.sumRefundedAmount().setScale(2, RoundingMode.HALF_UP),
-            totalVendorPayouts = rentalPayoutRepositorySum(),
-            totalPlatformFees = rentalPayoutRepositoryFee()
+            totalVendorPayouts = rentalPayouts.totalPaidVendorAmount(),
+            totalPlatformFees = rentalPayouts.totalPlatformFeeAmount()
         )
 
     fun adminBookings(page: Int, size: Int, status: String?): RentalAdminBookingPageResponse {
