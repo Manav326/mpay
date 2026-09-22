@@ -32,7 +32,42 @@ data class RentalVendorResponse(
     val businessName: String?,
     val city: String?,
     val state: String?,
-    val vehicleCount: Int
+    val vehicleCount: Int,
+    val address: String? = null,
+    val pinCode: String? = null,
+    val panNumber: String? = null,
+    val payoutUpiId: String? = null,
+    val bankAccountNumber: String? = null,
+    val bankIfsc: String? = null,
+    val rejectionReason: String? = null,
+    val submittedAt: Instant? = null
+)
+
+data class RentalAdminVendorResponse(
+    val vendorId: String,
+    val userId: String,
+    val fullName: String,
+    val businessName: String?,
+    val mobile: String?,
+    val email: String?,
+    val vendorType: String,
+    val status: String,
+    val address: String,
+    val city: String,
+    val state: String,
+    val pinCode: String,
+    val panNumber: String?,
+    val payoutUpiId: String?,
+    val bankAccountNumber: String?,
+    val bankIfsc: String?,
+    val vehicleCount: Int,
+    val rejectionReason: String?,
+    val submittedAt: Instant,
+    val updatedAt: Instant
+)
+
+data class RentalAdminDecisionRequest(
+    @field:Size(max = 500) val reason: String? = null
 )
 
 data class RentalVendorOnboardingRequest(
