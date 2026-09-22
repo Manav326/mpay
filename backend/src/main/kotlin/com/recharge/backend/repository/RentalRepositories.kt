@@ -66,5 +66,6 @@ interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
 interface RentalPayoutRepository : JpaRepository<RentalPayoutEntity, Long> {
     fun findByBookingId(bookingId: String): Optional<RentalPayoutEntity>
 
-    fun findAllByVendorUserIdOrderByCreatedAtDesc(vendorUserId: Long): List<RentalPayoutEntity>
+    @Query("select p from RentalPayoutEntity p where p.vendorUserId = :vendorUserId order by p.createdAt desc")
+    fun findAllByVendorUserIdOrderByCreatedAtDesc(@Param("vendorUserId") vendorUserId: Long): List<RentalPayoutEntity>
 }
