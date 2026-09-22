@@ -75,13 +75,15 @@ fun ProfileScreen(
             val vendorTitle = when {
                 hasVendorProfile && vendor?.status.equals("VERIFIED", true) -> "Rental Vendor Dashboard"
                 hasVendorProfile && vendor?.status.equals("REJECTED", true) -> "Rental Vendor Application"
-                hasVendorProfile -> "Rental Vendor Dashboard"
+                hasVendorProfile && vendor?.status.equals("PENDING", true) -> "Vendor Application · Pending Verification"
+                hasVendorProfile -> "Rental Vendor Application"
                 else -> "Become a Vendor"
             }
             val vendorSubtitle = when {
                 hasVendorProfile && vendor?.status.equals("VERIFIED", true) -> "Manage your chauffeur-driven fleet, bookings and earnings."
                 hasVendorProfile && vendor?.status.equals("REJECTED", true) -> "Review the rejection note and resubmit your vendor details."
-                hasVendorProfile -> "Your vendor application is under review. Open it to see the latest status."
+                hasVendorProfile && vendor?.status.equals("PENDING", true) -> "Your application is submitted and awaiting admin verification."
+                hasVendorProfile -> "Review your vendor application status."
                 else -> "Rent your car with a professional driver through mPay."
             }
             Card(
