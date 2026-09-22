@@ -32,7 +32,7 @@ class RentalServiceTest {
     private val service = RentalService(vendors, drivers, cars, bookings, users, rentalPayments, rentalPaymentRepository, vendorReviews, carReviews)
 
     @Test
-    fun bookingTotalIsCalculatedServerSideAndWalletIsDebited() {
+    fun bookingTotalIsCalculatedServerSideAndRentalPaymentIsUsed() {
         val car = RentalCarEntity(
             id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
             transmission = "Automatic", pricePerDay = BigDecimal("2000.00"), active = true, vendorId = 9L, driverId = 10L, approvalStatus = "APPROVED"
