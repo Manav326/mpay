@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 data class RentalCarResponse(
     val id: String,
@@ -31,7 +32,7 @@ data class RentalCarResponse(
     val registrationNumber: String? = null,
     val state: String? = null,
     val driverLicenseNumber: String? = null,
-    val driverLicenseExpiry: LocalDate? = null,
+    val driverLicenseExpiry: LocalDateTime? = null,
     val driverAddress: String? = null
 )
 
@@ -100,7 +101,7 @@ data class RentalDriverRequest(
     @field:Pattern(regexp = "[6-9][0-9]{9}", message = "Driver mobile must be a valid 10 digit Indian mobile number")
     val mobile: String,
     @field:NotBlank @field:Size(max = 64) val licenseNumber: String,
-    val licenseExpiry: LocalDate,
+    val licenseExpiry: LocalDateTime,
     @field:Size(max = 300) val address: String? = null
 )
 
@@ -148,8 +149,8 @@ data class RentalBookingQuoteRequest(
     @field:NotBlank val carId: String,
     @field:NotBlank val pickupLocation: String,
     @field:NotBlank val dropLocation: String,
-    val startDate: LocalDate,
-    val endDate: LocalDate
+    val startDate: LocalDateTime,
+    val endDate: LocalDateTime
 )
 
 data class RentalBookingQuoteResponse(
@@ -170,8 +171,8 @@ data class RentalBookingRequest(
     @field:NotBlank val carId: String,
     @field:NotBlank val pickupLocation: String,
     @field:NotBlank val dropLocation: String,
-    val startDate: LocalDate,
-    val endDate: LocalDate,
+    val startDate: LocalDateTime,
+    val endDate: LocalDateTime,
     val paymentMethod: String = "WALLET"
 )
 
@@ -182,8 +183,8 @@ data class RentalBookingResponse(
     val driverMobile: String? = null,
     val pickup: String,
     val drop: String,
-    val startDate: LocalDate,
-    val endDate: LocalDate,
+    val startDate: LocalDateTime,
+    val endDate: LocalDateTime,
     val total: BigDecimal,
     val paymentMethod: String,
     val status: String,
