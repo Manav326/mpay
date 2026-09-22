@@ -153,3 +153,28 @@ data class WithdrawMoneyResponse(
     val availableBalance: BigDecimal,
     val message: String? = null
 )
+
+data class WithdrawalHistoryItem(
+    val withdrawalId: String,
+    val clientRequestId: String,
+    val amount: BigDecimal,
+    val upiId: String,
+    val provider: String,
+    val status: String,
+    val providerReference: String? = null,
+    val providerStatus: String? = null,
+    val failureReason: String? = null,
+    val walletLedgerRef: String? = null,
+    val createdAt: String,
+    val updatedAt: String,
+    val completedAt: String? = null
+)
+
+data class WithdrawalHistoryResponse(
+    val items: List<WithdrawalHistoryItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
