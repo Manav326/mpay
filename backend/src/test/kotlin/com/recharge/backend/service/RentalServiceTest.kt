@@ -25,12 +25,11 @@ class RentalServiceTest {
     private val cars = Mockito.mock(RentalCarRepository::class.java)
     private val bookings = Mockito.mock(RentalBookingRepository::class.java)
     private val users = Mockito.mock(UserRepository::class.java)
-    private val wallet = Mockito.mock(WalletService::class.java)
     private val rentalPayments = Mockito.mock(RentalPaymentService::class.java)
     private val rentalPaymentRepository = Mockito.mock(RentalPaymentRepository::class.java)
     private val vendorReviews = Mockito.mock(RentalVendorReviewRepository::class.java)
     private val carReviews = Mockito.mock(RentalCarReviewRepository::class.java)
-    private val service = RentalService(vendors, drivers, cars, bookings, users, wallet, rentalPayments, rentalPaymentRepository, vendorReviews, carReviews)
+    private val service = RentalService(vendors, drivers, cars, bookings, users, rentalPayments, rentalPaymentRepository, vendorReviews, carReviews)
 
     @Test
     fun bookingTotalIsCalculatedServerSideAndWalletIsDebited() {
@@ -56,19 +55,16 @@ class RentalServiceTest {
             .`when`(bookings)
             .save(any(RentalBookingEntity::class.java))
 
+        val payment = com.recharge.backend.domain.RentalPaymentEntity(id = 21L, paymentId = "RNP-TEST", bookingId = "RNT-TEST", userId = 42L, amount = BigDecimal("6000.00"), method = "WALLET", status = "PAID", walletLedgerRef = "RENTAL:RNT-TEST")
+        Mockito.doReturn(payment).`when`(rentalPayments).pay(Mockito.eq(42L), Mockito.anyString(), Mockito.eq(BigDecimal("6000.00")), Mockito.eq("WALLET"), Mockito.eq("client-1"))
+
         val result = service.createBooking(
             42L,
-            RentalBookingRequest("7", "Darbhanga", "Patna", start, end)
+            RentalBookingRequest("client-1", "7", "Darbhanga", "Patna", start, end)
         )
 
         assertEquals(BigDecimal("6000.00"), result.total)
         assertEquals("CONFIRMED", result.status)
-        Mockito.verify(wallet, Mockito.times(1)).reserve(42L, BigDecimal("6000.00"))
-        Mockito.verify(wallet, Mockito.times(1)).finalizeReservedDebit(
-            42L,
-            BigDecimal("6000.00"),
-            "RENTAL:" + result.bookingId,
-            result.bookingId
-        )
+        Mockito.verify(rentalPayments, Mockito.times(1)).pay(42L, result.bookingId, BigDecimal("6000.00"), "WALLET", "client-1")
     }
 }
