@@ -20,6 +20,7 @@ data class RentalCarResponse(
     val imageUrl: String?,
     val pricePerDay: BigDecimal,
     val driverName: String,
+    val driverMobile: String? = null,
     val driverRating: BigDecimal? = null
 )
 
