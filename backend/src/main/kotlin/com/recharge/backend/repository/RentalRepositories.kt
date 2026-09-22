@@ -70,6 +70,40 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
 }
 
 
+interface RentalVehicleUnavailabilityRepository : JpaRepository<RentalVehicleUnavailabilityEntity, Long> {
+    @Query("""
+        select u from RentalVehicleUnavailabilityEntity u
+        where u.carId = :carId
+          and u.status = 'ACTIVE'
+          and u.startDate <= :endDate
+          and u.endDate >= :startDate
+        order by u.startDate asc
+    """)
+    fun findOverlapping(
+        @Param("carId") carId: Long,
+        @Param("startDate") startDate: java.time.LocalDate,
+        @Param("endDate") endDate: java.time.LocalDate
+    ): List<RentalVehicleUnavailabilityEntity>
+
+    @Query("""
+        select count(u) > 0 from RentalVehicleUnavailabilityEntity u
+        where u.carId = :carId
+          and u.status = 'ACTIVE'
+          and u.startDate <= :endDate
+          and u.endDate >= :startDate
+    """)
+    fun existsOverlapping(
+        @Param("carId") carId: Long,
+        @Param("startDate") startDate: java.time.LocalDate,
+        @Param("endDate") endDate: java.time.LocalDate
+    ): Boolean
+
+    fun findAllByCarIdOrderByStartDateAsc(carId: Long): List<RentalVehicleUnavailabilityEntity>
+
+    fun findAllByVendorIdOrderByStartDateAsc(vendorId: Long): List<RentalVehicleUnavailabilityEntity>
+}
+
+
 interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
     fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalPaymentEntity>
