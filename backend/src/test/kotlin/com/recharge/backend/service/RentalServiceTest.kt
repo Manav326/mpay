@@ -234,6 +234,29 @@ class RentalServiceTest {
     }
 
     @Test
+    fun availableCarsCanBeFilteredByRequestedTimeWindow() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusDays(1)
+        val car = RentalCarEntity(
+            id = 50L, name = "Available Sedan", category = "Sedan", seats = 5,
+            transmission = "Automatic", pricePerDay = BigDecimal("2200.00"),
+            active = true, vendorId = 60L, driverId = 61L, approvalStatus = "APPROVED"
+        )
+        Mockito.doReturn(listOf(car)).`when`(cars).findAvailableForWindow(
+            "APPROVED", listOf("PENDING", "CONFIRMED"), start, end
+        )
+        Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalVendorEntity(
+            id = 60L, userId = 99L, fullName = "Vendor", address = "Address",
+            city = "Patna", state = "Bihar", pinCode = "800001"
+        ))).`when`(vendors).findAllById(listOf(60L))
+
+        val result = service.availableCars(42L, start, end)
+
+        assertEquals(listOf("50"), result.map { it.id })
+        Mockito.verify(cars).findAvailableForWindow("APPROVED", listOf("PENDING", "CONFIRMED"), start, end)
+    }
+
+    @Test
     fun quoteRoundsPartialDayUpWhenBookingUsesDatetime() {
         val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
         val end = start.plusHours(25)
