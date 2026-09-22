@@ -3,7 +3,9 @@ package com.recharge.backend.api
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import jakarta.validation.ConstraintViolationException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
@@ -58,6 +60,21 @@ class GlobalExceptionHandler {
         ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(ex.message ?: "Access denied"))
 
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleUnreadableRequest(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse("Invalid request body: " + (ex.mostSpecificCause.message ?: "malformed JSON")))
+
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolation(ex: ConstraintViolationException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(
+                ErrorResponse(
+                    ex.constraintViolations.joinToString("; ") {
+                        "${it.propertyPath}: ${it.message}"
+                    }
+                )
+            )
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
         val message = ex.bindingResult.fieldErrors.joinToString("; ") {
