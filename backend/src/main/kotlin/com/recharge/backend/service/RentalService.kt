@@ -155,7 +155,7 @@ class RentalService(
         require(!cars.existsByRegistrationNumberIgnoreCaseAndIdNot(request.registrationNumber.trim(), carId)) {
             "A vehicle with this registration number already exists"
         }
-        require(request.driver.licenseExpiry.isAfter(LocalDate.now())) { "Driver licence must be valid" }
+        require(request.driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver licence must be valid" }
 
         val now = Instant.now()
         driver.fullName = request.driver.fullName.trim()
@@ -295,7 +295,7 @@ class RentalService(
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
         val booking = bookings.findByBookingIdAndUserId(bookingId, userId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
-        check(booking.startDate.isAfter(LocalDate.now())) { "Bookings starting today cannot be cancelled" }
+        check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
         booking.status = "CANCELLED"
         booking.updatedAt = Instant.now()
         val payment = rentalPaymentRepository.findByBookingIdAndUserId(bookingId, userId)
