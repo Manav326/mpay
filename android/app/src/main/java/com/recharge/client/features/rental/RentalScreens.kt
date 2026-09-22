@@ -32,7 +32,41 @@ fun RentalVendorOnboardingScreen(
     var pan by remember { mutableStateOf("") }
     var upi by remember { mutableStateOf("") }
 
-    LazyColumn(
+    if (state.vendor?.status?.uppercase() in setOf("PENDING", "VERIFIED", "REJECTED")) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Vendor application", style = MaterialTheme.typography.headlineSmall) } }
+            item { Text(
+                when (state.vendor?.status?.uppercase()) {
+                    "VERIFIED" -> "Your vendor account has been verified."
+                    "REJECTED" -> "Your application needs changes before it can be reviewed again."
+                    else -> "Your vendor information has been submitted and is awaiting review."
+                }, color = AppColors.TextSecondary
+            ) }
+            state.vendor?.let { v ->
+                item {
+                    Card(shape = RoundedCornerShape(18.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Text("Submitted information", style = MaterialTheme.typography.titleLarge)
+                            Text("Status: " + v.status)
+                            Text("Name: " + (v.fullName ?: "—"))
+                            v.businessName?.let { Text("Business / fleet: " + it) }
+                            Text("Address: " + (v.address ?: "—"))
+                            Text("Location: " + (v.city ?: "—") + ", " + (v.state ?: "—") + " " + (v.pinCode ?: ""))
+                            v.panNumber?.let { Text("PAN: " + it) }
+                            v.payoutUpiId?.let { Text("Payout UPI: " + it) }
+                            v.rejectionReason?.let { Text("Review note: " + it, color = AppColors.Error) }
+                            Text("Vehicles submitted: " + v.vehicleCount)
+                        }
+                    }
+                }
+            }
+            item { Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Back to Profile") } }
+        }
+    } else     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -62,7 +96,7 @@ fun RentalVendorOnboardingScreen(
                             pinCode = pin,
                             panNumber = pan.ifBlank { null },
                             payoutUpiId = upi.ifBlank { null }
-                        ), onBack
+                        ), {}
                     )
                 },
                 enabled = !state.saving && fullName.isNotBlank() && address.isNotBlank() && city.isNotBlank() && stateName.isNotBlank() && pin.isNotBlank(),
