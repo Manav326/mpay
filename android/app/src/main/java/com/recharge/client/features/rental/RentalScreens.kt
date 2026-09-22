@@ -33,6 +33,7 @@ fun RentalVendorOnboardingScreen(
     onBack: () -> Unit,
     onAddVehicle: () -> Unit,
     onRefreshVehicles: () -> Unit,
+    onRefreshPayouts: () -> Unit,
     onAddVehicleWithCar: (RentalCarResponse) -> Unit = {}
 ) {
     var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
@@ -45,7 +46,7 @@ fun RentalVendorOnboardingScreen(
     var upi by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutUpiId.orEmpty()) }
 
     if (state.vendor?.status?.uppercase() == "VERIFIED") {
-        LaunchedEffect(state.vendor?.vendorId) { onRefreshVehicles() }
+        LaunchedEffect(state.vendor?.vendorId) { onRefreshVehicles(); onRefreshPayouts() }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
             contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
