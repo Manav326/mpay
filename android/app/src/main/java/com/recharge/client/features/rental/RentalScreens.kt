@@ -417,7 +417,8 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier) {
     }
 }
 
-$helperAnchor
+@Composable
+private fun EarningsMetric(
     label: String,
     amount: BigDecimal,
     alignEnd: Boolean = false,
