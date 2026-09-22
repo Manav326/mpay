@@ -43,6 +43,7 @@ public final class PayUCheckoutBridge {
             String userCredential,
             String vasForMobileSdkHash,
             String paymentRelatedDetailsHash,
+            String paymentHash,
             Callback callback
     ) {
         PayUPaymentParams params = new PayUPaymentParams.Builder()
@@ -57,7 +58,7 @@ public final class PayUCheckoutBridge {
                 .setSurl(surl)
                 .setFurl(furl)
                 .setUserCredential(userCredential)
-                .setAdditionalParams(buildStaticHashes(vasForMobileSdkHash, paymentRelatedDetailsHash))
+                .setAdditionalParams(buildStaticHashes(vasForMobileSdkHash, paymentRelatedDetailsHash, paymentHash))
                 .build();
 
         PayUCheckoutPro.open(activity, params, new PayUCheckoutProListener() {
@@ -88,7 +89,8 @@ public final class PayUCheckoutBridge {
 
     private static HashMap<String, Object> buildStaticHashes(
             String vasForMobileSdkHash,
-            String paymentRelatedDetailsHash
+            String paymentRelatedDetailsHash,
+            String paymentHash
     ) {
         HashMap<String, Object> additionalParams = new HashMap<>();
         if (vasForMobileSdkHash != null && !vasForMobileSdkHash.trim().isEmpty()) {
@@ -96,6 +98,9 @@ public final class PayUCheckoutBridge {
         }
         if (paymentRelatedDetailsHash != null && !paymentRelatedDetailsHash.trim().isEmpty()) {
             additionalParams.put(PayUCheckoutProConstants.CP_PAYMENT_RELATED_DETAILS_FOR_MOBILE_SDK, paymentRelatedDetailsHash);
+        }
+        if (paymentHash != null && !paymentHash.trim().isEmpty()) {
+            additionalParams.put("payment", paymentHash);
         }
         return additionalParams;
     }
