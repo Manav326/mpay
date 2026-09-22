@@ -64,7 +64,7 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             }
-            item { Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Back to Profile") } }
+            item { if (state.vendor?.status?.uppercase() == "VERIFIED") { Button(onClick = { }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Add a vehicle") } } else { Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) { Text("Back to Profile") } } }
         }
     } else     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
