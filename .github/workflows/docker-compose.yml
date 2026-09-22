@@ -4,12 +4,22 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - 'admin-web/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker-compose.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - 'admin-web/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker-compose.yml'
 
 concurrency:
-  group: mpay-ci-${{ github.head_ref || github.ref_name }}
+  group: mpay-docker-ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -75,9 +85,8 @@ jobs:
       - name: Tag images with commit SHA
         if: github.event_name == 'push'
         run: |
-          docker tag "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}"             "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
-
-          docker tag "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"             "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          docker tag "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
+          docker tag "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
 
       - name: Push commit-tagged images
         if: github.event_name == 'push'
@@ -92,6 +101,7 @@ jobs:
           docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"
           docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+
       - name: Build summary
         if: always()
         run: |
@@ -99,90 +109,3 @@ jobs:
           echo "Admin Web image: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"
           echo "Commit backend: ${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           echo "Commit admin web: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
-
-
-  android-apk:
-    # PRs get a fast compile/install validation. Only main gets the R8-optimized release APK.
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
-
-      - name: Reset Gradle transformed dependency cache
-        run: |
-          rm -rf ~/.gradle/caches/*/transforms
-
-      - name: Build debug APK (PR validation)
-        if: github.event_name == 'pull_request'
-        working-directory: android
-        run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleDebug
-
-      - name: Build optimized release APK (main)
-        if: github.event_name == 'push' && github.ref_name == 'main'
-        working-directory: android
-        run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease
-
-      - name: Verify debug APK and report size
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          test -f android/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
-          stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Verify release APK and report size
-        if: github.event_name == 'push' && github.ref_name == 'main'
-        shell: bash
-        run: |
-          test -f android/app/build/outputs/apk/release/app-release.apk
-          ls -lh android/app/build/outputs/apk/release/app-release.apk
-          stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/release/app-release.apk
-
-      - name: Set APK artifact name
-        shell: bash
-        run: |
-          branch_name="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-          safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "MPAY_APK_ARTIFACT_NAME=mpay-android-debug-${safe_branch}" >> "${GITHUB_ENV}"
-            echo "APK artifact: mpay-android-debug-${safe_branch}"
-          else
-            echo "MPAY_APK_ARTIFACT_NAME=mpay-android-release-${safe_branch}" >> "${GITHUB_ENV}"
-            echo "APK artifact: mpay-android-release-${safe_branch}"
-          fi
-
-      - name: Upload debug APK
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload optimized release APK
-        if: github.event_name == 'push' && github.ref_name == 'main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
-          path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-          retention-days: 30
