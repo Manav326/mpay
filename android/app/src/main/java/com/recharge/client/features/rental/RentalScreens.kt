@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,10 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.*
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.viewmodel.RentalUiState
+import kotlinx.coroutines.delay
 
 @Composable
 fun RentalVendorOnboardingScreen(
@@ -686,7 +691,17 @@ fun RentalBookingScreen(
 
 @Composable
 fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    var copiedBookingId by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) { onRefresh() }
+    LaunchedEffect(copiedBookingId) {
+        if (copiedBookingId != null) {
+            delay(1500)
+            copiedBookingId = null
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
@@ -703,22 +718,74 @@ fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: 
         }
         state.error?.let { item { Text(it, color = AppColors.Error) } }
         if (state.loading && state.bookings.isEmpty()) {
-            item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+            item {
+                Box(
+                    Modifier.fillMaxWidth().padding(30.dp),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator() }
+            }
         }
         if (!state.loading && state.bookings.isEmpty()) {
             item { Text("No rental bookings yet.", color = AppColors.TextSecondary) }
         }
+
         items(state.bookings, key = { it.bookingId }) { booking ->
+            val status = booking.status.uppercase()
+            val statusColor = rentalBookingStatusColor(status)
+            val copyText = buildString {
+                appendLine("mPay Car Rental Booking")
+                appendLine("Booking ID: ${booking.bookingId}")
+                appendLine("Status: $status")
+                appendLine("Car: ${booking.carName}")
+                appendLine("Driver: ${booking.driverName}")
+                booking.driverMobile?.let { appendLine("Driver mobile: $it") }
+                appendLine("Pickup: ${booking.pickup}")
+                appendLine("Drop: ${booking.drop}")
+                appendLine("Start: ${booking.startDate}")
+                appendLine("End: ${booking.endDate}")
+                appendLine("Total: ₹${booking.total.setScale(2).toPlainString()}")
+                appendLine("Payment: ${booking.paymentMethod}")
+            }
+
             Card(shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(booking.carName, style = MaterialTheme.typography.titleLarge)
-                            Text("Booking " + booking.bookingId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "Booking " + booking.bookingId,
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                        Text(booking.status, style = MaterialTheme.typography.labelLarge, color = AppColors.Primary)
+                        IconButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString(copyText.trimEnd()))
+                                copiedBookingId = booking.bookingId
+                            }
+                        ) {
+                            Icon(
+                                if (copiedBookingId == booking.bookingId) Icons.Default.Check else Icons.Default.ContentCopy,
+                                if (copiedBookingId == booking.bookingId) "Copied" else "Copy booking details",
+                                tint = if (copiedBookingId == booking.bookingId) AppColors.Success else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = statusColor.copy(alpha = .12f)
+                        ) {
+                            Text(
+                                status,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = statusColor
+                            )
+                        }
                     }
                     Text("Driver: " + booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""))
                     Text(booking.pickup + " → " + booking.drop, color = AppColors.TextSecondary)
@@ -728,4 +795,13 @@ fun RentalMyBookingsScreen(state: RentalUiState, onRefresh: () -> Unit, onBack: 
             }
         }
     }
+}
+
+private fun rentalBookingStatusColor(status: String): Color = when (status) {
+    "CONFIRMED", "COMPLETED" -> Color(0xFF16713B)
+    "CANCELLED", "FAILED" -> Color(0xFFA52828)
+    "PENDING", "PROCESSING" -> Color(0xFF9A6408)
+    "REFUNDED" -> Color(0xFF6D4AC4)
+    "REQUESTED", "CREATED" -> Color(0xFF2563EB)
+    else -> AppColors.TextSecondary
 }
