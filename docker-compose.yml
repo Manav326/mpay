@@ -56,6 +56,7 @@ services:
       MPAY_DB_PASSWORD: ${MPAY_DB_PASSWORD:-recharge}
       MPAY_PROFILE_IMAGES_DIR: /app/data/profile-images
       MPAY_CORS_ALLOWED_ORIGINS: ${MPAY_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.31.47:3000}
+      MPAY_RENTAL_PLATFORM_FEE_PERCENT: ${MPAY_RENTAL_PLATFORM_FEE_PERCENT:-10.00}
     depends_on:
       postgres:
         condition: service_healthy
