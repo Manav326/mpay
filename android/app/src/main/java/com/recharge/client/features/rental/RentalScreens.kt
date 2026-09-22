@@ -1,6 +1,6 @@
 package com.recharge.client.features.rental
 
-import androidx.compose.foundation.layout.*
+import java.util.UUID\n\nimport androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -359,7 +359,7 @@ fun RentalBookingScreen(
                         Text("Payment: Wallet")
                         Button(
                             enabled = !state.saving,
-                            onClick = { onConfirm(RentalBookingRequest(car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
+                            onClick = { onConfirm(RentalBookingRequest(UUID.randomUUID().toString(), car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Confirm booking") }
