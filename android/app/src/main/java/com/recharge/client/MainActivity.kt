@@ -522,7 +522,16 @@ private fun AppNavHost(
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
         }
         composable("car-rental") {
-            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") }, onRefresh = rentalViewModel::loadCars)
+            CarRentalMarketplaceScreen(
+                rentalViewModel.state.collectAsState().value,
+                onBack = { nav.popBackStack() },
+                onBook = { car ->
+                    nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id)
+                    nav.navigate("rental-booking")
+                },
+                onRefresh = { rentalViewModel.loadCars() },
+                onSearch = rentalViewModel::loadCars
+            )
         }
         composable("rental-vendor") {
             RentalVendorOnboardingScreen(
