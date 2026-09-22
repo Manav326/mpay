@@ -122,6 +122,10 @@ jobs:
         with:
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
+      - name: Reset Gradle transformed dependency cache
+        run: |
+          rm -rf ~/.gradle/caches/*/transforms
+
       - name: Build debug APK (PR validation)
         if: github.event_name == 'pull_request'
         working-directory: android
