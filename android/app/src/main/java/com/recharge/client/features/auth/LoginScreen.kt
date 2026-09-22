@@ -2,6 +2,7 @@ package com.recharge.client.features.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,7 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -48,10 +50,18 @@ fun LoginScreen(
 
     AuthScreen {
         MpayBrandHeader()
-        Spacer(Modifier.height(24.dp))
-        AuthSectionTitle(
-            title = "Welcome back",
-            subtitle = "Sign in to your mPay account and keep your money moving."
+        Spacer(Modifier.height(22.dp))
+
+        Text(
+            "Welcome back",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = AppColors.TextPrimary
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            "Sign in to your mPay account and keep your money moving.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = AppColors.TextSecondary
         )
         Spacer(Modifier.height(20.dp))
 
@@ -65,6 +75,7 @@ fun LoginScreen(
             placeholder = { Text("10-digit mobile number") },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
             singleLine = true,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             colors = AuthFieldColors()
         )
@@ -77,6 +88,7 @@ fun LoginScreen(
             label = { Text("Password") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             singleLine = true,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { showPassword = !showPassword }) {
@@ -90,12 +102,15 @@ fun LoginScreen(
             colors = AuthFieldColors()
         )
 
-        Spacer(Modifier.height(2.dp))
         TextButton(
             onClick = onForgotPassword,
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("Forgot password?")
+            Text(
+                "Forgot password?",
+                color = AppColors.PrimaryDark,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         (authState as? AuthUiState.Error)?.message?.let {
@@ -105,11 +120,12 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp)
+                    .padding(top = 2.dp)
             )
         }
 
         Spacer(Modifier.height(14.dp))
+
         Button(
             onClick = { onLogin(mobile, password) },
             enabled = authState !is AuthUiState.Loading && mobile.length == 10 && password.isNotBlank(),
@@ -117,9 +133,16 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(17.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 5.dp,
+                pressedElevation = 2.dp,
+                disabledElevation = 0.dp
+            ),
             colors = ButtonDefaults.buttonColors(
                 containerColor = AppColors.TextPrimary,
-                contentColor = androidx.compose.ui.graphics.Color.White
+                contentColor = androidx.compose.ui.graphics.Color.White,
+                disabledContainerColor = Color(0xFFD6D3CD),
+                disabledContentColor = Color(0xFF8A867F)
             )
         ) {
             if (authState is AuthUiState.Loading) {
@@ -129,22 +152,32 @@ fun LoginScreen(
                     color = androidx.compose.ui.graphics.Color.White
                 )
             } else {
-                Text("Sign in", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "Sign in",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
             }
         }
 
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "New to mPay?",
-            color = AppColors.TextSecondary,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-        TextButton(
-            onClick = onSignUp,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+        Spacer(Modifier.height(18.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Create an account")
+            Text(
+                "New to mPay?",
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            TextButton(onClick = onSignUp) {
+                Text(
+                    "Create an account",
+                    color = AppColors.PrimaryDark,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
