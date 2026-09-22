@@ -208,15 +208,16 @@ class RentalService(
         if (available.isEmpty()) return emptyList()
         val vendorIds = available.mapNotNull { it.vendorId }.distinct()
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
+        val availabilityWindow = if (startDate != null && endDate != null) startDate to endDate else null
         return available
             .filter { car ->
                 val vendorId = car.vendorId
                 val isOwnVehicle = vendorId != null && vendorById[vendorId]?.userId == userId
-                val isDateAvailable = startDate == null || endDate == null || !bookings.existsOverlapping(
+                val isDateAvailable = availabilityWindow == null || !bookings.existsOverlapping(
                     requireNotNull(car.id),
                     listOf("PENDING", "CONFIRMED"),
-                    startDate,
-                    endDate
+                    availabilityWindow.first,
+                    availabilityWindow.second
                 )
                 !isOwnVehicle && isDateAvailable
             }
