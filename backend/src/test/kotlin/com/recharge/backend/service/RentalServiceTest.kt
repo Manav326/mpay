@@ -99,4 +99,20 @@ class RentalServiceTest {
         }
         Mockito.verifyNoInteractions(rentalPayments)
     }
+
+    @Test
+    fun quoteRoundsPartialDayUpWhenBookingUsesDatetime() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusHours(25)
+        val car = RentalCarEntity(id = 21L, name = "Test SUV", category = "SUV", seats = 5, transmission = "Automatic", pricePerDay = BigDecimal("1500.00"), active = true, vendorId = 31L, driverId = 32L, approvalStatus = "APPROVED")
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(21L)
+        Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalVendorEntity(id = 31L, userId = 88L, fullName = "Vendor", address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"))).`when`(vendors).findById(31L)
+        Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalDriverEntity(id = 32L, vendorId = 31L, fullName = "Driver", mobile = "9999999999", licenseNumber = "DL", licenseExpiry = end.plusDays(100)))).`when`(drivers).findById(32L)
+        Mockito.doReturn(false).`when`(bookings).existsOverlapping(21L, listOf("PENDING", "CONFIRMED"), start, end)
+
+        val result = service.quoteBooking(42L, com.recharge.backend.api.RentalBookingQuoteRequest("21", "Patna", "Gaya", start, end))
+
+        assertEquals(2L, result.days)
+        assertEquals(BigDecimal("3000.00"), result.total)
+    }
 }
