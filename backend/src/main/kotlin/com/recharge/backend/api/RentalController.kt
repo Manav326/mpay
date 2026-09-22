@@ -26,11 +26,12 @@ class RentalController(
     fun cars(
         authentication: Authentication,
         @RequestParam(required = false) startDate: String?,
-        @RequestParam(required = false) endDate: String?
+        @RequestParam(required = false) endDate: String?,
+        @RequestParam(required = false) location: String?
     ): List<RentalCarResponse> {
         val parsedStart = startDate?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
         val parsedEnd = endDate?.takeIf { it.isNotBlank() }?.let { LocalDateTime.parse(it) }
-        return rentalService.availableCars(userId(authentication), parsedStart, parsedEnd)
+        return rentalService.availableCars(userId(authentication), parsedStart, parsedEnd, location)
     }
 
     @GetMapping("/vendor")

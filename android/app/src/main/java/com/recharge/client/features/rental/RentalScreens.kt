@@ -882,21 +882,24 @@ fun CarRentalMarketplaceScreen(
     state: RentalUiState,
     onBack: () -> Unit,
     onBook: (RentalCarResponse, String, String) -> Unit,
-    onSearch: (String, String) -> Unit,
+    onSearch: (String, String, String) -> Unit,
     onClearFilter: () -> Unit
 ) {
     var start by remember { mutableStateOf("") }
     var end by remember { mutableStateOf("") }
-    val canApplyFilter = runCatching {
+    var location by remember { mutableStateOf("") }
+    val hasValidWindow = runCatching {
         val s = LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         val e = LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         e.isAfter(s) && !s.isBefore(LocalDateTime.now())
     }.getOrDefault(false)
-    val filterApplied = start.isNotBlank() || end.isNotBlank()
+    val canApplyFilter = location.isNotBlank() || hasValidWindow
+    val filterApplied = start.isNotBlank() || end.isNotBlank() || location.isNotBlank()
 
     LaunchedEffect(Unit) {
         start = ""
         end = ""
+        location = ""
         onClearFilter()
     }
 
@@ -911,8 +914,8 @@ fun CarRentalMarketplaceScreen(
                 Column(Modifier.weight(1f)) {
                     Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        if (filterApplied) "Showing vehicles available for the selected period."
-                        else "All approved vehicles are shown. Filter only when needed.",
+                        if (filterApplied) "Showing vehicles matching your place and/or selected time window."
+                        else "Search by city or pickup area, with an optional rental time window.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -922,13 +925,21 @@ fun CarRentalMarketplaceScreen(
         item {
             Card(shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    OutlinedTextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        singleLine = true,
+                        label = { Text("City or pickup area") },
+                        placeholder = { Text("e.g. Patna, Airport Road") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         RentalDateTimeField("From", start, { start = it }, Modifier.weight(1f))
                         RentalDateTimeField("To", end, { end = it }, Modifier.weight(1f))
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
-                            onClick = { onSearch(start, end) },
+                            onClick = { onSearch(start, end, location.trim()) },
                             enabled = canApplyFilter && !state.loading,
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(vertical = 8.dp),

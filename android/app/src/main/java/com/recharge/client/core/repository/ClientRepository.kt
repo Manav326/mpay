@@ -214,8 +214,12 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun rentalCars(startDate: String? = null, endDate: String? = null): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
-        val response = api.rentalCars(startDate, endDate)
+    suspend fun rentalCars(
+        startDate: String? = null,
+        endDate: String? = null,
+        location: String? = null
+    ): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
+        val response = api.rentalCars(startDate, endDate, location)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }

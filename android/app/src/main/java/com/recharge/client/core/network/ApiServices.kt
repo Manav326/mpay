@@ -48,7 +48,8 @@ interface ClientApi {
     @GET("api/v1/car-rental/cars")
     suspend fun rentalCars(
         @Query("startDate") startDate: String? = null,
-        @Query("endDate") endDate: String? = null
+        @Query("endDate") endDate: String? = null,
+        @Query("location") location: String? = null
     ): Response<List<RentalCarResponse>>
 
     @GET("api/v1/car-rental/vendor")
