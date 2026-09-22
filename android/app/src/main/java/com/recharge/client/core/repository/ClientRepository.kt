@@ -185,4 +185,10 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun withdrawalHistory(page: Int = 0, size: Int = 20): Result<WithdrawalHistoryResponse> = runCatching {
+        val response = api.withdrawalHistory(page, size)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
 }
