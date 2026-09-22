@@ -41,6 +41,16 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun quoteBooking(request: RentalBookingQuoteRequest, onDone: (RentalBookingQuoteResponse) -> Unit) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.rentalBookingQuote(request)
+                .onSuccess { _state.value = _state.value.copy(saving = false); onDone(it) }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to calculate rental quote") }
+        }
+    }
+
     fun loadVendorVehicles() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
