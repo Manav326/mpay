@@ -116,6 +116,27 @@ class RentalCarReviewEntity(
 
 @Entity
 @Table(
+    name = "rental_vehicle_unavailability",
+    indexes = [
+        Index(name = "idx_rental_unavailability_car_dates", columnList = "car_id,start_date,end_date")
+    ]
+)
+class RentalVehicleUnavailabilityEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "car_id", nullable = false) var carId: Long = 0,
+    @Column(name = "vendor_id", nullable = false) var vendorId: Long = 0,
+    @Column(name = "vendor_user_id", nullable = false) var vendorUserId: Long = 0,
+    @Column(name = "start_date", nullable = false) var startDate: java.time.LocalDate = java.time.LocalDate.now(),
+    @Column(name = "end_date", nullable = false) var endDate: java.time.LocalDate = java.time.LocalDate.now(),
+    @Column(name = "reason_code", nullable = false, length = 40) var reasonCode: String = "OTHER",
+    @Column(name = "reason_note", length = 300) var reasonNote: String? = null,
+    @Column(nullable = false, length = 20) var status: String = "ACTIVE",
+    @Column(nullable = false) var createdAt: Instant = Instant.now(),
+    @Column(nullable = false) var updatedAt: Instant = Instant.now()
+)
+
+@Entity
+@Table(
     name = "rental_payments",
     uniqueConstraints = [
         UniqueConstraint(name = "uq_rental_payment_user_request", columnNames = ["user_id", "client_request_id"])
