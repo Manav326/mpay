@@ -165,7 +165,7 @@ class PayUPaymentGatewayProvider(
         firstName: String,
         email: String
     ): String {
-        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|mPay wallet|$firstName|$email||||||||||||${properties.effectivePgSalt()}"
+        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|mPay wallet|$firstName|$email|||||||||||${properties.effectivePgSalt()}"
         return sha512(data)
     }
     private fun verifyWithPayU(txnId: String): JsonNode {
