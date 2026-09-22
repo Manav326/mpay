@@ -20,7 +20,8 @@ class RentalService(
     private val cars: RentalCarRepository,
     private val bookings: RentalBookingRepository,
     private val users: UserRepository,
-    private val wallet: WalletService,
+    private val rentalPayments: RentalPaymentService,
+    private val rentalPaymentRepository: RentalPaymentRepository,
     private val vendorReviews: RentalVendorReviewRepository,
     private val carReviews: RentalCarReviewRepository
 ) {
