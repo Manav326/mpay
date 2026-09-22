@@ -307,7 +307,7 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
             Column(Modifier.weight(1f)) {
                 Text(label, fontWeight = FontWeight.SemiBold)
                 if (isRental) Text(item.referenceId ?: "Booking reference", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                if (isRecharge) Text("\${operator ?: "Operator"} • \${item.referenceId.orEmpty()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                if (isRecharge) Text("${operator ?: "Operator"} • ${item.referenceId.orEmpty()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
             Text(signedPrefix + "₹\${formatMoney(item.amount)}", color = amountColor, fontWeight = FontWeight.Bold)
