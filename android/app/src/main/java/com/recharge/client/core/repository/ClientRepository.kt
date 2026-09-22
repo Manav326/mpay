@@ -27,9 +27,11 @@ import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.core.cache.ProfileCacheStore
 import java.math.BigDecimal
 import java.util.UUID
+import com.google.gson.Gson
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType.Companion.toMediaType
 
 class ClientRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -174,14 +176,14 @@ class ClientRepository(context: Context) {
     }
 
     suspend fun withdraw(amount: BigDecimal, upiId: String, provider: String): Result<WithdrawMoneyResponse> = runCatching {
-        val response = api.withdraw(
-            WithdrawMoneyRequest(
-                amount = amount.setScale(2),
-                provider = provider,
-                clientRequestId = UUID.randomUUID().toString(),
-                upiId = upiId.trim()
-            )
+        val request = WithdrawMoneyRequest(
+            amount = amount.setScale(2),
+            provider = provider,
+            clientRequestId = UUID.randomUUID().toString(),
+            upiId = upiId.trim()
         )
+        val requestBody = Gson().toJson(request).toRequestBody("application/json".toMediaType())
+        val response = api.withdraw(requestBody)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
