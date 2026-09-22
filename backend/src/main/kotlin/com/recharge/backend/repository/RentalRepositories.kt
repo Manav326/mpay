@@ -56,6 +56,18 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
         @Param("rangeEnd") rangeEnd: LocalDateTime
     ): List<RentalBookingEntity>
 
+    @Query("""
+        select distinct b.carId from RentalBookingEntity b
+        where b.carId in :carIds and b.status in :statuses
+          and b.startDate < :endDate and b.endDate > :startDate
+    """)
+    fun findOverlappingCarIds(
+        @Param("carIds") carIds: Collection<Long>,
+        @Param("statuses") statuses: Collection<String>,
+        @Param("startDate") startDate: LocalDateTime,
+        @Param("endDate") endDate: LocalDateTime
+    ): Set<Long>
+
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalBookingEntity>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
 
