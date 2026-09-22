@@ -211,6 +211,8 @@ class RentalService(
         if (available.isEmpty()) return emptyList()
         val vendorIds = available.mapNotNull { it.vendorId }.distinct()
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
+        val driverIds = available.mapNotNull { it.driverId }.distinct()
+        val driverById = drivers.findAllById(driverIds).associateBy { requireNotNull(it.id) }
         val availabilityWindow = if (startDate != null && endDate != null) startDate to endDate else null
         val blockedCarIds = availabilityWindow?.let { (windowStart, windowEnd) ->
             val carIds = available.mapNotNull { it.id }
@@ -227,12 +229,16 @@ class RentalService(
             )
             blockedByBookings + blockedByOffMarket
         } ?: emptySet()
+        val now = LocalDateTime.now()
         return available
             .filter { car ->
                 val vendorId = car.vendorId
                 val isOwnVehicle = vendorId != null && vendorById[vendorId]?.userId == userId
+                val driver = car.driverId?.let { driverById[it] }
+                val rentalEnd = endDate ?: now
+                val hasUsableDriver = driver?.active == true && driver.licenseExpiry.isAfter(rentalEnd)
                 val isDateAvailable = requireNotNull(car.id) !in blockedCarIds
-                !isOwnVehicle && isDateAvailable
+                !isOwnVehicle && hasUsableDriver && isDateAvailable
             }
             .map(::toCarResponse)
     }
@@ -241,6 +247,14 @@ class RentalService(
         val vendorId = requireNotNull(car.vendorId) { "Rental vehicle vendor is missing" }
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Rental vehicle vendor not found") }
         require(vendor.userId != userId) { "This vehicle cannot be booked by its owning vendor" }
+    }
+
+    private fun requireBookableDriver(car: RentalCarEntity, rentalEnd: LocalDateTime): RentalDriverEntity {
+        val driverId = requireNotNull(car.driverId) { "Rental vehicle driver is missing" }
+        val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Driver not found") }
+        check(driver.active) { "Rental vehicle driver is unavailable" }
+        check(driver.licenseExpiry.isAfter(rentalEnd)) { "Rental vehicle driver licence expires before the booking ends" }
+        return driver
     }
 
     fun vendorPayouts(userId: Long): List<RentalVendorPayoutResponse> {
@@ -289,10 +303,10 @@ class RentalService(
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
         check(!vehicleUnavailability.existsOverlapping(carId, request.startDate.toLocalDate(), request.endDate.toLocalDate())) { "This vehicle is unavailable for the selected dates" }
+        val driver = requireBookableDriver(car, request.endDate)
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
         val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
-        val driver = drivers.findById(requireNotNull(car.driverId)).orElseThrow { IllegalArgumentException("Driver not found") }
         return RentalBookingQuoteResponse(request.carId, car.name, driver.fullName, request.pickupLocation.trim(), request.dropLocation.trim(), request.startDate, request.endDate, days, car.pricePerDay.setScale(2), total)
     }
 
@@ -331,6 +345,7 @@ class RentalService(
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
+        val driver = requireBookableDriver(car, request.endDate)
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
         check(!vehicleUnavailability.existsOverlapping(carId, request.startDate.toLocalDate(), request.endDate.toLocalDate())) { "This vehicle is unavailable for the selected dates" }
 
@@ -357,7 +372,7 @@ class RentalService(
                 createdAt = now, updatedAt = now
             )
         )
-        return toBookingResponse(saved, car.name, drivers.findById(requireNotNull(car.driverId)).orElse(null))
+        return toBookingResponse(saved, car.name, driver)
     }
 
     @Transactional
