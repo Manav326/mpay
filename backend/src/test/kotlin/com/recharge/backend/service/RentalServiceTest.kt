@@ -308,6 +308,39 @@ class RentalServiceTest {
     }
 
     @Test
+    fun createBookingRejectsDriverWhoseLicenceExpiresDuringRental() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusDays(3)
+        val car = RentalCarEntity(
+            id = 44L, name = "Test SUV", category = "SUV", seats = 5,
+            transmission = "Automatic", pricePerDay = BigDecimal("1500.00"),
+            active = true, vendorId = 55L, driverId = 56L, approvalStatus = "APPROVED"
+        )
+        val driver = com.recharge.backend.domain.RentalDriverEntity(
+            id = 56L, vendorId = 55L, fullName = "Driver", mobile = "9999999999",
+            licenseNumber = "DL", licenseExpiry = end.minusMinutes(1), active = true
+        )
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalPaymentEntity>())
+            .`when(rentalPaymentRepository)
+            .findByUserIdAndClientRequestId(42L, "expired-driver")
+        Mockito.doReturn(Optional.of(car)).`when(cars).findByIdForUpdate(44L)
+        Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalVendorEntity(
+            id = 55L, userId = 99L, fullName = "Vendor", address = "Address",
+            city = "Patna", state = "Bihar", pinCode = "800001"
+        ))).`when(vendors).findById(55L)
+        Mockito.doReturn(Optional.of(driver)).`when(drivers).findById(56L)
+
+        assertThrows(IllegalStateException::class.java) {
+            service.createBooking(
+                42L,
+                RentalBookingRequest("expired-driver", "44", "Patna", "Gaya", start, end)
+            )
+        }
+        Mockito.verifyNoInteractions(rentalPayments)
+        Mockito.verify(bookings, Mockito.never()).save(Mockito.any(RentalBookingEntity::class.java))
+    }
+
+    @Test
     fun quoteRoundsPartialDayUpWhenBookingUsesDatetime() {
         val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
         val end = start.plusHours(25)
