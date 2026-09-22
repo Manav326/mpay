@@ -27,7 +27,9 @@ import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.core.cache.ProfileCacheStore
 import java.math.BigDecimal
 import java.util.UUID
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class ClientRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -49,7 +51,6 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
-
 
     suspend fun profile(): Result<CurrentUserResponse> {
         val result = runCatching {
@@ -127,6 +128,7 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
+
     suspend fun recharge(
         mobileNumber: String,
         operator: String,
@@ -188,5 +190,4 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
-
 }
