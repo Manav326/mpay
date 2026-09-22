@@ -23,7 +23,16 @@ data class RentalCarResponse(
     val driverMobile: String? = null,
     val driverRating: BigDecimal? = null,
     val approvalStatus: String? = null,
-    val rejectionReason: String? = null
+    val rejectionReason: String? = null,
+    val make: String? = null,
+    val model: String? = null,
+    val variant: String? = null,
+    val manufacturingYear: Int? = null,
+    val registrationNumber: String? = null,
+    val state: String? = null,
+    val driverLicenseNumber: String? = null,
+    val driverLicenseExpiry: LocalDate? = null,
+    val driverAddress: String? = null
 )
 
 data class RentalVendorResponse(
@@ -96,6 +105,26 @@ data class RentalDriverRequest(
 )
 
 data class RentalVehicleOnboardingRequest(
+    @field:NotBlank @field:Size(max = 120) val name: String,
+    @field:NotBlank @field:Size(max = 50) val category: String,
+    val seats: Int,
+    @field:NotBlank @field:Size(max = 30) val transmission: String,
+    @field:NotBlank @field:Size(max = 30) val fuelType: String,
+    val manufacturingYear: Int,
+    val registrationYear: Int,
+    @field:NotBlank @field:Size(max = 32) val registrationNumber: String,
+    @field:NotBlank @field:Size(max = 80) val make: String,
+    @field:NotBlank @field:Size(max = 80) val model: String,
+    @field:Size(max = 80) val variant: String? = null,
+    @field:NotBlank @field:Size(max = 300) val pickupAddress: String,
+    @field:NotBlank @field:Size(max = 100) val city: String,
+    @field:NotBlank @field:Size(max = 100) val state: String,
+    val pricePerDay: BigDecimal,
+    @field:Size(max = 500) val imageUrl: String? = null,
+    val driver: RentalDriverRequest
+)
+
+data class RentalVehicleUpdateRequest(
     @field:NotBlank @field:Size(max = 120) val name: String,
     @field:NotBlank @field:Size(max = 50) val category: String,
     val seats: Int,
