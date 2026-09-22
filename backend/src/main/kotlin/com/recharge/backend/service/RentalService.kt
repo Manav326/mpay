@@ -211,12 +211,15 @@ class RentalService(
     }
 
     fun vendorPayouts(userId: Long): List<RentalVendorPayoutResponse> {
-        val vendor = vendors.findByUserId(userId).orElseThrow { IllegalArgumentException("Complete vendor onboarding first") }
+        verifiedVendor(userId)
         val payoutRows = rentalPayouts.findAllByVendorUserIdOrderByCreatedAtDesc(userId)
-        val carIds = payoutRows.mapNotNull { row -> rentalPayoutCarId(row.bookingId) }.distinct()
+        if (payoutRows.isEmpty()) return emptyList()
+        val bookingsById = bookings.findAllByBookingIdIn(payoutRows.map { it.bookingId }).associateBy { it.bookingId }
+        val carIds = bookingsById.values.map { it.carId }.distinct()
         val carsById = cars.findAllById(carIds).associateBy { requireNotNull(it.id) }
         return payoutRows.map { row ->
-            val carId = requireNotNull(rentalPayoutCarId(row.bookingId))
+            val booking = bookingsById[row.bookingId]
+            val carId = requireNotNull(booking?.carId) { "Rental booking not found for payout" }
             val car = carsById[carId]
             RentalVendorPayoutResponse(
                 payoutId = row.payoutId, bookingId = row.bookingId, carId = carId.toString(),
@@ -227,9 +230,6 @@ class RentalService(
             )
         }
     }
-
-    private fun rentalPayoutCarId(bookingId: String): Long? =
-        bookings.findByBookingId(bookingId).orElse(null)?.carId
 
     fun bookings(userId: Long, page: Int, size: Int): RentalBookingPageResponse {
         require(page >= 0)
