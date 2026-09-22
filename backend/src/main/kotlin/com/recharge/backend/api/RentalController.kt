@@ -21,8 +21,8 @@ class RentalController(
     @GetMapping("/cars")
     fun cars(
         authentication: Authentication,
-        @RequestParam(required = false) startDate: LocalDateTime?,
-        @RequestParam(required = false) endDate: LocalDateTime?
+        @RequestParam("startDate", required = false) startDate: LocalDateTime?,
+        @RequestParam("endDate", required = false) endDate: LocalDateTime?
     ): List<RentalCarResponse> =
         rentalService.availableCars(userId(authentication), startDate, endDate)
 
