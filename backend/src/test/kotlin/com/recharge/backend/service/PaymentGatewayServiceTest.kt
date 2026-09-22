@@ -13,7 +13,7 @@ class PaymentGatewayServiceTest {
     @Test
     fun mockGatewayCanCreateAndSettleAddMoneyOrder() {
         val orders = Mockito.mock(com.recharge.backend.repository.PaymentOrderRepository::class.java)
-        val settlement = Mockito.mock(PaymentSettlementService::class.java)
+        val settlement = FakeSettlement()
         val provider = MockPaymentGatewayProvider(orders, settlement, true)
         val saved = com.recharge.backend.domain.PaymentOrderEntity(
             clientRequestId = "REQ-MOCK-1",
@@ -37,10 +37,11 @@ class PaymentGatewayServiceTest {
 
         val settlementResponse = VerifyPaymentResponse("CAPTURED", BigDecimal("100.00"))
         Mockito.doReturn(java.util.Optional.of(saved)).`when`(orders).findByRazorpayOrderIdAndUserId(created.orderId, 1L)
-        Mockito.doReturn(settlementResponse).`when`(settlement).settleCaptured(1L, saved, created.orderId)
+        settlement.response = settlementResponse
 
         val verified = provider.verifyWalletPayment(1L, VerifyPaymentRequest("mock", null, created.orderId, null))
         assertEquals("CAPTURED", verified.status)
+        assertEquals(1, settlement.settleCalls)
         assertEquals("CAPTURED", saved.status)
     }
 
@@ -71,6 +72,22 @@ class PaymentGatewayServiceTest {
                 1L,
                 CreatePaymentOrderRequest(amount = BigDecimal("100.00"), provider = "payu", clientRequestId = "REQ-UNCONFIG")
             )
+        }
+    }
+
+    private class FakeSettlement : PaymentSettlementPort {
+        var settleCalls = 0
+        var response = VerifyPaymentResponse("CAPTURED", BigDecimal.ZERO)
+
+        override fun responseForCaptured(userId: Long, order: com.recharge.backend.domain.PaymentOrderEntity): VerifyPaymentResponse = response
+
+        override fun settleCaptured(
+            userId: Long,
+            order: com.recharge.backend.domain.PaymentOrderEntity,
+            externalPaymentReference: String
+        ): VerifyPaymentResponse {
+            settleCalls++
+            return response
         }
     }
 
