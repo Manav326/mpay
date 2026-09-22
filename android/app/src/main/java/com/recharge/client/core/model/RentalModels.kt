@@ -79,7 +79,36 @@ data class RentalCarResponse(
     val driverMobile: String? = null,
     val driverRating: BigDecimal? = null,
     val approvalStatus: String? = null,
-    val rejectionReason: String? = null
+    val rejectionReason: String? = null,
+    val make: String? = null,
+    val model: String? = null,
+    val variant: String? = null,
+    val manufacturingYear: Int? = null,
+    val registrationNumber: String? = null,
+    val state: String? = null,
+    val driverLicenseNumber: String? = null,
+    val driverLicenseExpiry: String? = null,
+    val driverAddress: String? = null
+)
+
+data class RentalVehicleUpdateRequest(
+    val name: String,
+    val category: String,
+    val seats: Int,
+    val transmission: String,
+    val fuelType: String,
+    val manufacturingYear: Int,
+    val registrationYear: Int,
+    val registrationNumber: String,
+    val make: String,
+    val model: String,
+    val variant: String? = null,
+    val pickupAddress: String,
+    val city: String,
+    val state: String,
+    val pricePerDay: BigDecimal,
+    val imageUrl: String? = null,
+    val driver: RentalDriverRequest
 )
 
 data class RentalBookingQuoteRequest(
