@@ -59,6 +59,7 @@ export default function Portal() {
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
   const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
   const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
+  const [rentalSearch, setRentalSearch] = useState({ location: '', startDate: '', endDate: '' });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
 
@@ -112,10 +113,15 @@ export default function Portal() {
     }
   }
 
-  async function loadRentalData() {
+  async function loadRentalData(startDate = '', endDate = '', location = '') {
     try {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (location.trim()) params.set('location', location.trim());
+      const carsPath = '/api/v1/car-rental/cars' + (params.toString() ? '?' + params.toString() : '');
       const [available, existing] = await Promise.all([
-        api<any>('/api/v1/car-rental/cars'),
+        api<any>(carsPath),
         api<any>('/api/v1/car-rental/bookings?page=0&size=25')
       ]);
       setCars(available?.items || available || []);
@@ -123,6 +129,39 @@ export default function Portal() {
     } catch (e: any) {
       setNotice(e.message || 'Unable to load rental inventory.');
     }
+  }
+
+  function searchRentalCars() {
+    const location = rentalSearch.location.trim();
+    const hasLocation = Boolean(location);
+    const hasDates = Boolean(rentalSearch.startDate && rentalSearch.endDate);
+    if (!hasLocation && !hasDates) {
+      setNotice('Enter a city/pickup area or select both rental dates to search.');
+      return;
+    }
+    if ((rentalSearch.startDate && !rentalSearch.endDate) || (!rentalSearch.startDate && rentalSearch.endDate)) {
+      setNotice('Select both the start and end date & time.');
+      return;
+    }
+    if (hasDates && new Date(rentalSearch.endDate).getTime() <= new Date(rentalSearch.startDate).getTime()) {
+      setNotice('End date & time must be after the start date & time.');
+      return;
+    }
+    setSelectedCar(undefined);
+    setRentalQuote(undefined);
+    setRentalForm(form => ({
+      ...form,
+      startDate: rentalSearch.startDate || form.startDate,
+      endDate: rentalSearch.endDate || form.endDate
+    }));
+    loadRentalData(rentalSearch.startDate, rentalSearch.endDate, location);
+  }
+
+  function clearRentalSearch() {
+    setRentalSearch({ location: '', startDate: '', endDate: '' });
+    setSelectedCar(undefined);
+    setRentalQuote(undefined);
+    loadRentalData();
   }
 
   useEffect(() => {
@@ -376,19 +415,43 @@ export default function Portal() {
 
       {view === 'rental' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Set your trip details, review the fare and submit a booking request.</p></div><Car size={28}/></div>
+          <div className="rental-search-card">
+            <div>
+              <b>Find available cars</b>
+              <span>Search by city or pickup area, and optionally narrow results to a rental date & time.</span>
+            </div>
+            <div className="rental-search-grid">
+              <label>City or pickup area<input value={rentalSearch.location} placeholder="e.g. Patna, Airport Road" onChange={e => setRentalSearch({...rentalSearch, location:e.target.value})}/></label>
+              <label>From<input type="datetime-local" value={rentalSearch.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalSearch({...rentalSearch,startDate:e.target.value})}/></label>
+              <label>To<input type="datetime-local" value={rentalSearch.endDate} min={rentalSearch.startDate || new Date().toISOString().slice(0,16)} onChange={e => setRentalSearch({...rentalSearch,endDate:e.target.value})}/></label>
+            </div>
+            <div className="rental-search-actions">
+              <button className="landing-secondary" onClick={clearRentalSearch}>Clear</button>
+              <button className="landing-primary" onClick={searchRentalCars}>Find cars <ArrowRight size={16}/></button>
+            </div>
+            <small>Location matching is based on the vehicle city and pickup address. Availability remains enforced by the backend.</small>
+          </div>
           <div className="rental-form">
-            <input placeholder="Pickup location" value={rentalForm.pickup} onChange={e => setRentalForm({...rentalForm,pickup:e.target.value})}/>
+            <input placeholder="Pickup location for booking" value={rentalForm.pickup} onChange={e => setRentalForm({...rentalForm,pickup:e.target.value})}/>
             <input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e => setRentalForm({...rentalForm,drop:e.target.value})}/>
             <label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
             <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
           </div>
           {cars.length ? <div className="rental-car-grid">{cars.map(car =>
-            <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => { setSelectedCar(car); setRentalQuote(undefined); }}>
+            <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => {
+              setSelectedCar(car);
+              setRentalQuote(undefined);
+              setRentalForm(form => ({
+                ...form,
+                startDate: rentalSearch.startDate || form.startDate,
+                endDate: rentalSearch.endDate || form.endDate
+              }));
+            }}>
               <div className="rental-car-icon"><Car size={26}/></div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong>
             </button>)}</div> : <div className="rental-empty-state">
               <div className="rental-empty-icon"><Car size={28}/></div>
-              <b>No cars available right now</b>
-              <span>There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.</span>
+              <b>{rentalSearch.location || rentalSearch.startDate || rentalSearch.endDate ? 'No cars match this search' : 'No cars available right now'}</b>
+              <span>{rentalSearch.location || rentalSearch.startDate || rentalSearch.endDate ? 'Try a different city or pickup area, or choose another rental window.' : 'There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.'}</span>
               <button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Check again</button>
             </div>}
           {selectedCar && <div className="rental-summary">
