@@ -111,7 +111,7 @@ class RentalServiceTest {
         )
 
         Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findByUserId(99L)
-        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(7L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(7L)
         Mockito.doReturn(false).`when`(bookings).existsOverlapping(
             7L, listOf("PENDING", "CONFIRMED"), start.atStartOfDay(), end.plusDays(1).atStartOfDay()
         )
@@ -130,6 +130,39 @@ class RentalServiceTest {
         assertEquals(start, result.startDate)
         assertEquals(end, result.endDate)
         Mockito.verify(vehicleUnavailability).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
+    }
+
+    @Test
+    fun vendorCannotTakeVehicleOffMarketWhenBookingOverlaps() {
+        val vendor = com.recharge.backend.domain.RentalVendorEntity(
+            id = 9L, userId = 99L, status = "VERIFIED", fullName = "Vendor",
+            address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+        )
+        val car = RentalCarEntity(
+            id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
+            transmission = "Automatic", active = true, vendorId = 9L, driverId = 10L, approvalStatus = "APPROVED"
+        )
+        val start = LocalDate.now().plusDays(2)
+        val end = start.plusDays(2)
+
+        Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findByUserId(99L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(7L)
+        Mockito.doReturn(true).`when`(bookings).existsOverlapping(
+            7L, listOf("PENDING", "CONFIRMED"), start.atStartOfDay(), end.plusDays(1).atStartOfDay()
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            service.takeVehicleOffMarket(
+                99L, 7L,
+                RentalVehicleUnavailabilityRequest(
+                    reasonCode = "PRIVATE_USE",
+                    startDate = start,
+                    endDate = end
+                )
+            )
+        }
+        Mockito.verify(cars).findByIdForUpdate(7L)
+        Mockito.verify(vehicleUnavailability, Mockito.never()).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
     }
     @Test
     fun completingBookingLocksItAndSettlesPayoutOnlyOnce() {
