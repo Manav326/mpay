@@ -31,15 +31,9 @@ class WithdrawalService(
         require(normalizedAmount >= BigDecimal("1.00")) { "Minimum withdrawal amount is ₹1" }
 
         val requestedProvider = providerName.trim().lowercase()
-        val normalizedUpi = upiId.trim().ifBlank {
-            if (requestedProvider == "mock") "mock@upi"
-            else throw IllegalArgumentException("UPI ID is required")
-        }
-        val upiPattern = if (requestedProvider == "mock") {
-            Regex("^[^\\s@]+@[^\\s@]+$")
-        } else {
-            Regex("^[^\\s@]+@[^\\s@]+$")
-        }
+        val normalizedUpi = upiId.trim()
+        require(normalizedUpi.isNotBlank()) { "UPI ID is required" }
+        val upiPattern = Regex("^[^\\s@]+@[^\\s@]+$")
         require(upiPattern.matches(normalizedUpi)) { "Enter a valid UPI ID" }
 
         val normalizedRequestId = clientRequestId.trim()
