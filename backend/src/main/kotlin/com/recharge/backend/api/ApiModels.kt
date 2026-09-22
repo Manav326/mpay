@@ -284,7 +284,10 @@ data class WithdrawMoneyRequest(
     @field:DecimalMin("1.00") val amount: BigDecimal,
     val provider: String = "razorpay",
     @field:NotBlank @field:Size(max = 100) val clientRequestId: String,
-    @field:NotBlank @field:Size(max = 254) val upiId: String
+    @field:NotBlank
+    @field:Size(max = 254)
+    @field:Pattern(regexp = "^[^\\s@]+@[^\\s@]+$", message = "Enter a valid UPI ID")
+    val upiId: String
 )
 
 data class WithdrawMoneyResponse(
