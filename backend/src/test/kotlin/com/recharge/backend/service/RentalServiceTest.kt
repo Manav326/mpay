@@ -91,6 +91,48 @@ class RentalServiceTest {
     }
 
     @Test
+    fun completingBookingLocksItAndSettlesPayoutOnlyOnce() {
+        val booking = RentalBookingEntity(
+            bookingId = "RNT-COMPLETE",
+            userId = 42L,
+            carId = 7L,
+            totalAmount = BigDecimal("6000.00"),
+            status = "CONFIRMED",
+            startDate = LocalDateTime.now().minusDays(4),
+            endDate = LocalDateTime.now().minusHours(1)
+        )
+        val car = RentalCarEntity(id = 7L, name = "Test Sedan", vendorId = 9L, driverId = 10L)
+        val completedPayout = com.recharge.backend.domain.RentalPayoutEntity(
+            payoutId = "RNPY-1",
+            bookingId = "RNT-COMPLETE",
+            vendorId = 9L,
+            vendorUserId = 99L,
+            grossAmount = BigDecimal("6000.00"),
+            platformFeePercent = BigDecimal("10.00"),
+            platformFeeAmount = BigDecimal("600.00"),
+            vendorNetAmount = BigDecimal("5400.00"),
+            status = "PAID"
+        )
+
+        Mockito.doReturn(Optional.of(booking)).`when`(bookings).findByBookingIdForUpdate("RNT-COMPLETE")
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(7L)
+        Mockito.doReturn(Optional.empty<com.recharge.backend.domain.RentalDriverEntity>()).`when`(drivers).findById(10L)
+        Mockito.doReturn(booking).`when`(bookings).save(Mockito.any(RentalBookingEntity::class.java))
+        Mockito.doReturn(completedPayout).`when`(rentalPayouts).settleCompletedBooking(booking)
+
+        val first = service.completeBooking("RNT-COMPLETE", 1L)
+
+        assertEquals("COMPLETED", first.status)
+        Mockito.verify(bookings).findByBookingIdForUpdate("RNT-COMPLETE")
+        Mockito.verify(rentalPayouts).settleCompletedBooking(booking)
+
+        assertThrows(IllegalStateException::class.java) {
+            service.completeBooking("RNT-COMPLETE", 1L)
+        }
+        Mockito.verify(rentalPayouts, Mockito.times(1)).settleCompletedBooking(booking)
+    }
+
+    @Test
     fun vendorCannotBookOwnVehicle() {
         val car = RentalCarEntity(
             id = 8L, name = "Vendor Sedan", category = "Sedan", seats = 5,
