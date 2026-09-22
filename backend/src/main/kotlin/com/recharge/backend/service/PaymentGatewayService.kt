@@ -74,7 +74,7 @@ class ProviderNotConfiguredException(message: String) : RuntimeException(message
 @Service
 class MockPaymentGatewayProvider(
     private val orders: PaymentOrderRepository,
-    private val paymentSettlementService: PaymentSettlementService,
+    private val paymentSettlementService: PaymentSettlementPort,
     @Value("\${app.payment.mock.enabled:true}") private val enabled: Boolean
 ) : PaymentGatewayProvider {
 
