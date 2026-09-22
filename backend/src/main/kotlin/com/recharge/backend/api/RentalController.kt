@@ -69,7 +69,7 @@ class RentalController(
     @PostMapping("/admin/vendors/{vendorId}/approve")
     fun approveVendor(authentication: Authentication, @PathVariable vendorId: Long): RentalVendorResponse {
         requireAdmin(authentication)
-        return rentalService.approveVendor(vendorId)
+        return rentalService.approveVendor(vendorId, userId(authentication))
     }
 
     @PostMapping("/admin/vendors/{vendorId}/reject")
@@ -79,13 +79,13 @@ class RentalController(
         @RequestBody(required = false) request: RentalAdminDecisionRequest?
     ): RentalVendorResponse {
         requireAdmin(authentication)
-        return rentalService.rejectVendor(vendorId, request?.reason)
+        return rentalService.rejectVendor(vendorId, request?.reason, userId(authentication))
     }
 
     @PostMapping("/admin/vehicles/{carId}/approve")
     fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
         requireAdmin(authentication)
-        return rentalService.approveVehicle(carId)
+        return rentalService.approveVehicle(carId, userId(authentication))
     }
 
     @PostMapping("/admin/vehicles/{carId}/reject")
@@ -95,7 +95,7 @@ class RentalController(
         @RequestBody(required = false) request: RentalAdminDecisionRequest?
     ): RentalCarResponse {
         requireAdmin(authentication)
-        return rentalService.rejectVehicle(carId, request?.reason)
+        return rentalService.rejectVehicle(carId, request?.reason, userId(authentication))
     }
 
     @GetMapping("/bookings")
