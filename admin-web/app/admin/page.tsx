@@ -180,7 +180,8 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
       <div className="detail-tabs">
         <button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}><WalletCards size={15}/> Overview</button>
         <button className={tab==='recharges'?'active':''} onClick={()=>setTab('recharges')}><ReceiptText size={15}/> Recharges <span>{recharges.length}{rechargeHasNext?'+':''}</span></button>
-        <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}><History size={15}/> Balance history <span>{walletHistory.length}{walletHasNext?'+':''}</span></button>\n        <button className={tab==='withdrawals'?'active':''} onClick={()=>setTab('withdrawals')}><Wallet size={15}/> Withdrawals <span>{withdrawals.length}</span></button>
+        <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}><History size={15}/> Balance history <span>{walletHistory.length}{walletHasNext?'+':''}</span></button>
+        <button className={tab==='withdrawals'?'active':''} onClick={()=>setTab('withdrawals')}><Wallet size={15}/> Withdrawals <span>{withdrawals.length}</span></button>
       </div>
 
       {tab==='overview' && <section className="drawer-section">
