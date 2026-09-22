@@ -21,7 +21,7 @@ public final class PayUCheckoutBridge {
         void onPaymentFailure(Object response);
         void onPaymentCancel(boolean isTxnInitiated);
         void onError(String message);
-        void onGenerateHash(String hashName, String hashString, PayUHashCallback callback);
+        void onGenerateHash(String hashName, String hashString, String postSalt, String hashType, PayUHashCallback callback);
     }
 
     public interface PayUHashCallback {
@@ -41,6 +41,8 @@ public final class PayUCheckoutBridge {
             String surl,
             String furl,
             String userCredential,
+            String vasForMobileSdkHash,
+            String paymentRelatedDetailsHash,
             Callback callback
     ) {
         PayUPaymentParams params = new PayUPaymentParams.Builder()
@@ -55,6 +57,7 @@ public final class PayUCheckoutBridge {
                 .setSurl(surl)
                 .setFurl(furl)
                 .setUserCredential(userCredential)
+                .setAdditionalParams(buildStaticHashes(vasForMobileSdkHash, paymentRelatedDetailsHash))
                 .build();
 
         PayUCheckoutPro.open(activity, params, new PayUCheckoutProListener() {
@@ -67,11 +70,13 @@ public final class PayUCheckoutBridge {
             @Override public void generateHash(HashMap<String, String> valueMap, PayUHashGenerationListener listener) {
                 String hashName = valueMap == null ? null : valueMap.get(PayUCheckoutProConstants.CP_HASH_NAME);
                 String hashString = valueMap == null ? null : valueMap.get(PayUCheckoutProConstants.CP_HASH_STRING);
+                String postSalt = valueMap == null ? null : valueMap.get(PayUCheckoutProConstants.CP_POST_SALT);
+                String hashType = valueMap == null ? null : valueMap.get(PayUCheckoutProConstants.CP_HASH_TYPE);
                 if (hashName == null || hashName.trim().isEmpty() || hashString == null || hashString.trim().isEmpty()) {
                     callback.onError("PayU requested an invalid payment hash");
                     return;
                 }
-                callback.onGenerateHash(hashName, hashString, hash -> {
+                callback.onGenerateHash(hashName, hashString, postSalt, hashType, hash -> {
                     HashMap<String, String> hashMap = new HashMap<>();
                     hashMap.put(hashName, hash);
                     listener.onHashGenerated(hashMap);
@@ -81,6 +86,19 @@ public final class PayUCheckoutBridge {
         });
     }
 
+    private static HashMap<String, Object> buildStaticHashes(
+            String vasForMobileSdkHash,
+            String paymentRelatedDetailsHash
+    ) {
+        HashMap<String, Object> additionalParams = new HashMap<>();
+        if (vasForMobileSdkHash != null && !vasForMobileSdkHash.trim().isEmpty()) {
+            additionalParams.put(PayUCheckoutProConstants.CP_VAS_FOR_MOBILE_SDK, vasForMobileSdkHash);
+        }
+        if (paymentRelatedDetailsHash != null && !paymentRelatedDetailsHash.trim().isEmpty()) {
+            additionalParams.put(PayUCheckoutProConstants.CP_PAYMENT_RELATED_DETAILS_FOR_MOBILE_SDK, paymentRelatedDetailsHash);
+        }
+        return additionalParams;
+    }
     public static String getResponseValue(Object response, String key) {
         if (!(response instanceof Map)) return null;
         Object value = ((Map<?, ?>) response).get(key);
