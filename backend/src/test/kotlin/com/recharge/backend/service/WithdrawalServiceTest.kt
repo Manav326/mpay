@@ -34,7 +34,7 @@ class WithdrawalServiceTest {
     @Test
     fun mockProviderCanCompleteWithdrawal() {
         val pending = withdrawal("WDR-MOCK", "REQ-MOCK", "PENDING")
-        val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS")
+        val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS", "mock")
         val user = user(42L)
         Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
         Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals).findByUserIdAndClientRequestId(42L, "REQ-MOCK")
@@ -130,13 +130,13 @@ class WithdrawalServiceTest {
         email = "test@example.com"
     )
 
-    private fun withdrawal(id: String, requestId: String, status: String) = WalletWithdrawalEntity(
+    private fun withdrawal(id: String, requestId: String, status: String, provider: String = "razorpay") = WalletWithdrawalEntity(
         withdrawalId = id,
         clientRequestId = requestId,
         userId = 42L,
         amount = BigDecimal("100.00"),
         upiId = "user@upi",
-        providerName = "razorpay",
+        providerName = provider,
         status = status
     )
 
