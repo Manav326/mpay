@@ -279,6 +279,19 @@ class RentalService(
         val carId = request.carId.toLongOrNull() ?: throw IllegalArgumentException("Invalid car id")
         val car = cars.findByIdForUpdate(carId).orElseThrow { IllegalArgumentException("Rental car not found") }
         check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
+        val racedExistingPayment = rentalPaymentRepository
+            .findByUserIdAndClientRequestId(userId, request.clientRequestId.trim())
+            .orElse(null)
+        if (racedExistingPayment != null) {
+            val existingBooking = bookings.findByBookingIdAndUserId(racedExistingPayment.bookingId, userId)
+                .orElseThrow { IllegalStateException("Rental payment exists without its booking") }
+            val existingCar = cars.findById(existingBooking.carId).orElse(null)
+            return toBookingResponse(
+                existingBooking,
+                existingCar?.name ?: "Car",
+                existingCar?.driverId?.let { drivers.findById(it).orElse(null) }
+            )
+        }
         requireNotOwnVehicle(userId, car)
         require(request.paymentMethod.equals("WALLET", true)) { "This booking flow currently supports wallet payment" }
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
