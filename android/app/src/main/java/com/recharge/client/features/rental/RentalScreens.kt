@@ -230,3 +230,59 @@ fun RentalVehicleOnboardingScreen(
         }
     }
 }
+
+
+@Composable
+fun RentalBookingScreen(
+    car: RentalCarResponse,
+    state: RentalUiState,
+    onQuote: (RentalBookingQuoteRequest, (RentalBookingQuoteResponse) -> Unit) -> Unit,
+    onBack: () -> Unit,
+    onConfirm: (RentalBookingRequest, () -> Unit) -> Unit
+) {
+    var pickup by remember { mutableStateOf(car.pickupAddress.orEmpty()) }
+    var drop by remember { mutableStateOf(car.city.orEmpty()) }
+    var start by remember { mutableStateOf("") }
+    var end by remember { mutableStateOf("") }
+    var quote by remember { mutableStateOf<RentalBookingQuoteResponse?>(null) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Book with driver", style = MaterialTheme.typography.headlineSmall) } }
+        item { Text(car.name, style = MaterialTheme.typography.titleLarge) }
+        item { Text("Driver: " + car.driverName + (car.driverMobile?.let { " · " + it } ?: ""), color = AppColors.TextSecondary) }
+        item { VendorField("Pickup location", pickup) { pickup = it } }
+        item { VendorField("Drop location", drop) { drop = it } }
+        item { VendorField("Start date (YYYY-MM-DD)", start) { start = it } }
+        item { VendorField("End date (YYYY-MM-DD)", end) { end = it } }
+        quote?.let { q ->
+            item {
+                Card(shape = RoundedCornerShape(18.dp)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Fare summary", style = MaterialTheme.typography.titleLarge)
+                        Text("${q.days} day(s) × ₹${q.pricePerDay}")
+                        Text("Total: ₹${q.total}", style = MaterialTheme.typography.titleLarge)
+                        Text("Payment: Wallet")
+                        Button(
+                            enabled = !state.saving,
+                            onClick = { onConfirm(RentalBookingRequest(car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Confirm booking") }
+                    }
+                }
+            }
+        } ?: item {
+            Button(
+                enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && start.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && end.matches(Regex("\\d{4}-\\d{2}-\\d{2}")),
+                onClick = { onQuote(RentalBookingQuoteRequest(car.id, pickup.trim(), drop.trim(), start, end)) { quote = it } },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) { Text("Check fare") }
+        }
+        state.error?.let { item { Text(it, color = AppColors.Error) } }
+    }
+}
