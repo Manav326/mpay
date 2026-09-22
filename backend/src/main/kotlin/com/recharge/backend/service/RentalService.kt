@@ -408,7 +408,6 @@ class RentalService(
 
         try {
             car.imageUrl = combined
-            car.updatedAt = Instant.now()
             cars.save(car)
         } catch (error: Exception) {
             rentalImageStorage.delete(newKey)
