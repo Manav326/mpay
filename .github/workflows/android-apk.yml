@@ -6,13 +6,11 @@ on:
       - main
     paths:
       - 'android/**'
-      - '.github/workflows/android-apk.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'android/**'
-      - '.github/workflows/android-apk.yml'
 
 concurrency:
   group: mpay-android-ci-${{ github.head_ref || github.ref_name }}
