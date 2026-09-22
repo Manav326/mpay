@@ -43,6 +43,22 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
     fun findAllByBookingIdIn(bookingIds: Collection<String>): List<RentalBookingEntity>
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalBookingEntity>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RentalBookingEntity>
+    fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<RentalBookingEntity>
+    fun countByStatus(status: String): Long
+
+    @Query("""
+        select count(b) from RentalBookingEntity b
+        where b.status = 'CONFIRMED'
+          and b.startDate <= :now and b.endDate > :now
+    """)
+    fun countActive(@Param("now") now: LocalDateTime): Long
+
+    @Query("select coalesce(sum(b.totalAmount), 0) from RentalBookingEntity b")
+    fun sumTotalAmount(): BigDecimal
+
+    @Query("select coalesce(sum(b.totalAmount), 0) from RentalBookingEntity b where b.status = 'CANCELLED'")
+    fun sumCancelledAmount(): BigDecimal
 
     @Query("""
         select count(b) > 0 from RentalBookingEntity b
