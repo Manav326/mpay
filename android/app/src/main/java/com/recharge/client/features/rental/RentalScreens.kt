@@ -613,11 +613,30 @@ fun RentalMyBookingsScreen(
     state: RentalUiState,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
-    onCancel: (String, () -> Unit) -> Unit
+    onCancel: (String, () -> Unit) -> Unit,
+    onWalletRefresh: () -> Unit = {}
 ) {
     val clipboard = LocalClipboardManager.current
     var copiedBookingId by remember { mutableStateOf<String?>(null) }
+    var cancelBookingId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { onRefresh() }
+    cancelBookingId?.let { bookingId ->
+        AlertDialog(
+            onDismissRequest = { if (!state.saving) cancelBookingId = null },
+            title = { Text("Cancel booking?") },
+            text = { Text("This will cancel the rental booking and refund the wallet amount. Continue?") },
+            confirmButton = {
+                Button(onClick = {
+                    onCancel(bookingId) {
+                        cancelBookingId = null
+                        onWalletRefresh()
+                        onRefresh()
+                    }
+                }, enabled = !state.saving) { Text(if (state.saving) "Cancelling…" else "Cancel booking") }
+            },
+            dismissButton = { TextButton(onClick = { cancelBookingId = null }, enabled = !state.saving) { Text("Keep booking") } }
+        )
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
@@ -669,7 +688,7 @@ fun RentalMyBookingsScreen(
                             Text(if (copiedBookingId == booking.bookingId) "Copied" else "Copy details")
                         }
                         if (booking.status.equals("CONFIRMED", true) && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
-                            OutlinedButton(onClick = { onCancel(booking.bookingId, onRefresh) }, enabled = !state.saving) {
+                            OutlinedButton(onClick = { cancelBookingId = booking.bookingId }, enabled = !state.saving) {
                                 Text("Cancel", color = AppColors.Error)
                             }
                         }
