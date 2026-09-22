@@ -263,6 +263,7 @@ data class WalletHistoryItem(
     val externalRef: String,
     val description: String?,
     val createdAt: Instant,
+    val provider: String? = null,
     val mobileNumber: String? = null,
     val operator: String? = null,
     val circle: String? = null
