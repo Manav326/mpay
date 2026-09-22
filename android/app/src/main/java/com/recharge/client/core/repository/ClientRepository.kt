@@ -89,7 +89,7 @@ class ClientRepository(context: Context) {
     }
 
     suspend fun createPaymentOrder(amount: BigDecimal, clientRequestId: String, provider: String = "razorpay"): Result<PaymentOrderResponse> = runCatching {
-        val response = api.createPaymentOrder(CreatePaymentOrderRequest(amount, clientRequestId, provider))
+        val response = api.createPaymentOrder(CreatePaymentOrderRequest(amount = amount, provider = provider, clientRequestId = clientRequestId))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
