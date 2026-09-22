@@ -40,10 +40,10 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         _state.value = _state.value.copy(cars = emptyList(), error = null)
     }
 
-    fun loadCars(startDate: String? = null, endDate: String? = null) {
+    fun loadCars(startDate: String? = null, endDate: String? = null, location: String? = null) {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            repository.rentalCars(startDate, endDate)
+            repository.rentalCars(startDate, endDate, location)
                 .onSuccess { _state.value = _state.value.copy(cars = it, loading = false) }
                 .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load rental cars") }
         }
