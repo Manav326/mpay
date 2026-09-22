@@ -379,7 +379,9 @@ private fun AppRoot(
     LaunchedEffect(currentRoute) {
         when (currentRoute) {
             "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
+            "marketplace" -> Unit
             "car-rental" -> rentalViewModel.loadCars()
+            "rental-bookings" -> rentalViewModel.loadBookings()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
             else -> if (currentRoute != "recharge" && currentRoute != "recharge-history") highlightTransactionId = null
@@ -464,7 +466,8 @@ private fun AppNavHost(
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
                 walletUiState = walletViewModel.state.collectAsState().value,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
-                onCarRental = { nav.navigate("car-rental") }
+                onMarketplace = { nav.navigate("marketplace") },
+                onRentalBookings = { nav.navigate("rental-bookings") }
             )
         }
         composable("recharge") {
@@ -513,6 +516,9 @@ private fun AppNavHost(
         composable("profile") {
             ProfileScreen(profileViewModel.state.collectAsState().value, profileViewModel::load, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
+        composable("marketplace") {
+            MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
+        }
         composable("car-rental") {
             CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") })
         }
@@ -535,6 +541,13 @@ private fun AppNavHost(
             if (car != null) {
                 RentalBookingScreen(car = car, state = rentalViewModel.state.collectAsState().value, onQuote = rentalViewModel::quoteBooking, onBack = { nav.popBackStack() }, onConfirm = rentalViewModel::createBooking)
             }
+        }
+        composable("rental-bookings") {
+            RentalMyBookingsScreen(
+                state = rentalViewModel.state.collectAsState().value,
+                onRefresh = rentalViewModel::loadBookings,
+                onBack = { nav.popBackStack() }
+            )
         }
         composable("rental-vehicle") {
             RentalVehicleOnboardingScreen(
