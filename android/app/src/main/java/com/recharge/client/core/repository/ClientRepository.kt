@@ -227,6 +227,9 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun rentalBookingQuote(request: RentalBookingQuoteRequest): Result<RentalBookingQuoteResponse> =
+        runCatching { api.rentalBookingQuote(request).let { response -> if (response.isSuccessful && response.body() != null) response.body()!! else error(response.message().ifBlank { "Unable to calculate rental quote" }) } }
+
     suspend fun createRentalBooking(request: com.recharge.client.core.model.RentalBookingRequest): Result<com.recharge.client.core.model.RentalBookingResponse> = runCatching {
         val response = api.createRentalBooking(request)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
