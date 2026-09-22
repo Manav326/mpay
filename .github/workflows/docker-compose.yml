@@ -4,13 +4,12 @@ on:
   push:
     branches:
       - main
-      - 'feature/**'
   pull_request:
     branches:
       - main
 
 concurrency:
-  group: mpay-ci-${{ github.ref }}
+  group: mpay-ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -103,10 +102,7 @@ jobs:
 
 
   android-apk:
-    if: >
-      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')) ||
-      (github.event_name == 'push' && github.ref_name == 'main')
+    # PRs get a fast compile/install validation. Only main gets the R8-optimized release APK.
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -126,30 +122,67 @@ jobs:
         with:
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
-      - name: Build debug APK
+      - name: Reset Gradle transformed dependency cache
+        run: |
+          rm -rf ~/.gradle/caches/*/transforms
+
+      - name: Build debug APK (PR validation)
+        if: github.event_name == 'pull_request'
         working-directory: android
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Verify APK
+      - name: Build optimized release APK (main)
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Verify debug APK and report size
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           test -f android/app/build/outputs/apk/debug/app-debug.apk
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify release APK and report size
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        shell: bash
+        run: |
+          test -f android/app/build/outputs/apk/release/app-release.apk
+          ls -lh android/app/build/outputs/apk/release/app-release.apk
+          stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/release/app-release.apk
 
       - name: Set APK artifact name
         shell: bash
         run: |
           branch_name="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
           safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
-          echo "MPAY_APK_ARTIFACT_NAME=mpay-android-${safe_branch}" >> "${GITHUB_ENV}"
-          echo "APK artifact: mpay-android-${safe_branch}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "MPAY_APK_ARTIFACT_NAME=mpay-android-debug-${safe_branch}" >> "${GITHUB_ENV}"
+            echo "APK artifact: mpay-android-debug-${safe_branch}"
+          else
+            echo "MPAY_APK_ARTIFACT_NAME=mpay-android-release-${safe_branch}" >> "${GITHUB_ENV}"
+            echo "APK artifact: mpay-android-release-${safe_branch}"
+          fi
 
       - name: Upload debug APK
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload optimized release APK
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MPAY_APK_ARTIFACT_NAME }}
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
