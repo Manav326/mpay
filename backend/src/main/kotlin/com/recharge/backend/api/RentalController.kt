@@ -61,10 +61,49 @@ class RentalController(
     ): RentalCarResponse =
         rentalService.resubmitVehicle(userId(authentication), carId, request)
 
+    @PostMapping("/vendor/vehicles/{carId}/unavailability")
+    fun takeVehicleOffMarket(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @Valid @RequestBody request: RentalVehicleUnavailabilityRequest
+    ): RentalVehicleUnavailabilityResponse =
+        rentalService.takeVehicleOffMarket(userId(authentication), carId, request)
+
+    @GetMapping("/vendor/vehicles/{carId}/unavailability")
+    fun vehicleUnavailability(
+        authentication: Authentication,
+        @PathVariable carId: Long
+    ): List<RentalVehicleUnavailabilityResponse> =
+        rentalService.vendorVehicleUnavailability(userId(authentication), carId)
+
+    @PostMapping("/vendor/vehicles/{carId}/unavailability/{unavailableId}/restore")
+    fun restoreVehicleToMarket(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @PathVariable unavailableId: Long
+    ) {
+        rentalService.restoreVehicleToMarket(userId(authentication), carId, unavailableId)
+    }
+
+    @GetMapping("/vendor/vehicles/{carId}/calendar")
+    fun vehicleCalendar(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @RequestParam year: Int,
+        @RequestParam month: Int
+    ): RentalVehicleCalendarResponse =
+        rentalService.vehicleCalendar(userId(authentication), carId, year, month)
+
     private fun requireAdmin(authentication: Authentication) {
         val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
         val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
         roleAccessService.requirePermission(user, "MANAGE_VENDORS")
+    }
+
+    @GetMapping("/admin/vehicle-unavailability")
+    fun adminVehicleUnavailability(authentication: Authentication): List<RentalAdminVehicleUnavailabilityResponse> {
+        requireAdmin(authentication)
+        return rentalService.adminVehicleUnavailability()
     }
 
     @GetMapping("/admin/vendors")
