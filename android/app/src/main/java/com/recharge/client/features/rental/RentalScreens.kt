@@ -304,7 +304,7 @@ private val rentalDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'
 private fun listOfNotBlank(vararg values: String?): List<String> =
     values.mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
 
-private val rentalBookingDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, h:mm a", Locale.ENGLISH)
+private val rentalBookingDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, h:mma", Locale.ENGLISH)
 
 private fun formatRentalBookingDateTime(value: String): String =
     runCatching { LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalBookingDisplayFormatter) }
@@ -742,27 +742,32 @@ fun RentalMyBookingsScreen(
     var cancelBookingId by remember { mutableStateOf<String?>(null) }
     var statusFilter by remember { mutableStateOf("ALL") }
     LaunchedEffect(Unit) { onRefresh() }
+
     cancelBookingId?.let { bookingId ->
         AlertDialog(
             onDismissRequest = { if (!state.saving) cancelBookingId = null },
             title = { Text("Cancel booking?") },
             text = { Text("This will cancel the rental booking and refund the wallet amount. Continue?") },
             confirmButton = {
-                Button(onClick = {
-                    onCancel(bookingId) {
-                        cancelBookingId = null
-                        onWalletRefresh()
-                        onRefresh()
-                    }
-                }, enabled = !state.saving) { Text(if (state.saving) "Cancelling…" else "Cancel booking") }
+                Button(
+                    onClick = {
+                        onCancel(bookingId) {
+                            cancelBookingId = null
+                            onWalletRefresh()
+                            onRefresh()
+                        }
+                    },
+                    enabled = !state.saving
+                ) { Text(if (state.saving) "Cancelling…" else "Cancel booking") }
             },
             dismissButton = { TextButton(onClick = { cancelBookingId = null }, enabled = !state.saving) { Text("Keep booking") } }
         )
     }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -779,13 +784,14 @@ fun RentalMyBookingsScreen(
             val filters = listOf("ALL") + state.bookings.map { it.status.uppercase() }.distinct()
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 filters.forEach { filter ->
                     FilterChip(
                         selected = statusFilter.equals(filter, true),
                         onClick = { statusFilter = filter },
-                        label = { Text(if (filter == "ALL") "All" else filter.replace("_", " ")) }
+                        label = { Text(if (filter == "ALL") "All" else filter.replace("_", " ")) },
+                        modifier = Modifier.height(34.dp)
                     )
                 }
             }
@@ -803,35 +809,78 @@ fun RentalMyBookingsScreen(
         }
         items(filteredBookings, key = { it.bookingId }) { booking ->
             val statusColor = rentalStatusColor(booking.status)
-            Card(shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary)
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(booking.carName, style = MaterialTheme.typography.titleLarge)
-                            Text("Booking " + booking.bookingId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Text(booking.carName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Spacer(Modifier.width(7.dp))
+                            Surface(shape = RoundedCornerShape(14.dp), color = statusColor.copy(alpha = .12f)) {
+                                Text(
+                                    booking.status.uppercase(),
+                                    color = statusColor,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                )
+                            }
                         }
-                        Surface(shape = RoundedCornerShape(20.dp), color = statusColor.copy(alpha = .12f)) {
-                            Text(booking.status.uppercase(), style = MaterialTheme.typography.labelLarge, color = statusColor, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                        IconButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
+                                copiedBookingId = booking.bookingId
+                            },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                if (copiedBookingId == booking.bookingId) Icons.Default.Check else Icons.Default.ContentCopy,
+                                if (copiedBookingId == booking.bookingId) "Copied" else "Copy booking details",
+                                tint = if (copiedBookingId == booking.bookingId) AppColors.Success else MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
-                    Text("Driver: " + booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""))
-                    Text(booking.pickup + " → " + booking.drop, color = AppColors.TextSecondary)
-                    Text(booking.startDate + " to " + booking.endDate, color = AppColors.TextSecondary)
-                    Text("₹" + booking.total.setScale(2).toPlainString() + " • From your wallet", style = MaterialTheme.typography.titleMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
-                            copiedBookingId = booking.bookingId
-                        }) {
-                            Icon(if (copiedBookingId == booking.bookingId) Icons.Default.Check else Icons.Default.ContentCopy, null)
-                            Spacer(Modifier.width(5.dp))
-                            Text(if (copiedBookingId == booking.bookingId) "Copied" else "Copy details")
-                        }
-                        if (booking.status.equals("CONFIRMED", true) && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
-                            OutlinedButton(onClick = { cancelBookingId = booking.bookingId }, enabled = !state.saving) {
-                                Text("Cancel", color = AppColors.Error)
+                    Text(
+                        "Booking " + booking.bookingId,
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Driver", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        Text(booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+                        Text("Trip", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        Text(booking.pickup + " → " + booking.drop, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+                        Text("When", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            formatRentalBookingDateTime(booking.startDate) + " to " + formatRentalBookingDateTime(booking.endDate),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Paid from wallet", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("₹" + booking.total.setScale(2).toPlainString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text(
+                        "Booked " + formatRentalBookingDateTime(booking.createdAt),
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    if (booking.status.equals("CONFIRMED", true) && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            OutlinedButton(
+                                onClick = { cancelBookingId = booking.bookingId },
+                                enabled = !state.saving,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text("Cancel", color = AppColors.Error, style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -840,4 +889,3 @@ fun RentalMyBookingsScreen(
         }
     }
 }
-
