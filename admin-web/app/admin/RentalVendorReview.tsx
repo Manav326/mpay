@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CarFront, ChevronRight, ShieldCheck, X } from 'lucide-react';
-import { approveRentalVehicle, approveRentalVendor, getRentalAdminVendorVehicles, getRentalAdminVendors, rejectRentalVendor, rejectRentalVehicle } from '@/lib/api';
+import { approveRentalVehicle, approveRentalVendor, getRentalAdminVendorVehicles, getRentalAdminVendors, getRentalAdminVehicleUnavailability, rejectRentalVendor, rejectRentalVehicle } from '@/lib/api';
 import { RentalAdminVendor } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -16,10 +16,18 @@ export default function RentalVendorReview() {
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [vehicleRejectReason, setVehicleRejectReason] = useState('');
+  const [unavailability, setUnavailability] = useState<any[]>([]);
 
   async function refresh() {
     setLoading(true);
-    try { setVendors(await getRentalAdminVendors()); } finally { setLoading(false); }
+    try {
+      const [vendorRows, blackoutRows] = await Promise.all([
+        getRentalAdminVendors(),
+        getRentalAdminVehicleUnavailability(),
+      ]);
+      setVendors(vendorRows);
+      setUnavailability(blackoutRows);
+    } finally { setLoading(false); }
   }
   useEffect(() => { refresh().catch(() => setLoading(false)); }, []);
 
@@ -81,6 +89,33 @@ export default function RentalVendorReview() {
         </div>
       )}</div>
     }
+
+    <section className="drawer-section">
+      <div className="drawer-section-title">
+        <div>
+          <h3>Vendor vehicle off-market periods</h3>
+          <p>Active periods requested by verified vendors are excluded from customer availability search.</p>
+        </div>
+      </div>
+      {unavailability.length === 0 ? (
+        <div className="empty-state">No active vehicle off-market periods.</div>
+      ) : (
+        <div className="vendor-list">
+          {unavailability.map(row =>
+            <div className="vendor-row" key={row.id}>
+              <div className="vendor-icon"><CarFront size={18}/></div>
+              <div className="vendor-main">
+                <b>{row.carName}</b>
+                <span>{dateTime(row.startDate)} → {dateTime(row.endDate)}</span>
+                <span>Reason: {row.reasonLabel}</span>
+                {row.reasonNote && <span>Vendor note: {row.reasonNote}</span>}
+                <span>Status: {row.status}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
 
     {selected && <div className="drawer-overlay" onClick={() => setSelected(null)}>
       <aside className="user-drawer user-drawer-wide" onClick={e => e.stopPropagation()}>
