@@ -18,6 +18,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.Optional
 
 class RentalServiceTest {
@@ -38,7 +39,7 @@ class RentalServiceTest {
             id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
             transmission = "Automatic", pricePerDay = BigDecimal("2000.00"), active = true, vendorId = 9L, driverId = 10L, approvalStatus = "APPROVED"
         )
-        val start = LocalDate.now().plusDays(2)
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
         val end = start.plusDays(3)
 
         Mockito.doReturn(Optional.of(car))
@@ -80,7 +81,7 @@ class RentalServiceTest {
             transmission = "Automatic", pricePerDay = BigDecimal("2000.00"), active = true,
             vendorId = 11L, driverId = 12L, approvalStatus = "APPROVED"
         )
-        val start = LocalDate.now().plusDays(2)
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
         val end = start.plusDays(3)
 
         Mockito.doReturn(Optional.of(car)).`when`(cars).findByIdForUpdate(8L)
