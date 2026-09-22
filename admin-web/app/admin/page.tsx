@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { createVendor, getDashboard, getPortalRoles, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
-import { DashboardSummary, RechargeHistoryItem, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem, WithdrawalHistoryItem } from '@/lib/types';
+import { createVendor, getDashboard, getPortalRoles, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import { DashboardSummary, RechargeHistoryItem, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -77,13 +77,12 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
 }
 
 function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
-  const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
+  const [tab,setTab] = useState<'overview'|'recharges'|'wallet'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
   const [rechargePage,setRechargePage] = useState(0);
   const [rechargeHasNext,setRechargeHasNext] = useState(false);
   const [walletHistory,setWalletHistory] = useState<WalletHistoryItem[]>([]);
-  const [withdrawals,setWithdrawals] = useState<WithdrawalHistoryItem[]>([]);
   const [walletPage,setWalletPage] = useState(0);
   const [walletHasNext,setWalletHasNext] = useState(false);
   const [loadingRecharges,setLoadingRecharges] = useState(true);
@@ -95,8 +94,7 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
     Promise.all([
       getUserRechargeHistory(user.id,0,25),
       getUserWalletHistory(user.id,0,25),
-      getUserWithdrawalHistory(user.id,0,25),
-    ]).then(([rechargePageData,walletPageData,withdrawalPageData])=>{
+    ]).then(([rechargePageData,walletPageData])=>{
       if(!active) return;
       setRecharges(rechargePageData.items);
       setRechargePage(rechargePageData.page);
@@ -104,7 +102,6 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
       setWalletHistory(walletPageData.items);
       setWalletPage(walletPageData.page);
       setWalletHasNext(walletPageData.hasNext);
-      setWithdrawals(withdrawalPageData.items);
     }).catch(()=>{}).finally(()=>{
       if(active){ setLoadingRecharges(false); setLoadingWallet(false); }
     });
@@ -181,7 +178,6 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
         <button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}><WalletCards size={15}/> Overview</button>
         <button className={tab==='recharges'?'active':''} onClick={()=>setTab('recharges')}><ReceiptText size={15}/> Recharges <span>{recharges.length}{rechargeHasNext?'+':''}</span></button>
         <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}><History size={15}/> Balance history <span>{walletHistory.length}{walletHasNext?'+':''}</span></button>
-        <button className={tab==='withdrawals'?'active':''} onClick={()=>setTab('withdrawals')}><Wallet size={15}/> Withdrawals <span>{withdrawals.length}</span></button>
       </div>
 
       {tab==='overview' && <section className="drawer-section">
@@ -206,14 +202,6 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
           </tbody></table></div>}
         {rechargeHasNext && <button className="secondary load-more" onClick={loadMoreRecharges}>Load more recharge records <ChevronRight size={15}/></button>}
       </section>}
-
-      {tab==='withdrawals' && <section className="drawer-section">
-        <div className="drawer-section-title"><div><h3>Withdrawal requests</h3><p>UPI payout requests, provider references and final status.</p></div></div>
-        {withdrawals.length===0 ? <div className="empty-state">No withdrawal requests found.</div> :
-          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Amount</th><th>UPI</th><th>Provider</th><th>Status</th><th>Reference</th></tr></thead><tbody>
-            {withdrawals.map(w=><tr key={w.withdrawalId}><td>{dateTime(w.createdAt)}</td><td><b>{INR.format(w.amount)}</b></td><td><b>{w.upiId}</b><span>{w.clientRequestId}</span></td><td>{w.provider}</td><td><span className={"status " + (w.status || 'UNKNOWN').toLowerCase()}>{w.status}</span>{w.failureReason&&<span>{w.failureReason}</span>}</td><td><span className="mono">{w.withdrawalId}</span><span>{w.providerReference || w.walletLedgerRef || '—'}</span></td></tr>)}
-          </tbody></table></div>}
-      </section>
 
       {tab==='wallet' && <section className="drawer-section">
         <div className="drawer-section-title"><div><h3>Complete balance history</h3><p>Credits, debits, withdrawals and linked recharge ledger entries.</p></div></div>
