@@ -131,3 +131,29 @@ export interface Vendor {
   active: boolean;
   createdAt: string;
 }
+
+
+export interface WithdrawalHistoryItem {
+  withdrawalId: string;
+  clientRequestId: string;
+  amount: number;
+  upiId: string;
+  provider: string;
+  status: string;
+  providerReference?: string | null;
+  providerStatus?: string | null;
+  failureReason?: string | null;
+  walletLedgerRef?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string | null;
+}
+
+export interface WithdrawalHistoryResponse {
+  items: WithdrawalHistoryItem[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
