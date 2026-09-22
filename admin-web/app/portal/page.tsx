@@ -218,13 +218,20 @@ export default function Portal() {
           <p>Manage recharges, wallet activity and your everyday mobility services from one place.</p></div>
           <button className="landing-primary" onClick={() => setView('recharge')}>Recharge now <ArrowRight size={16}/></button>
         </div>
-        <div className="portal-card-grid">
-          <button onClick={() => setView('recharge')}><Smartphone/><b>Mobile recharge</b><span>Detect operator, compare plans and submit a recharge.</span></button>
-          <button onClick={() => setView('wallet')}><WalletCards/><b>Wallet</b><span>See available, reserved and ledger balances.</span></button>
-          <button onClick={() => setView('history')}><History/><b>History</b><span>Track every recharge and wallet transaction.</span></button>
-          <button onClick={() => setView('marketplace')}><Car/><b>Marketplace</b><span>Explore services and open the Car Rental category.</span></button>
-          <button onClick={() => setView('bookings')}><Clock3/><b>My Bookings</b><span>See booked cars, driver details, dates and payment status.</span></button>
+        <div className="portal-quick-actions">
+          <button onClick={() => setView('recharge')}><Smartphone/><span>Mobile recharge</span></button>
+          <button onClick={() => setView('wallet')}><WalletCards/><span>Wallet</span></button>
+          <button onClick={() => setView('history')}><History/><span>History</span></button>
+          <button onClick={() => setView('marketplace')}><Car/><span>Marketplace</span></button>
+          <button onClick={() => setView('bookings')}><Clock3/><span>My Bookings</span></button>
         </div>
+        <section className="home-rental-feature">
+          <button className="home-rental-feature-main" onClick={() => { setView('rental'); loadRentalData(); }}>
+            <div className="home-rental-feature-icon"><Car size={28}/></div>
+            <div><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose a car, set your trip time and book directly from Home.</p></div>
+            <ArrowRight size={19}/>
+          </button>
+        </section>
       </section>}
 
       {view === 'wallet' && <section className="portal-content">
@@ -297,10 +304,15 @@ export default function Portal() {
             <label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
             <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
           </div>
-          <div className="rental-car-grid">{cars.map(car =>
+          {cars.length ? <div className="rental-car-grid">{cars.map(car =>
             <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => setSelectedCar(car)}>
               <div className="rental-car-icon"><Car size={26}/></div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong>
-            </button>)}</div>
+            </button>)}</div> : <div className="rental-empty-state">
+              <div className="rental-empty-icon"><Car size={28}/></div>
+              <b>No cars available right now</b>
+              <span>There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.</span>
+              <button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Check again</button>
+            </div>}
           {selectedCar && <div className="rental-summary"><div><span>Selected</span><b>{selectedCar.name}</b></div><div><span>Duration</span><b>{days} day{days > 1 ? 's' : ''}</b></div><div><span>Estimated total</span><strong>{money(selectedCar.pricePerDay * days)}</strong></div>
             <button className="landing-primary" disabled={busy} onClick={bookCar}>{busy ? 'Submitting…' : 'Request booking'} <ArrowRight size={16}/></button></div>}
         </div>
