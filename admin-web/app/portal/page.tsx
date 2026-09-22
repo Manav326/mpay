@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, Car, CheckCircle2, Clock3, History, Home, LogOut, Menu,
-  ReceiptText, RefreshCw, Smartphone, UserRound, WalletCards, X
+  Copy, ReceiptText, RefreshCw, Smartphone, UserRound, WalletCards, X
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -63,6 +63,32 @@ export default function Portal() {
   const [notice, setNotice] = useState('');
 
   const money = (n: any) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const walletSignedAmount = (item: WalletItem) => {
+    const amount = Math.abs(Number(item.amount || 0));
+    return String(item.type || '').toUpperCase() === 'DEBIT' ? -amount : amount;
+  };
+  const walletAmountClass = (item: WalletItem) =>
+    String(item.type || '').toUpperCase() === 'DEBIT' ? 'amount-debit' : 'amount-credit';
+  async function copyText(value: string, successMessage = 'Copied to clipboard.') {
+    try {
+      await navigator.clipboard.writeText(value);
+      setNotice(successMessage);
+    } catch {
+      setNotice('Unable to copy. Please copy the reference manually.');
+    }
+  }
+  const bookingShareText = (b: RentalBooking) =>
+    [
+      'mPay Car Rental Booking',
+      'Booking ID: ' + b.bookingId,
+      'Car: ' + b.carName,
+      'From: ' + b.pickup,
+      'To: ' + b.drop,
+      'Start: ' + new Date(b.startDate).toLocaleString('en-IN'),
+      'End: ' + new Date(b.endDate).toLocaleString('en-IN'),
+      'Amount: ' + money(b.total),
+      'Status: ' + String(b.status || 'UNKNOWN').toUpperCase()
+    ].join(' | ');
   const days = useMemo(() => {
     if (!rentalForm.startDate || !rentalForm.endDate) return 1;
     const d = Math.ceil((new Date(rentalForm.endDate).getTime() - new Date(rentalForm.startDate).getTime()) / 86400000);
@@ -284,7 +310,11 @@ export default function Portal() {
         <div className="portal-panel"><div className="panel-head"><div><h2>Wallet ledger</h2><p>Authoritative balance movements recorded by mPay.</p></div>
           <button className="landing-secondary" onClick={loadHistory}><RefreshCw size={15}/> Refresh</button></div>
           {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i) =>
-            <div className="history-row" key={String(x.id || i)}><div><ReceiptText size={18}/><b>{x.description || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {x.createdAt ? new Date(x.createdAt).toLocaleString('en-IN') : '—'}</small></div><strong>{money(x.amount)}</strong>{status(x.status)}</div>)}</div>
+            <div className="history-row" key={String(x.id || i)}>
+              <div><ReceiptText size={18}/><b>{x.description || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {x.createdAt ? new Date(x.createdAt).toLocaleString('en-IN') : '—'}</small></div>
+              <strong className={walletAmountClass(x)}>{walletSignedAmount(x) > 0 ? '+' : ''}{money(walletSignedAmount(x))}</strong>
+              <div className="history-actions">{status(x.status)}{x.referenceId && <button className="copy-btn" title="Copy transaction reference" onClick={() => copyText(String(x.referenceId), 'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
+            </div>)}</div>
           : <div className="empty-state">No wallet transactions were returned.</div>}
         </div>
       </section>}
@@ -293,9 +323,12 @@ export default function Portal() {
         <div className="portal-panel"><div className="panel-head"><div><h2>Recharge history</h2><p>Track submitted, pending, successful and failed recharges.</p></div>
           <button className="landing-secondary" onClick={loadHistory}><RefreshCw size={15}/> Refresh</button></div>
           {recharges.length ? <div className="history-list">{recharges.map((x,i) =>
-            <div className="history-row" key={String(x.transactionId || i)}><div><ReceiptText size={18}/><b>{x.mobileNumber || 'Recharge'} · {x.operator || '—'}</b>
+            <div className="history-row" key={String(x.transactionId || i)}>
+              <div><ReceiptText size={18}/><b>{x.mobileNumber || 'Recharge'} · {x.operator || '—'}</b>
               <small>{x.planDescription || 'Plan'} · {x.transactionId || 'No reference'} · {x.createdAt ? new Date(x.createdAt).toLocaleString('en-IN') : '—'}</small></div>
-              <strong>{money(x.amount)}</strong>{status(x.status)}</div>)}</div>
+              <strong>{money(x.amount)}</strong>
+              <div className="history-actions">{status(x.status)}{x.transactionId && <button className="copy-btn" title="Copy transaction reference" onClick={() => copyText(String(x.transactionId), 'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
+            </div>)}</div>
           : <div className="empty-state"><History size={22}/><b>No recharge history yet</b><span>Your completed and pending recharges will appear here.</span></div>}
         </div>
       </section>}
@@ -332,7 +365,7 @@ export default function Portal() {
           {bookings.length ? <div className="history-list">{bookings.map(b =>
             <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b>
               <small>{b.bookingId} · {b.pickup} → {b.drop} · {new Date(b.startDate).toLocaleString('en-IN')} to {new Date(b.endDate).toLocaleString('en-IN')}</small>
-            </div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}<span>{new Date(b.createdAt || b.startDate).toLocaleString('en-IN')}</span></div></div>
+            </div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}<span>{new Date(b.createdAt || b.startDate).toLocaleString('en-IN')}</span><button className="copy-btn" title="Copy booking details" onClick={() => copyText(bookingShareText(b), 'Booking details copied.')}><Copy size={14}/><span>Copy</span></button></div></div>
           )}</div> : <div className="empty-state">No rental bookings yet.</div>}
         </div>
       </section>}
@@ -366,7 +399,7 @@ export default function Portal() {
         </div>
         <div className="portal-panel"><div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
           {bookings.length ? <div className="history-list">{bookings.map(b =>
-            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}{b.status === 'CONFIRMED' && new Date(b.startDate).getTime() > Date.now() && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
+            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}<button className="copy-btn" title="Copy booking details" onClick={() => copyText(bookingShareText(b), 'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>{b.status === 'CONFIRMED' && new Date(b.startDate).getTime() > Date.now() && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
           : <div className="empty-state">No rental bookings yet.</div>}
         </div>
       </section>}
