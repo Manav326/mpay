@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -247,10 +247,6 @@ export async function getUserWithdrawalHistory(id: string, page = 0, size = 25):
   return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/withdrawals?page=' + page + '&size=' + size);
 }
 
-export async function getRentalAdminVehicleUnavailability(): Promise<RentalAdminVehicleUnavailability[]> {
-  return api('/api/v1/car-rental/admin/vehicle-unavailability');
-}
-
 export async function getRentalAdminVendors(): Promise<RentalAdminVendor[]> {
   return api('/api/v1/car-rental/admin/vendors');
 }
@@ -269,4 +265,19 @@ export async function approveRentalVehicle(carId: string): Promise<unknown> {
 
 export async function rejectRentalVehicle(carId: string, reason: string): Promise<unknown> {
   return api('/api/v1/car-rental/admin/vehicles/' + encodeURIComponent(carId) + '/reject', { method: 'POST', body: JSON.stringify({ reason }) });
+}
+
+
+export async function getRentalAdminDashboard(): Promise<RentalAdminDashboard> {
+  return api('/api/v1/car-rental/admin/dashboard');
+}
+
+export async function getRentalAdminBookings(page = 0, size = 25, status = 'ALL'): Promise<RentalAdminBookingResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') query.set('status', status);
+  return api('/api/v1/car-rental/admin/bookings?' + query.toString());
+}
+
+export async function completeRentalBooking(bookingId: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/complete', { method: 'POST' });
 }

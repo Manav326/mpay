@@ -26,6 +26,10 @@ class RentalPayoutService(
     fun findByVendorUserId(vendorUserId: Long): List<RentalPayoutEntity> =
         payouts.findAllByVendorUserIdOrderByCreatedAtDesc(vendorUserId)
 
+    fun totalPaidVendorAmount(): BigDecimal = payouts.sumPaidVendorAmount().setScale(2, RoundingMode.HALF_UP)
+
+    fun totalPlatformFeeAmount(): BigDecimal = payouts.sumPlatformFeeAmount().setScale(2, RoundingMode.HALF_UP)
+
     @Transactional
     fun settleCompletedBooking(booking: RentalBookingEntity): RentalPayoutEntity {
         val lockedBooking = bookings.findByBookingIdForUpdate(booking.bookingId)

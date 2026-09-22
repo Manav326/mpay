@@ -9,6 +9,7 @@ import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.time.LocalDateTime
+import java.math.BigDecimal
 import java.util.Optional
 
 interface RentalVendorRepository : JpaRepository<RentalVendorEntity, Long> {
@@ -70,6 +71,23 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
 
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalBookingEntity>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RentalBookingEntity>
+    fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<RentalBookingEntity>
+    fun countByStatus(status: String): Long
+
+    @Query("""
+        select count(b) from RentalBookingEntity b
+        where b.status = 'CONFIRMED'
+          and b.startDate <= :now and b.endDate > :now
+    """)
+    fun countActive(@Param("now") now: LocalDateTime): Long
+
+    @Query("select coalesce(sum(b.totalAmount), 0) from RentalBookingEntity b")
+    fun sumTotalAmount(): BigDecimal
+
+    @Query("select coalesce(sum(b.totalAmount), 0) from RentalBookingEntity b where b.status = 'CANCELLED'")
+    fun sumCancelledAmount(): BigDecimal
+
 
     @Query("""
         select count(b) > 0 from RentalBookingEntity b
@@ -134,6 +152,11 @@ interface RentalVehicleUnavailabilityRepository : JpaRepository<RentalVehicleUna
 interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
     fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalPaymentEntity>
+    fun findAllByBookingIdIn(bookingIds: Collection<String>): List<RentalPaymentEntity>
+
+    @Query("select coalesce(sum(p.amount), 0) from RentalPaymentEntity p where p.status = 'REFUNDED'")
+    fun sumRefundedAmount(): BigDecimal
+
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from RentalPaymentEntity p where p.id = :id")
@@ -146,4 +169,10 @@ interface RentalPayoutRepository : JpaRepository<RentalPayoutEntity, Long> {
 
     @Query("select p from RentalPayoutEntity p where p.vendorUserId = :vendorUserId order by p.createdAt desc")
     fun findAllByVendorUserIdOrderByCreatedAtDesc(@Param("vendorUserId") vendorUserId: Long): List<RentalPayoutEntity>
+
+    @Query("select coalesce(sum(p.vendorNetAmount), 0) from RentalPayoutEntity p where p.status = 'PAID'")
+    fun sumPaidVendorAmount(): BigDecimal
+
+    @Query("select coalesce(sum(p.platformFeeAmount), 0) from RentalPayoutEntity p where p.status = 'PAID'")
+    fun sumPlatformFeeAmount(): BigDecimal
 }

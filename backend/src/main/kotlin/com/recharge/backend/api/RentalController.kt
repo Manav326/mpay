@@ -160,6 +160,23 @@ class RentalController(
         return rentalService.rejectVendor(vendorId, request?.reason, userId(authentication))
     }
 
+    @GetMapping("/admin/dashboard")
+    fun adminDashboard(authentication: Authentication): RentalAdminDashboardResponse {
+        requireAdmin(authentication)
+        return rentalService.adminDashboard()
+    }
+
+    @GetMapping("/admin/bookings")
+    fun adminBookings(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) status: String?
+    ): RentalAdminBookingPageResponse {
+        requireAdmin(authentication)
+        return rentalService.adminBookings(page, size, status)
+    }
+
     @PostMapping("/admin/bookings/{bookingId}/complete")
     fun completeBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
         requireAdmin(authentication)
