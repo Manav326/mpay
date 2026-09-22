@@ -184,7 +184,7 @@ class WithdrawalService(
         if (requested.isNotBlank()) {
             return providers.firstOrNull {
                 it.providerName.equals(requested, true) && it.isConfigured()
-            } ?: throw IllegalArgumentException("Requested payout provider is not configured: $requested")
+            } ?: throw ProviderNotConfiguredException("Payout provider is not configured: $requested")
         }
 
         properties.providerOrder
@@ -197,7 +197,7 @@ class WithdrawalService(
                 }?.let { return it }
             }
 
-        throw IllegalArgumentException("No configured payout provider is available")
+        throw ProviderNotConfiguredException("No configured payout provider is available")
     }
 
     private fun responseFor(entity: WalletWithdrawalEntity): WithdrawMoneyResponse {
