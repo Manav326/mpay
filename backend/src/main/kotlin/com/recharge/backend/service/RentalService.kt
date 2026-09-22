@@ -22,6 +22,7 @@ class RentalService(
     private val users: UserRepository,
     private val rentalPayments: RentalPaymentService,
     private val rentalPaymentRepository: RentalPaymentRepository,
+    private val rentalPayouts: RentalPayoutService,
     private val vendorReviews: RentalVendorReviewRepository,
     private val carReviews: RentalCarReviewRepository
 ) {
@@ -289,6 +290,23 @@ class RentalService(
         )
         return toBookingResponse(saved, car.name, drivers.findById(requireNotNull(car.driverId)).orElse(null))
     }
+
+    @Transactional
+    fun completeBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
+        val booking = bookings.findByBookingIdAndUserId(bookingId, findBookingOwnerUserId(bookingId)).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be completed" }
+        check(!booking.endDate.isAfter(LocalDateTime.now())) { "Rental booking has not ended yet" }
+        booking.status = "COMPLETED"
+        booking.updatedAt = Instant.now()
+        val saved = bookings.save(booking)
+        rentalPayouts.settleCompletedBooking(saved)
+        val car = cars.findById(saved.carId).orElse(null)
+        return toBookingResponse(saved, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
+    }
+
+    private fun findBookingOwnerUserId(bookingId: String): Long =
+        bookings.findAll().firstOrNull { it.bookingId == bookingId }?.userId
+            ?: throw IllegalArgumentException("Rental booking not found")
 
     @Transactional
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
