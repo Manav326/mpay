@@ -588,6 +588,41 @@ fun RentalVendorOnboardingScreen(
     }
 }
 
+private fun rentalCarImageUrls(imageUrl: String?): List<String?> {
+    val urls = imageUrl.orEmpty()
+        .split("|", "\n")
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .take(4)
+    return List(4) { index -> urls.getOrNull(index) }
+}
+
+@Composable
+private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(9.dp)),
+        color = AppColors.Primary.copy(alpha = .045f)
+    ) {
+        if (url.isNullOrBlank()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.DirectionsCar,
+                    contentDescription = "Car photo placeholder",
+                    tint = AppColors.TextSecondary.copy(alpha = .28f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        } else {
+            AsyncImage(
+                model = url,
+                contentDescription = "Car photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
 @Composable
 fun MarketplaceScreen(onBack: () -> Unit, onCarRental: () -> Unit) {
     LazyColumn(
