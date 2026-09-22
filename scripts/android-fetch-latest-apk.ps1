@@ -80,100 +80,142 @@ if ($ForceDownload) {
 }
 
 try {
-    if (-not $useCachedApk) {
+    $sourceRunId = $null
+    $sourceSha = $null
+
+    # The Android workflow is intentionally path-filtered, so the newest main commit
+    # may not have its own Android build. Prefer an exact successful build, then fall
+    # back to the newest successful Android build for this branch.
+    $githubToken = $env:GH_TOKEN
+    if ([string]::IsNullOrWhiteSpace($githubToken)) {
+        $githubToken = $env:GITHUB_TOKEN
+    }
+
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue) -and [string]::IsNullOrWhiteSpace($githubToken)) {
+        try {
+            $credentialInput = "protocol=https" + [Environment]::NewLine + "host=github.com" + [Environment]::NewLine + [Environment]::NewLine
+            $credentialOutput = $credentialInput | git credential fill 2>$null
+            $credential = @{}
+            foreach ($line in $credentialOutput) {
+                if ($line -match '^([^=]+)=(.*)$') {
+                    $credential[$matches[1]] = $matches[2]
+                }
+            }
+
+            if ($credential.ContainsKey('password') -and -not [string]::IsNullOrWhiteSpace($credential['password'])) {
+                $githubToken = $credential['password']
+            }
+        } catch {
+            # Credential Manager may not be configured; the explicit error below is clearer.
+        }
+    }
+
+    $runId = $null
+    $artifactZip = $null
+    $run = $null
+
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        Write-Host "Finding the latest successful Android release build for this branch..." -ForegroundColor Yellow
+        $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not query GitHub Actions runs."
+        }
+
+        $runs = @($runJson | ConvertFrom-Json)
+        $successfulRuns = @(
+            $runs |
+                Where-Object {
+                    $_.status -eq "completed" -and
+                    $_.conclusion -eq "success"
+                } |
+                Sort-Object createdAt -Descending
+        )
+
+        $run = $successfulRuns |
+            Where-Object { $_.headSha -eq $headSha } |
+            Select-Object -First 1
+
+        if (-not $run) {
+            $run = $successfulRuns | Select-Object -First 1
+        }
+
+        if (-not $run) {
+            throw "No successful '$workflow' run was found for branch $Branch."
+        }
+
+        $runId = [string]$run.databaseId
+        $sourceSha = [string]$run.headSha
+    } else {
+        if ([string]::IsNullOrWhiteSpace($githubToken)) {
+            throw "GitHub CLI (gh) is not installed and no GitHub token could be obtained from GH_TOKEN, GITHUB_TOKEN, or Git Credential Manager. Install gh from https://cli.github.com/ and run 'gh auth login', or configure a GitHub token in one of those supported locations."
+        }
+
+        Write-Host "GitHub CLI is not installed; using GitHub REST API with the existing GitHub credential..." -ForegroundColor Yellow
+        $apiHeaders = @{
+            Authorization = "Bearer $githubToken"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+        }
+
+        $workflowPath = [uri]::EscapeDataString(".github/workflows/android-apk.yml")
+        $branchQuery = [uri]::EscapeDataString($Branch)
+        $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&per_page=30"
+        try {
+            $runsResponse = Invoke-RestMethod -Uri $runsUrl -Headers $apiHeaders -Method Get
+        } catch {
+            throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
+        }
+
+        $successfulRuns = @(
+            $runsResponse.workflow_runs |
+                Where-Object {
+                    $_.status -eq "completed" -and
+                    $_.conclusion -eq "success"
+                } |
+                Sort-Object created_at -Descending
+        )
+
+        $run = $successfulRuns |
+            Where-Object { $_.head_sha -eq $headSha } |
+            Select-Object -First 1
+
+        if (-not $run) {
+            $run = $successfulRuns | Select-Object -First 1
+        }
+
+        if (-not $run) {
+            throw "No successful '$workflow' run was found for branch $Branch."
+        }
+
+        $runId = [string]$run.id
+        $sourceSha = [string]$run.head_sha
+        Write-Host "Found successful Android run $runId for build commit $sourceSha." -ForegroundColor Green
+    }
+
+    if ($sourceSha -ne $headSha) {
+        Write-Host "No newer successful Android build exists for local commit $headSha." -ForegroundColor Yellow
+        Write-Host "Using the newest successful optimized APK built from commit $sourceSha." -ForegroundColor Yellow
+    } else {
+        Write-Host "Found a successful optimized Android build for the current commit." -ForegroundColor Green
+    }
+
+    if (-not $ForceDownload -and (Test-Path $targetApk) -and $cachedCommit -eq $sourceSha) {
+        $useCachedApk = $true
+        $sourceRunId = $runId
+        Write-Host "Cached optimized APK already matches source build commit $sourceSha." -ForegroundColor Green
+    } else {
         if (Test-Path $tempDir) {
             Remove-Item $tempDir -Recurse -Force
         }
         New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-        # Prefer GitHub CLI when available. If it is not installed, fall back to the
-        # GitHub REST API using a token from the environment or Git Credential Manager.
-        $githubToken = $env:GH_TOKEN
-        if ([string]::IsNullOrWhiteSpace($githubToken)) {
-            $githubToken = $env:GITHUB_TOKEN
-        }
-
-        if (-not (Get-Command gh -ErrorAction SilentlyContinue) -and [string]::IsNullOrWhiteSpace($githubToken)) {
-            try {
-                $credentialInput = "protocol=https" + [Environment]::NewLine + "host=github.com" + [Environment]::NewLine + [Environment]::NewLine
-                $credentialOutput = $credentialInput | git credential fill 2>$null
-                $credential = @{}
-                foreach ($line in $credentialOutput) {
-                    if ($line -match '^([^=]+)=(.*)$') {
-                        $credential[$matches[1]] = $matches[2]
-                    }
-                }
-
-                if ($credential.ContainsKey('password') -and -not [string]::IsNullOrWhiteSpace($credential['password'])) {
-                    $githubToken = $credential['password']
-                }
-            } catch {
-                # Credential Manager may not be configured; the explicit error below is clearer.
-            }
-        }
-
-        $runId = $null
-        $artifactZip = $null
-
         if (Get-Command gh -ErrorAction SilentlyContinue) {
-            Write-Host "Finding the successful Android release build for this exact commit..." -ForegroundColor Yellow
-            $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
+            Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
+            gh run download $runId --name $artifactName --dir $tempDir
             if ($LASTEXITCODE -ne 0) {
-                throw "Could not query GitHub Actions runs."
+                throw "GitHub Actions artifact download failed for run $runId."
             }
-
-            $runs = @($runJson | ConvertFrom-Json)
-            $run = $runs |
-                Where-Object {
-                    $_.status -eq "completed" -and
-                    $_.conclusion -eq "success" -and
-                    $_.headSha -eq $headSha
-                } |
-                Sort-Object createdAt -Descending |
-                Select-Object -First 1
-
-            if (-not $run) {
-                throw "No successful '$workflow' run was found for branch $Branch at commit $headSha."
-            }
-
-            $runId = [string]$run.databaseId
         } else {
-            if ([string]::IsNullOrWhiteSpace($githubToken)) {
-                throw "GitHub CLI (gh) is not installed and no GitHub token could be obtained from GH_TOKEN, GITHUB_TOKEN, or Git Credential Manager. Install gh from https://cli.github.com/ and run 'gh auth login', or configure a GitHub token in one of those supported locations."
-            }
-
-            Write-Host "GitHub CLI is not installed; using GitHub REST API with the existing GitHub credential..." -ForegroundColor Yellow
-            $apiHeaders = @{
-                Authorization = "Bearer $githubToken"
-                Accept = "application/vnd.github+json"
-                "X-GitHub-Api-Version" = "2022-11-28"
-            }
-
-            $workflowPath = [uri]::EscapeDataString(".github/workflows/android-apk.yml")
-            $branchQuery = [uri]::EscapeDataString($Branch)
-            $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&per_page=30"
-            try {
-                $runsResponse = Invoke-RestMethod -Uri $runsUrl -Headers $apiHeaders -Method Get
-            } catch {
-                throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
-            }
-
-            $run = $runsResponse.workflow_runs |
-                Where-Object {
-                    $_.status -eq "completed" -and
-                    $_.conclusion -eq "success" -and
-                    $_.head_sha -eq $headSha
-                } |
-                Sort-Object created_at -Descending |
-                Select-Object -First 1
-
-            if (-not $run) {
-                throw "No successful '$workflow' run was found for branch $Branch at commit $headSha."
-            }
-
-            $runId = [string]$run.id
-            Write-Host "Found successful Android run $runId for commit $headSha." -ForegroundColor Green
-
             $artifactsUrl = "https://api.github.com/repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
             try {
                 $artifactsResponse = Invoke-RestMethod -Uri $artifactsUrl -Headers $apiHeaders -Method Get
@@ -196,15 +238,7 @@ try {
             } catch {
                 throw "GitHub Actions artifact download failed for artifact $($artifact.id). $($_.Exception.Message)"
             }
-        }
 
-        if (Get-Command gh -ErrorAction SilentlyContinue) {
-            Write-Host "Downloading $artifactName from Actions run $runId..." -ForegroundColor Yellow
-            gh run download $runId --name $artifactName --dir $tempDir
-            if ($LASTEXITCODE -ne 0) {
-                throw "GitHub Actions artifact download failed for run $runId."
-            }
-        } else {
             Write-Host "Extracting the REST API artifact archive..." -ForegroundColor Yellow
             try {
                 Expand-Archive -Path $artifactZip -DestinationPath $tempDir -Force
@@ -219,11 +253,8 @@ try {
         }
 
         Copy-Item $downloadedApk.FullName $targetApk -Force
-        Set-Content -Path $cacheCommitFile -Value $headSha -Encoding UTF8
-
+        Set-Content -Path $cacheCommitFile -Value $sourceSha -Encoding UTF8
         $sourceRunId = $runId
-    } else {
-        $sourceRunId = "cached-local"
     }
 
     Write-Host ""
