@@ -262,7 +262,9 @@ fun RentalVendorOnboardingScreen(
 
         calendarCarId?.let { carId ->
             VehicleCalendarDialog(
-                calendar = state.vehicleCalendar?.takeIf { it.carId == carId },
+                calendar = state.vehicleCalendar?.takeIf {
+                    it.carId == carId && it.year == calendarMonth.year && it.month == calendarMonth.monthValue
+                },
                 month = calendarMonth,
                 onPrevious = { calendarMonth = calendarMonth.minusMonths(1) },
                 onNext = { calendarMonth = calendarMonth.plusMonths(1) },
