@@ -278,8 +278,24 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
     val isAdd = item.referenceType.equals("ADD_MONEY", true)
     val isRecharge = item.referenceType.equals("RECHARGE", true)
     val isWithdraw = item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true)
-    val label = when { isRecharge -> "Recharge"; isAdd -> "Added money"; isWithdraw -> "Withdrawn money"; else -> item.description ?: item.type }
-    val amountColor = when { isAdd -> androidx.compose.ui.graphics.Color(0xFF16A34A); isRecharge -> androidx.compose.ui.graphics.Color(0xFFD97706); isWithdraw -> androidx.compose.ui.graphics.Color(0xFFDC2626); else -> AppColors.TextPrimary }
+    val isRental = item.referenceType.equals("RENTAL_PAYMENT", true) || item.referenceType.equals("RENTAL_REFUND", true)
+    val isCredit = item.type.equals("CREDIT", true)
+    val label = when {
+        item.referenceType.equals("RENTAL_REFUND", true) -> "Car rental refund"
+        isRental -> "Car rental payment"
+        isRecharge -> "Recharge"
+        isAdd -> "Added money"
+        isWithdraw -> "Withdrawn money"
+        else -> item.description ?: item.type
+    }
+    val amountColor = when {
+        isRental && isCredit -> Color(0xFF16A34A)
+        isRental && !isCredit -> Color(0xFFDC2626)
+        isAdd || isCredit -> Color(0xFF16A34A)
+        isRecharge || isWithdraw -> Color(0xFFDC2626)
+        else -> AppColors.TextPrimary
+    }
+    val signedPrefix = if (isCredit) "+" else "-"
     val operator = if (isRecharge) item.operator else null
     Surface(Modifier.fillMaxWidth().clickable { onClick(item) }, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp), tonalElevation = 1.dp) {
         Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -290,10 +306,11 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
             }
             Column(Modifier.weight(1f)) {
                 Text(label, fontWeight = FontWeight.SemiBold)
-                if (isRecharge) Text("${operator ?: "Operator"} • ${item.referenceId.orEmpty()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                if (isRental) Text(item.referenceId ?: "Booking reference", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                if (isRecharge) Text("\${operator ?: "Operator"} • \${item.referenceId.orEmpty()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            Text((if (isAdd) "+" else "-") + "₹${formatMoney(item.amount)}", color = amountColor, fontWeight = FontWeight.Bold)
+            Text(signedPrefix + "₹\${formatMoney(item.amount)}", color = amountColor, fontWeight = FontWeight.Bold)
         }
     }
 }
