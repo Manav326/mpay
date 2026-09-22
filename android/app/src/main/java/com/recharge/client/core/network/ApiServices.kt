@@ -77,6 +77,8 @@ interface ClientApi {
 
     @GET("api/v1/car-rental/bookings")
     suspend fun rentalBookings(@Query("page") page: Int = 0, @Query("size") size: Int = 25): Response<com.recharge.client.core.model.RentalBookingPageResponse>
+    @POST("api/v1/car-rental/bookings/{bookingId}/cancel")
+    suspend fun cancelRentalBooking(@retrofit2.http.Path("bookingId") bookingId: String): Response<com.recharge.client.core.model.RentalBookingResponse>
 
     @GET("api/v1/profile")
     suspend fun profile(): Response<CurrentUserResponse>
