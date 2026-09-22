@@ -234,6 +234,42 @@ class RentalServiceTest {
     }
 
     @Test
+    fun availableCarsExcludesCarsBookedForRequestedWindow() {
+        val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
+        val end = start.plusDays(1)
+        val bookedCar = RentalCarEntity(
+            id = 21L, name = "Booked Sedan", category = "Sedan", seats = 5,
+            transmission = "Automatic", pricePerDay = BigDecimal("1500.00"),
+            active = true, vendorId = 31L, driverId = 32L, approvalStatus = "APPROVED"
+        )
+        val freeCar = RentalCarEntity(
+            id = 22L, name = "Free SUV", category = "SUV", seats = 5,
+            transmission = "Automatic", pricePerDay = BigDecimal("1800.00"),
+            active = true, vendorId = 33L, driverId = 34L, approvalStatus = "APPROVED"
+        )
+        Mockito.doReturn(listOf(bookedCar, freeCar))
+            .`when`(cars)
+            .findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+        Mockito.doReturn(listOf(
+            com.recharge.backend.domain.RentalVendorEntity(
+                id = 31L, userId = 91L, fullName = "Vendor A",
+                address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+            ),
+            com.recharge.backend.domain.RentalVendorEntity(
+                id = 33L, userId = 92L, fullName = "Vendor B",
+                address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+            )
+        )).`when`(vendors).findAllById(listOf(31L, 33L))
+        Mockito.doReturn(listOf(21L))
+            .`when`(bookings)
+            .findBookedCarIds(listOf("PENDING", "CONFIRMED"), start, end)
+
+        val result = service.availableCars(42L, start, end)
+
+        assertEquals(listOf("22"), result.map { it.id })
+    }
+
+    @Test
     fun quoteRoundsPartialDayUpWhenBookingUsesDatetime() {
         val start = LocalDateTime.now().plusDays(2).withSecond(0).withNano(0)
         val end = start.plusHours(25)
