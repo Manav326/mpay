@@ -191,16 +191,39 @@ class RentalService(
         return toCarResponse(car)
     }
 
-    fun availableCars(userId: Long): List<RentalCarResponse> {
+    fun availableCars(
+        userId: Long,
+        startDate: LocalDateTime? = null,
+        endDate: LocalDateTime? = null
+    ): List<RentalCarResponse> {
+        require((startDate == null) == (endDate == null)) { "Start and end date must be provided together" }
+        if (startDate != null) {
+            require(endDate!!.isAfter(startDate)) { "End date must be after start date" }
+            require(!startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
+        }
+
         val available = cars.findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
         if (available.isEmpty()) return emptyList()
+
         val vendorIds = available.mapNotNull { it.vendorId }.distinct()
         val vendorById = vendors.findAllById(vendorIds).associateBy { requireNotNull(it.id) }
-        return available
-            .filter { car ->
-                val vendorId = car.vendorId
-                vendorId == null || vendorById[vendorId]?.userId != userId
-            }
+        val marketplaceCars = available.filter { car ->
+            val vendorId = car.vendorId
+            vendorId == null || vendorById[vendorId]?.userId != userId
+        }
+
+        val bookedCarIds = if (startDate != null) {
+            bookings.findBookedCarIds(
+                statuses = listOf("PENDING", "CONFIRMED"),
+                startDate = startDate,
+                endDate = endDate!!
+            ).toSet()
+        } else {
+            emptySet()
+        }
+
+        return marketplaceCars
+            .filter { requireNotNull(it.id) !in bookedCarIds }
             .map(::toCarResponse)
     }
 
