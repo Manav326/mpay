@@ -59,6 +59,9 @@ interface ClientApi {
     @POST("api/v1/car-rental/vendor/vehicles")
     suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
 
+    @POST("api/v1/car-rental/bookings/quote")
+    suspend fun rentalBookingQuote(@Body request: RentalBookingQuoteRequest): Response<RentalBookingQuoteResponse>
+
     @POST("api/v1/car-rental/bookings")
     suspend fun createRentalBooking(@Body request: RentalBookingRequest): Response<RentalBookingResponse>
 
