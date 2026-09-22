@@ -52,7 +52,8 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
 
 
 interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
-    fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>\n    fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalPaymentEntity>
+    fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<RentalPaymentEntity>
+    fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalPaymentEntity>
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from RentalPaymentEntity p where p.id = :id")
