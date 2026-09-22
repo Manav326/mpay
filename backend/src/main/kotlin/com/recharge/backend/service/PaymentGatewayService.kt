@@ -17,7 +17,7 @@ import java.util.UUID
 class PaymentGatewayService(
     private val providers: List<PaymentGatewayProvider>,
     private val rechargeService: RechargeService,
-    @Value("\${app.payment.gateway-providers:mock,razorpay,payu}") private val configuredProviders: String
+    @Value("\${app.payment.gateway-providers:razorpay,payu}") private val configuredProviders: String
 ) {
     fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
         val requested = request.provider.trim()
