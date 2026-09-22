@@ -41,6 +41,16 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun createBooking(request: RentalBookingRequest, onDone: () -> Unit) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.createRentalBooking(request)
+                .onSuccess { _state.value = _state.value.copy(saving = false); onDone() }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to create booking") }
+        }
+    }
+
     fun quoteBooking(request: RentalBookingQuoteRequest, onDone: (RentalBookingQuoteResponse) -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
