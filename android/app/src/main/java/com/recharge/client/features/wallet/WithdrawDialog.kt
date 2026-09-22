@@ -13,7 +13,7 @@ import com.recharge.client.core.viewmodel.WalletUiState
 fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (String, String, String) -> Unit, onClearMessage: () -> Unit) {
     var amount by remember { mutableStateOf("") }
     var upiId by remember { mutableStateOf("") }
-    var provider by remember { mutableStateOf("razorpay") }
+    var provider by remember { mutableStateOf("mock") }
     val busy = state.withdrawing
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
