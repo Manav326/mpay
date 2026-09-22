@@ -361,7 +361,7 @@ export default function Portal() {
       </section>}
 
       {view === 'bookings' && <section className="portal-content">
-        <div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing and payment status.</p></div><button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Refresh</button></div>
+        <div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing and payment status.</p></div><button className="landing-secondary" onClick={() => loadRentalData()}><RefreshCw size={15}/> Refresh</button></div>
           {bookings.length ? <div className="history-list">{bookings.map(b =>
             <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b>
               <small>{b.bookingId} · {b.pickup} → {b.drop} · {new Date(b.startDate).toLocaleString('en-IN')} to {new Date(b.endDate).toLocaleString('en-IN')}</small>
@@ -401,7 +401,7 @@ export default function Portal() {
               <div className="rental-empty-icon"><Car size={28}/></div>
               <b>No cars available right now</b>
               <span>There are no approved chauffeur-driven cars available for your account at the moment. New vehicles will appear here as soon as they are approved.</span>
-              <button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Check again</button>
+              <button className="landing-secondary" onClick={() => loadRentalData()}><RefreshCw size={15}/> Check again</button>
             </div>}
           {selectedCar && <div className="rental-summary">
             <div><span>Selected</span><b>{selectedCar.name}</b></div>
