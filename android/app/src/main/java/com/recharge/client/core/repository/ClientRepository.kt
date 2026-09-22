@@ -2,6 +2,7 @@ package com.recharge.client.core.repository
 
 import android.content.Context
 import android.net.Uri
+import com.google.gson.Gson
 import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
@@ -19,6 +20,9 @@ import com.recharge.client.core.model.WalletResponse
 import com.recharge.client.core.model.WalletHistoryResponse
 import com.recharge.client.core.model.WithdrawMoneyRequest
 import com.recharge.client.core.model.WithdrawMoneyResponse
+import com.recharge.client.core.model.WithdrawalHistoryResponse
+import com.recharge.client.core.model.RentalBookingQuoteRequest
+import com.recharge.client.core.model.RentalBookingQuoteResponse
 import com.recharge.client.core.model.ProfileUpdateRequest
 import com.recharge.client.core.network.ApiError
 import com.recharge.client.core.network.ClientApi
@@ -34,6 +38,7 @@ class ClientRepository(context: Context) {
     private val appContext = context.applicationContext
     private val api: ClientApi = NetworkModule.clientApi(context.applicationContext)
     private val profileCache = ProfileCacheStore(appContext)
+    private val gson = Gson()
 
     suspend fun currentUser(): Result<CurrentUserResponse> {
         val result = runCatching {
@@ -50,7 +55,6 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
-
 
     suspend fun profile(): Result<CurrentUserResponse> {
         val result = runCatching {
@@ -87,8 +91,8 @@ class ClientRepository(context: Context) {
         response.body()!!.also { profileCache.save(it) }
     }
 
-    suspend fun createPaymentOrder(amount: BigDecimal, clientRequestId: String): Result<PaymentOrderResponse> = runCatching {
-        val response = api.createPaymentOrder(CreatePaymentOrderRequest(amount, clientRequestId))
+    suspend fun createPaymentOrder(amount: BigDecimal, clientRequestId: String, provider: String = "razorpay"): Result<PaymentOrderResponse> = runCatching {
+        val response = api.createPaymentOrder(CreatePaymentOrderRequest(amount = amount, provider = provider, clientRequestId = clientRequestId))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
@@ -128,6 +132,7 @@ class ClientRepository(context: Context) {
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
+
     suspend fun recharge(
         mobileNumber: String,
         operator: String,
@@ -173,16 +178,82 @@ class ClientRepository(context: Context) {
     }
 
     suspend fun withdraw(amount: BigDecimal, upiId: String, provider: String): Result<WithdrawMoneyResponse> = runCatching {
-        val response = api.withdraw(
-            WithdrawMoneyRequest(
-                amount = amount.setScale(2),
-                provider = provider,
-                clientRequestId = UUID.randomUUID().toString(),
-                upiId = upiId.trim()
-            )
+        val request = WithdrawMoneyRequest(
+            amount = amount.setScale(2),
+            provider = provider,
+            clientRequestId = UUID.randomUUID().toString(),
+            upiId = upiId.trim()
         )
+        val json = gson.toJson(request)
+        require(json.isNotBlank() && json != "{}") { "Unable to create withdrawal request body" }
+        val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val response = api.withdraw(requestBody)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
 
+    suspend fun withdrawalHistory(page: Int = 0, size: Int = 20): Result<WithdrawalHistoryResponse> = runCatching {
+        val response = api.withdrawalHistory(page, size)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+
+    suspend fun rentalVendor(): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
+        val response = api.rentalVendor()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun onboardRentalVendor(request: com.recharge.client.core.model.RentalVendorOnboardingRequest): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
+        val response = api.onboardRentalVendor(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalCars(): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
+        val response = api.rentalCars()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+
+    suspend fun rentalVendorPayouts(): Result<List<com.recharge.client.core.model.RentalVendorPayoutResponse>> = runCatching {
+        val response = api.rentalVendorPayouts()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalVendorVehicles(): Result<List<com.recharge.client.core.model.RentalCarResponse>> = runCatching {
+        val response = api.rentalVendorVehicles()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun onboardRentalVehicle(request: com.recharge.client.core.model.RentalVehicleOnboardingRequest): Result<com.recharge.client.core.model.RentalCarResponse> = runCatching {
+        val response = api.onboardRentalVehicle(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun resubmitRentalVehicle(carId: String, request: com.recharge.client.core.model.RentalVehicleUpdateRequest): Result<com.recharge.client.core.model.RentalCarResponse> = runCatching {
+        val response = api.resubmitRentalVehicle(carId, request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalBookingQuote(request: RentalBookingQuoteRequest): Result<RentalBookingQuoteResponse> =
+        runCatching { api.rentalBookingQuote(request).let { response -> if (response.isSuccessful && response.body() != null) response.body()!! else error(response.message().ifBlank { "Unable to calculate rental quote" }) } }
+
+    suspend fun createRentalBooking(request: com.recharge.client.core.model.RentalBookingRequest): Result<com.recharge.client.core.model.RentalBookingResponse> = runCatching {
+        val response = api.createRentalBooking(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalBookings(page: Int = 0, size: Int = 25): Result<com.recharge.client.core.model.RentalBookingPageResponse> = runCatching {
+        val response = api.rentalBookings(page, size)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
 }

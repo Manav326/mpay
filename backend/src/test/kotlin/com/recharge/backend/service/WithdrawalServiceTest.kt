@@ -5,8 +5,11 @@ import com.recharge.backend.domain.WalletWithdrawalEntity
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.repository.WalletWithdrawalRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.mockito.Mockito
 import java.math.BigDecimal
 import java.util.Optional
@@ -18,16 +21,102 @@ class WithdrawalServiceTest {
     private val persistence = Mockito.mock(WithdrawalPersistenceService::class.java)
     private val razorpay = FakeProvider("razorpay", true)
     private val payu = FakeProvider("payu", false)
-    private val properties = com.recharge.backend.config.WithdrawalProperties("razorpay,payu")
+    private val mock = FakeProvider("mock", true)
+    private val properties = com.recharge.backend.config.WithdrawalProperties("mock,razorpay,payu")
 
     private val service = WithdrawalService(
         withdrawals = withdrawals,
         users = users,
         wallet = wallet,
-        providers = listOf(razorpay, payu),
+        providers = listOf(mock, razorpay, payu),
         properties = properties,
         persistence = persistence
     )
+
+
+    @Test
+    fun mockProviderCanCompleteWithdrawal() {
+        val pending = withdrawal("WDR-MOCK", "REQ-MOCK", "PENDING", upiId = "test@mockupi")
+        val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS", provider = "mock", upiId = "test@mockupi")
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals).findByUserIdAndClientRequestId(42L, "REQ-MOCK")
+        Mockito.doReturn(pending).`when`(persistence).createOrGetPending(
+            42L, BigDecimal("10.00"), "test@mockupi", "mock", "REQ-MOCK"
+        )
+        mock.result = WithdrawalProviderResult("SUCCESS", "mock_WDR-MOCK", "completed", "PROCESSED")
+        Mockito.doReturn(success).`when`(persistence).markSucceeded(
+            "WDR-MOCK", "mock", "mock_WDR-MOCK", "PROCESSED", "completed"
+        )
+        Mockito.doReturn(WalletSnapshot(BigDecimal("1000.00"), BigDecimal("0.00"), BigDecimal("1000.00")))
+            .`when`(wallet).getWalletSnapshot(42L)
+
+        val response = service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-MOCK", "test@mockupi")
+
+        assertEquals("SUCCESS", response.status)
+        assertEquals("mock", response.provider)
+        assertEquals("mock_WDR-MOCK", mock.lastReference)
+        assertEquals("test@mockupi", response.upiId)
+        assertEquals("test@mockupi", mock.lastRequest?.upiId)
+        assertEquals(1, mock.initiateCalls)
+    }
+
+    @Test
+    fun blankUpiIsRejectedBeforeMockProviderCall() {
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals)
+            .findByUserIdAndClientRequestId(42L, "REQ-BLANK-UPI")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-BLANK-UPI", "   ")
+        }
+
+        assertEquals(0, mock.initiateCalls)
+    }
+
+    @Test
+    fun withdrawalHistoryMapsPersistedRowsWithoutLosingUpiOrProviderDetails() {
+        val entity = withdrawal(
+            id = "WDR-HISTORY",
+            requestId = "REQ-HISTORY",
+            status = "SUCCESS",
+            provider = "mock",
+            upiId = "test@mockupi"
+        )
+        entity.providerReference = "mock_WDR-HISTORY"
+        entity.providerStatus = "PROCESSED"
+        Mockito.doReturn(
+            PageImpl(
+                listOf(entity),
+                PageRequest.of(0, 20),
+                1
+            )
+        ).`when`(withdrawals).findByUserIdOrderByCreatedAtDesc(42L, PageRequest.of(0, 20))
+
+        val response = service.history(42L, 0, 20)
+
+        assertEquals(1, response.items.size)
+        assertEquals("WDR-HISTORY", response.items.single().withdrawalId)
+        assertEquals("test@mockupi", response.items.single().upiId)
+        assertEquals("mock", response.items.single().provider)
+        assertEquals("SUCCESS", response.items.single().status)
+        assertEquals("mock_WDR-HISTORY", response.items.single().providerReference)
+    }
+    @Test
+    fun malformedUpiIsRejectedBeforePersistenceOrMockProviderCall() {
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals)
+            .findByUserIdAndClientRequestId(42L, "REQ-BAD-UPI")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-BAD-UPI", "not-a-upi")
+        }
+
+        Mockito.verifyNoInteractions(persistence)
+        assertEquals(0, mock.initiateCalls)
+    }
 
     @Test
     fun idempotentRequestReturnsExistingWithdrawalWithoutProviderCall() {
@@ -103,13 +192,19 @@ class WithdrawalServiceTest {
         email = "test@example.com"
     )
 
-    private fun withdrawal(id: String, requestId: String, status: String) = WalletWithdrawalEntity(
+    private fun withdrawal(
+        id: String,
+        requestId: String,
+        status: String,
+        provider: String = "razorpay",
+        upiId: String = "user@upi"
+    ) = WalletWithdrawalEntity(
         withdrawalId = id,
         clientRequestId = requestId,
         userId = 42L,
         amount = BigDecimal("100.00"),
-        upiId = "user@upi",
-        providerName = "razorpay",
+        upiId = upiId,
+        providerName = provider,
         status = status
     )
 

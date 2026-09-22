@@ -10,11 +10,13 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -24,6 +26,7 @@ import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.model.WalletResponse
 import com.recharge.client.core.model.WalletHistoryItem
+import com.recharge.client.core.model.WithdrawalHistoryItem
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatAsOf
 import com.recharge.client.core.ui.formatExactTimestamp
@@ -100,41 +103,86 @@ fun WalletScreen(
             Text("Balance, earnings and wallet activity", color = AppColors.TextSecondary)
         }
         item {
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm)) {
+            Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Primary)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Available balance", color = AppColors.TextSecondary, modifier = Modifier.weight(1f))
-                        IconButton(onClick = onRefreshBalance, enabled = !loading) { Icon(Icons.Default.Refresh, "Refresh balance") }
+                        Text("Wallet balance", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f), modifier = Modifier.weight(1f))
+                        IconButton(onClick = onRefreshBalance, enabled = !loading) { Icon(Icons.Default.Refresh, "Refresh balance", tint = MaterialTheme.colorScheme.onPrimary) }
                     }
-                    Text(if (loading) "Loading…" else "₹${formatMoney(wallet?.availableBalance ?: wallet?.balance ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.displaySmall, maxLines = 1, softWrap = false)
+                    Text(if (loading) "Loading…" else "₹${formatMoney(wallet?.availableBalance ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, softWrap = false)
                     if ((wallet?.reservedBalance ?: BigDecimal.ZERO) > BigDecimal.ZERO) {
-                        Spacer(Modifier.height(4.dp)); Text("₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)} reserved for pending recharge", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(6.dp))
+                        Text("₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)} reserved in pending transactions", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = onAddMoney, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimary, contentColor = AppColors.Primary), modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
+                            Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("Add Money", maxLines = 1, softWrap = false)
+                        }
+                        OutlinedButton(onClick = { onClearWithdrawMessage(); showWithdraw = true }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary), modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
+                            Icon(Icons.Default.Send, null); Spacer(Modifier.width(6.dp)); Text("Withdraw to UPI", maxLines = 1, softWrap = false)
+                        }
                     }
                 }
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = onAddMoney, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(12.dp)) { Text("Add Money", maxLines = 1, softWrap = false) }
-                OutlinedButton(onClick = { onClearWithdrawMessage(); showWithdraw = true }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(12.dp)) {
-                    Icon(Icons.Default.Send, null); Spacer(Modifier.width(6.dp)); Text("Withdraw to UPI", maxLines = 1, softWrap = false)
-                }
-            }
-        }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onViewRechargeHistory, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(12.dp)) {
-                    Icon(Icons.Default.History, null); Spacer(Modifier.width(6.dp)); Text("Recharge History", maxLines = 1, softWrap = false)
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), onClick = onViewRechargeHistory) {
+                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFF7C3AED).copy(alpha = .12f)) {
+                        Icon(Icons.Default.History, null, modifier = Modifier.padding(10.dp), tint = Color(0xFF7C3AED))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("Recharge History", style = MaterialTheme.typography.titleMedium, maxLines = 1, softWrap = false)
                 }
             }
         }
         item { EarningsBlock(commission, commissionLoading, onRefreshCommission) }
+        item { WithdrawalHistoryCard(walletUiState.withdrawals) }
         item {
             WalletActivityCard(
                 state = walletUiState, onSelectFilter = onSelectWalletHistoryFilter,
                 onSetToday = onSetWalletHistoryToday, onSetLast7 = onSetWalletHistoryLast7, onSetMonth = onSetWalletHistoryMonth, onSetCustom = { showFromPicker = true },
                 onRefresh = onRefreshWalletHistory, onLoadMore = onLoadMoreWalletHistory, onOpenDetail = onOpenWalletDetail
             )
+        }
+    }
+}
+
+@Composable
+private fun WithdrawalHistoryCard(items: List<WithdrawalHistoryItem>) {
+    Card(shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Withdrawal history", style = MaterialTheme.typography.titleLarge)
+                    Text("Recent UPI payout requests and their current status.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                Icon(Icons.Default.Send, "Withdrawals", tint = AppColors.TextSecondary)
+            }
+            if (items.isEmpty()) {
+                Text("No withdrawal requests yet.", color = AppColors.TextSecondary)
+            } else {
+                items.take(10).forEach { item ->
+                    val status = item.status.uppercase()
+                    val statusColor = when (status) {
+                        "SUCCESS" -> AppColors.Success
+                        "FAILED", "REVERSED" -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), tonalElevation = 1.dp) {
+                        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("₹" + formatMoney(item.amount) + " → " + item.upiId, fontWeight = FontWeight.SemiBold)
+                                Text(item.provider.uppercase() + " • " + formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(item.withdrawalId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                item.failureReason?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                            }
+                            Text(status, color = statusColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -285,6 +333,9 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
             if (item.mobileNumber != null) Text("Mobile: ${item.mobileNumber}")
             if (item.operator != null) Text("Operator: ${operatorLabel(item.operator)}")
             Text("External reference: ${item.externalRef}")
+            item.provider?.takeIf { it.isNotBlank() }?.let {
+                Text("Provider: ${it.uppercase()}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
             item.description?.let { Text(it, color = AppColors.TextSecondary) }
             Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             if (isWithdraw) Text("UPI ID: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)

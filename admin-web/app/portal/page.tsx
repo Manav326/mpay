@@ -41,7 +41,7 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
 
 
 export default function Portal() {
-  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'rental'|'account'>('home');
+  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
   const [wallet, setWallet] = useState<Wallet>();
   const [me, setMe] = useState<Me>();
@@ -158,6 +158,7 @@ export default function Portal() {
       const result = await api<RentalBooking>('/api/v1/car-rental/bookings', {
         method: 'POST',
         body: JSON.stringify({
+          clientRequestId: crypto.randomUUID(),
           carId: selectedCar.id,
           pickupLocation: rentalForm.pickup,
           dropLocation: rentalForm.drop || rentalForm.pickup,
@@ -176,7 +177,7 @@ export default function Portal() {
 
   const menu = [
     ['home','Home',Home], ['recharge','Recharge',Smartphone], ['wallet','Wallet',WalletCards],
-    ['history','History',History], ['rental','Car Rental',Car], ['account','Account',UserRound]
+    ['history','History',History], ['marketplace','Marketplace',Car], ['bookings','My Bookings',Clock3], ['account','Account',UserRound]
   ] as const;
 
   const status = (s?: string) => {
@@ -193,7 +194,7 @@ export default function Portal() {
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
       <nav>{menu.map(([key,label,Icon]) =>
         <button key={key} className={view === key ? 'portal-nav active' : 'portal-nav'}
-          onClick={() => { setView(key); setDrawer(false); if (key === 'history') loadHistory(); if (key === 'rental') loadRentalData(); }}>
+          onClick={() => { setView(key); setDrawer(false); if (key === 'history') loadHistory(); if (key === 'marketplace' || key === 'bookings') loadRentalData(); }}>
           <Icon size={18}/>{label}
         </button>)}</nav>
       <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/>Logout</button>
@@ -205,7 +206,7 @@ export default function Portal() {
         <div><span>mPay personal workspace</span><h1>
           {view === 'home' ? 'Good to see you.' : view === 'recharge' ? 'Mobile recharge' :
            view === 'wallet' ? 'Your wallet' : view === 'history' ? 'Transaction history' :
-           view === 'rental' ? 'Car Rental' : 'Your account'}
+           view === 'marketplace' ? 'Marketplace' : view === 'rental' ? 'Marketplace · Car Rental' : view === 'bookings' ? 'My Bookings' : 'Your account'}
         </h1></div>
         <div className="portal-avatar">{(me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
@@ -221,7 +222,8 @@ export default function Portal() {
           <button onClick={() => setView('recharge')}><Smartphone/><b>Mobile recharge</b><span>Detect operator, compare plans and submit a recharge.</span></button>
           <button onClick={() => setView('wallet')}><WalletCards/><b>Wallet</b><span>See available, reserved and ledger balances.</span></button>
           <button onClick={() => setView('history')}><History/><b>History</b><span>Track every recharge and wallet transaction.</span></button>
-          <button onClick={() => setView('rental')}><Car/><b>Car Rental</b><span>Choose a vehicle and submit a rental booking.</span></button>
+          <button onClick={() => setView('marketplace')}><Car/><b>Marketplace</b><span>Explore services and open the Car Rental category.</span></button>
+          <button onClick={() => setView('bookings')}><Clock3/><b>My Bookings</b><span>See booked cars, driver details, dates and payment status.</span></button>
         </div>
       </section>}
 
@@ -267,13 +269,33 @@ export default function Portal() {
         {operator && !plans.length && !busy && <div className="empty-state">No plans were returned for this number.</div>}
       </div></section>}
 
+
+
+      {view === 'marketplace' && <section className="portal-content">
+        <div className="portal-panel"><div className="panel-head"><div><h2>Marketplace</h2><p>Explore mPay service categories.</p></div><Car size={28}/></div>
+          <button className="rental-car selected" onClick={() => { setView('rental'); loadRentalData(); }}>
+            <div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong>
+          </button>
+        </div>
+      </section>}
+
+      {view === 'bookings' && <section className="portal-content">
+        <div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing and payment status.</p></div><button className="landing-secondary" onClick={loadRentalData}><RefreshCw size={15}/> Refresh</button></div>
+          {bookings.length ? <div className="history-list">{bookings.map(b =>
+            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b>
+              <small>{b.bookingId} · {b.pickup} → {b.drop} · {new Date(b.startDate).toLocaleString('en-IN')} to {new Date(b.endDate).toLocaleString('en-IN')}</small>
+            </div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}<span>{new Date(b.createdAt || b.startDate).toLocaleString('en-IN')}</span></div></div>
+          )}</div> : <div className="empty-state">No rental bookings yet.</div>}
+        </div>
+      </section>}
+
       {view === 'rental' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Set your trip details, review the fare and submit a booking request.</p></div><Car size={28}/></div>
           <div className="rental-form">
             <input placeholder="Pickup location" value={rentalForm.pickup} onChange={e => setRentalForm({...rentalForm,pickup:e.target.value})}/>
             <input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e => setRentalForm({...rentalForm,drop:e.target.value})}/>
-            <label>Start date<input type="date" value={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
-            <label>End date<input type="date" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
+            <label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={new Date().toISOString().slice(0,16)} onChange={e => setRentalForm({...rentalForm,startDate:e.target.value})}/></label>
+            <label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e => setRentalForm({...rentalForm,endDate:e.target.value})}/></label>
           </div>
           <div className="rental-car-grid">{cars.map(car =>
             <button key={car.id} className={'rental-car ' + (selectedCar?.id === car.id ? 'selected' : '')} onClick={() => setSelectedCar(car)}>
@@ -284,7 +306,7 @@ export default function Portal() {
         </div>
         <div className="portal-panel"><div className="panel-head"><div><h2>My bookings</h2><p>Your rental booking status and references.</p></div><Clock3 size={22}/></div>
           {bookings.length ? <div className="history-list">{bookings.map(b =>
-            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}{b.status === 'CONFIRMED' && b.startDate > new Date().toISOString().slice(0,10) && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
+            <div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {b.startDate} to {b.endDate}</small></div><strong>{money(b.total)}</strong><div className="history-actions">{status(b.status)}{b.status === 'CONFIRMED' && new Date(b.startDate).getTime() > Date.now() && <button className="text-danger-btn" disabled={busy} onClick={async()=>{if(!confirm('Cancel this booking and refund the wallet amount?')) return; setBusy(true); try { await api('/api/v1/car-rental/bookings/'+encodeURIComponent(b.bookingId)+'/cancel',{method:'POST'}); setNotice('Booking cancelled and the wallet amount was refunded.'); await loadRentalData(); const w=await api('/api/v1/wallet'); setWallet(w); } catch(e:any){ setNotice(e.message || 'Unable to cancel booking.'); } finally { setBusy(false); }}}>Cancel</button>}</div></div>)}</div>
           : <div className="empty-state">No rental bookings yet.</div>}
         </div>
       </section>}

@@ -229,9 +229,15 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun generatePayUHash(hashName: String, hashString: String, onGenerated: (String) -> Unit) {
+    fun generatePayUHash(
+        hashName: String,
+        hashString: String,
+        postSalt: String? = null,
+        hashType: String? = null,
+        onGenerated: (String) -> Unit
+    ) {
         viewModelScope.launch {
-            repository.generatePayUHash(hashName, hashString, null, null)
+            repository.generatePayUHash(hashName, hashString, postSalt, hashType)
                 .onSuccess(onGenerated)
                 .onFailure { gatewayPaymentFailed(it.message ?: "Unable to generate PayU payment hash") }
         }

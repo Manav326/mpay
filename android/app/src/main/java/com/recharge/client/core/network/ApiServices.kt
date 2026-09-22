@@ -3,6 +3,7 @@ package com.recharge.client.core.network
 import com.recharge.client.core.model.*
 import retrofit2.Response
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.http.PATCH
@@ -12,6 +13,13 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import com.recharge.client.core.model.RentalVendorOnboardingRequest
+import com.recharge.client.core.model.RentalVendorResponse
+import com.recharge.client.core.model.RentalVehicleOnboardingRequest
+import com.recharge.client.core.model.RentalCarResponse
+import com.recharge.client.core.model.RentalBookingRequest
+import com.recharge.client.core.model.RentalBookingResponse
+import com.recharge.client.core.model.RentalVendorPayoutResponse
 
 interface AuthApi {
     @POST("api/v1/auth/login")
@@ -36,6 +44,39 @@ interface ClientApi {
 
     @GET("api/v1/wallet")
     suspend fun wallet(): Response<WalletResponse>
+
+    @GET("api/v1/car-rental/cars")
+    suspend fun rentalCars(): Response<List<RentalCarResponse>>
+
+    @GET("api/v1/car-rental/vendor")
+    suspend fun rentalVendor(): Response<RentalVendorResponse>
+
+    @POST("api/v1/car-rental/vendor")
+    suspend fun onboardRentalVendor(@Body request: RentalVendorOnboardingRequest): Response<RentalVendorResponse>
+
+    @GET("api/v1/car-rental/vendor/payouts")
+    suspend fun rentalVendorPayouts(): Response<List<RentalVendorPayoutResponse>>
+
+    @GET("api/v1/car-rental/vendor/vehicles")
+    suspend fun rentalVendorVehicles(): Response<List<RentalCarResponse>>
+
+    @POST("api/v1/car-rental/vendor/vehicles")
+    suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
+
+    @PUT("api/v1/car-rental/vendor/vehicles/{carId}")
+    suspend fun resubmitRentalVehicle(
+        @retrofit2.http.Path("carId") carId: String,
+        @Body request: RentalVehicleUpdateRequest
+    ): Response<RentalCarResponse>
+
+    @POST("api/v1/car-rental/bookings/quote")
+    suspend fun rentalBookingQuote(@Body request: RentalBookingQuoteRequest): Response<RentalBookingQuoteResponse>
+
+    @POST("api/v1/car-rental/bookings")
+    suspend fun createRentalBooking(@Body request: RentalBookingRequest): Response<RentalBookingResponse>
+
+    @GET("api/v1/car-rental/bookings")
+    suspend fun rentalBookings(@Query("page") page: Int = 0, @Query("size") size: Int = 25): Response<com.recharge.client.core.model.RentalBookingPageResponse>
 
     @GET("api/v1/profile")
     suspend fun profile(): Response<CurrentUserResponse>
@@ -101,5 +142,11 @@ interface ClientApi {
     ): Response<WalletHistoryResponse>
 
     @POST("api/v1/wallet/withdraw")
-    suspend fun withdraw(@Body request: WithdrawMoneyRequest): Response<WithdrawMoneyResponse>
+    suspend fun withdraw(@Body request: RequestBody): Response<WithdrawMoneyResponse>
+
+    @GET("api/v1/wallet/withdrawals")
+    suspend fun withdrawalHistory(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): Response<WithdrawalHistoryResponse>
 }

@@ -41,6 +41,8 @@ interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Lon
     fun findByProviderNameAndProviderReference(providerName: String, providerReference: String): Optional<WalletWithdrawalEntity>
 
     fun findTop20ByUserIdOrderByCreatedAtDesc(userId: Long): List<WalletWithdrawalEntity>
+
+    fun findByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<WalletWithdrawalEntity>
 }
 
 interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, Long> {

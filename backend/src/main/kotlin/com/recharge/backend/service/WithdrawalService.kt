@@ -1,9 +1,13 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.WithdrawMoneyResponse
+import com.recharge.backend.config.MockWithdrawalProperties
+import com.recharge.backend.api.WithdrawalHistoryItem
+import com.recharge.backend.api.WithdrawalHistoryResponse
 import com.recharge.backend.domain.WalletWithdrawalEntity
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.repository.WalletWithdrawalRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 
@@ -26,20 +30,28 @@ class WithdrawalService(
         val normalizedAmount = amount.setScale(2)
         require(normalizedAmount >= BigDecimal("1.00")) { "Minimum withdrawal amount is ₹1" }
 
+        val requestedProvider = providerName.trim().lowercase()
         val normalizedUpi = upiId.trim()
-        require(Regex("^[A-Za-z0-9._-]+@[A-Za-z]{2,}$").matches(normalizedUpi)) { "Enter a valid UPI ID" }
+        require(normalizedUpi.isNotBlank()) { "UPI ID is required" }
+        val upiPattern = Regex("^[^\\s@]+@[^\\s@]+$")
+        require(upiPattern.matches(normalizedUpi)) { "Enter a valid UPI ID" }
 
         val normalizedRequestId = clientRequestId.trim()
         require(normalizedRequestId.isNotBlank()) { "Client request id is required" }
         require(normalizedRequestId.length <= 100) { "Client request id is too long" }
 
-        val provider = resolveProvider(providerName)
         val user = users.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
 
         val existing = withdrawals.findByUserIdAndClientRequestId(userId, normalizedRequestId)
         if (existing.isPresent) {
-            return responseFor(existing.get())
+            val entity = existing.get()
+            if (requestedProvider.isNotBlank() && !entity.providerName.equals(requestedProvider, true)) {
+                throw IllegalArgumentException("Client request id already belongs to ${entity.providerName} withdrawal")
+            }
+            return responseFor(entity)
         }
+
+        val provider = resolveProvider(requestedProvider)
 
         val saved = persistence.createOrGetPending(
             userId = userId,
@@ -65,6 +77,30 @@ class WithdrawalService(
                     customerMobile = user.mobile
                 )
             )
+        } catch (e: org.springframework.web.client.RestClientResponseException) {
+            val providerMessage = e.responseBodyAsString
+                .takeIf { it.isNotBlank() }
+                ?.take(500)
+                ?: e.message
+                ?: "Provider request failed"
+
+            if (e.statusCode.is4xxClientError) {
+                val failed = persistence.markFailed(
+                    saved.withdrawalId,
+                    provider.providerName,
+                    providerMessage
+                )
+                return responseFor(failed)
+            }
+
+            val processing = persistence.markProcessing(
+                saved.withdrawalId,
+                provider.providerName,
+                providerReference = null,
+                providerStatus = "UNKNOWN",
+                message = "Provider outcome could not be confirmed: " + providerMessage
+            )
+            return responseFor(processing)
         } catch (e: Exception) {
             // A network/transport error does not prove the provider rejected the payout.
             // Keep the wallet reservation until a provider status/webhook resolves it.
@@ -101,6 +137,36 @@ class WithdrawalService(
         }
 
         return responseFor(finalEntity)
+    }
+
+    fun history(userId: Long, page: Int, size: Int): WithdrawalHistoryResponse {
+        require(page >= 0) { "Page must be non-negative" }
+        require(size in 1..50) { "Page size must be between 1 and 50" }
+        val pageData = withdrawals.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
+        return WithdrawalHistoryResponse(
+            items = pageData.content.map {
+                WithdrawalHistoryItem(
+                    withdrawalId = it.withdrawalId,
+                    clientRequestId = it.clientRequestId,
+                    amount = it.amount.setScale(2),
+                    upiId = it.upiId,
+                    provider = it.providerName,
+                    status = it.status,
+                    providerReference = it.providerReference,
+                    providerStatus = it.providerStatus,
+                    failureReason = it.failureReason,
+                    walletLedgerRef = it.walletLedgerRef,
+                    createdAt = it.createdAt,
+                    updatedAt = it.updatedAt,
+                    completedAt = it.completedAt
+                )
+            },
+            page = pageData.number,
+            size = pageData.size,
+            totalItems = pageData.totalElements,
+            totalPages = pageData.totalPages,
+            hasNext = pageData.hasNext()
+        )
     }
 
     fun get(userId: Long, withdrawalId: String): WithdrawMoneyResponse {
@@ -150,7 +216,7 @@ class WithdrawalService(
         if (requested.isNotBlank()) {
             return providers.firstOrNull {
                 it.providerName.equals(requested, true) && it.isConfigured()
-            } ?: throw IllegalArgumentException("Requested payout provider is not configured: $requested")
+            } ?: throw ProviderNotConfiguredException("Payout provider is not configured: $requested")
         }
 
         properties.providerOrder
@@ -163,7 +229,7 @@ class WithdrawalService(
                 }?.let { return it }
             }
 
-        throw IllegalArgumentException("No configured payout provider is available")
+        throw ProviderNotConfiguredException("No configured payout provider is available")
     }
 
     private fun responseFor(entity: WalletWithdrawalEntity): WithdrawMoneyResponse {
@@ -184,4 +250,22 @@ class WithdrawalService(
             }
         )
     }
+}
+
+
+@Service
+class MockWithdrawalProvider(
+    private val properties: MockWithdrawalProperties
+) : WithdrawalProvider {
+    override val providerName: String = "mock"
+
+    override fun isConfigured(): Boolean = properties.enabled
+
+    override fun initiate(request: WithdrawalProviderRequest): WithdrawalProviderResult =
+        WithdrawalProviderResult(
+            status = "SUCCESS",
+            providerReference = "mock_" + request.withdrawalId,
+            providerStatus = "PROCESSED",
+            message = "Mock withdrawal completed successfully"
+        )
 }

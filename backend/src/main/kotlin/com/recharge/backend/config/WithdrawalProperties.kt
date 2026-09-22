@@ -4,7 +4,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "app.withdrawal")
 data class WithdrawalProperties(
-    val providerOrder: String = "razorpay,payu"
+    val providerOrder: String = "mock,razorpay,payu"
+)
+
+@ConfigurationProperties(prefix = "app.withdrawal.mock")
+data class MockWithdrawalProperties(
+    val enabled: Boolean = true
 )
 
 @ConfigurationProperties(prefix = "app.razorpay.payout")

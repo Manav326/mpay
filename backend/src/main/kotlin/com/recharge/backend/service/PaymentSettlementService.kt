@@ -7,13 +7,19 @@ import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
+interface PaymentSettlementPort {
+    fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse
+
+    fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse
+}
+
 @Service
 class PaymentSettlementService(
     private val walletService: WalletService,
     private val rechargeService: RechargeService,
     private val rechargeRepository: RechargeTransactionRepository
-) {
-    fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse {
+) : PaymentSettlementPort {
+    override fun responseForCaptured(userId: Long, order: PaymentOrderEntity): VerifyPaymentResponse {
         if (order.purpose.equals("RECHARGE", true)) {
             val recharge = rechargeRepository.findByClientRequestIdAndUserId(order.clientRequestId, userId).orElse(null)
             if (recharge != null) {
@@ -35,7 +41,7 @@ class PaymentSettlementService(
     }
 
     @Transactional
-    fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse {
+    override fun settleCaptured(userId: Long, order: PaymentOrderEntity, externalPaymentReference: String): VerifyPaymentResponse {
         return when (order.purpose.uppercase()) {
             "RECHARGE" -> {
                 val mobile = order.rechargeMobileNumber ?: throw IllegalArgumentException("Recharge payment is missing mobile number")

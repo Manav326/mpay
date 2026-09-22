@@ -24,10 +24,16 @@ data class PayUProperties(
     val initiatingChannel: String = "AGT",
     val pgKey: String = "",
     val pgSalt: String = "",
+    val merchantKey: String = "",
+    val merchantSalt: String = "",
     val pgVerifyUrl: String = "https://test.payu.in/merchant/postservice?form=2",
     val pgSuccessUrl: String = "https://cbjs.payu.in/sdk/success",
     val pgFailureUrl: String = "https://cbjs.payu.in/sdk/failure",
     val pgProduction: Boolean = false,
     val connectTimeoutMs: Long = 10000,
     val readTimeoutMs: Long = 30000
-)
+) {
+    fun effectivePgKey(): String = pgKey.ifBlank { merchantKey }
+
+    fun effectivePgSalt(): String = pgSalt.ifBlank { merchantSalt }
+}

@@ -19,6 +19,7 @@ class AdminService(
     private val wallets: WalletRepository,
     private val walletLedger: WalletTransactionRepository,
     private val recharges: RechargeTransactionRepository,
+    private val withdrawals: WalletWithdrawalRepository,
     private val vendors: AdminVendorRepository,
     private val commissionRates: CommissionRateService,
     private val roleAccess: RoleAccessService,
@@ -158,6 +159,39 @@ class AdminService(
             hasNext = pageData.hasNext(),
             fromDate = "1970-01-01",
             toDate = java.time.LocalDate.now(zoneId).toString()
+        )
+    }
+
+    fun withdrawalHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): WithdrawalHistoryResponse {
+        val target = resolveTarget(viewer, targetPublicId)
+        require(page >= 0) { "Page must be non-negative" }
+        require(size in 1..50) { "Page size must be between 1 and 50" }
+        val pageData = withdrawals.findByUserIdOrderByCreatedAtDesc(
+            requireId(target), PageRequest.of(page, size)
+        )
+        return WithdrawalHistoryResponse(
+            items = pageData.content.map {
+                WithdrawalHistoryItem(
+                    withdrawalId = it.withdrawalId,
+                    clientRequestId = it.clientRequestId,
+                    amount = it.amount.setScale(2),
+                    upiId = it.upiId,
+                    provider = it.providerName,
+                    status = it.status,
+                    providerReference = it.providerReference,
+                    providerStatus = it.providerStatus,
+                    failureReason = it.failureReason,
+                    walletLedgerRef = it.walletLedgerRef,
+                    createdAt = it.createdAt,
+                    updatedAt = it.updatedAt,
+                    completedAt = it.completedAt
+                )
+            },
+            page = pageData.number,
+            size = pageData.size,
+            totalItems = pageData.totalElements,
+            totalPages = pageData.totalPages,
+            hasNext = pageData.hasNext()
         )
     }
 

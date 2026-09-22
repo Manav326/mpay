@@ -36,7 +36,7 @@ fun AddMoneyDialog(
     onClearMessage: () -> Unit
 ) {
     var amount by remember { mutableStateOf("100") }
-    var provider by remember { mutableStateOf("razorpay") }
+    var provider by remember { mutableStateOf("mock") }
 
     val busy = paymentState is PaymentUiState.CreatingOrder || paymentState is PaymentUiState.Verifying
     val error = (paymentState as? PaymentUiState.Error)?.message
@@ -47,11 +47,12 @@ fun AddMoneyDialog(
         title = { Text("Add money") },
         text = {
             Column(Modifier.fillMaxWidth()) {
-                Text("Choose a payment gateway for wallet top-up.", style = MaterialTheme.typography.bodyMedium)
+                Text("Choose how to fund the wallet. Mock is for development/testing; Razorpay and PayU use their configured test gateways.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(selected = provider == "razorpay", onClick = { provider = "razorpay" }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("Razorpay") }
-                    SegmentedButton(selected = provider == "payu", onClick = { provider = "payu" }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("PayU") }
+                    SegmentedButton(selected = provider == "mock", onClick = { provider = "mock" }, shape = SegmentedButtonDefaults.itemShape(0, 3)) { Text("Mock") }
+                    SegmentedButton(selected = provider == "razorpay", onClick = { provider = "razorpay" }, shape = SegmentedButtonDefaults.itemShape(1, 3)) { Text("Razorpay") }
+                    SegmentedButton(selected = provider == "payu", onClick = { provider = "payu" }, shape = SegmentedButtonDefaults.itemShape(2, 3)) { Text("PayU") }
                 }
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(

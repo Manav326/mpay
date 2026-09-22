@@ -119,24 +119,13 @@ fun RechargeScreen(
                         placeholder = { Text("e.g. 7070107483") },
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Default.SimCard, null) },
+                        trailingIcon = {
+                            IconButton(onClick = onChooseContact) {
+                                Icon(Icons.Default.Contacts, contentDescription = "Choose number from phone")
+                            }
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         shape = RoundedCornerShape(16.dp)
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = onChooseContact,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(Icons.Default.Contacts, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Choose from phone contacts")
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "You can also enter the number manually above.",
-                        color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(10.dp))
                     Button(

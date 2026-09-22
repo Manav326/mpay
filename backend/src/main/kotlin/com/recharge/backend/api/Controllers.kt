@@ -144,6 +144,7 @@ class ClientController(
                     id = tx.id ?: 0L, type = tx.type, amount = tx.amount, status = tx.status,
                     referenceType = tx.referenceType, referenceId = tx.referenceId, externalRef = tx.externalRef,
                     description = tx.description, createdAt = tx.createdAt,
+                    provider = walletTransactionProvider(tx.referenceType, tx.externalRef),
                     mobileNumber = recharge?.mobileNumber, operator = recharge?.operator, circle = recharge?.circle
                 )
             },
@@ -152,6 +153,13 @@ class ClientController(
         )
     }
 
+    private fun walletTransactionProvider(referenceType: String?, externalRef: String): String? {
+        val normalizedType = referenceType?.uppercase()
+        if (normalizedType == "ADD_MONEY" && externalRef.startsWith("PAYMENT:", true)) {
+            return externalRef.split(":").getOrNull(1)?.lowercase()
+        }
+        return null
+    }
     @PostMapping("/wallet/withdraw")
     fun withdraw(authentication: Authentication, @Valid @RequestBody request: WithdrawMoneyRequest): WithdrawMoneyResponse =
         withdrawalService.withdraw(
@@ -161,6 +169,14 @@ class ClientController(
             clientRequestId = request.clientRequestId,
             upiId = request.upiId
         )
+
+    @GetMapping("/wallet/withdrawals")
+    fun withdrawalHistory(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): WithdrawalHistoryResponse =
+        withdrawalService.history(authenticatedUserId(authentication), page, size)
 
     @GetMapping("/wallet/withdrawals/{withdrawalId}")
     fun withdrawalStatus(
@@ -348,6 +364,15 @@ class AdminController(
         @RequestParam(defaultValue = "25") size: Int
     ): WalletHistoryResponse =
         adminService.walletHistory(currentUser(authentication), publicId, page, size)
+
+    @GetMapping("/users/{publicId}/withdrawals")
+    fun userWithdrawals(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int
+    ): WithdrawalHistoryResponse =
+        adminService.withdrawalHistory(currentUser(authentication), publicId, page, size)
 
     @GetMapping("/users/{publicId}/profile-image")
     fun userProfileImage(

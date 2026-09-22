@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { createVendor, getDashboard, getPortalRoles, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import RentalVendorReview from './RentalVendorReview';
 import { DashboardSummary, RechargeHistoryItem, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
@@ -56,7 +57,7 @@ export default function Page() {
     <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':'Vendors & Services'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><button className="icon-btn"><UserCog size={18}/></button></div></header>
       {view==='dashboard' && <Dashboard data={dashboard} onUsers={()=>setView('users')} />}
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected}/>} 
-      {view==='vendors' && canVendors && <VendorsView vendors={vendors} newVendor={newVendor} setNewVendor={setNewVendor} onAdd={async()=>{const v=await createVendor(newVendor);setVendors(x=>[v,...x]);setNewVendor({name:'',category:'CAR_RENT',city:'',phone:'',commissionRate:5,active:true});}}/>}
+      {view==='vendors' && canVendors && <VendorsView vendors={vendors} newVendor={newVendor} setNewVendor={setNewVendor} onAdd={async()=>{const v=await createVendor(newVendor);setVendors(x=>[v,...x]);setNewVendor({name:'',category:'CAR_RENT',city:'',phone:'',commissionRate:5,active:true});}}/>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }

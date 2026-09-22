@@ -11,9 +11,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +27,8 @@ import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.model.WalletResponse
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.ProfileAvatar
+import com.recharge.client.core.viewmodel.WalletUiState
+import com.recharge.client.features.wallet.WithdrawDialog
 import com.recharge.client.core.ui.formatAsOf
 import com.recharge.client.core.ui.formatMoney
 import com.recharge.client.core.ui.formatPeriod
@@ -38,8 +42,11 @@ fun HomeScreen(
     user: CurrentUserResponse?, wallet: WalletResponse?, loading: Boolean,
     commission: RechargeCommissionSummaryResponse?, latestRecharge: RechargeHistoryItem?, error: String?, isVisible: Boolean,
     onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onRefreshEarnings: () -> Unit,
-    onRecharge: () -> Unit, onAddMoney: () -> Unit, onRechargeHistory: () -> Unit, onCarRental: () -> Unit
+    onRecharge: () -> Unit, onAddMoney: () -> Unit, onWithdraw: (String, String, String) -> Unit,
+    onClearWithdrawMessage: () -> Unit, walletUiState: WalletUiState,
+    onRechargeHistory: () -> Unit, onMarketplace: () -> Unit, onRentalBookings: () -> Unit
 ) {
+    var showWithdraw by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
     var greetingVisible by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) {
@@ -47,6 +54,15 @@ fun HomeScreen(
     }
     val greeting = when (LocalTime.now().hour) { in 5..11 -> "Good morning"; in 12..16 -> "Good afternoon"; in 17..21 -> "Good evening"; else -> "Good night" }
     val displayName = user?.name?.takeIf { it.isNotBlank() } ?: "there"
+
+    if (showWithdraw) {
+        WithdrawDialog(
+            state = walletUiState,
+            onDismiss = { showWithdraw = false },
+            onWithdraw = onWithdraw,
+            onClearMessage = onClearWithdrawMessage
+        )
+    }
 
     LazyColumn(Modifier.fillMaxSize().widthIn(max = 1000.dp).padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 18.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item {
@@ -79,8 +95,13 @@ fun HomeScreen(
                         Button(onClick = onAddMoney, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onPrimary, contentColor = AppColors.Primary), modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
                             Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("Add Money", maxLines = 1, softWrap = false)
                         }
-                        OutlinedButton(onClick = onRecharge, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary), modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)) {
-                            Icon(Icons.Default.PhoneAndroid, null); Spacer(Modifier.width(6.dp)); Text("Recharge", maxLines = 1, softWrap = false)
+                        OutlinedButton(
+                            onClick = { onClearWithdrawMessage(); showWithdraw = true },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Default.Send, null); Spacer(Modifier.width(6.dp)); Text("Withdraw to UPI", maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -95,9 +116,14 @@ fun HomeScreen(
             }
         }
         item {
-            ActionCard("Car Rental", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onCarRental, Modifier.fillMaxWidth())
+            ActionCard("Marketplace", Icons.Default.DirectionsCar, Color(0xFF0EA5E9), onMarketplace, Modifier.fillMaxWidth())
         }
-        item { ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.fillMaxWidth()) }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActionCard("My Bookings", Icons.Default.History, Color(0xFF7C3AED), onRentalBookings, Modifier.weight(1f))
+                ActionCard("Recharge History", Icons.Default.History, Color(0xFF7C3AED), onRechargeHistory, Modifier.weight(1f))
+            }
+        }
         if (latestRecharge != null) {
             item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {

@@ -60,7 +60,7 @@ class PaymentGatewayProviderRoutingTest {
         val razorpay = FakeGateway("razorpay", configured = false)
         val service = service(listOf(payu, razorpay), "payu,razorpay")
 
-        val ex = assertThrows(IllegalArgumentException::class.java) {
+        val ex = assertThrows(ProviderNotConfiguredException::class.java) {
             service.createWalletOrder(7L, orderRequest(provider = ""))
         }
 

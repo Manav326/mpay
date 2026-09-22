@@ -58,4 +58,7 @@ dependencies {
     implementation("com.razorpay:checkout:1.6.41")
     implementation("in.payu:payu-checkout-pro:3.3.14")
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

@@ -263,6 +263,7 @@ data class WalletHistoryItem(
     val externalRef: String,
     val description: String?,
     val createdAt: Instant,
+    val provider: String? = null,
     val mobileNumber: String? = null,
     val operator: String? = null,
     val circle: String? = null
@@ -283,7 +284,10 @@ data class WithdrawMoneyRequest(
     @field:DecimalMin("1.00") val amount: BigDecimal,
     val provider: String = "razorpay",
     @field:NotBlank @field:Size(max = 100) val clientRequestId: String,
-    @field:NotBlank @field:Size(max = 254) val upiId: String
+    @field:NotBlank
+    @field:Size(max = 254)
+    @field:Pattern(regexp = "^[^\\s@]+@[^\\s@]+$", message = "Enter a valid UPI ID")
+    val upiId: String
 )
 
 data class WithdrawMoneyResponse(
@@ -295,6 +299,31 @@ data class WithdrawMoneyResponse(
     val balance: BigDecimal,
     val availableBalance: BigDecimal,
     val message: String? = null
+)
+
+data class WithdrawalHistoryItem(
+    val withdrawalId: String,
+    val clientRequestId: String,
+    val amount: BigDecimal,
+    val upiId: String,
+    val provider: String,
+    val status: String,
+    val providerReference: String?,
+    val providerStatus: String?,
+    val failureReason: String?,
+    val walletLedgerRef: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val completedAt: Instant?
+)
+
+data class WithdrawalHistoryResponse(
+    val items: List<WithdrawalHistoryItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
 )
 
 data class RoleCommissionRateResponse(
