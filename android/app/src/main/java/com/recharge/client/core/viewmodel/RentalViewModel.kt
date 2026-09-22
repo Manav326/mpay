@@ -53,6 +53,22 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun cancelBooking(bookingId: String, onDone: () -> Unit) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.cancelRentalBooking(bookingId)
+                .onSuccess { cancelled ->
+                    _state.value = _state.value.copy(
+                        bookings = _state.value.bookings.map { if (it.bookingId == cancelled.bookingId) cancelled else it },
+                        saving = false
+                    )
+                    onDone()
+                }
+                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to cancel booking") }
+        }
+    }
+
     fun createBooking(request: RentalBookingRequest, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
