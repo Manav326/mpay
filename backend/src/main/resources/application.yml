@@ -55,7 +55,9 @@ app:
     mock-execution-status: SUCCESS
     offer-cache-ttl-seconds: 86400
   payment:
-    gateway-providers: payu,razorpay
+    gateway-providers: ${MPAY_PAYMENT_GATEWAY_PROVIDERS:mock,razorpay,payu}
+    mock:
+      enabled: ${MPAY_PAYMENT_MOCK_ENABLED:true}
   withdrawal:
     provider-order: ${MPAY_WITHDRAWAL_PROVIDER_ORDER:mock,razorpay,payu}
     mock:
