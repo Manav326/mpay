@@ -142,3 +142,30 @@ class RentalPaymentEntity(
     @Column(nullable = false) var createdAt: Instant = Instant.now(),
     @Column(nullable = false) var updatedAt: Instant = Instant.now()
 )
+
+
+@Entity
+@Table(
+    name = "rental_payouts",
+    indexes = [
+        Index(name = "idx_rental_payout_vendor_created", columnList = "vendor_id,created_at"),
+        Index(name = "idx_rental_payout_user_created", columnList = "vendor_user_id,created_at")
+    ]
+)
+class RentalPayoutEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "payout_id", nullable = false, unique = true, length = 40) var payoutId: String = "",
+    @Column(name = "booking_id", nullable = false, unique = true, length = 40) var bookingId: String = "",
+    @Column(name = "vendor_id", nullable = false) var vendorId: Long = 0,
+    @Column(name = "vendor_user_id", nullable = false) var vendorUserId: Long = 0,
+    @Column(name = "gross_amount", nullable = false, precision = 19, scale = 2) var grossAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "platform_fee_percent", nullable = false, precision = 7, scale = 4) var platformFeePercent: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "platform_fee_amount", nullable = false, precision = 19, scale = 2) var platformFeeAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "vendor_net_amount", nullable = false, precision = 19, scale = 2) var vendorNetAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(nullable = false, length = 30) var status: String = "PENDING",
+    @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
+    @Column(name = "failure_reason", length = 500) var failureReason: String? = null,
+    @Column(nullable = false) var createdAt: Instant = Instant.now(),
+    @Column(nullable = false) var updatedAt: Instant = Instant.now(),
+    @Column(name = "paid_at") var paidAt: Instant? = null
+)
