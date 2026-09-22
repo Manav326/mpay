@@ -102,7 +102,7 @@ interface ClientApi {
     ): Response<WalletHistoryResponse>
 
     @POST("api/v1/wallet/withdraw")
-    suspend fun withdraw(@Body request: WithdrawMoneyRequest): Response<WithdrawMoneyResponse>
+    suspend fun withdraw(@Body request: RequestBody): Response<WithdrawMoneyResponse>
 
     @GET("api/v1/wallet/withdrawals")
     suspend fun withdrawalHistory(
