@@ -66,7 +66,8 @@ class RentalCarEntity(
     @Column(length=100) var city: String? = null,
     @Column(length=100) var state: String? = null,
     @Column(name="image_url", length=500) var imageUrl: String? = null,
-    @Column(name="approval_status", nullable=false, length=30) var approvalStatus: String = "DRAFT"
+    @Column(name="approval_status", nullable=false, length=30) var approvalStatus: String = "DRAFT",
+    @Column(name="rejection_reason", length=500) var rejectionReason: String? = null
 )
 
 @Entity
