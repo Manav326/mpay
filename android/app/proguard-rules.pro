@@ -4,9 +4,9 @@
 -dontwarn com.google.android.apps.nbu.paisa.inapp.client.api.**
 -dontwarn com.google.android.gms.auth.api.credentials.**
 
-# Retrofit/Gson serializes the API DTOs reflectively. Release R8 must preserve
-# their backing field names; otherwise Gson can see obfuscated names instead of
-# the JSON property names expected by the backend.
--keepclassmembers class com.recharge.client.core.model.** {
-    <fields>;
+# Retrofit/Gson maps API DTOs reflectively at runtime. The release build is minified,
+# so keep the complete DTO classes and their members intact. This is deliberately
+# scoped to the API model package rather than disabling R8 for the application.
+-keep class com.recharge.client.core.model.** {
+    *;
 }
