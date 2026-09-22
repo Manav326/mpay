@@ -522,7 +522,18 @@ private fun AppNavHost(
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
         }
         composable("car-rental") {
-            CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") }, onRefresh = rentalViewModel::loadCars)
+            CarRentalMarketplaceScreen(
+                state = rentalViewModel.state.collectAsState().value,
+                onBack = { nav.popBackStack() },
+                onBook = { car, startDate, endDate ->
+                    nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id)
+                    nav.currentBackStackEntry?.savedStateHandle?.set("rental_start_date", startDate)
+                    nav.currentBackStackEntry?.savedStateHandle?.set("rental_end_date", endDate)
+                    nav.navigate("rental-booking")
+                },
+                onRefresh = rentalViewModel::loadCars,
+                onSearch = rentalViewModel::loadCars
+            )
         }
         composable("rental-vendor") {
             RentalVendorOnboardingScreen(
@@ -539,10 +550,21 @@ private fun AppNavHost(
             )
         }
         composable("rental-booking") {
-            val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
+            val carEntry = nav.previousBackStackEntry?.savedStateHandle
+            val carId = carEntry?.get<String>("rental_car_id")
+            val initialStart = carEntry?.get<String>("rental_start_date").orEmpty()
+            val initialEnd = carEntry?.get<String>("rental_end_date").orEmpty()
             val car = rentalViewModel.state.collectAsState().value.cars.firstOrNull { it.id == carId }
             if (car != null) {
-                RentalBookingScreen(car = car, state = rentalViewModel.state.collectAsState().value, onQuote = rentalViewModel::quoteBooking, onBack = { nav.popBackStack() }, onConfirm = rentalViewModel::createBooking)
+                RentalBookingScreen(
+                    car = car,
+                    state = rentalViewModel.state.collectAsState().value,
+                    initialStart = initialStart,
+                    initialEnd = initialEnd,
+                    onQuote = rentalViewModel::quoteBooking,
+                    onBack = { nav.popBackStack() },
+                    onConfirm = rentalViewModel::createBooking
+                )
             }
         }
         composable("rental-bookings") {
