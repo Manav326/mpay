@@ -42,6 +42,161 @@ import com.recharge.client.core.model.*
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.viewmodel.RentalUiState
 
+
+private val rentalDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+private val rentalDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+private val rentalDateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+private val rentalBookingDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, h:mma", Locale.ENGLISH)
+private val rentalDateTimeDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
+
+private val rentalOffMarketReasons = listOf(
+    "SERVICE_MAINTENANCE" to "Service / maintenance",
+    "PRIVATE_USE" to "Private use",
+    "DRIVER_UNAVAILABLE" to "Driver unavailable",
+    "LEGAL_DOCUMENTATION" to "Documentation / compliance",
+    "PERSONAL_REASON" to "Personal reason",
+    "OTHER" to "Other"
+)
+
+private fun formatRentalDate(value: String): String =
+    runCatching { LocalDate.parse(value, rentalDateFormatter).format(rentalDateDisplayFormatter) }.getOrElse { value }
+
+private fun formatRentalBookingDateTime(value: String): String =
+    runCatching { LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalBookingDisplayFormatter) }
+        .getOrElse { value }
+
+private fun rentalPhotoUrls(imageUrl: String?): List<String> =
+    imageUrl.orEmpty().split("|", "\n").map { it.trim() }.filter { it.isNotBlank() }.take(4)
+
+private fun rentalStatusColor(status: String): Color = when (status.uppercase()) {
+    "CONFIRMED", "COMPLETED", "REFUNDED", "PAID" -> AppColors.Success
+    "CANCELLED", "REJECTED", "FAILED", "EXPIRED" -> AppColors.Error
+    "PENDING", "PROCESSING" -> Color(0xFFD97706)
+    "IN_PROGRESS", "ACTIVE" -> Color(0xFF2563EB)
+    else -> AppColors.TextSecondary
+}
+
+private fun rentalBookingShareText(booking: RentalBookingResponse): String = listOf(
+    "mPay Car Rental Booking",
+    "Booking ID: " + booking.bookingId,
+    "Car: " + booking.carName,
+    "From: " + booking.pickup,
+    "To: " + booking.drop,
+    "Start: " + booking.startDate,
+    "End: " + booking.endDate,
+    "Amount: ₹" + booking.total.setScale(2).toPlainString(),
+    "Status: " + booking.status.uppercase()
+).joinToString(" | ")
+
+@Composable
+private fun VendorField(
+    label: String,
+    value: String,
+    enabled: Boolean = true,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        label = { Text(label) },
+        modifier = modifier.fillMaxWidth(),
+        singleLine = true
+    )
+}
+
+@Composable
+private fun CompactFieldRow(
+    leftLabel: String,
+    leftValue: String,
+    onLeftChange: (String) -> Unit,
+    rightLabel: String,
+    rightValue: String,
+    onRightChange: (String) -> Unit,
+    enabled: Boolean = true
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        VendorField(leftLabel, leftValue, enabled, onLeftChange, Modifier.weight(1f))
+        VendorField(rightLabel, rightValue, enabled, onRightChange, Modifier.weight(1f))
+    }
+}
+
+private fun showDateTimePicker(context: Context, current: String?, onSelected: (String) -> Unit) {
+    val initial = runCatching {
+        LocalDateTime.parse(current.orEmpty(), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }.getOrElse { LocalDateTime.now().withSecond(0).withNano(0) }
+
+    DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    onSelected(LocalDateTime.of(year, month + 1, day, hour, minute).format(rentalDateTimeFormatter))
+                },
+                initial.hour,
+                initial.minute,
+                false
+            ).show()
+        },
+        initial.year,
+        initial.monthValue - 1,
+        initial.dayOfMonth
+    ).show()
+}
+
+@Composable
+private fun RentalDateTimeField(label: String, value: String, onValueChange: (String) -> Unit) {
+    val context = LocalContext.current
+    val display = runCatching {
+        LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalDateTimeDisplayFormatter)
+    }.getOrElse { "Select date & time" }
+
+    OutlinedButton(
+        onClick = { showDateTimePicker(context, value, onValueChange) },
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+            Text(display, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun RentalDateField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val display = if (value.isBlank()) "Select date" else formatRentalDate(value)
+    OutlinedButton(
+        onClick = {
+            val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { LocalDate.now() }
+            DatePickerDialog(
+                context,
+                { _, year, month, day -> onValueChange(LocalDate.of(year, month + 1, day).format(rentalDateFormatter)) },
+                initial.year,
+                initial.monthValue - 1,
+                initial.dayOfMonth
+            ).show()
+        },
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(11.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+            Text(display, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
 @Composable
 private fun VehicleOffMarketDialog(
     car: RentalCarResponse,
