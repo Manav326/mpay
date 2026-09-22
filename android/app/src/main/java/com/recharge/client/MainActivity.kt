@@ -517,7 +517,17 @@ private fun AppNavHost(
             CarRentalMarketplaceScreen(rentalViewModel.state.collectAsState().value, onBack = { nav.popBackStack() }, onBook = { car -> nav.currentBackStackEntry?.savedStateHandle?.set("rental_car_id", car.id); nav.navigate("rental-booking") })
         }
         composable("rental-vendor") {
-            RentalVendorOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVendor, onBack = { nav.popBackStack() }, onAddVehicle = { nav.navigate("rental-vehicle") }, onRefreshVehicles = rentalViewModel::loadVendorVehicles)
+            RentalVendorOnboardingScreen(
+                rentalViewModel.state.collectAsState().value,
+                rentalViewModel::onboardVendor,
+                onBack = { nav.popBackStack() },
+                onAddVehicle = { nav.navigate("rental-vehicle") },
+                onRefreshVehicles = rentalViewModel::loadVendorVehicles,
+                onAddVehicleWithCar = { car ->
+                    nav.currentBackStackEntry?.savedStateHandle?.set("rental_edit_car_id", car.id)
+                    nav.navigate("rental-vehicle")
+                }
+            )
         }
         composable("rental-booking") {
             val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
@@ -527,7 +537,15 @@ private fun AppNavHost(
             }
         }
         composable("rental-vehicle") {
-            RentalVehicleOnboardingScreen(rentalViewModel.state.collectAsState().value, rentalViewModel::onboardVehicle, onBack = { nav.popBackStack() })
+            RentalVehicleOnboardingScreen(
+                state = rentalViewModel.state.collectAsState().value,
+                onSubmit = rentalViewModel::onboardVehicle,
+                onBack = { nav.popBackStack() },
+                editingCar = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_edit_car_id")?.let { id ->
+                    rentalViewModel.state.collectAsState().value.vendorCars.firstOrNull { it.id == id }
+                },
+                onResubmit = rentalViewModel::resubmitVehicle
+            )
         }
         composable("recharge-history") {
             RechargeHistoryScreen(
