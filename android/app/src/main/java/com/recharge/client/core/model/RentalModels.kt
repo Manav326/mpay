@@ -82,6 +82,27 @@ data class RentalCarResponse(
     val rejectionReason: String? = null
 )
 
+data class RentalBookingQuoteRequest(
+    val carId: String,
+    val pickupLocation: String,
+    val dropLocation: String,
+    val startDate: String,
+    val endDate: String
+)
+
+data class RentalBookingQuoteResponse(
+    val carId: String,
+    val carName: String,
+    val driverName: String,
+    val pickup: String,
+    val drop: String,
+    val startDate: String,
+    val endDate: String,
+    val days: Long,
+    val pricePerDay: BigDecimal,
+    val total: BigDecimal
+)
+
 data class RentalBookingRequest(
     val carId: String,
     val pickupLocation: String,
