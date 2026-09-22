@@ -5,6 +5,7 @@ import com.recharge.backend.domain.WalletWithdrawalEntity
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.repository.WalletWithdrawalRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
@@ -54,6 +55,20 @@ class WithdrawalServiceTest {
         assertEquals("mock", response.provider)
         assertEquals("mock_WDR-MOCK", mock.lastReference)
         assertEquals(1, mock.initiateCalls)
+    }
+
+    @Test
+    fun blankUpiIsRejectedBeforeMockProviderCall() {
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals)
+            .findByUserIdAndClientRequestId(42L, "REQ-BLANK-UPI")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            service.withdraw(42L, BigDecimal("10.00"), "mock", "REQ-BLANK-UPI", "   ")
+        }
+
+        assertEquals(0, mock.initiateCalls)
     }
 
     @Test
