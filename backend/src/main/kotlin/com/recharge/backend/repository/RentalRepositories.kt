@@ -41,6 +41,21 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
     fun findByBookingIdForUpdate(@Param("bookingId") bookingId: String): Optional<RentalBookingEntity>
 
     fun findAllByBookingIdIn(bookingIds: Collection<String>): List<RentalBookingEntity>
+    @Query("""
+        select b from RentalBookingEntity b
+        where b.carId = :carId
+          and b.status in :statuses
+          and b.startDate < :rangeEnd
+          and b.endDate > :rangeStart
+        order by b.startDate asc
+    """)
+    fun findCalendarBookings(
+        @Param("carId") carId: Long,
+        @Param("statuses") statuses: Collection<String>,
+        @Param("rangeStart") rangeStart: LocalDateTime,
+        @Param("rangeEnd") rangeEnd: LocalDateTime
+    ): List<RentalBookingEntity>
+
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalBookingEntity>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
 
