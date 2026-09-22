@@ -2,7 +2,7 @@ package com.recharge.backend.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-@ConfigurationProperties(prefix = "app.payu"    fun effectivePgKey(): String = pgKey.ifBlank { merchantKey }\n\n    fun effectivePgSalt(): String = pgSalt.ifBlank { merchantSalt }\n)
+@ConfigurationProperties(prefix = "app.payu")
 data class PayUProperties(
     val environment: String = "test",
     val authBaseUrl: String = "https://uat-accounts.payu.in",
@@ -32,4 +32,8 @@ data class PayUProperties(
     val pgProduction: Boolean = false,
     val connectTimeoutMs: Long = 10000,
     val readTimeoutMs: Long = 30000
-)
+) {
+    fun effectivePgKey(): String = pgKey.ifBlank { merchantKey }
+
+    fun effectivePgSalt(): String = pgSalt.ifBlank { merchantSalt }
+}
