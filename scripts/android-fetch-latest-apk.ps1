@@ -120,7 +120,7 @@ try {
 
             $runs = $runJson | ConvertFrom-Json
 
-            $run = $runs | Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } | Sort-Object createdAt -Descending | Select-Object -First 1
+            $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
 
             if (-not $run) {
                 throw "No GitHub Actions run exists yet for branch $Branch."
@@ -140,7 +140,7 @@ try {
                 "X-GitHub-Api-Version" = "2022-11-28"
             }
 
-            $workflowPath = [uri]::EscapeDataString(".github/workflows/docker-compose.yml")
+            $workflowPath = [uri]::EscapeDataString(".github/workflows/android-apk.yml")
             $branchQuery = [uri]::EscapeDataString($Branch)
             $runsUrl = "https://api.github.com/repos/Manav326/mpay/actions/workflows/$workflowPath/runs?branch=$branchQuery&per_page=30"
             try {
@@ -149,7 +149,7 @@ try {
                 throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
             }
 
-            $run = $runsResponse.workflow_runs | Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } | Sort-Object created_at -Descending | Select-Object -First 1
+            $run = $runsResponse.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1
 
             if (-not $run) {
                 throw "No GitHub Actions run exists yet for branch $Branch."
