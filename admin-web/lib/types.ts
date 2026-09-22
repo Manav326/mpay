@@ -157,3 +157,27 @@ export interface WithdrawalHistoryResponse {
   totalPages: number;
   hasNext: boolean;
 }
+
+
+export interface RentalAdminVendor {
+  vendorId: string;
+  userId: string;
+  fullName: string;
+  businessName?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  vendorType: string;
+  status: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  panNumber?: string | null;
+  payoutUpiId?: string | null;
+  bankAccountNumber?: string | null;
+  bankIfsc?: string | null;
+  vehicleCount: number;
+  rejectionReason?: string | null;
+  submittedAt: string;
+  updatedAt: string;
+}
