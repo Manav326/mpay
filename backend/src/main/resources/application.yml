@@ -54,6 +54,8 @@ app:
     execution-providers: payu
     mock-execution-status: SUCCESS
     offer-cache-ttl-seconds: 86400
+  rental:
+    platform-fee-percent: ${MPAY_RENTAL_PLATFORM_FEE_PERCENT:10.00}
   payment:
     gateway-providers: ${MPAY_PAYMENT_GATEWAY_PROVIDERS:razorpay,payu}
     mock:
