@@ -24,6 +24,7 @@ import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.model.WalletResponse
 import com.recharge.client.core.model.WalletHistoryItem
+import com.recharge.client.core.model.WithdrawalHistoryItem
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatAsOf
 import com.recharge.client.core.ui.formatExactTimestamp
@@ -129,12 +130,51 @@ fun WalletScreen(
             }
         }
         item { EarningsBlock(commission, commissionLoading, onRefreshCommission) }
+        item { WithdrawalHistoryCard(walletUiState.withdrawals) }
         item {
             WalletActivityCard(
                 state = walletUiState, onSelectFilter = onSelectWalletHistoryFilter,
                 onSetToday = onSetWalletHistoryToday, onSetLast7 = onSetWalletHistoryLast7, onSetMonth = onSetWalletHistoryMonth, onSetCustom = { showFromPicker = true },
                 onRefresh = onRefreshWalletHistory, onLoadMore = onLoadMoreWalletHistory, onOpenDetail = onOpenWalletDetail
             )
+        }
+    }
+}
+
+@Composable
+private fun WithdrawalHistoryCard(items: List<WithdrawalHistoryItem>) {
+    Card(shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Withdrawal history", style = MaterialTheme.typography.titleLarge)
+                    Text("Recent UPI payout requests and their current status.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                Icon(Icons.Default.Send, "Withdrawals", tint = AppColors.TextSecondary)
+            }
+            if (items.isEmpty()) {
+                Text("No withdrawal requests yet.", color = AppColors.TextSecondary)
+            } else {
+                items.take(10).forEach { item ->
+                    val status = item.status.uppercase()
+                    val statusColor = when (status) {
+                        "SUCCESS" -> AppColors.Success
+                        "FAILED", "REVERSED" -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), tonalElevation = 1.dp) {
+                        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("₹" + formatMoney(item.amount) + " → " + item.upiId, fontWeight = FontWeight.SemiBold)
+                                Text(item.provider.uppercase() + " • " + formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(item.withdrawalId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                item.failureReason?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                            }
+                            Text(status, color = statusColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
         }
     }
 }
