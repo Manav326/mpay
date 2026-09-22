@@ -26,7 +26,8 @@ class PaymentGatewayServiceTest {
         )
         Mockito.doReturn(java.util.Optional.empty<com.recharge.backend.domain.PaymentOrderEntity>())
             .`when`(orders).findByClientRequestIdAndUserId("REQ-MOCK-1", 1L)
-        Mockito.doAnswer { invocation -> invocation.getArgument<com.recharge.backend.domain.PaymentOrderEntity>(0) }\n            .`when`(orders).save(Mockito.any())
+        Mockito.doAnswer { invocation -> invocation.getArgument<com.recharge.backend.domain.PaymentOrderEntity>(0) }
+            .`when`(orders).save(Mockito.any())
 
         val created = provider.createWalletOrder(
             1L, CreatePaymentOrderRequest(BigDecimal("100.00"), "REQ-MOCK-1", "mock")
