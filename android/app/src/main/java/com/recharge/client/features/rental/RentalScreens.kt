@@ -23,7 +23,8 @@ fun RentalVendorOnboardingScreen(
     onSubmit: (RentalVendorOnboardingRequest, () -> Unit) -> Unit,
     onBack: () -> Unit,
     onAddVehicle: () -> Unit,
-    onRefreshVehicles: () -> Unit
+    onRefreshVehicles: () -> Unit,
+    onAddVehicleWithCar: (RentalCarResponse) -> Unit = {}
 ) {
     var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
     var businessName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
@@ -104,6 +105,9 @@ fun RentalVendorOnboardingScreen(
                                 Text("Waiting for admin review.", color = AppColors.TextSecondary)
                             } else if (status == "REJECTED") {
                                 Text("Vehicle requires correction and resubmission.", color = AppColors.Error)
+                                OutlinedButton(onClick = { onAddVehicleWithCar(car) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Correct and resubmit")
+                                }
                             }
                         }
                     }
@@ -217,37 +221,39 @@ fun CarRentalMarketplaceScreen(state: RentalUiState, onBack: () -> Unit, onBook:
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
     onSubmit: (RentalVehicleOnboardingRequest, () -> Unit) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    editingCar: RentalCarResponse? = null,
+    onResubmit: ((String, RentalVehicleUpdateRequest, () -> Unit) -> Unit)? = null
 ) {
-    var name by remember { mutableStateOf("") }
-    var make by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf("") }
-    var variant by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Sedan") }
-    var seats by remember { mutableStateOf("5") }
-    var transmission by remember { mutableStateOf("Automatic") }
-    var fuel by remember { mutableStateOf("Petrol") }
-    var manufacturingYear by remember { mutableStateOf("") }
-    var registrationYear by remember { mutableStateOf("") }
-    var registrationNumber by remember { mutableStateOf("") }
-    var pickupAddress by remember { mutableStateOf("") }
-    var city by remember { mutableStateOf("") }
-    var stateName by remember { mutableStateOf("") }
-    var pricePerDay by remember { mutableStateOf("") }
-    var imageUrl by remember { mutableStateOf("") }
-    var driverName by remember { mutableStateOf("") }
-    var driverMobile by remember { mutableStateOf("") }
-    var licenseNumber by remember { mutableStateOf("") }
-    var licenseExpiry by remember { mutableStateOf("") }
-    var driverAddress by remember { mutableStateOf("") }
+    var name by remember(editingCar?.id) { mutableStateOf(editingCar?.name.orEmpty()) }
+    var make by remember(editingCar?.id) { mutableStateOf(editingCar?.make.orEmpty()) }
+    var model by remember(editingCar?.id) { mutableStateOf(editingCar?.model.orEmpty()) }
+    var variant by remember(editingCar?.id) { mutableStateOf(editingCar?.variant.orEmpty()) }
+    var category by remember(editingCar?.id) { mutableStateOf(editingCar?.category ?: "Sedan") }
+    var seats by remember(editingCar?.id) { mutableStateOf(editingCar?.seats?.toString() ?: "5") }
+    var transmission by remember(editingCar?.id) { mutableStateOf(editingCar?.transmission ?: "Automatic") }
+    var fuel by remember(editingCar?.id) { mutableStateOf(editingCar?.fuelType ?: "Petrol") }
+    var manufacturingYear by remember(editingCar?.id) { mutableStateOf(editingCar?.manufacturingYear?.toString().orEmpty()) }
+    var registrationYear by remember(editingCar?.id) { mutableStateOf(editingCar?.registrationYear?.toString().orEmpty()) }
+    var registrationNumber by remember(editingCar?.id) { mutableStateOf(editingCar?.registrationNumber.orEmpty()) }
+    var pickupAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.pickupAddress.orEmpty()) }
+    var city by remember(editingCar?.id) { mutableStateOf(editingCar?.city.orEmpty()) }
+    var stateName by remember(editingCar?.id) { mutableStateOf(editingCar?.state.orEmpty()) }
+    var pricePerDay by remember(editingCar?.id) { mutableStateOf(editingCar?.pricePerDay?.toPlainString().orEmpty()) }
+    var imageUrl by remember(editingCar?.id) { mutableStateOf(editingCar?.imageUrl.orEmpty()) }
+    var driverName by remember(editingCar?.id) { mutableStateOf(editingCar?.driverName.orEmpty()) }
+    var driverMobile by remember(editingCar?.id) { mutableStateOf(editingCar?.driverMobile.orEmpty()) }
+    var licenseNumber by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseNumber.orEmpty()) }
+    var licenseExpiry by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseExpiry.orEmpty()) }
+    var driverAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.driverAddress.orEmpty()) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Add vehicle", style = MaterialTheme.typography.headlineSmall) } }
-        item { Text("Submit the vehicle and assigned chauffeur for admin review.", color = AppColors.TextSecondary) }
+        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text(if (editingCar == null) "Add vehicle" else "Correct vehicle", style = MaterialTheme.typography.headlineSmall) } }
+        item { Text(if (editingCar == null) "Submit the vehicle and assigned chauffeur for admin review." else "Correct the rejected details and resubmit this same vehicle for admin review.", color = AppColors.TextSecondary) }
         item { Text("Vehicle details", style = MaterialTheme.typography.titleLarge) }
         item { VendorField("Vehicle name", name) { name = it } }
         item { VendorField("Make", make) { make = it } }
@@ -280,22 +286,38 @@ fun RentalVehicleOnboardingScreen(
                 manufacturingYear.toIntOrNull() != null && registrationYear.toIntOrNull() != null
             Button(
                 onClick = {
-                    onSubmit(
-                        RentalVehicleOnboardingRequest(
-                            name = name.trim(), category = category.trim(), seats = seats.toInt(), transmission = transmission.trim(),
-                            fuelType = fuel.trim(), manufacturingYear = manufacturingYear.toInt(), registrationYear = registrationYear.toInt(),
-                            registrationNumber = registrationNumber.trim(), make = make.trim(), model = model.trim(),
-                            variant = variant.ifBlank { null }, pickupAddress = pickupAddress.trim(), city = city.trim(), state = stateName.trim(),
-                            pricePerDay = pricePerDay.toBigDecimal(), imageUrl = imageUrl.ifBlank { null },
-                            driver = RentalDriverRequest(driverName.trim(), driverMobile.trim(), licenseNumber.trim(), licenseExpiry.trim(), driverAddress.ifBlank { null })
-                        ),
-                        onBack
+                    val driver = RentalDriverRequest(
+                        driverName.trim(), driverMobile.trim(), licenseNumber.trim(), licenseExpiry.trim(), driverAddress.ifBlank { null }
                     )
+                    if (editingCar != null && onResubmit != null) {
+                        onResubmit(
+                            editingCar.id,
+                            RentalVehicleUpdateRequest(
+                                name = name.trim(), category = category.trim(), seats = seats.toInt(), transmission = transmission.trim(),
+                                fuelType = fuel.trim(), manufacturingYear = manufacturingYear.toInt(), registrationYear = registrationYear.toInt(),
+                                registrationNumber = registrationNumber.trim(), make = make.trim(), model = model.trim(),
+                                variant = variant.ifBlank { null }, pickupAddress = pickupAddress.trim(), city = city.trim(), state = stateName.trim(),
+                                pricePerDay = pricePerDay.toBigDecimal(), imageUrl = imageUrl.ifBlank { null }, driver = driver
+                            ),
+                            onBack
+                        )
+                    } else {
+                        onSubmit(
+                            RentalVehicleOnboardingRequest(
+                                name = name.trim(), category = category.trim(), seats = seats.toInt(), transmission = transmission.trim(),
+                                fuelType = fuel.trim(), manufacturingYear = manufacturingYear.toInt(), registrationYear = registrationYear.toInt(),
+                                registrationNumber = registrationNumber.trim(), make = make.trim(), model = model.trim(),
+                                variant = variant.ifBlank { null }, pickupAddress = pickupAddress.trim(), city = city.trim(), state = stateName.trim(),
+                                pricePerDay = pricePerDay.toBigDecimal(), imageUrl = imageUrl.ifBlank { null }, driver = driver
+                            ),
+                            onBack
+                        )
+                    }
                 },
                 enabled = valid && !state.saving,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp)
-            ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Submit vehicle for review") }
+            ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(if (editingCar == null) "Submit vehicle for review" else "Resubmit vehicle for review") }
         }
     }
 }
