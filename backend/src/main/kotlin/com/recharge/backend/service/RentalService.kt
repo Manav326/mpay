@@ -474,11 +474,26 @@ class RentalService(
         )
     }
 
-    fun adminVehicleUnavailability(): List<RentalVehicleUnavailabilityResponse> =
+    fun adminVehicleUnavailability(): List<RentalAdminVehicleUnavailabilityResponse> =
         vehicleUnavailability.findAll()
             .filter { it.status == "ACTIVE" }
             .sortedBy { it.startDate }
-            .map(::toVehicleUnavailabilityResponse)
+            .map { row ->
+                val car = cars.findById(row.carId).orElse(null)
+                RentalAdminVehicleUnavailabilityResponse(
+                    id = requireNotNull(row.id).toString(),
+                    carId = row.carId.toString(),
+                    carName = car?.name ?: "Car",
+                    vendorId = row.vendorId.toString(),
+                    startDate = row.startDate,
+                    endDate = row.endDate,
+                    reasonCode = row.reasonCode,
+                    reasonLabel = rentalVehicleOffMarketReasonLabel(row.reasonCode),
+                    reasonNote = row.reasonNote,
+                    status = row.status,
+                    createdAt = row.createdAt
+                )
+            }
 
     private fun rentalVehicleOffMarketReasons(): Set<String> = setOf(
         "SERVICE_MAINTENANCE",
