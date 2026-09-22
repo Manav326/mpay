@@ -59,6 +59,12 @@ interface ClientApi {
     @POST("api/v1/car-rental/vendor/vehicles")
     suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
 
+    @PUT("api/v1/car-rental/vendor/vehicles/{carId}")
+    suspend fun resubmitRentalVehicle(
+        @retrofit2.http.Path("carId") carId: String,
+        @Body request: RentalVehicleUpdateRequest
+    ): Response<RentalCarResponse>
+
     @POST("api/v1/car-rental/bookings/quote")
     suspend fun rentalBookingQuote(@Body request: RentalBookingQuoteRequest): Response<RentalBookingQuoteResponse>
 
