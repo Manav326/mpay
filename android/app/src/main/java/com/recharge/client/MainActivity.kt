@@ -533,7 +533,8 @@ private fun AppNavHost(
                     }
                     nav.navigate("rental-booking")
                 },
-                onSearch = rentalViewModel::loadCars
+                onSearch = rentalViewModel::loadCars,
+                onClearFilter = { rentalViewModel.loadCars() }
             )
         }
         composable("rental-vendor") {
