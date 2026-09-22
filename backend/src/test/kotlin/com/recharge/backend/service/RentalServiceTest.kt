@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.RentalBookingRequest
+import com.recharge.backend.api.RentalVehicleUnavailabilityRequest
 import com.recharge.backend.domain.RentalBookingEntity
 import com.recharge.backend.domain.RentalCarEntity
 import com.recharge.backend.repository.RentalBookingRepository
@@ -92,6 +93,44 @@ class RentalServiceTest {
         return BigDecimal.ZERO
     }
 
+    @Test
+    fun vendorCanTakeApprovedVehicleOffMarketWithReason() {
+        val vendor = com.recharge.backend.domain.RentalVendorEntity(
+            id = 9L, userId = 99L, status = "VERIFIED", fullName = "Vendor",
+            address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+        )
+        val car = RentalCarEntity(
+            id = 7L, name = "Test Sedan", category = "Sedan", seats = 5,
+            transmission = "Automatic", active = true, vendorId = 9L, driverId = 10L, approvalStatus = "APPROVED"
+        )
+        val start = LocalDate.now().plusDays(3)
+        val end = start.plusDays(4)
+        val saved = com.recharge.backend.domain.RentalVehicleUnavailabilityEntity(
+            id = 55L, carId = 7L, vendorId = 9L, vendorUserId = 99L,
+            startDate = start, endDate = end, reasonCode = "SERVICE_MAINTENANCE", reasonNote = "Routine service"
+        )
+
+        Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findByUserId(99L)
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(7L)
+        Mockito.doReturn(false).`when`(bookings).existsOverlapping(
+            7L, listOf("PENDING", "CONFIRMED"), start.atStartOfDay(), end.plusDays(1).atStartOfDay()
+        )
+        Mockito.doReturn(false).`when`(vehicleUnavailability).existsOverlapping(7L, start, end)
+        Mockito.doReturn(saved).`when`(vehicleUnavailability).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
+
+        val result = service.takeVehicleOffMarket(
+            99L, 7L,
+            RentalVehicleUnavailabilityRequest(
+                reasonCode = "SERVICE_MAINTENANCE", reasonNote = "Routine service", startDate = start, endDate = end
+            )
+        )
+
+        assertEquals("55", result.id)
+        assertEquals("SERVICE_MAINTENANCE", result.reasonCode)
+        assertEquals(start, result.startDate)
+        assertEquals(end, result.endDate)
+        Mockito.verify(vehicleUnavailability).save(any(com.recharge.backend.domain.RentalVehicleUnavailabilityEntity::class.java))
+    }
     @Test
     fun completingBookingLocksItAndSettlesPayoutOnlyOnce() {
         val booking = RentalBookingEntity(
