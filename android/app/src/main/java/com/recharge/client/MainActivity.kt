@@ -58,13 +58,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             val uri = result.data?.data ?: return@registerForActivityResult
             contentResolver.query(
                 uri,
-                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.Contacts.DISPLAY_NAME),
                 null,
                 null,
                 null
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val raw = cursor.getString(0).orEmpty()
+                    val contactName = cursor.getString(1).orEmpty().trim()
                     val digits = raw.filter { it.isDigit() }
                     val normalized = when {
                         digits.length == 10 -> digits
@@ -72,7 +73,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         digits.length >= 10 -> digits.takeLast(10)
                         else -> ""
                     }
-                    if (normalized.length == 10) rechargeViewModel.setMobile(normalized)
+                    if (normalized.length == 10) rechargeViewModel.setMobile(normalized, contactName)
                 }
             }
         }
