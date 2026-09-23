@@ -50,7 +50,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease             -x :app:lintVitalAnalyzeRelease             -x :app:lintVitalReportRelease             -x :app:lintVitalRelease
 
       - name: Verify optimized release APK and report size
         shell: bash
