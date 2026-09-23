@@ -4,10 +4,8 @@ import com.recharge.backend.api.RentalAdminPayoutPageResponse
 import com.recharge.backend.api.RentalAdminPayoutResponse
 import com.recharge.backend.domain.RentalPayoutEntity
 import com.recharge.backend.domain.UserEntity
-import com.recharge.backend.repository.RentalBookingRepository
 import com.recharge.backend.repository.RentalPayoutRepository
 import com.recharge.backend.repository.RentalVendorRepository
-import com.recharge.backend.service.RoleAccessService
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.math.RoundingMode
@@ -15,7 +13,6 @@ import java.math.RoundingMode
 @Service
 class AdminRentalOperationsService(
     private val payouts: RentalPayoutRepository,
-    private val bookings: RentalBookingRepository,
     private val vendors: RentalVendorRepository,
     private val roleAccess: RoleAccessService
 ) {
@@ -33,11 +30,10 @@ class AdminRentalOperationsService(
         if (result.isEmpty) {
             return RentalAdminPayoutPageResponse(emptyList(), result.number, result.size, result.totalElements, result.totalPages, result.hasNext())
         }
-        val bookingById = bookings.findAllByBookingIdIn(result.content.map { it.bookingId }).associateBy { it.bookingId }
         val vendorById = vendors.findAllById(result.content.map { it.vendorId }.distinct()).associateBy { requireNotNull(it.id) }
         return RentalAdminPayoutPageResponse(
             items = result.content.map { payout ->
-                toResponse(payout, vendorById[ payout.vendorId ]?.businessName ?: vendorById[payout.vendorId]?.fullName ?: "Vendor")
+                toResponse(payout, vendorById[payout.vendorId]?.businessName ?: vendorById[payout.vendorId]?.fullName ?: "Vendor")
             },
             page = result.number,
             size = result.size,
