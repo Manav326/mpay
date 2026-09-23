@@ -1,7 +1,6 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.*
-import com.recharge.backend.domain.AdminVendorEntity
 import com.recharge.backend.domain.RechargeTransactionEntity
 import com.recharge.backend.domain.UserEntity
 import com.recharge.backend.domain.WalletTransactionEntity
@@ -20,7 +19,6 @@ class AdminService(
     private val walletLedger: WalletTransactionRepository,
     private val recharges: RechargeTransactionRepository,
     private val withdrawals: WalletWithdrawalRepository,
-    private val vendors: AdminVendorRepository,
     private val commissionRates: CommissionRateService,
     private val roleAccess: RoleAccessService,
     private val imageStorage: ProfileImageStorage
@@ -281,36 +279,6 @@ class AdminService(
             active = target.active,
             status = if (target.active) "ACTIVE" else "BLOCKED"
         )
-    }
-
-    fun vendorList(viewer: UserEntity): List<AdminVendorResponse> {
-        roleAccess.requirePermission(viewer, "MANAGE_VENDORS")
-        return vendors.findAllByOrderByCreatedAtDesc().map(::toVendor)
-    }
-
-    @Transactional
-    fun createVendor(viewer: UserEntity, request: CreateAdminVendorRequest): AdminVendorResponse {
-        roleAccess.requirePermission(viewer, "MANAGE_VENDORS")
-        val category = request.category.trim().uppercase()
-        require(category in setOf("CAR_RENT", "TRAVEL", "SERVICES")) { "Unsupported vendor category" }
-        require(request.name.trim().isNotBlank()) { "Vendor name is required" }
-        require(request.city.trim().isNotBlank()) { "Vendor city is required" }
-        require(request.phone.trim().matches(Regex("[0-9+ -]{7,20}"))) { "Vendor phone is invalid" }
-        require(request.commissionRate >= BigDecimal.ZERO && request.commissionRate < BigDecimal(100)) { "Vendor commission rate must be between 0 and 100" }
-        val now = Instant.now()
-        val saved = vendors.save(
-            AdminVendorEntity(
-                name = request.name.trim(),
-                category = category,
-                city = request.city.trim(),
-                phone = request.phone.trim(),
-                commissionRate = request.commissionRate.setScale(2, RoundingMode.HALF_UP),
-                active = request.active,
-                createdAt = now,
-                updatedAt = now
-            )
-        )
-        return toVendor(saved)
     }
 
     private fun toSummary(user: UserEntity, todayStart: Instant, todayEnd: Instant, monthStart: Instant, now: Instant): AdminUserSummaryResponse {
