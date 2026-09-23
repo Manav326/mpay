@@ -128,18 +128,17 @@ fun RechargeScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         shape = RoundedCornerShape(16.dp)
                     )
-                    if (state.recipientName.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = state.recipientName,
-                            onValueChange = onRecipientNameChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Contact name") },
-                            supportingText = { Text("You can edit this name before recharge.") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp)
-                        )
-                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.recipientName,
+                        onValueChange = onRecipientNameChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Recharge contact name (optional)") },
+                        placeholder = { Text("Auto-filled from phonebook when available") },
+                        supportingText = { Text("You can edit this name before recharge.") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp)
+                    )
                     Spacer(Modifier.height(10.dp))
                     Button(
                         onClick = onDetect,
