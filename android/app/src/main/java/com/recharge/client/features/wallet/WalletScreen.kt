@@ -109,10 +109,16 @@ fun WalletScreen(
             Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Primary)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Wallet balance", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f), modifier = Modifier.weight(1f))
+                        Text("Available balance", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f), modifier = Modifier.weight(1f))
                         IconButton(onClick = onRefreshBalance, enabled = !loading) { Icon(Icons.Default.Refresh, "Refresh balance", tint = MaterialTheme.colorScheme.onPrimary) }
                     }
                     Text(if (loading) "Loading…" else "₹${formatMoney(wallet?.availableBalance ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, softWrap = false)
+                    if (!loading) {
+                        Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Text("Total ₹${formatMoney(wallet?.balance ?: BigDecimal.ZERO)}", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.labelSmall)
+                            Text("Reserved ₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)}", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                     if ((wallet?.reservedBalance ?: BigDecimal.ZERO) > BigDecimal.ZERO) {
                         Spacer(Modifier.height(6.dp))
                         Text("₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)} reserved in pending transactions", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
@@ -132,8 +138,8 @@ fun WalletScreen(
         item {
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), onClick = onViewRechargeHistory) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFF7C3AED).copy(alpha = .12f)) {
-                        Icon(Icons.Default.History, null, modifier = Modifier.padding(10.dp), tint = Color(0xFF7C3AED))
+                    Surface(shape = RoundedCornerShape(14.dp), color = AppColors.SurfaceWarm) {
+                        Icon(Icons.Default.History, null, modifier = Modifier.padding(10.dp), tint = AppColors.PrimaryDark)
                     }
                     Spacer(Modifier.width(10.dp))
                     Text("Recharge History", style = MaterialTheme.typography.titleMedium, maxLines = 1, softWrap = false)
