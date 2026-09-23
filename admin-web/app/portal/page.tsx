@@ -49,7 +49,13 @@ type RentalVendor = {
   vendorId?: string | null; status: string; vendorType?: string | null; fullName?: string | null; businessName?: string | null;
   city?: string | null; state?: string | null; vehicleCount?: number; address?: string | null; pinCode?: string | null;
   panNumber?: string | null; payoutUpiId?: string | null; bankAccountNumber?: string | null; bankIfsc?: string | null;
-  rejectionReason?: string | null; submittedAt?: string | null;
+  bankName?: string | null; payoutPrimaryMethod?: string | null; rejectionReason?: string | null; submittedAt?: string | null;
+};
+type RentalVendorEarningsPeriod = {
+  grossAmount: number; platformFeeAmount: number; vendorNetAmount: number; bookingCount: number; completedBookingCount: number;
+};
+type RentalVendorEarnings = {
+  today: RentalVendorEarningsPeriod; monthly: RentalVendorEarningsPeriod; upcomingBookingCount: number;
 };
 type RentalPayout = {
   payoutId: string; bookingId: string; carId: string; carName: string; grossAmount: number;
@@ -123,6 +129,7 @@ function bookingShareText(b: RentalBooking) {
 export default function Portal() {
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [wallet, setWallet] = useState<Wallet>();
   const [me, setMe] = useState<Me>();
   const [profileImage, setProfileImage] = useState('');
@@ -156,12 +163,13 @@ export default function Portal() {
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
   const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
-  const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
+  const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '' });
   const [rentalSearch, setRentalSearch] = useState({ location: '', startDate: '', endDate: '' });
   const [rentalDetails, setRentalDetails] = useState<RentalCar>();
 
   const [vendor, setVendor] = useState<RentalVendor>();
   const [vendorPayouts, setVendorPayouts] = useState<RentalPayout[]>([]);
+  const [vendorEarnings, setVendorEarnings] = useState<RentalVendorEarnings>();
   const [vendorVehicles, setVendorVehicles] = useState<RentalCar[]>([]);
   const [selectedVendorVehicle, setSelectedVendorVehicle] = useState<RentalCar>();
   const [vehicleUnavailability, setVehicleUnavailability] = useState<VehicleUnavailability[]>([]);
@@ -172,7 +180,7 @@ export default function Portal() {
   const [vehicleEditId, setVehicleEditId] = useState('');
   const [vendorForm, setVendorForm] = useState({
     vendorType: 'INDIVIDUAL', fullName: '', businessName: '', address: '', city: '', state: '', pinCode: '',
-    panNumber: '', payoutUpiId: '', bankAccountNumber: '', bankIfsc: ''
+    panNumber: '', payoutUpiId: '', bankAccountNumber: '', bankIfsc: '', bankName: '', payoutPrimaryMethod: ''
   });
   const defaultVehicle = {
     name:'', category:'SEDAN', seats:4, transmission:'AUTOMATIC', fuelType:'PETROL',
@@ -181,7 +189,7 @@ export default function Portal() {
     driver:{fullName:'',mobile:'',licenseNumber:'',licenseExpiry:'',address:''}
   };
   const [vehicleForm, setVehicleForm] = useState<any>(defaultVehicle);
-  const [unavailabilityForm, setUnavailabilityForm] = useState({ reasonCode:'MAINTENANCE', reasonNote:'', startDate:'', endDate:'' });
+  const [unavailabilityForm, setUnavailabilityForm] = useState({ reasonCode:'SERVICE_MAINTENANCE', reasonNote:'', startDate:'', endDate:'' });
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -515,7 +523,6 @@ export default function Portal() {
     if((rentalSearch.startDate && !rentalSearch.endDate)||(!rentalSearch.startDate&&rentalSearch.endDate)){setNotice('Select both the start and end date & time.');return;}
     if(hasDates && new Date(rentalSearch.endDate).getTime() <= new Date(rentalSearch.startDate).getTime()){setNotice('End date & time must be after the start date & time.');return;}
     setSelectedCar(undefined); setRentalQuote(undefined);
-    setRentalForm(x=>({...x,startDate:rentalSearch.startDate || x.startDate,endDate:rentalSearch.endDate || x.endDate}));
     loadRentalData(rentalSearch.startDate,rentalSearch.endDate,location);
   }
 
@@ -525,13 +532,15 @@ export default function Portal() {
   }
 
   async function checkRentalFare() {
-    if(!selectedCar || !rentalForm.pickup || !rentalForm.startDate || !rentalForm.endDate){setNotice('Select a car, pickup location and valid rental dates.');return;}
-    if(new Date(rentalForm.endDate).getTime() <= new Date(rentalForm.startDate).getTime()){setNotice('End date & time must be after the start date & time.');return;}
+    const startDate = rentalSearch.startDate;
+    const endDate = rentalSearch.endDate;
+    if(!selectedCar || !rentalForm.pickup || !startDate || !endDate){setNotice('Choose From and To date & time in the rental search, then enter your pickup location.');return;}
+    if(new Date(endDate).getTime() <= new Date(startDate).getTime()){setNotice('End date & time must be after the start date & time.');return;}
     setBusy(true); setNotice(''); setRentalQuote(undefined);
     try {
       const q=await api<RentalQuote>('/api/v1/car-rental/bookings/quote',{method:'POST',body:JSON.stringify({
         carId:selectedCar.id,pickupLocation:rentalForm.pickup.trim(),dropLocation:(rentalForm.drop || rentalForm.pickup).trim(),
-        startDate:rentalForm.startDate,endDate:rentalForm.endDate
+        startDate,endDate
       })});
       setRentalQuote(q);
     } catch(e:any){setNotice(e.message || 'Unable to calculate rental fare.');}
@@ -722,14 +731,14 @@ export default function Portal() {
   ];
 
   return <div className="portal-shell">
-    <aside className={'portal-sidebar ' + (drawer ? 'open' : '')}>
-      <div className="portal-side-head"><a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div>
+    <aside className={'portal-sidebar ' + (drawer ? 'open ' : '') + (sidebarCollapsed ? 'collapsed' : '')}>
+      <div className="portal-side-head"><a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a><div className="portal-side-controls"><button className="icon-btn sidebar-collapse-btn" title={sidebarCollapsed?'Expand navigation':'Collapse navigation'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</button><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div></div>
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
       <nav>{menu.map(([key,label,Icon])=>
         <button key={key} className={view===key?'portal-nav active':'portal-nav'} onClick={()=>{setView(key);setDrawer(false);}}>
-          <Icon size={18}/>{label}
+          <Icon size={18}/><span className="portal-nav-label">{label}</span>
         </button>)}</nav>
-      <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/>Logout</button>
+      <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/><span className="portal-nav-label">Logout</span></button>
     </aside>
 
     <main className="portal-main">
