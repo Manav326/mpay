@@ -214,6 +214,7 @@ export default function Portal() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const rentalLoadSeq = useRef(0);
+  const historyLoadSeq = useRef(0);
 
   const walletSigned = (item: WalletItem) => {
     const amount = Math.abs(Number(item.amount || 0));
@@ -228,6 +229,7 @@ export default function Portal() {
       setNotice('The history end date must be on or after the start date.');
       return;
     }
+    const requestSeq = ++historyLoadSeq.current;
     const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
     if (historyFrom) rechargeParams.set('from', historyFrom);
     if (historyTo) rechargeParams.set('to', historyTo);
@@ -242,6 +244,8 @@ export default function Portal() {
     ]);
 
     const messages:string[] = [];
+    if (requestSeq !== historyLoadSeq.current) return;
+
     if (rechargeResult.status === 'fulfilled') {
       const r = rechargeResult.value;
       setRecharges(r?.items || r?.content || r || []);
@@ -1099,7 +1103,7 @@ export default function Portal() {
 
       {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
         <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
-        <div className="driver-profile-card public-driver-card"><div className="driver-profile-photo">{rentalDetails.driverPhotoUrl ? <img src={(rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl)} alt="Driver"/> : <UserRound size={22}/>}</div><div><b>{rentalDetails.driverName||'Driver'}</b><span>{rentalDetails.driverMobile||'Mobile not provided'}</span></div></div><div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Registration <b>{rentalDetails.registrationNumber||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Driver <b>{rentalDetails.driverName||'—'} {rentalDetails.driverMobile||''}</b></span><span>Licence expiry <b>{date(rentalDetails.driverLicenseExpiry)}</b></span></div>
+        <div className="driver-profile-card public-driver-card"><div className="driver-profile-photo">{rentalDetails.driverPhotoUrl ? <img src={(rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl)} alt="Chauffeur"/> : <UserRound size={22}/>}</div><div><b>{rentalDetails.driverName||'Chauffeur'}</b><span>Professional driver assigned for this vehicle</span></div></div><div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Daily rate <b>{money(rentalDetails.pricePerDay)}</b></span></div>
       </div></div>}
     </main>
   </div>;
