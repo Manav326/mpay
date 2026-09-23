@@ -1848,12 +1848,12 @@ private fun RentalVehicleDetailsDialog(
                 item {
                     RentalDetailSection(
                         title = "Driver details",
-                        tint = Color(0xFF7C3AED),
+                        tint = AppColors.VendorNavy,
                         rows = listOf(
                             "Name" to car.driverName,
                             "Mobile" to (car.driverMobile ?: "—"),
                             "Licence number" to (car.driverLicenseNumber ?: "—"),
-                            "Licence expiry" to (car.driverLicenseExpiry ?: "—"),
+                            "Licence expiry" to (car.driverLicenseExpiry?.takeIf { it.isNotBlank() }?.let { formatRentalDate(it) } ?: "—"),
                             "Driver address" to (car.driverAddress ?: "—")
                         )
                     )
