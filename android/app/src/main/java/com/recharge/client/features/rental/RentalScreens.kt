@@ -2160,7 +2160,7 @@ fun RentalBookingScreen(
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RentalCarImageTile(car.imageUrl?.split("|").firstOrNull(), Modifier.size(76.dp))
+                    RentalCarImageTile(car.imageUrl?.split("|")?.firstOrNull(), Modifier.size(76.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
