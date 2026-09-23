@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.*
 import com.recharge.client.core.repository.ClientRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -25,6 +26,7 @@ data class RentalUiState(
 class RentalViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ClientRepository(application)
     private val _state = MutableStateFlow(RentalUiState())
+    private var carsJob: Job? = null
     val state = _state.asStateFlow()
 
     fun loadVendor() {
@@ -37,15 +39,25 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun clearCarSearch() {
-        _state.value = _state.value.copy(cars = emptyList(), error = null)
+        carsJob?.cancel()
+        _state.value = _state.value.copy(cars = emptyList(), loading = false, error = null)
     }
 
     fun loadCars(startDate: String? = null, endDate: String? = null, location: String? = null) {
-        viewModelScope.launch {
+        carsJob?.cancel()
+        carsJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            repository.rentalCars(startDate, endDate, location)
+            repository.rentalCars(
+                startDate?.takeIf { it.isNotBlank() },
+                endDate?.takeIf { it.isNotBlank() },
+                location?.trim()?.takeIf { !it.isNullOrBlank() }
+            )
                 .onSuccess { _state.value = _state.value.copy(cars = it, loading = false) }
-                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load rental cars") }
+                .onFailure { failure ->
+                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                        _state.value = _state.value.copy(loading = false, error = failure.message ?: "Unable to load rental cars")
+                    }
+                }
         }
     }
 
