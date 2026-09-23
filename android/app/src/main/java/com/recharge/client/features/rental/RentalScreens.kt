@@ -583,7 +583,7 @@ fun RentalVendorOnboardingScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.LocationOn, null, tint = Color(0xFF2563EB), modifier = Modifier.size(17.dp))
                                 Spacer(Modifier.width(5.dp))
-                                Text(listOfNotBlank(v.city, v.state).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(listOfNotNull(v.city?.takeIf { it.isNotBlank() }, v.state?.takeIf { it.isNotBlank() }).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -769,6 +769,7 @@ fun RentalVendorOnboardingScreen(
                         }
                         if (rowCars.size == 1) Spacer(Modifier.weight(1f))
                     }
+                }
                 }
             item {
                 OutlinedButton(onClick = onAddVehicle, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
