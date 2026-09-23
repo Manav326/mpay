@@ -13,6 +13,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Path
 import com.recharge.client.core.model.RentalVendorOnboardingRequest
 import com.recharge.client.core.model.RentalVendorResponse
 import com.recharge.client.core.model.RentalVehicleOnboardingRequest
