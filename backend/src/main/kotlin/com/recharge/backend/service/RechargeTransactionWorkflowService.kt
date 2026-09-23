@@ -32,6 +32,7 @@ class RechargeTransactionWorkflowService(
             clientRequestId = request.clientRequestId,
             userId = userId,
             mobileNumber = request.mobileNumber,
+            recipientName = request.recipientName,
             operator = request.operator,
             circle = request.circle,
             planId = plan.id,
@@ -114,6 +115,7 @@ data class RechargeRequestData(
     val transactionId: String,
     val clientRequestId: String,
     val mobileNumber: String,
+    val recipientName: String?,
     val operator: String,
     val circle: String
 )
