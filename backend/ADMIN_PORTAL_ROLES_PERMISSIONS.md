@@ -38,14 +38,19 @@ ADMIN:
 - `VIEW_DASHBOARD`
 - `VIEW_USERS`
 - `VIEW_USER_DETAIL`
-- `MANAGE_VENDORS`
-- `MANAGE_COMMISSION_RATES`
+- `MANAGE_VENDORS` — approve/reject rental partners and vehicles
+- `MANAGE_RENTAL_OPERATIONS` — rental bookings and settlement lifecycle
+- `MANAGE_RECHARGE_OPERATIONS` — refresh pending/processing recharge status
+- `MANAGE_USER_STATUS` — block/unblock non-admin accounts
+- `VIEW_FINANCIAL_OPERATIONS` — recharge, withdrawal and wallet-ledger oversight
+- `MANAGE_COMMISSION_RATES` — role commission rules
 
 MANAGER:
 - `PORTAL_LOGIN`
 - `VIEW_DASHBOARD`
 - `VIEW_USERS`
 - `VIEW_USER_DETAIL`
+- `VIEW_FINANCIAL_OPERATIONS` — read-only financial oversight
 
 ## Visibility hierarchy
 
@@ -56,7 +61,7 @@ MANAGER:
 - ADMIN -> CLIENT
 - MANAGER -> CLIENT
 
-Add future roles by inserting rows into `role_permissions` and `role_hierarchy`. Server-side authorization uses these tables; the web UI is only a presentation layer.
+Add future roles by inserting rows into `role_permissions` and `role_hierarchy`. Server-side authorization uses these tables; the web UI is only a presentation layer. The Admin Portal intentionally avoids manual wallet mutation controls and delegates provider money state to the existing recharge/withdrawal/rental state machines.
 
 ## Example: add a new supervisor role
 

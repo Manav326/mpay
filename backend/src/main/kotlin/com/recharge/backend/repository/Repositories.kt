@@ -22,6 +22,9 @@ interface UserRepository : JpaRepository<UserEntity, Long> {
 interface WalletRepository : JpaRepository<WalletEntity, Long> {
     fun findByUserId(userId: Long): Optional<WalletEntity>
 
+    @Query("select w from WalletEntity w where w.user.id in :userIds")
+    fun findAllByUserIds(@Param("userIds") userIds: Collection<Long>): List<WalletEntity>
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select w from WalletEntity w where w.user.id = :userId")
     fun findByUserIdForUpdate(@Param("userId") userId: Long): Optional<WalletEntity>
@@ -97,8 +100,16 @@ interface RoleCommissionRateRepository : JpaRepository<RoleCommissionRateEntity,
     fun findByRoleIgnoreCase(role: String): Optional<RoleCommissionRateEntity>
 }
 
+interface UserRechargeSummaryProjection {
+    val userId: Long
+    val clientCommission: BigDecimal
+    val amount: BigDecimal
+    val successfulCount: Long
+}
+
 interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntity, Long> {
     fun findByTransactionId(transactionId: String): Optional<RechargeTransactionEntity>
+    fun findAllByTransactionIdIn(transactionIds: Collection<String>): List<RechargeTransactionEntity>
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<RechargeTransactionEntity>
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toInclusive: Instant, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RechargeTransactionEntity>
@@ -149,6 +160,24 @@ interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntit
     ): Long
 
     fun countSuccessfulByUserId(userId: Long): Long = countSuccessfulRecharges(userId, Instant.EPOCH, Instant.ofEpochMilli(Long.MAX_VALUE))
+
+    @Query("""
+        select r.userId as userId,
+               coalesce(sum(r.clientCommission), 0) as clientCommission,
+               coalesce(sum(r.amount), 0) as amount,
+               count(r) as successfulCount
+        from RechargeTransactionEntity r
+        where r.userId in :userIds
+          and r.status = 'SUCCESS'
+          and coalesce(r.completedAt, r.createdAt) >= :fromInclusive
+          and coalesce(r.completedAt, r.createdAt) < :toExclusive
+        group by r.userId
+    """)
+    fun aggregateSuccessfulForUsers(
+        @Param("userIds") userIds: Collection<Long>,
+        @Param("fromInclusive") fromInclusive: Instant,
+        @Param("toExclusive") toExclusive: Instant
+    ): List<UserRechargeSummaryProjection>
 
     fun findTopByUserIdOrderByCreatedAtDesc(userId: Long): RechargeTransactionEntity?
 

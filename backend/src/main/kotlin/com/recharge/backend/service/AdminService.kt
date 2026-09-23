@@ -1,7 +1,6 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.*
-import com.recharge.backend.domain.AdminVendorEntity
 import com.recharge.backend.domain.RechargeTransactionEntity
 import com.recharge.backend.domain.UserEntity
 import com.recharge.backend.domain.WalletTransactionEntity
@@ -20,7 +19,6 @@ class AdminService(
     private val walletLedger: WalletTransactionRepository,
     private val recharges: RechargeTransactionRepository,
     private val withdrawals: WalletWithdrawalRepository,
-    private val vendors: AdminVendorRepository,
     private val commissionRates: CommissionRateService,
     private val roleAccess: RoleAccessService,
     private val imageStorage: ProfileImageStorage
@@ -34,11 +32,19 @@ class AdminService(
         if (roleFilter != null && roleFilter !in visibleRoles) return emptyList()
         val selectedRoles = if (roleFilter == null) visibleRoles else setOf(roleFilter)
         val records = users.findAllByRoleInOrderByCreatedAtDesc(selectedRoles.toList())
+        if (records.isEmpty()) return emptyList()
+        val userIds = records.map(::requireId)
         val now = ZonedDateTime.now(zoneId)
         val todayStart = now.toLocalDate().atStartOfDay(zoneId).toInstant()
         val tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay(zoneId).toInstant()
         val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zoneId).toInstant()
-        val today = records.map { toSummary(it, todayStart, tomorrowStart, monthStart, now.toInstant()) }
+        val walletsByUserId = wallets.findAllByUserIds(userIds).associateBy { requireNotNull(it.user?.id) }
+        val todayAggregates = recharges.aggregateSuccessfulForUsers(userIds, todayStart, tomorrowStart).associateBy { it.userId }
+        val monthAggregates = recharges.aggregateSuccessfulForUsers(userIds, monthStart, now.toInstant().plusNanos(1)).associateBy { it.userId }
+        val today = records.map { user ->
+            val userId = requireId(user)
+            toSummary(user, walletsByUserId[userId] ?: throw IllegalArgumentException("Wallet not found"), todayAggregates[userId], monthAggregates[userId])
+        }
         return when (sort) {
             "today-low" -> today.sortedBy { it.todayEarnings }
             "month-high" -> today.sortedByDescending { it.monthEarnings }
@@ -55,8 +61,10 @@ class AdminService(
         val tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay(zoneId).toInstant()
         val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zoneId).toInstant()
         val targetId = requireId(target)
-        val summary = toSummary(target, todayStart, tomorrowStart, monthStart, now.toInstant())
         val wallet = wallets.findByUserId(targetId).orElseThrow { IllegalArgumentException("Wallet not found") }
+        val todayAggregate = recharges.aggregateSuccessfulForUsers(listOf(targetId), todayStart, tomorrowStart).firstOrNull()
+        val monthAggregate = recharges.aggregateSuccessfulForUsers(listOf(targetId), monthStart, now.toInstant().plusNanos(1)).firstOrNull()
+        val summary = toSummary(target, wallet, todayAggregate, monthAggregate)
         val rechargeCount = recharges.countSuccessfulByUserId(targetId)
         val addMoneyTotal = walletLedger.sumAddMoneyAllTime(targetId).setScale(2)
         val withdrawalTotal = walletLedger.sumWithdrawalsAllTime(targetId).setScale(2)
@@ -132,11 +140,14 @@ class AdminService(
         val pageData = walletLedger.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
             requireId(target), Instant.EPOCH, now.plusNanos(1), PageRequest.of(page, size)
         )
+        val rechargeIds = pageData.content
+            .filter { it.referenceType.equals("RECHARGE", true) && !it.referenceId.isNullOrBlank() }
+            .mapNotNull { it.referenceId }
+            .distinct()
+        val rechargeById = if (rechargeIds.isEmpty()) emptyMap() else recharges.findAllByTransactionIdIn(rechargeIds).associateBy { it.transactionId }
         return WalletHistoryResponse(
             items = pageData.content.map { tx ->
-                val recharge = if (tx.referenceType.equals("RECHARGE", true) && !tx.referenceId.isNullOrBlank()) {
-                    recharges.findByTransactionId(tx.referenceId!!).orElse(null)
-                } else null
+                val recharge = tx.referenceId?.let(rechargeById::get)
                 WalletHistoryItem(
                     id = tx.id ?: 0L,
                     type = tx.type,
@@ -283,39 +294,14 @@ class AdminService(
         )
     }
 
-    fun vendorList(viewer: UserEntity): List<AdminVendorResponse> {
-        roleAccess.requirePermission(viewer, "MANAGE_VENDORS")
-        return vendors.findAllByOrderByCreatedAtDesc().map(::toVendor)
-    }
-
-    @Transactional
-    fun createVendor(viewer: UserEntity, request: CreateAdminVendorRequest): AdminVendorResponse {
-        roleAccess.requirePermission(viewer, "MANAGE_VENDORS")
-        val category = request.category.trim().uppercase()
-        require(category in setOf("CAR_RENT", "TRAVEL", "SERVICES")) { "Unsupported vendor category" }
-        require(request.name.trim().isNotBlank()) { "Vendor name is required" }
-        require(request.city.trim().isNotBlank()) { "Vendor city is required" }
-        require(request.phone.trim().matches(Regex("[0-9+ -]{7,20}"))) { "Vendor phone is invalid" }
-        require(request.commissionRate >= BigDecimal.ZERO && request.commissionRate < BigDecimal(100)) { "Vendor commission rate must be between 0 and 100" }
-        val now = Instant.now()
-        val saved = vendors.save(
-            AdminVendorEntity(
-                name = request.name.trim(),
-                category = category,
-                city = request.city.trim(),
-                phone = request.phone.trim(),
-                commissionRate = request.commissionRate.setScale(2, RoundingMode.HALF_UP),
-                active = request.active,
-                createdAt = now,
-                updatedAt = now
-            )
-        )
-        return toVendor(saved)
-    }
-
-    private fun toSummary(user: UserEntity, todayStart: Instant, todayEnd: Instant, monthStart: Instant, now: Instant): AdminUserSummaryResponse {
-        val userId = requireId(user)
-        val wallet = wallets.findByUserId(userId).orElseThrow { IllegalArgumentException("Wallet not found") }
+    private fun toSummary(
+        user: UserEntity,
+        wallet: com.recharge.backend.domain.WalletEntity,
+        today: UserRechargeSummaryProjection?,
+        month: UserRechargeSummaryProjection?
+    ): AdminUserSummaryResponse {
+        val todayData = today ?: zeroRechargeAggregate()
+        val monthData = month ?: zeroRechargeAggregate()
         return AdminUserSummaryResponse(
             id = user.publicId,
             publicUserId = user.publicId,
@@ -324,15 +310,22 @@ class AdminService(
             email = user.email ?: "",
             role = user.role.uppercase(),
             accountType = user.role.lowercase().replaceFirstChar { it.uppercase() },
-            todayEarnings = recharges.sumClientCommission(userId, todayStart, todayEnd).setScale(2),
-            monthEarnings = recharges.sumClientCommission(userId, monthStart, now.plusNanos(1)).setScale(2),
-            todayVolume = recharges.sumSuccessfulRechargeAmount(userId, todayStart, todayEnd).setScale(2),
-            monthVolume = recharges.sumSuccessfulRechargeAmount(userId, monthStart, now.plusNanos(1)).setScale(2),
+            todayEarnings = todayData.clientCommission.setScale(2),
+            monthEarnings = monthData.clientCommission.setScale(2),
+            todayVolume = todayData.amount.setScale(2),
+            monthVolume = monthData.amount.setScale(2),
             walletBalance = wallet.balance.setScale(2),
             joinedAt = user.createdAt,
             profileUpdatedAt = user.profileUpdatedAt,
             status = if (user.active) "ACTIVE" else "BLOCKED"
         )
+    }
+
+    private fun zeroRechargeAggregate() = object : UserRechargeSummaryProjection {
+        override val userId: Long = -1L
+        override val clientCommission: BigDecimal = BigDecimal.ZERO
+        override val amount: BigDecimal = BigDecimal.ZERO
+        override val successfulCount: Long = 0L
     }
 
     private fun toWalletEntry(tx: WalletTransactionEntity) = AdminWalletEntryResponse(
@@ -356,12 +349,6 @@ class AdminService(
         status = tx.status,
         createdAt = tx.createdAt,
         transactionId = tx.transactionId
-    )
-
-    private fun toVendor(vendor: AdminVendorEntity) = AdminVendorResponse(
-        id = requireNotNull(vendor.id).toString(), name = vendor.name, category = vendor.category,
-        city = vendor.city, phone = vendor.phone, commissionRate = vendor.commissionRate.setScale(2),
-        active = vendor.active, createdAt = vendor.createdAt
     )
 
     private fun requireId(user: UserEntity): Long = requireNotNull(user.id)

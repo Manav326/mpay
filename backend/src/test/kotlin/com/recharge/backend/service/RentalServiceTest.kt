@@ -378,6 +378,7 @@ class RentalServiceTest {
             com.recharge.backend.domain.RentalVendorEntity(
                 id = 60L,
                 userId = 99L,
+                status = "VERIFIED",
                 fullName = "Vendor",
                 address = "Address",
                 city = "Patna",
@@ -409,6 +410,55 @@ class RentalServiceTest {
 
         assertEquals(listOf("50"), cityResult.map { it.id })
         assertEquals(listOf("50"), pickupResult.map { it.id })
+    }
+    @Test
+    fun vehicleApprovalRequiresVerifiedVendor() {
+        val car = RentalCarEntity(
+            id = 91L, name = "Review Car", category = "Sedan", seats = 4,
+            transmission = "Automatic", vendorId = 92L, driverId = 93L,
+            approvalStatus = "PENDING_REVIEW", active = false
+        )
+        val vendor = com.recharge.backend.domain.RentalVendorEntity(
+            id = 92L, userId = 100L, status = "PENDING_REVIEW", fullName = "Pending Vendor",
+            address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+        )
+        val driver = com.recharge.backend.domain.RentalDriverEntity(
+            id = 93L, vendorId = 92L, fullName = "Driver", mobile = "9999999999",
+            licenseNumber = "DL", licenseExpiry = LocalDateTime.now().plusYears(1), active = true
+        )
+        Mockito.doReturn(Optional.of(car)).`when`(cars).findById(91L)
+        Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findById(92L)
+        Mockito.doReturn(Optional.of(driver)).`when`(drivers).findById(93L)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            service.approveVehicle(91L, 1L)
+        }
+        Mockito.verify(cars, Mockito.never()).save(any(RentalCarEntity::class.java))
+    }
+
+    @Test
+    fun availableCarsExcludeVehiclesBelongingToUnverifiedVendors() {
+        val car = RentalCarEntity(
+            id = 94L, name = "Unverified Vendor Car", category = "Sedan", seats = 4,
+            transmission = "Automatic", active = true, vendorId = 95L, driverId = 96L,
+            approvalStatus = "APPROVED", pricePerDay = BigDecimal("2000.00")
+        )
+        val vendor = com.recharge.backend.domain.RentalVendorEntity(
+            id = 95L, userId = 101L, status = "PENDING_REVIEW", fullName = "Pending Vendor",
+            address = "Address", city = "Patna", state = "Bihar", pinCode = "800001"
+        )
+        val driver = com.recharge.backend.domain.RentalDriverEntity(
+            id = 96L, vendorId = 95L, fullName = "Driver", mobile = "9999999999",
+            licenseNumber = "DL", licenseExpiry = LocalDateTime.now().plusYears(1), active = true
+        )
+        Mockito.doReturn(listOf(car)).`when`(cars)
+            .findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc("APPROVED")
+        Mockito.doReturn(listOf(vendor)).`when`(vendors).findAllById(listOf(95L))
+        Mockito.doReturn(listOf(driver)).`when`(drivers).findAllById(listOf(96L))
+
+        val result = service.availableCars(42L, location = "patna")
+
+        assertEquals(emptyList<String>(), result.map { it.id })
     }
     @Test
     fun quoteRoundsPartialDayUpWhenBookingUsesDatetime() {
