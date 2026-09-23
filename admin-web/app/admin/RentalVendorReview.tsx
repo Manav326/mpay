@@ -173,12 +173,12 @@ export default function RentalVendorReview() {
                 {c.approvalStatus !== 'APPROVED' && <>
                   <input value={vehicleRejectReasons[c.id] || ''} onChange={e => setVehicleRejectReasons(current=>({...current,[c.id]:e.target.value}))} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
                   <button className="secondary" disabled={busy === 'vehicle-' + c.id || !(vehicleRejectReasons[c.id] || '').trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
-                  <button className="primary" disabled={busy === 'vehicle-' + c.id} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
+                  <button className="primary" disabled={busy === 'vehicle-' + c.id || selected.status.toUpperCase() !== 'VERIFIED'} title={selected.status.toUpperCase() === 'VERIFIED' ? 'Approve vehicle' : 'Verify the vendor before approving vehicles'} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
                 </>}
               </div>
             )}</div>}
         </section>
-        <div className="drawer-note"><ShieldCheck size={15}/> Approval changes the rental state only; unapproved vehicles are not visible to customers.</div>
+        <div className="drawer-note"><ShieldCheck size={15}/> Vendor verification is the first gate. A vehicle can become customer-visible only after its vendor is verified, the vehicle is approved, and its driver remains valid.</div>
       </aside>
     </div>}
   </section>;
