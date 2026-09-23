@@ -1,5 +1,5 @@
-import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
+import { dashboardMock, getUserDetail, usersMock } from './mock-data';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -231,16 +231,6 @@ export async function getUserProfileImage(id: string): Promise<string | null> {
   if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
   const blob = await response.blob();
   return URL.createObjectURL(blob);
-}
-
-export async function getVendors(): Promise<Vendor[]> {
-  if (demo) return [...vendorsMock];
-  return api('/api/v1/admin/vendors');
-}
-
-export async function createVendor(input: Omit<Vendor, 'id' | 'createdAt'>): Promise<Vendor> {
-  if (demo) return { ...input, id: `v-${Date.now()}`, createdAt: new Date().toISOString() };
-  return api('/api/v1/admin/vendors', { method: 'POST', body: JSON.stringify(input) });
 }
 
 
