@@ -132,7 +132,157 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
                         order.checkoutParams["paymentHash"].orEmpty(),
                         object : PayUCheckoutBridge.Callback {
-                            override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
+                            override fun onPaymentSuccess(response: Any?) {
+                                val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
+                                val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
+                                val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
+                                val mihpayid = parsed?.optString("mihpayid").orEmpty()
+                                val hash = parsed?.optString("hash").orEmpty()
+                                walletPaymentViewModel.verifyPayment("payu", mihpayid, txnId, hash)
+                            }
+
+                            override fun onPaymentFailure(response: Any?) {
+                                val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
+                                val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
+                                    .getOrNull()?.takeIf { it.isNotBlank() }
+                                walletPaymentViewModel.paymentFailed(message ?: "PayU payment failed")
+                            }
+
+                            override fun onPaymentCancel(isTxnInitiated: Boolean) {
+                                if (isTxnInitiated) {
+                                    walletPaymentViewModel.verifyPayment("payu", null, order.orderId, null)
+                                } else {
+                                    walletPaymentViewModel.paymentFailed("PayU payment was cancelled")
+                                }
+                            }
+
+                            override fun onError(message: String?) {
+                                walletPaymentViewModel.paymentFailed(message ?: "PayU checkout error")
+                            }
+
+                            override fun onGenerateHash(
+                                hashName: String,
+                                hashString: String,
+                                postSalt: String?,
+                                hashType: String?,
+                                callback: PayUCheckoutBridge.PayUHashCallback
+                            ) {
+                                walletPaymentViewModel.generatePayUHash(hashName, hashString, postSalt, hashType) { hash ->
+                                    callback.onHashGenerated(hash)
+                                }
+                            }
+                        }
+                    )
+                }
+                else -> {
+                    val checkout = Checkout().apply { setKeyID(order.keyId) }
+                    val options = JSONObject().apply {
+                        put("key", order.keyId)
+                        put("order_id", order.orderId)
+                        put("currency", order.currency)
+                        put("amount", order.amount.movePointRight(2).longValueExact())
+                        put("name", "mPay")
+                        put("description", "Wallet add money")
+                        put("theme.color", "#F59E0B")
+                    }
+                    pendingRazorpayTarget = RazorpayCheckoutTarget.WALLET
+                    pendingRazorpayOrderId = order.orderId
+                    checkout.open(this, options)
+                }
+            }
+        } catch (e: Exception) {
+            pendingRazorpayTarget = null
+            pendingRazorpayOrderId = null
+            walletPaymentViewModel.paymentFailed(e.message ?: "Unable to open payment checkout")
+        }
+    }
+
+    private fun startGatewayRechargeCheckout(order: PaymentOrderResponse, rechargeViewModel: RechargeViewModel) {
+        try {
+            if (order.provider.equals("payu", true)) {
+                pendingRazorpayTarget = null
+                pendingRazorpayOrderId = null
+                PayUCheckoutBridge.open(
+                    this,
+                    order.amount.setScale(2).toPlainString(),
+                    order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false,
+                    order.checkoutParams["productInfo"] ?: "Mobile recharge",
+                    order.keyId,
+                    order.checkoutParams["phone"].orEmpty(),
+                    order.orderId,
+                    order.checkoutParams["firstName"] ?: "mPay",
+                    order.checkoutParams["email"] ?: "customer@mpay.local",
+                    order.checkoutParams["surl"].orEmpty(),
+                    order.checkoutParams["furl"].orEmpty(),
+                    order.checkoutParams["userCredential"].orEmpty(),
+                    order.checkoutParams["vasForMobileSdkHash"].orEmpty(),
+                    order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
+                    order.checkoutParams["paymentHash"].orEmpty(),
+                    object : PayUCheckoutBridge.Callback {
+                        override fun onPaymentSuccess(response: Any?) {
+                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
+                            val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
+                            val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
+                            val mihpayid = parsed?.optString("mihpayid").orEmpty()
+                            val hash = parsed?.optString("hash").orEmpty()
+                            rechargeViewModel.verifyGatewayPayment("payu", mihpayid, txnId, hash)
+                        }
+
+                        override fun onPaymentFailure(response: Any?) {
+                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
+                            val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
+                                .getOrNull()?.takeIf { it.isNotBlank() }
+                            rechargeViewModel.gatewayPaymentFailed(message ?: "PayU payment failed")
+                        }
+
+                        override fun onPaymentCancel(isTxnInitiated: Boolean) {
+                            if (isTxnInitiated) {
+                                rechargeViewModel.verifyGatewayPayment("payu", null, order.orderId, null)
+                            } else {
+                                rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
+                            }
+                        }
+
+                        override fun onError(message: String?) {
+                            rechargeViewModel.gatewayPaymentFailed(message ?: "PayU checkout error")
+                        }
+
+                        override fun onGenerateHash(
+                            hashName: String,
+                            hashString: String,
+                            postSalt: String?,
+                            hashType: String?,
+                            callback: PayUCheckoutBridge.PayUHashCallback
+                        ) {
+                            rechargeViewModel.generatePayUHash(hashName, hashString, postSalt, hashType) { hash ->
+                                callback.onHashGenerated(hash)
+                            }
+                        }
+                    }
+                )
+            } else {
+                val checkout = Checkout().apply { setKeyID(order.keyId) }
+                val options = JSONObject().apply {
+                    put("key", order.keyId)
+                    put("order_id", order.orderId)
+                    put("currency", order.currency)
+                    put("amount", order.amount.movePointRight(2).longValueExact())
+                    put("name", "mPay")
+                    put("description", "Mobile recharge")
+                    put("theme.color", "#F59E0B")
+                }
+                pendingRazorpayTarget = RazorpayCheckoutTarget.RECHARGE
+                pendingRazorpayOrderId = order.orderId
+                checkout.open(this, options)
+            }
+        } catch (e: Exception) {
+            pendingRazorpayTarget = null
+            pendingRazorpayOrderId = null
+            rechargeViewModel.gatewayPaymentFailed(e.message)
+        }
+    }
+
+    override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
         val target = pendingRazorpayTarget
         val expectedOrderId = pendingRazorpayOrderId
         val returnedOrderId = paymentData?.orderId.orEmpty()
