@@ -222,6 +222,12 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun withdrawal(withdrawalId: String): Result<WithdrawMoneyResponse> = apiCall {
+        val response = api.withdrawal(withdrawalId)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
 
     suspend fun rentalVendor(): Result<com.recharge.client.core.model.RentalVendorResponse> = apiCall {
         val response = api.rentalVendor()
