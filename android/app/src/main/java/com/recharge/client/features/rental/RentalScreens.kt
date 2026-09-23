@@ -135,6 +135,41 @@ private fun VendorField(
 }
 
 @Composable
+private fun VendorSelectField(
+    label: String,
+    value: String,
+    options: List<String>,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember(value) { mutableStateOf(false) }
+    val safeOptions = (listOf(value).filter { it.isNotBlank() } + options).distinct()
+    Box(modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                Text(value.ifBlank { "Select" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            safeOptions.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = { onValueChange(option); expanded = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun CompactFieldRow(
     leftLabel: String,
     leftValue: String,
@@ -1491,8 +1526,14 @@ fun RentalVehicleOnboardingScreen(
 
                     CompactFieldRow("Vehicle name", name, { name = it }, "Make", make, { make = it })
                     CompactFieldRow("Model", model, { model = it }, "Variant (optional)", variant, { variant = it })
-                    CompactFieldRow("Category", category, { category = it }, "Seats", seats, { seats = it })
-                    CompactFieldRow("Transmission", transmission, { transmission = it }, "Fuel type", fuel, { fuel = it })
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorSelectField("Category", category, listOf("Sedan", "SUV", "Hatchback", "MUV", "Luxury", "Other"), modifier = Modifier.weight(1f), onValueChange = { category = it })
+                        VendorSelectField("Seats", seats, (2..8).map { it.toString() }, modifier = Modifier.weight(1f), onValueChange = { seats = it })
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorSelectField("Transmission", transmission, listOf("Automatic", "Manual"), modifier = Modifier.weight(1f), onValueChange = { transmission = it })
+                        VendorSelectField("Fuel type", fuel, listOf("Petrol", "Diesel", "CNG", "Electric", "Hybrid", "Other"), modifier = Modifier.weight(1f), onValueChange = { fuel = it })
+                    }
                     CompactFieldRow("Manufacturing year", manufacturingYear, { manufacturingYear = it }, "Registration year", registrationYear, { registrationYear = it })
                     VendorField("Registration number", registrationNumber) { registrationNumber = it }
                     CompactFieldRow("City", city, { city = it }, "State", stateName, { stateName = it })
