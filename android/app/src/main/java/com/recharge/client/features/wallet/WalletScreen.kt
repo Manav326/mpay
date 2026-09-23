@@ -32,6 +32,8 @@ import com.recharge.client.core.ui.formatAsOf
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
 import com.recharge.client.core.ui.formatPeriod
+import com.recharge.client.core.ui.MpayStatusPill
+import com.recharge.client.core.ui.MpayEmptyState
 import com.recharge.client.core.viewmodel.WalletDateFilter
 import com.recharge.client.core.viewmodel.WalletHistoryFilter
 import com.recharge.client.core.viewmodel.WalletUiState
@@ -90,7 +92,7 @@ fun WalletScreen(
                 title = { Text(walletTransactionTitle(walletUiState.selectedWalletItem)) },
                 text = {
                     if (walletUiState.detailError != null) Text(walletUiState.detailError, color = MaterialTheme.colorScheme.error)
-                    else WalletTransactionDetailCard(walletUiState.selectedWalletItem)
+                    else WalletTransactionDetailCard(walletUiState.selectedWalletItem, selectedWithdrawal)
                 },
                 confirmButton = { Button(onClick = onCloseWalletDetail) { Text("Okay") } }
             )
@@ -239,8 +241,9 @@ private fun WalletActivityCard(
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 WalletFilterButton(WalletHistoryFilter.ALL, state.filter, "All", onSelectFilter, 0, 4)
                 WalletFilterButton(WalletHistoryFilter.RECHARGE, state.filter, "Recharge", onSelectFilter, 1, 4)
-                WalletFilterButton(WalletHistoryFilter.ADD_MONEY, state.filter, "Add money", onSelectFilter, 2, 4)
-                WalletFilterButton(WalletHistoryFilter.WITHDRAWN, state.filter, "Withdrawn", onSelectFilter, 3, 4)
+                WalletFilterButton(WalletHistoryFilter.ADD_MONEY, state.filter, "Add money", onSelectFilter, 2, 5)
+                WalletFilterButton(WalletHistoryFilter.WITHDRAWN, state.filter, "Withdrawn", onSelectFilter, 3, 5)
+                WalletFilterButton(WalletHistoryFilter.RENTAL, state.filter, "Rental", onSelectFilter, 4, 5)
             }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 WalletDateButton(WalletDateFilter.TODAY, state.dateFilter, "Today", onSetToday, 0, 4)
@@ -250,7 +253,7 @@ private fun WalletActivityCard(
             }
             when {
                 state.loadingHistory && state.items.isEmpty() -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(modifier = Modifier.size(22.dp)) }
-                state.items.isEmpty() -> Text("No wallet activity for this period.", color = AppColors.TextSecondary)
+                state.items.isEmpty() -> MpayEmptyState(title = "No wallet activity", message = "There are no wallet transactions for the selected filters.")
                 else -> {
                     state.items.take(5).forEach { item -> WalletHistoryRow(item, onOpenDetail) }
                     if (state.hasNext) TextButton(onClick = onLoadMore, enabled = !state.loadingHistory) { Text("Load more") }
@@ -316,7 +319,7 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
 }
 
 @Composable
-private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
+private fun WalletTransactionDetailCard(item: WalletHistoryItem, withdrawal: WithdrawalHistoryItem? = null) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1500); copied = false } }
@@ -353,7 +356,10 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
                 IconButton(onClick = { clipboard.setText(AnnotatedString(copyText.trimEnd())); copied = true }) { Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, if (copied) "Copied" else "Copy details", tint = if (copied) AppColors.Success else MaterialTheme.colorScheme.primary) }
             }
             HorizontalDivider()
-            Text("Status: ${item.status}")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Status", color = AppColors.TextSecondary)
+                MpayStatusPill(item.status)
+            }
             Text("Reference: ${item.referenceId ?: "—"}")
             if (item.mobileNumber != null) Text("Mobile: ${item.mobileNumber}")
             if (item.operator != null) Text("Operator: ${operatorLabel(item.operator)}")
@@ -363,7 +369,7 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem) {
             }
             item.description?.let { Text(it, color = AppColors.TextSecondary) }
             Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            if (isWithdraw) Text("UPI ID: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            if (isWithdraw) Text("UPI ID: ${withdrawal?.upiId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             if (isRecharge) Text("Recharge transaction: ${item.referenceId ?: "—"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
     }
