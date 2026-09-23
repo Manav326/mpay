@@ -205,8 +205,3 @@ interface PasswordResetOtpRepository : JpaRepository<com.recharge.backend.domain
     fun findByMobile(mobile: String): java.util.Optional<com.recharge.backend.domain.PasswordResetOtpEntity>
 }
 
-
-interface AdminVendorRepository : JpaRepository<com.recharge.backend.domain.AdminVendorEntity, Long> {
-    fun findAllByOrderByCreatedAtDesc(): List<com.recharge.backend.domain.AdminVendorEntity>
-    fun findAllByActiveTrueOrderByCreatedAtDesc(): List<com.recharge.backend.domain.AdminVendorEntity>
-}
