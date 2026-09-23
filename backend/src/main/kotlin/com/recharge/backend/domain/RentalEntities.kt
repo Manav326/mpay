@@ -39,6 +39,7 @@ class RentalDriverEntity(
     @Column(name="license_number", nullable=false, length=64) var licenseNumber: String = "",
     @Column(name="license_expiry", nullable=false) var licenseExpiry: LocalDateTime = LocalDateTime.now(),
     @Column(length=300) var address: String? = null,
+    @Column(name="photo_url", length=500) var photoUrl: String? = null,
     @Column(nullable=false) var active: Boolean = true,
     @Column(name="rejection_reason", length=500) var rejectionReason: String? = null,
     @Column(name="created_at", nullable=false) var createdAt: Instant = Instant.now(),
