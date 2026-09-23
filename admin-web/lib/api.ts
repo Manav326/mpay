@@ -277,6 +277,10 @@ export async function completeRentalBooking(bookingId: string): Promise<unknown>
   return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/complete', { method: 'POST' });
 }
 
+export async function cancelRentalBooking(bookingId: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/cancel', { method: 'POST' });
+}
+
 export async function getRentalAdminPayouts(page = 0, size = 25, status = 'ALL'): Promise<import('./types').RentalAdminPayoutPageResponse> {
   const query = new URLSearchParams({ page: String(page), size: String(size) });
   if (status && status !== 'ALL') query.set('status', status);
