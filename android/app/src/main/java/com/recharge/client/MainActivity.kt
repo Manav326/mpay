@@ -554,7 +554,8 @@ private fun AppNavHost(
                 onLoadVehicleAvailability = rentalViewModel::loadVehicleUnavailability,
                 onTakeVehicleOffMarket = rentalViewModel::takeVehicleOffMarket,
                 onRestoreVehicleToMarket = rentalViewModel::restoreVehicleToMarket,
-                onLoadVehicleCalendar = rentalViewModel::loadVehicleCalendar
+                onLoadVehicleCalendar = rentalViewModel::loadVehicleCalendar,
+                onUpdateVendorProfile = rentalViewModel::updateVendor
             )
         }
         composable("rental-booking") {
