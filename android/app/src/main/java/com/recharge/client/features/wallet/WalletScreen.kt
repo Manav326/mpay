@@ -2,6 +2,8 @@ package com.recharge.client.features.wallet
 
 import android.app.DatePickerDialog
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -247,12 +249,15 @@ private fun WalletActivityCard(
                 }
                 IconButton(onClick = onRefresh, enabled = !state.refreshing) { Icon(Icons.Default.Refresh, "Refresh wallet history") }
             }
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                WalletFilterButton(WalletHistoryFilter.ALL, state.filter, "All", onSelectFilter, 0, 4)
-                WalletFilterButton(WalletHistoryFilter.RECHARGE, state.filter, "Recharge", onSelectFilter, 1, 4)
-                WalletFilterButton(WalletHistoryFilter.ADD_MONEY, state.filter, "Add money", onSelectFilter, 2, 5)
-                WalletFilterButton(WalletHistoryFilter.WITHDRAWN, state.filter, "Withdrawn", onSelectFilter, 3, 5)
-                WalletFilterButton(WalletHistoryFilter.RENTAL, state.filter, "Rental", onSelectFilter, 4, 5)
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                WalletFilterChip(WalletHistoryFilter.ALL, state.filter, "All", onSelectFilter)
+                WalletFilterChip(WalletHistoryFilter.RECHARGE, state.filter, "Recharge", onSelectFilter)
+                WalletFilterChip(WalletHistoryFilter.ADD_MONEY, state.filter, "Add money", onSelectFilter)
+                WalletFilterChip(WalletHistoryFilter.WITHDRAWN, state.filter, "Withdrawn", onSelectFilter)
+                WalletFilterChip(WalletHistoryFilter.RENTAL, state.filter, "Rental", onSelectFilter)
             }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 WalletDateButton(WalletDateFilter.TODAY, state.dateFilter, "Today", onSetToday, 0, 4)
@@ -273,10 +278,18 @@ private fun WalletActivityCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SingleChoiceSegmentedButtonRowScope.WalletFilterButton(filter: WalletHistoryFilter, selected: WalletHistoryFilter, label: String, onSelect: (WalletHistoryFilter) -> Unit, index: Int, count: Int) {
-    SegmentedButton(selected = selected == filter, onClick = { onSelect(filter) }, shape = SegmentedButtonDefaults.itemShape(index, count)) { Text(label, maxLines = 1, softWrap = false) }
+private fun WalletFilterChip(
+    filter: WalletHistoryFilter,
+    selected: WalletHistoryFilter,
+    label: String,
+    onSelect: (WalletHistoryFilter) -> Unit
+) {
+    FilterChip(
+        selected = selected == filter,
+        onClick = { onSelect(filter) },
+        label = { Text(label, maxLines = 1, softWrap = false) }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
