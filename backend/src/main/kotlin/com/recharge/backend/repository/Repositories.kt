@@ -49,6 +49,7 @@ interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, L
     fun existsByExternalRef(externalRef: String): Boolean
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
     fun findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, referenceType: String, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
+    fun findByUserIdAndReferenceTypeInAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, referenceTypes: Collection<String>, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
 
     @Query("""
         select coalesce(sum(w.amount), 0)
