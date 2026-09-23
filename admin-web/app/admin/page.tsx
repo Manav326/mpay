@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
+import { BarChart3, CarFront, CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { completeRentalBooking, createVendor, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
@@ -22,7 +22,7 @@ export default function Page() {
   const [mobile, setMobile] = useState(''); const [password, setPassword] = useState(''); const [otp, setOtp] = useState(''); const [newPassword, setNewPassword] = useState('');
   const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'vendors'|'rental'>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']); const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [roleFilter, setRoleFilter] = useState<Role|'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high'); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<Role|'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high'); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false); const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [newVendor, setNewVendor] = useState({ name:'', category:'CAR_RENT' as Vendor['category'], city:'', phone:'', commissionRate:5, active:true });
   const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>();
   const [rentalBookings, setRentalBookings] = useState<RentalAdminBooking[]>([]);
@@ -56,8 +56,8 @@ export default function Page() {
   ] as const;
 
   return <div className="shell">
-    <aside className={`sidebar ${drawer?'open':''}`}>
-      <div className="side-top"><Logo compact/><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={19}/></button></div>
+    <aside className={`sidebar ${drawer?'open ':''}${sidebarCollapsed?'collapsed':''}`}>
+      <div className="side-top"><Logo compact/><div className="side-controls"><button className="icon-btn sidebar-collapse-btn" title={sidebarCollapsed?'Expand navigation':'Collapse navigation'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</button><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={19}/></button></div></div>
       <div className="portal-role"><ShieldCheck size={16}/><span>{session.role.replace('_',' ')} portal</span></div>
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><div className="profile-mini"><div className="avatar">{session.name.charAt(0)}</div><div><b>{session.name}</b><span>{session.role}</span></div></div><button className="nav" onClick={logout}><LogOut size={18}/><span>Logout</span></button></div>
