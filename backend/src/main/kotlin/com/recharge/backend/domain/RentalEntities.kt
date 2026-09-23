@@ -22,6 +22,8 @@ class RentalVendorEntity(
     @Column(name="payout_upi_id", length=254) var payoutUpiId: String? = null,
     @Column(name="bank_account_number", length=64) var bankAccountNumber: String? = null,
     @Column(name="bank_ifsc", length=20) var bankIfsc: String? = null,
+    @Column(name="bank_name", length=120) var bankName: String? = null,
+    @Column(name="payout_primary_method", length=10) var payoutPrimaryMethod: String? = null,
     @Column(name="created_at", nullable=false) var createdAt: Instant = Instant.now(),
     @Column(name="updated_at", nullable=false) var updatedAt: Instant = Instant.now(),
     @Column(name="rejection_reason", length=500) var rejectionReason: String? = null
