@@ -433,3 +433,63 @@ data class CreateAdminVendorRequest(
     @field:DecimalMin("0.00") val commissionRate: BigDecimal,
     val active: Boolean = true
 )
+
+
+data class AdminFinancialWithdrawalItem(
+    val withdrawalId: String,
+    val clientRequestId: String,
+    val userId: String,
+    val userName: String,
+    val userMobile: String,
+    val amount: BigDecimal,
+    val upiId: String,
+    val provider: String,
+    val status: String,
+    val providerReference: String?,
+    val providerStatus: String?,
+    val failureReason: String?,
+    val walletLedgerRef: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val completedAt: Instant?
+)
+
+data class AdminFinancialWithdrawalPageResponse(
+    val items: List<AdminFinancialWithdrawalItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
+data class AdminFinancialRechargeItem(
+    val transactionId: String,
+    val clientRequestId: String,
+    val userId: String,
+    val userName: String,
+    val userMobile: String,
+    val mobileNumber: String,
+    val operator: String,
+    val circle: String,
+    val amount: BigDecimal,
+    val walletDebitAmount: BigDecimal,
+    val status: String,
+    val provider: String,
+    val providerReference: String?,
+    val providerOrderId: String?,
+    val walletLedgerRef: String?,
+    val message: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val completedAt: Instant?
+)
+
+data class AdminFinancialRechargePageResponse(
+    val items: List<AdminFinancialRechargeItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
