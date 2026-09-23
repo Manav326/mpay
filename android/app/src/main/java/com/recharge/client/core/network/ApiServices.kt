@@ -200,4 +200,7 @@ interface ClientApi {
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20
     ): Response<WithdrawalHistoryResponse>
+
+    @GET("api/v1/wallet/withdrawals/{withdrawalId}")
+    suspend fun withdrawal(@Path("withdrawalId") withdrawalId: String): Response<WithdrawMoneyResponse>
 }
