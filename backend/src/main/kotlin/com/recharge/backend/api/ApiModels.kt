@@ -168,7 +168,8 @@ data class RechargeResponse(
     val commission: BigDecimal,
     val walletDebitAmount: BigDecimal,
     val walletBalance: BigDecimal,
-    val walletAvailableBalance: BigDecimal
+    val walletAvailableBalance: BigDecimal,
+    val recipientName: String? = null
 )
 
 data class RechargeTransactionStatusResponse(
@@ -200,7 +201,8 @@ data class RechargeRequest(
     @field:NotBlank val operator: String,
     @field:NotBlank val circle: String,
     @field:NotBlank val planId: String,
-    @field:NotBlank @field:Size(max = 100) val clientRequestId: String
+    @field:NotBlank @field:Size(max = 100) val clientRequestId: String,
+    @field:Size(max = 120) val recipientName: String? = null
 )
 
 data class RechargeHistoryItem(
@@ -224,7 +226,8 @@ data class RechargeHistoryItem(
     val companyCommission: BigDecimal,
     val message: String?,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
+    val recipientName: String? = null
 )
 
 data class RechargeHistoryResponse(
