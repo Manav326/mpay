@@ -14,7 +14,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneId
 
-enum class WalletHistoryFilter { ALL, RECHARGE, ADD_MONEY, WITHDRAWN }
+enum class WalletHistoryFilter { ALL, RECHARGE, ADD_MONEY, WITHDRAWN, RENTAL }
 enum class WalletDateFilter { TODAY, LAST_7_DAYS, THIS_MONTH, CUSTOM }
 
 data class WalletUiState(
@@ -85,6 +85,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         WalletHistoryFilter.RECHARGE -> "RECHARGE"
         WalletHistoryFilter.ADD_MONEY -> "ADD_MONEY"
         WalletHistoryFilter.WITHDRAWN -> "WITHDRAWN"
+        WalletHistoryFilter.RENTAL -> "RENTAL"
         WalletHistoryFilter.ALL -> "ALL"
     }
 
