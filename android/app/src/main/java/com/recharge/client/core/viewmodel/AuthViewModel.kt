@@ -18,7 +18,7 @@ sealed interface AuthUiState {
 }
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AuthRepository(application)
+    private val repository = AuthRepository.getInstance(application)
     private val _state = MutableStateFlow<AuthUiState>(
         if (repository.isLoggedIn()) AuthUiState.Authenticated else AuthUiState.Idle
     )
