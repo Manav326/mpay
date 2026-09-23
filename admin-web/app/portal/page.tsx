@@ -285,37 +285,47 @@ export default function Portal() {
   }
 
   async function loadAccountData() {
-    try {
-      const p = await api<Me>('/api/v1/profile');
+    const [profileResult, vendorResult] = await Promise.allSettled([
+      api<Me>('/api/v1/profile'),
+      api<RentalVendor>('/api/v1/car-rental/vendor')
+    ]);
+
+    if (profileResult.status === 'fulfilled') {
+      const p = profileResult.value;
       setMe(p);
       setProfileForm({ name: p?.name || '', email: p?.email || '' });
-      await loadProfileImage();
-    } catch (e:any) {
-      setNotice(e.message || 'Unable to load profile.');
+    } else {
+      setNotice(profileResult.reason?.message || 'Unable to load profile.');
     }
-    try {
-      const v = await api<RentalVendor>('/api/v1/car-rental/vendor');
-      setVendor(v);
-      if (!v?.vendorId) {
-        setVendorVehicles([]); setVendorPayouts([]); setVendorEarnings(undefined);
-        return;
-      }
-      const results = await Promise.allSettled([
-        api<any>('/api/v1/car-rental/vendor/vehicles'),
-        api<any>('/api/v1/car-rental/vendor/payouts'),
-        String(v.status || '').toUpperCase() === 'VERIFIED'
-          ? api<RentalVendorEarnings>('/api/v1/car-rental/vendor/earnings')
-          : Promise.resolve(undefined)
-      ]);
-      if (results[0].status === 'fulfilled') setVendorVehicles(results[0].value?.items || results[0].value || []);
-      if (results[1].status === 'fulfilled') setVendorPayouts(results[1].value?.items || results[1].value || []);
-      if (results[2].status === 'fulfilled') setVendorEarnings(results[2].value as RentalVendorEarnings | undefined);
-    } catch {
+
+    if (vendorResult.status === 'rejected') {
       setVendor(undefined);
       setVendorVehicles([]);
       setVendorPayouts([]);
       setVendorEarnings(undefined);
+      if (profileResult.status !== 'fulfilled') setNotice(vendorResult.reason?.message || 'Unable to load vendor workspace.');
+      return;
     }
+
+    const v = vendorResult.value;
+    setVendor(v);
+    if (!v?.vendorId) {
+      setVendorVehicles([]);
+      setVendorPayouts([]);
+      setVendorEarnings(undefined);
+      return;
+    }
+
+    const results = await Promise.allSettled([
+      api<any>('/api/v1/car-rental/vendor/vehicles'),
+      api<any>('/api/v1/car-rental/vendor/payouts'),
+      String(v.status || '').toUpperCase() === 'VERIFIED'
+        ? api<RentalVendorEarnings>('/api/v1/car-rental/vendor/earnings')
+        : Promise.resolve(undefined)
+    ]);
+    if (results[0].status === 'fulfilled') setVendorVehicles(results[0].value?.items || results[0].value || []);
+    if (results[1].status === 'fulfilled') setVendorPayouts(results[1].value?.items || results[1].value || []);
+    if (results[2].status === 'fulfilled') setVendorEarnings(results[2].value as RentalVendorEarnings | undefined);
   }
 
   async function openWalletItem(item: WalletItem) {
@@ -543,7 +553,7 @@ export default function Portal() {
     finally { setBusy(false); }
   }
 
-  async function loadRentalData(startDate='',endDate='',location='') {
+  async function loadRentalCars(startDate='',endDate='',location='') {
     const requestSeq = ++rentalLoadSeq.current;
     try {
       const params=new URLSearchParams();
@@ -551,19 +561,33 @@ export default function Portal() {
       if(endDate) params.set('endDate',endDate);
       if(location.trim()) params.set('location',location.trim());
       const carsPath='/api/v1/car-rental/cars' + (params.toString() ? '?' + params.toString() : '');
-      const [available,existing]=await Promise.all([
-        api<any>(carsPath),
-        api<any>('/api/v1/car-rental/bookings?page=0&size=25')
-      ]);
+      const available=await api<any>(carsPath);
       if(requestSeq !== rentalLoadSeq.current) return;
       setCars(available?.items || available || []);
-      setBookings(existing?.items || existing?.content || existing || []);
     } catch(e:any) {
       if(requestSeq === rentalLoadSeq.current) setNotice(e.message || 'Unable to load rental inventory.');
     }
   }
+
+  async function loadBookings() {
+    try {
+      const existing=await api<any>('/api/v1/car-rental/bookings?page=0&size=25');
+      setBookings(existing?.items || existing?.content || existing || []);
+    } catch(e:any) {
+      setNotice(e.message || 'Unable to load bookings.');
+    }
+  }
+
+  async function loadRentalData(startDate='',endDate='',location='') {
+    await Promise.all([loadRentalCars(startDate,endDate,location), loadBookings()]);
+  }
+
   function refreshRentalData() {
-    void loadRentalData();
+    void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
+  }
+
+  function refreshBookings() {
+    void loadBookings();
   }
 
   function searchRentalCars() {
@@ -579,7 +603,7 @@ export default function Portal() {
 
   function clearRentalSearch() {
     setRentalSearch({location:'',startDate:'',endDate:''});
-    setSelectedCar(undefined); setRentalQuote(undefined); loadRentalData();
+    setSelectedCar(undefined); setRentalQuote(undefined); loadRentalCars();
   }
 
   async function checkRentalFare() {
@@ -607,7 +631,7 @@ export default function Portal() {
         dropLocation:rentalQuote.drop,startDate:rentalQuote.startDate,endDate:rentalQuote.endDate,paymentMethod:'WALLET'
       })});
       setBookings(b=>[result,...b]);
-      await refreshWallet(); await loadRentalData();
+      await Promise.all([refreshWallet(), loadBookings()]);
       setNotice('Booking confirmed. Payment is from your wallet.');
       setSelectedCar(undefined); setRentalQuote(undefined);
       setView('bookings');
@@ -620,7 +644,7 @@ export default function Portal() {
     setBusy(true);
     try {
       await api('/api/v1/car-rental/bookings/'+encodeURIComponent(bookingId)+'/cancel',{method:'POST'});
-      await refreshWallet(); await loadRentalData();
+      await Promise.all([refreshWallet(), loadBookings()]);
       setNotice('Booking cancelled and the wallet amount was refunded.');
     } catch(e:any){setNotice(e.message || 'Unable to cancel booking.');}
     finally{setBusy(false);}
@@ -772,8 +796,10 @@ export default function Portal() {
       void loadHistory();
     } else if(view==='wallet'){
       void Promise.all([loadHistory(),loadWithdrawals(),loadCommissionSummary()]);
-    } else if(view==='rental' || view==='bookings'){
-      void loadRentalData();
+    } else if(view==='rental'){
+      void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
+    } else if(view==='bookings'){
+      void loadBookings();
     } else if(view==='account'){
       void loadAccountData();
     }
@@ -957,7 +983,7 @@ export default function Portal() {
         </div>
       </section>}
 
-      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={refreshRentalData}><RefreshCw size={15}/> Refresh</button></div>
+      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={refreshBookings}><RefreshCw size={15}/> Refresh</button></div>
         <div className="funding-picker">{bookingStatuses.map(s=><button key={s} className={bookingStatusFilter===s?'selected':''} onClick={()=>setBookingStatusFilter(s)}>{s==='ALL'?'All':s.replace(/_/g,' ')}</button>)}</div>
         {filteredBookings.length ? <div className="history-list">{filteredBookings.map(b=><div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {dt(b.startDate)} to {dt(b.endDate)} · Driver {b.driverName || '—'}</small></div><strong className={['CANCELLED','REFUNDED'].includes(String(b.status || '').toUpperCase()) ? 'amount-credit' : 'amount-debit'}>{money(b.total)}</strong><div className="history-actions"><span className={statusClass(b.status)}>{String(b.status).toUpperCase()}</span><span>{b.paymentMethod || 'WALLET'}</span><button className="copy-btn" onClick={()=>copyText(bookingShareText(b),'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>{String(b.status).toUpperCase()==='CONFIRMED' && new Date(b.startDate).getTime()>Date.now() && <button className="text-danger-btn" disabled={busy} onClick={()=>cancelBooking(b.bookingId)}>Cancel</button>}</div></div>)}</div> : <div className="empty-state">No bookings match the selected status.</div>}
       </div></section>}
