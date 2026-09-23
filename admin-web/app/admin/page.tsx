@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { completeRentalBooking, createVendor, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVendors, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import { completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVendors, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 
@@ -23,7 +23,6 @@ export default function Page() {
   const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'vendors'|'rental'>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']); const [vendors, setVendors] = useState<Vendor[]>([]);
   const [roleFilter, setRoleFilter] = useState<Role|'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high'); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false);
-  const [newVendor, setNewVendor] = useState({ name:'', category:'CAR_RENT' as Vendor['category'], city:'', phone:'', commissionRate:5, active:true });
   const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>();
   const [rentalBookings, setRentalBookings] = useState<RentalAdminBooking[]>([]);
   const [rentalBookingPage, setRentalBookingPage] = useState(0);
@@ -64,11 +63,11 @@ export default function Page() {
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><div className="profile-mini"><div className="avatar">{session.name.charAt(0)}</div><div><b>{session.name}</b><span>{session.role}</span></div></div><button className="nav" onClick={logout}><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':view==='vendors'?'Vendors & Services':'Rental Operations'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><button className="icon-btn"><UserCog size={18}/></button></div></header>
+    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':'Commission Rules'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><button className="icon-btn"><UserCog size={18}/></button></div></header>
       {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected}/>} 
-      {view==='vendors' && canVendors && <VendorsView vendors={vendors} newVendor={newVendor} setNewVendor={setNewVendor} onAdd={async()=>{const v=await createVendor(newVendor);setVendors(x=>[v,...x]);setNewVendor({name:'',category:'CAR_RENT',city:'',phone:'',commissionRate:5,active:true});}}/>}
+      
       {view==='rental' && canVendors && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
@@ -90,16 +89,20 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
 }
 
 function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
-  const [tab,setTab] = useState<'overview'|'recharges'|'wallet'>('overview');
+  const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
   const [rechargePage,setRechargePage] = useState(0);
   const [rechargeHasNext,setRechargeHasNext] = useState(false);
   const [walletHistory,setWalletHistory] = useState<WalletHistoryItem[]>([]);
+  const [withdrawals,setWithdrawals] = useState<WithdrawalHistoryItem[]>([]);
+  const [withdrawalPage,setWithdrawalPage] = useState(0);
+  const [withdrawalHasNext,setWithdrawalHasNext] = useState(false);
   const [walletPage,setWalletPage] = useState(0);
   const [walletHasNext,setWalletHasNext] = useState(false);
   const [loadingRecharges,setLoadingRecharges] = useState(true);
   const [loadingWallet,setLoadingWallet] = useState(true);
+  const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
 
   useEffect(()=>{
     let active = true;
@@ -107,7 +110,8 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
     Promise.all([
       getUserRechargeHistory(user.id,0,25),
       getUserWalletHistory(user.id,0,25),
-    ]).then(([rechargePageData,walletPageData])=>{
+      getUserWithdrawalHistory(user.id,0,25),
+    ]).then(([rechargePageData,walletPageData,withdrawalPageData])=>{
       if(!active) return;
       setRecharges(rechargePageData.items);
       setRechargePage(rechargePageData.page);
@@ -115,8 +119,11 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
       setWalletHistory(walletPageData.items);
       setWalletPage(walletPageData.page);
       setWalletHasNext(walletPageData.hasNext);
+      setWithdrawals(withdrawalPageData.items);
+      setWithdrawalPage(withdrawalPageData.page);
+      setWithdrawalHasNext(withdrawalPageData.hasNext);
     }).catch(()=>{}).finally(()=>{
-      if(active){ setLoadingRecharges(false); setLoadingWallet(false); }
+      if(active){ setLoadingRecharges(false); setLoadingWallet(false); setLoadingWithdrawals(false); }
     });
     return ()=>{ active=false; };
   },[user.id]);
@@ -128,6 +135,13 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
     setRecharges(current=>[...current,...next.items]);
     setRechargePage(next.page);
     setRechargeHasNext(next.hasNext);
+  }
+
+  async function loadMoreWithdrawals(){
+    const next = await getUserWithdrawalHistory(user.id,withdrawalPage + 1,25);
+    setWithdrawals(current=>[...current,...next.items]);
+    setWithdrawalPage(next.page);
+    setWithdrawalHasNext(next.hasNext);
   }
 
   async function loadMoreWallet(){
@@ -190,7 +204,7 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
       <div className="detail-tabs">
         <button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}><WalletCards size={15}/> Overview</button>
         <button className={tab==='recharges'?'active':''} onClick={()=>setTab('recharges')}><ReceiptText size={15}/> Recharges <span>{recharges.length}{rechargeHasNext?'+':''}</span></button>
-        <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}><History size={15}/> Balance history <span>{walletHistory.length}{walletHasNext?'+':''}</span></button>
+        <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}><History size={15}/> Balance history <span>{walletHistory.length}{walletHasNext?'+':''}</span></button><button className={tab==='withdrawals'?'active':''} onClick={()=>setTab('withdrawals')}><WalletCards size={15}/> Withdrawals <span>{withdrawals.length}{withdrawalHasNext?'+':''}</span></button>
       </div>
 
       {tab==='overview' && <section className="drawer-section">
@@ -216,6 +230,15 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
         {rechargeHasNext && <button className="secondary load-more" onClick={loadMoreRecharges}>Load more recharge records <ChevronRight size={15}/></button>}
       </section>}
 
+      {tab==='withdrawals' && <section className="drawer-section">
+        <div className="drawer-section-title"><div><h3>Withdrawal history</h3><p>UPI, provider, status and provider references for this client.</p></div></div>
+        {loadingWithdrawals ? <div className="empty-state">Loading withdrawal history…</div> : withdrawals.length===0 ? <div className="empty-state">No withdrawal records found.</div> :
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Amount</th><th>UPI</th><th>Provider</th><th>Status</th><th>References</th></tr></thead><tbody>
+            {withdrawals.map(w=><tr key={w.withdrawalId}><td>{dateTime(w.createdAt)}</td><td><b className="red-amount">{INR.format(w.amount)}</b></td><td><b>{w.upiId}</b></td><td>{w.provider}</td><td><span className={"status " + (w.status || 'UNKNOWN').toLowerCase()}>{w.status}</span>{w.failureReason&&<span>{w.failureReason}</span>}</td><td><span className="mono">{w.withdrawalId}</span><span>{w.providerReference || w.walletLedgerRef || w.clientRequestId}</span></td></tr>)}
+          </tbody></table></div>}
+        {withdrawalHasNext && <button className="secondary load-more" onClick={loadMoreWithdrawals}>Load more withdrawal records <ChevronRight size={15}/></button>}
+      </section>}
+
       {tab==='wallet' && <section className="drawer-section">
         <div className="drawer-section-title"><div><h3>Complete balance history</h3><p>Credits, debits, withdrawals and linked recharge ledger entries.</p></div></div>
         {loadingWallet ? <div className="empty-state">Loading balance history…</div> : walletHistory.length===0 ? <div className="empty-state">No balance history found.</div> :
@@ -225,7 +248,7 @@ function UserDrawer({user,onClose}:{user:UserDetail;onClose:()=>void}){
         {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
       </section>}
 
-      <div className="drawer-note"><ShieldCheck size={15}/> This view is strictly read-only. No balance, profile, recharge, transaction or booking data can be changed from this screen.</div>
+      <div className="drawer-note"><ShieldCheck size={15}/> This view is read-only for customer data. Financial and rental controls are exposed only through dedicated protected operations screens.</div>
     </aside>
   </div>
 }
