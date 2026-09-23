@@ -302,3 +302,17 @@
 .table-wrap th{padding:10px 9px;font-size:9px}.table-wrap td{padding:10px 9px;font-size:11px}
 .drawer-overlay{background:rgba(20,15,8,.22)}.user-drawer{padding:20px}.user-drawer-wide{width:min(780px,100%)}
 @media(max-width:800px){.sidebar,.sidebar.collapsed{position:fixed;left:-255px;width:250px;padding:15px 12px}.sidebar.open{left:0}.sidebar.collapsed .brand strong,.sidebar.collapsed .portal-role span,.sidebar.collapsed .nav span,.sidebar.collapsed .profile-mini>div:nth-child(2){display:block}.sidebar.collapsed .portal-role{justify-content:flex-start;padding:10px 12px}.sidebar.collapsed .nav{justify-content:flex-start;padding:11px 12px}.sidebar.collapsed .profile-mini{justify-content:flex-start;padding:8px}.sidebar-collapse-btn{display:none}.content{padding:16px}.topbar{padding:0 16px}.admin-user-chip span{display:none}.admin-user-chip{padding:3px}}
+
+
+/* Second-pass system consistency */
+.driver-profile-card{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:9px;border:1px solid #dce6ec;border-radius:12px;background:#f7fbfd}
+.driver-profile-photo{width:42px;height:42px;flex:none;border-radius:12px;overflow:hidden;background:#e7f0f4;color:#5d7684;display:grid;place-items:center}
+.driver-profile-photo img{width:100%;height:100%;object-fit:cover}
+.driver-profile-card>div:nth-child(2){display:flex;flex-direction:column;gap:2px;min-width:0}.driver-profile-card b{font-size:11px;color:#294655}.driver-profile-card span,.driver-profile-card small{font-size:9px;color:#7b8b94}
+.driver-profile-card .upload-label{margin-left:auto;padding:7px 9px;white-space:nowrap}.public-driver-card{margin-bottom:9px}
+.availability-form input:disabled,.availability-form select:disabled{opacity:.5;cursor:not-allowed;background:#f3f1ee}
+.review-notice{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;margin:-4px 0 11px;border:1px solid #d8ebdf;background:#eef9f2;color:#25623d;border-radius:11px;font-size:11px}
+.review-notice .icon-btn{width:28px;height:28px;border-color:transparent;background:transparent}
+.rental-review-panel{margin-top:13px!important}
+.rental-review-panel .vendor-row{padding:10px}.rental-review-panel .vendor-main span{font-size:10px}
+.rental-review-panel .drawer-note{margin-top:14px}
