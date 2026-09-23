@@ -430,7 +430,9 @@ private fun AppRoot(
         return
     }
 
+    val nav = rememberNavController()
     val logoutAndReset = {
+        nav.popBackStack("home", false)
         homeViewModel.resetSession()
         profileViewModel.resetSession()
         rechargeViewModel.resetSession()
@@ -438,10 +440,13 @@ private fun AppRoot(
         rentalViewModel.resetSession()
         walletViewModel.resetSession()
         paymentViewModel.resetSession()
+        highlightTransactionId = null
+        launchedWalletOrderId = null
+        launchedRechargeOrderId = null
+        showFundingDialog = false
         authViewModel.logout()
     }
 
-    val nav = rememberNavController()
     val destinations = remember {
         listOf(
             TopLevelDestination("home", "Home", Icons.Default.Home, AppColors.Primary),
