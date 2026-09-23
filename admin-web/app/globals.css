@@ -176,3 +176,5 @@
 
 .compact-wallet{margin-top:10px}.compact-wallet>div{min-height:86px}.compact-wallet small{display:block;color:#7f766c;font-size:9px;margin-top:4px}
 .small-modal{max-width:640px}.portal-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
+.home-earnings-strip{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-top:12px}.home-earnings-strip>div,.home-earnings-strip>button{border:1px solid #e7e0d7;border-radius:14px;background:#fff;padding:13px;text-align:left}.home-earnings-strip>div{display:flex;flex-direction:column;gap:3px}.home-earnings-strip span{font-size:10px;color:#7c746b}.home-earnings-strip b{font-size:17px;color:#3e3933}.home-earnings-strip small{font-size:9px;color:#948b80}.home-earnings-strip button{display:flex;align-items:center;justify-content:center;gap:7px;font-weight:800;color:#8a5a08;cursor:pointer}.home-earnings-strip button span{color:inherit;font-weight:800}@media(max-width:700px){.home-earnings-strip{grid-template-columns:1fr 1fr}.home-earnings-strip button{grid-column:1/-1}}
