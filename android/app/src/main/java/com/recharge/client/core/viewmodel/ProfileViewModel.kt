@@ -24,6 +24,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _state = MutableStateFlow(ProfileUiState())
     val state = _state.asStateFlow()
 
+    fun resetSession() {
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = ProfileUiState()
+    }
+
     fun load() {
         if (_state.value.loading) return
         viewModelScope.launch {
