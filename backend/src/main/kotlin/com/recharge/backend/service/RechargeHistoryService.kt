@@ -63,6 +63,6 @@ class RechargeHistoryService(
         planValidity = tx.planValidity, amount = tx.amount, walletDebitAmount = tx.walletDebitAmount, status = tx.status, provider = tx.providerName,
         providerReference = tx.providerReference, providerOrderId = tx.providerOrderId, walletLedgerRef = tx.walletLedgerRef,
         completedAt = tx.completedAt, clientCommission = tx.clientCommission, companyCommission = tx.companyCommission,
-        message = tx.message, createdAt = tx.createdAt, updatedAt = tx.updatedAt
+        message = tx.message, createdAt = tx.createdAt, updatedAt = tx.updatedAt, recipientName = tx.recipientName
     )
 }
