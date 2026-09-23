@@ -87,6 +87,7 @@ fun WalletScreen(
             )
         }
         walletUiState.selectedWalletItem != null -> {
+            val selectedWithdrawal = walletUiState.withdrawals.firstOrNull { it.withdrawalId == walletUiState.selectedWalletItem?.referenceId }
             AlertDialog(
                 onDismissRequest = onCloseWalletDetail,
                 title = { Text(walletTransactionTitle(walletUiState.selectedWalletItem)) },
