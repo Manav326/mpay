@@ -120,7 +120,8 @@ data class CreatePaymentOrderRequest(
     val rechargeMobileNumber: String? = null,
     val rechargeOperator: String? = null,
     val rechargeCircle: String? = null,
-    val rechargePlanId: String? = null
+    val rechargePlanId: String? = null,
+    val rechargeRecipientName: String? = null
 )
 
 data class CreatePaymentOrderResponse(
@@ -193,7 +194,8 @@ data class RechargeTransactionStatusResponse(
     val companyCommission: BigDecimal,
     val message: String?,
     val walletBalance: BigDecimal,
-    val walletAvailableBalance: BigDecimal
+    val walletAvailableBalance: BigDecimal,
+    val recipientName: String? = null
 )
 
 data class RechargeRequest(
