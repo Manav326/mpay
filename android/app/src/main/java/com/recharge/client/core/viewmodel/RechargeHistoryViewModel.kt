@@ -99,12 +99,34 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun loadMore() {
-        if (!_state.value.hasNext || _state.value.loadingMore || _state.value.loading || _state.value.refreshing) return
-        viewModelScope.launch {
+        val current = _state.value
+        if (!current.hasNext || current.loadingMore || current.loading || current.refreshing) return
+
+        val page = current.page + 1
+        val fromDate = current.fromDate.toString()
+        val toDate = current.toDate.toString()
+        val generation = historyRequestGeneration
+
+        historyJob = viewModelScope.launch {
             _state.value = _state.value.copy(loadingMore = true, error = null)
-            repository.rechargeHistory(_state.value.page + 1, 20, _state.value.fromDate.toString(), _state.value.toDate.toString())
-                .onSuccess { response -> _state.value = _state.value.copy(items = (_state.value.items + response.items).distinctBy { it.transactionId }, page = response.page, totalItems = response.totalItems, hasNext = response.hasNext, loadingMore = false) }
-                .onFailure { e -> _state.value = _state.value.copy(loadingMore = false, error = e.message ?: "Unable to load more history.") }
+            repository.rechargeHistory(page, 20, fromDate, toDate)
+                .onSuccess { response ->
+                    if (generation != historyRequestGeneration) return@onSuccess
+                    _state.value = _state.value.copy(
+                        items = (_state.value.items + response.items).distinctBy { it.transactionId },
+                        page = response.page,
+                        totalItems = response.totalItems,
+                        hasNext = response.hasNext,
+                        loadingMore = false
+                    )
+                }
+                .onFailure { e ->
+                    if (generation != historyRequestGeneration) return@onFailure
+                    _state.value = _state.value.copy(
+                        loadingMore = false,
+                        error = e.message ?: "Unable to load more history."
+                    )
+                }
         }
     }
 
