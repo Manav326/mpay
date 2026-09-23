@@ -1,6 +1,32 @@
 export type Role = string;
 export type SortMode = 'today-high' | 'today-low' | 'month-high' | 'month-low';
 
+export interface RoleCommissionRate {
+  role: string;
+  commissionPercent: number;
+  active: boolean;
+}
+
+export interface CurrentUserProfile {
+  userId: number;
+  publicUserId: string;
+  mobile: string;
+  name?: string | null;
+  email?: string | null;
+  profileImageUrl?: string | null;
+  profileImageVersion?: number | null;
+  role: string;
+  commissionRate: number;
+  createdAt?: string | null;
+  profileUpdatedAt?: string | null;
+}
+
+export interface AdminUserStatusResult {
+  publicUserId: string;
+  active: boolean;
+  status: 'ACTIVE' | 'BLOCKED';
+}
+
 export interface UserSummary {
   id: string;
   publicUserId: string;
