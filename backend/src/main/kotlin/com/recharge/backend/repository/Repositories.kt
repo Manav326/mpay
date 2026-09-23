@@ -235,7 +235,4 @@ interface PasswordResetOtpRepository : JpaRepository<com.recharge.backend.domain
 }
 
 
-interface AdminVendorRepository : JpaRepository<com.recharge.backend.domain.AdminVendorEntity, Long> {
-    fun findAllByOrderByCreatedAtDesc(): List<com.recharge.backend.domain.AdminVendorEntity>
-    fun findAllByActiveTrueOrderByCreatedAtDesc(): List<com.recharge.backend.domain.AdminVendorEntity>
-}
+
