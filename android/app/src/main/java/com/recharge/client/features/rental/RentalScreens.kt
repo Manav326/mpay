@@ -2080,8 +2080,10 @@ private fun RentalVendorProfileDialog(
 fun RentalBookingScreen(
     car: RentalCarResponse,
     state: RentalUiState,
+    wallet: WalletResponse?,
     onQuote: (RentalBookingQuoteRequest, (RentalBookingQuoteResponse) -> Unit) -> Unit,
     onBack: () -> Unit,
+    onAddMoney: () -> Unit,
     onConfirm: (RentalBookingRequest, () -> Unit) -> Unit,
     initialStart: String? = null,
     initialEnd: String? = null
@@ -2092,55 +2094,135 @@ fun RentalBookingScreen(
     var end by remember { mutableStateOf(initialEnd.orEmpty()) }
     var quote by remember { mutableStateOf<RentalBookingQuoteResponse?>(null) }
 
+    val parsedStart = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    val parsedEnd = runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    val validWindow = parsedStart != null && parsedEnd != null && parsedEnd.isAfter(parsedStart) && !parsedStart.isBefore(LocalDateTime.now())
+    val available = wallet?.availableBalance ?: BigDecimal.ZERO
+    val insufficient = quote != null && available < quote!!.total
+
+    fun clearQuote() { quote = null }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Book with driver", style = MaterialTheme.typography.headlineSmall) } }
-        item { Text(car.name, style = MaterialTheme.typography.titleLarge) }
-        item { Text("Driver: " + car.driverName + (car.driverMobile?.let { " · " + it } ?: ""), color = AppColors.TextSecondary) }
-        item { VendorField("Pickup location", pickup) { pickup = it } }
-        item { VendorField("Drop location", drop) { drop = it } }
-        item { RentalDateTimeField("Start date & time", start, onValueChange = { start = it }) }
-        item { RentalDateTimeField("End date & time", end, onValueChange = { end = it }) }
         item {
-            Text(
-                "Pricing is per day (24 hours). Any partial day is charged as one full day; time is used for availability and the exact rental duration.",
-                color = AppColors.TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                Column(Modifier.weight(1f)) {
+                    Text("Book with driver", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Your payment will come from the available wallet balance.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
-        quote?.let { q ->
-            item {
-                Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Fare summary", style = MaterialTheme.typography.titleLarge)
-                        Text("${q.days} day(s) × ₹${q.pricePerDay}")
-                        Text("Total: ₹${q.total}", style = MaterialTheme.typography.titleLarge)
-                        Text("Payment: From your wallet", fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                        Text("₹${q.total.setScale(2).toPlainString()} will be deducted from your wallet when you confirm.", color = AppColors.TextSecondary)
-                        Button(
-                            enabled = !state.saving,
-                            onClick = { onConfirm(RentalBookingRequest(UUID.randomUUID().toString(), car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp)
-                        ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Confirm booking") }
+        item {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RentalCarImageTile(car.imageUrl?.split("|").firstOrNull(), Modifier.size(76.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text("Chauffeur: " + car.driverName, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
-        } ?: item {
-            Button(
-                enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess && runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess,
-                onClick = { onQuote(RentalBookingQuoteRequest(car.id, pickup.trim(), drop.trim(), start, end)) { quote = it } },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Check fare") }
         }
-        state.error?.let { item { Text(it, color = AppColors.Error) } }
+        item { VendorField("Pickup location", pickup, onValueChange = { pickup = it; clearQuote() }) }
+        item { VendorField("Drop location", drop, onValueChange = { drop = it; clearQuote() }) }
+        item { RentalDateTimeField("Start date & time", start, { start = it; clearQuote() }) }
+        item { RentalDateTimeField("End date & time", end, { end = it; clearQuote() }) }
+        item {
+            if (!validWindow) {
+                Text(
+                    "Choose a future start and an end date/time later than the start.",
+                    color = if (start.isNotBlank() || end.isNotBlank()) AppColors.Error else AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                Text(
+                    "Pricing is per day (24 hours). Any partial day is charged as one full day; time also controls availability.",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        item {
+            if (quote == null) {
+                Button(
+                    enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && validWindow,
+                    onClick = {
+                        onQuote(
+                            RentalBookingQuoteRequest(car.id, pickup.trim(), drop.trim(), start, end)
+                        ) { quote = it }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    else Text("Check fare", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        quote?.let { q ->
+            item {
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .65f))) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Fare summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text(q.days.toString() + " day(s) × ₹" + q.pricePerDay.setScale(2), color = AppColors.TextSecondary)
+                            }
+                            Text("₹" + q.total.setScale(2), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = AppColors.Debit)
+                        }
+                        HorizontalDivider()
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Available balance", color = AppColors.TextSecondary)
+                            Text("₹" + available.setScale(2), fontWeight = FontWeight.Bold)
+                        }
+                        Text("Payment method: Wallet", color = AppColors.PrimaryDark, fontWeight = FontWeight.SemiBold)
+                        if (insufficient) {
+                            Card(shape = RoundedCornerShape(13.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Error.copy(alpha = .07f))) {
+                                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text("Not enough available balance", color = AppColors.Error, fontWeight = FontWeight.Bold)
+                                    Text("Add ₹" + q.total.subtract(available).max(BigDecimal.ZERO).setScale(2) + " to complete this booking.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                    OutlinedButton(onClick = onAddMoney, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(11.dp)) { Text("Add money") }
+                                }
+                            }
+                        } else {
+                            Text("₹" + q.total.setScale(2) + " will be deducted from your available wallet balance when you confirm.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            Button(
+                                enabled = !state.saving,
+                                onClick = {
+                                    onConfirm(
+                                        RentalBookingRequest(
+                                            UUID.randomUUID().toString(),
+                                            car.id,
+                                            pickup.trim(),
+                                            drop.trim(),
+                                            start,
+                                            end,
+                                            "WALLET"
+                                        ),
+                                        onBack
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                                else Text("Confirm booking", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        TextButton(onClick = { clearQuote() }, enabled = !state.saving, modifier = Modifier.align(Alignment.End)) { Text("Recheck fare") }
+                    }
+                }
+            }
+        }
+        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
     }
 }
-
 
 @Composable
 fun RentalMyBookingsScreen(
