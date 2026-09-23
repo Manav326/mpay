@@ -278,3 +278,27 @@
 @media(max-width:850px){.sidebar-collapse-btn{display:none}.portal-sidebar{position:fixed;left:-260px;transform:none;width:248px}.portal-sidebar.collapsed{width:248px;padding:14px 12px}.portal-sidebar.open{left:0}.portal-sidebar.collapsed .landing-brand span,.portal-sidebar.collapsed .portal-welcome,.portal-sidebar.collapsed .portal-nav-label{display:block}.portal-sidebar.collapsed .portal-nav{justify-content:flex-start;padding-inline:11px}.portal-side-controls{gap:4px}.portal-content{padding:16px}.portal-topbar{height:64px;padding:0 16px}.portal-notice{top:64px;margin-left:16px;margin-right:16px}.wallet-actions-grid{grid-template-columns:1fr}.rental-trip-details{grid-template-columns:1fr}.vendor-summary-grid,.vendor-earnings-grid{grid-template-columns:1fr 1fr}.vendor-form-grid{grid-template-columns:1fr 1fr}.vendor-field-wide{grid-column:span 2}}
 @media(max-width:600px){.portal-quick-actions button{min-height:60px;justify-content:center;flex-direction:column}.home-earnings-strip{grid-template-columns:1fr 1fr}.home-earnings-strip button{grid-column:1/-1}.web-plan-grid,.rental-car-grid{grid-template-columns:1fr}.rental-summary{grid-template-columns:1fr 1fr}.rental-summary .landing-primary{width:100%}.vendor-summary-grid,.vendor-earnings-grid,.vendor-form-grid{grid-template-columns:1fr 1fr}.vendor-field-wide{grid-column:span 2}}
 @media(max-width:460px){.vendor-summary-grid,.vendor-earnings-grid,.vendor-form-grid{grid-template-columns:1fr}.vendor-field-wide{grid-column:span 1}}
+
+
+/* ===== Admin console navigation + compactness ===== */
+.side-controls{display:flex;align-items:center;gap:5px}
+.sidebar{width:232px;padding:15px 12px;transition:width .2s ease,transform .2s ease;overflow:hidden}
+.sidebar.collapsed{width:78px;padding-inline:10px}
+.sidebar.collapsed .brand{justify-content:center}.sidebar.collapsed .brand strong{display:none}
+.sidebar.collapsed .portal-role span,.sidebar.collapsed .nav span,.sidebar.collapsed .profile-mini>div:nth-child(2){display:none}
+.sidebar.collapsed .portal-role{justify-content:center;padding:10px 0}
+.sidebar.collapsed .nav{justify-content:center;padding-inline:0}
+.sidebar.collapsed .profile-mini{justify-content:center;padding-inline:0}
+.sidebar.collapsed .side-bottom{align-items:center}
+.topbar{height:70px;padding:0 24px}.topbar h1{font-size:21px}.top-actions{gap:8px}
+.admin-user-chip{display:flex;align-items:center;gap:8px;padding:4px 7px 4px 4px;border:1px solid #eee7dd;background:#fff;border-radius:13px}
+.admin-user-chip .avatar{width:30px;height:30px;border-radius:9px;font-size:12px}.admin-user-chip span{font-size:10px;font-weight:800;color:#625b52}
+.content{padding:20px 24px 30px;max-width:1380px}
+.metric-grid{gap:10px}.metric-card{padding:15px;border-radius:16px}.metric-card>strong{font-size:25px;margin:11px 0 4px}.metric-head{font-size:11px}
+.panel{padding:17px;border-radius:17px}.panel-head{margin-bottom:12px}.panel-head h2{font-size:15px}.panel-head p{font-size:10px}
+.split{gap:12px;margin-top:12px}.chart-box{height:255px}
+.quick-grid{gap:7px}.quick{padding:10px 11px;border-radius:12px}.quick b{font-size:11px}.quick span{font-size:10px}
+.filters{gap:7px}.filters select{padding:8px 10px;border-radius:10px}
+.table-wrap th{padding:10px 9px;font-size:9px}.table-wrap td{padding:10px 9px;font-size:11px}
+.drawer-overlay{background:rgba(20,15,8,.22)}.user-drawer{padding:20px}.user-drawer-wide{width:min(780px,100%)}
+@media(max-width:800px){.sidebar,.sidebar.collapsed{position:fixed;left:-255px;width:250px;padding:15px 12px}.sidebar.open{left:0}.sidebar.collapsed .brand strong,.sidebar.collapsed .portal-role span,.sidebar.collapsed .nav span,.sidebar.collapsed .profile-mini>div:nth-child(2){display:block}.sidebar.collapsed .portal-role{justify-content:flex-start;padding:10px 12px}.sidebar.collapsed .nav{justify-content:flex-start;padding:11px 12px}.sidebar.collapsed .profile-mini{justify-content:flex-start;padding:8px}.sidebar-collapse-btn{display:none}.content{padding:16px}.topbar{padding:0 16px}.admin-user-chip span{display:none}.admin-user-chip{padding:3px}}
