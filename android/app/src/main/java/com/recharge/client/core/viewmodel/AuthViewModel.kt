@@ -7,6 +7,7 @@ import com.recharge.client.core.repository.AuthRepository
 import com.recharge.client.core.cache.ProfileCacheStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 sealed interface AuthUiState {
@@ -24,8 +25,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val state = _state.asStateFlow()
 
     fun login(mobile: String, password: String) {
+        if (_state.value is AuthUiState.Loading) return
+        _state.value = AuthUiState.Loading
         viewModelScope.launch {
-            _state.value = AuthUiState.Loading
             val result = repository.login(mobile, password)
             _state.value = result.fold(
                 onSuccess = { AuthUiState.Authenticated },
@@ -35,8 +37,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun register(name: String, email: String, mobile: String, password: String) {
+        if (_state.value is AuthUiState.Loading) return
+        _state.value = AuthUiState.Loading
         viewModelScope.launch {
-            _state.value = AuthUiState.Loading
             val result = repository.register(name, email, mobile, password)
             _state.value = result.fold(
                 onSuccess = { AuthUiState.Authenticated },
@@ -50,6 +53,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
+        viewModelScope.coroutineContext.cancelChildren()
         repository.logout()
         ProfileCacheStore(getApplication()).clear()
         _state.value = AuthUiState.Idle
