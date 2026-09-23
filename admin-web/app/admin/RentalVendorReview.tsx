@@ -15,8 +15,11 @@ export default function RentalVendorReview() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [vehicleRejectReason, setVehicleRejectReason] = useState('');
+  const [vehicleRejectReasons, setVehicleRejectReasons] = useState<Record<string,string>>({});
   const [unavailability, setUnavailability] = useState<RentalAdminVehicleUnavailability[]>([]);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
 
   async function refresh() {
     setLoading(true);
@@ -74,7 +77,12 @@ export default function RentalVendorReview() {
     finally { setBusy(null); }
   }
 
-  return <section className="panel" style={{ marginTop: 16 }}>
+  const q = query.trim().toLowerCase();
+  const visibleVendors = vendors.filter(v =>
+    (statusFilter === 'ALL' || v.status.toUpperCase() === statusFilter) &&
+    (!q || v.fullName.toLowerCase().includes(q) || (v.businessName || '').toLowerCase().includes(q) || (v.mobile || '').includes(q))
+  );
+    return <section className="panel" style={{ marginTop: 16 }}>
     <div className="panel-head wrap">
       <div><h2>Rental vendor applications</h2><p>Review the vendor data submitted from the customer app. Only approved vehicles enter the marketplace.</p></div>
       <button className="secondary" onClick={() => refresh()}>Refresh</button>
@@ -163,8 +171,8 @@ export default function RentalVendorReview() {
                   <span>Status: {c.approvalStatus || 'PENDING_REVIEW'}</span>
                 </div>
                 {c.approvalStatus !== 'APPROVED' && <>
-                  <input value={vehicleRejectReason} onChange={e => setVehicleRejectReason(e.target.value)} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
-                  <button className="secondary" disabled={busy === 'vehicle-' + c.id || !vehicleRejectReason.trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
+                  <input value={vehicleRejectReasons[c.id] || ''} onChange={e => setVehicleRejectReasons(current=>({...current,[c.id]:e.target.value}))} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
+                  <button className="secondary" disabled={busy === 'vehicle-' + c.id || !(vehicleRejectReasons[c.id] || '').trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
                   <button className="primary" disabled={busy === 'vehicle-' + c.id} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
                 </>}
               </div>
