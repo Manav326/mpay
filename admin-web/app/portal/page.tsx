@@ -97,6 +97,7 @@ const money = (n: any) => '₹' + Number(n || 0).toLocaleString('en-IN', { minim
 const dt = (v?: string) => v ? new Date(v).toLocaleString('en-IN') : '—';
 const date = (v?: string) => v ? new Date(v).toLocaleDateString('en-IN') : '—';
 const isoNow = () => new Date().toISOString().slice(0, 16);
+const localDate = () => { const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return y + '-' + m + '-' + day; };
 
 function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -144,8 +145,8 @@ export default function Portal() {
   const [plans, setPlans] = useState<any[]>([]);
   const [recharges, setRecharges] = useState<RechargeItem[]>([]);
   const [historyKind, setHistoryKind] = useState('');
-  const [historyFrom, setHistoryFrom] = useState('');
-  const [historyTo, setHistoryTo] = useState('');
+  const [historyFrom, setHistoryFrom] = useState(localDate());
+  const [historyTo, setHistoryTo] = useState(localDate());
   const [rechargeFunding, setRechargeFunding] = useState<'WALLET'|'RAZORPAY'|'PAYU'>('WALLET');
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
@@ -852,7 +853,7 @@ export default function Portal() {
         </div>
 
         <div className="portal-panel"><div className="panel-head"><div><h2>Wallet ledger</h2><p>Balance movements, recharge debits, rental debits/refunds and gateway funding.</p></div><button className="landing-secondary" onClick={()=>{loadHistory();refreshWallet();}}><RefreshCw size={15}/> Refresh</button></div>
-          <div className="history-date-filters"><label>From<input type="date" value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom('');setHistoryTo('');setHistoryKind('');}}>Clear</button></div>
+          <div className="history-date-filters"><label>From<input type="date" max={localDate()} value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" max={localDate()} value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom(localDate());setHistoryTo(localDate());setHistoryKind('');}}>Clear</button></div>
           <div className="funding-picker history-filter-picker"><span>Kind</span>{walletFilters.map(f=><button key={f.key} className={historyKind===f.key?'selected':''} onClick={()=>setHistoryKind(f.key)}>{f.label}</button>)}</div>
           {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i)=><div className="history-row" key={String(x.id || i)}>
             <div><ReceiptText size={18}/><b>{x.description || x.referenceType || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
