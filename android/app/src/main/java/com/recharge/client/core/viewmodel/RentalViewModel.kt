@@ -34,12 +34,16 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     private var carsJob: Job? = null
     private var calendarJob: Job? = null
     private var bookingsJob: Job? = null
+    private var carsGeneration = 0L
+    private var bookingsGeneration = 0L
     val state = _state.asStateFlow()
 
     fun resetSession() {
         carsJob?.cancel()
         calendarJob?.cancel()
         bookingsJob?.cancel()
+        carsGeneration++
+        bookingsGeneration++
         carsJob = null
         calendarJob = null
         bookingsJob = null
@@ -58,11 +62,13 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearCarSearch() {
         carsJob?.cancel()
+        carsGeneration++
         _state.value = _state.value.copy(cars = emptyList(), loading = false, error = null)
     }
 
     fun loadCars(startDate: String? = null, endDate: String? = null, location: String? = null) {
         carsJob?.cancel()
+        val generation = ++carsGeneration
         carsJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             repository.rentalCars(
@@ -70,11 +76,13 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                 endDate?.takeIf { it.isNotBlank() },
                 location?.trim()?.takeIf { !it.isNullOrBlank() }
             )
-                .onSuccess { _state.value = _state.value.copy(cars = it, loading = false) }
+                .onSuccess {
+                    if (generation != carsGeneration) return@onSuccess
+                    _state.value = _state.value.copy(cars = it, loading = false, error = null)
+                }
                 .onFailure { failure ->
-                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                        _state.value = _state.value.copy(loading = false, error = failure.message ?: "Unable to load rental cars")
-                    }
+                    if (generation != carsGeneration || !kotlinx.coroutines.currentCoroutineContext().isActive) return@onFailure
+                    _state.value = _state.value.copy(loading = false, error = failure.message ?: "Unable to load rental cars")
                 }
         }
     }
@@ -82,14 +90,17 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadBookings() {
         bookingsJob?.cancel()
+        val generation = ++bookingsGeneration
         bookingsJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             repository.rentalBookings()
-                .onSuccess { response -> _state.value = _state.value.copy(bookings = response.items, loading = false) }
+                .onSuccess { response ->
+                    if (generation != bookingsGeneration) return@onSuccess
+                    _state.value = _state.value.copy(bookings = response.items, loading = false, error = null)
+                }
                 .onFailure { e ->
-                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                        _state.value = _state.value.copy(loading = false, error = e.message ?: "Unable to load rental bookings")
-                    }
+                    if (generation != bookingsGeneration || !kotlinx.coroutines.currentCoroutineContext().isActive) return@onFailure
+                    _state.value = _state.value.copy(loading = false, error = e.message ?: "Unable to load rental bookings")
                 }
         }
     }
