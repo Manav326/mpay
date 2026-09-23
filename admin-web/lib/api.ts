@@ -285,3 +285,15 @@ export async function getRentalAdminBookings(page = 0, size = 25, status = 'ALL'
 export async function completeRentalBooking(bookingId: string): Promise<unknown> {
   return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/complete', { method: 'POST' });
 }
+
+
+export async function getCommissionRates(): Promise<import('./types').RoleCommissionRate[]> {
+  return api('/api/v1/admin/commission-roles');
+}
+
+export async function updateCommissionRate(role: string, commissionPercent: number, active: boolean): Promise<import('./types').RoleCommissionRate> {
+  return api('/api/v1/admin/commission-roles/' + encodeURIComponent(role), {
+    method: 'PUT',
+    body: JSON.stringify({ commissionPercent, active }),
+  });
+}
