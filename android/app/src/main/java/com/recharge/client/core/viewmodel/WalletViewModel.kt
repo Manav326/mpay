@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
 import com.recharge.client.core.model.WalletHistoryItem
+import com.recharge.client.core.model.WithdrawMoneyResponse
 import com.recharge.client.core.repository.ClientRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
@@ -37,6 +38,7 @@ data class WalletUiState(
     val withdrawError: String? = null,
     val selectedRecharge: RechargeHistoryItem? = null,
     val selectedWalletItem: WalletHistoryItem? = null,
+    val selectedWithdrawal: WithdrawMoneyResponse? = null,
     val detailLoading: Boolean = false,
     val detailError: String? = null
 )
@@ -182,10 +184,45 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         _state.value = _state.value.copy(
             selectedWalletItem = item,
             selectedRecharge = null,
-            detailLoading = item.referenceType.equals("RECHARGE", true),
+            selectedWithdrawal = null,
+            detailLoading = item.referenceType.equals("RECHARGE", true) || item.referenceType.equals("WITHDRAWAL", true),
             detailError = null
         )
-        if (!item.referenceType.equals("RECHARGE", true)) return
+        if (item.referenceType.equals("WITHDRAWAL", true)) {
+            val withdrawalId = item.referenceId?.takeIf { it.isNotBlank() }
+            if (withdrawalId == null) {
+                _state.value = _state.value.copy(
+                    detailLoading = false,
+                    detailError = "Withdrawal details are unavailable."
+                )
+                return
+            }
+            detailJob = viewModelScope.launch {
+                repository.withdrawal(withdrawalId)
+                    .onSuccess { withdrawal ->
+                        if (generation == detailRequestGeneration && _state.value.selectedWalletItem?.id == item.id) {
+                            _state.value = _state.value.copy(
+                                selectedWithdrawal = withdrawal,
+                                detailLoading = false
+                            )
+                        }
+                    }
+                    .onFailure { e ->
+                        if (generation == detailRequestGeneration && _state.value.selectedWalletItem?.id == item.id) {
+                            _state.value = _state.value.copy(
+                                detailLoading = false,
+                                detailError = e.message ?: "Unable to load withdrawal details."
+                            )
+                        }
+                    }
+            }
+            return
+        }
+
+        if (!item.referenceType.equals("RECHARGE", true)) {
+            _state.value = _state.value.copy(detailLoading = false)
+            return
+        }
 
         val transactionId = item.referenceId?.takeIf { it.isNotBlank() }
         if (transactionId == null) {
@@ -219,6 +256,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         ++detailRequestGeneration
         _state.value = _state.value.copy(
             selectedRecharge = null,
+            selectedWithdrawal = null,
             selectedWalletItem = null,
             detailLoading = false,
             detailError = null
