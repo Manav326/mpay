@@ -637,6 +637,7 @@ private fun AppNavHost(
                     onQuote = rentalViewModel::quoteBooking,
                     onBack = { nav.popBackStack() },
                     onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
+                    onRefreshWallet = homeViewModel::refreshWallet,
                     onConfirm = { request, onDone ->
                         rentalViewModel.createBooking(request) {
                             homeViewModel.refreshWallet()
