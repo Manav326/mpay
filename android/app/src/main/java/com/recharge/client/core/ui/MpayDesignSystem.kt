@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.HourglassTop
@@ -64,7 +64,7 @@ fun MpayPageHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (onBack != null) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.CalendarMonth, null) }
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
