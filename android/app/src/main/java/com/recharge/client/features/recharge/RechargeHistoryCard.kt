@@ -32,6 +32,7 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
         appendLine("Amount: ₹${formatMoney(item.amount)}")
         appendLine("Wallet debit: ₹${formatMoney(item.walletDebitAmount)}")
         appendLine("Mobile: ${item.mobileNumber}")
+        item.recipientName?.takeIf { it.isNotBlank() }?.let { appendLine("Contact name: $it") }
         appendLine("Operator: ${operatorLabel(item.operator)}")
         appendLine("Circle: ${item.circle}")
         appendLine("Plan ID: ${item.planId}")
@@ -55,6 +56,7 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
                 Column(Modifier.weight(1f)) {
                     Text("₹${formatMoney(item.amount)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("${operatorLabel(item.operator)} • ${item.mobileNumber}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    item.recipientName?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold) }
                     item.planDescription?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2) }
                     item.planValidity?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium) }
                 }
