@@ -47,7 +47,7 @@ interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Lon
     fun findAllByUserIdInOrderByCreatedAtDesc(userIds: Collection<Long>, pageable: Pageable): Page<WalletWithdrawalEntity>
     fun findAllByUserIdInAndStatusOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, pageable: Pageable): Page<WalletWithdrawalEntity>
     fun findAllByUserIdInAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, providerName: String, pageable: Pageable): Page<WalletWithdrawalEntity>
-    fun findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, providerName: String, pageable: Pageable)
+    fun findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, providerName: String, pageable: Pageable): Page<WalletWithdrawalEntity>
     fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<WalletWithdrawalEntity>
     fun findAllByProviderNameOrderByCreatedAtDesc(providerName: String, pageable: Pageable): Page<WalletWithdrawalEntity>
     fun findAllByStatusAndProviderNameOrderByCreatedAtDesc(status: String, providerName: String, pageable: Pageable): Page<WalletWithdrawalEntity>
@@ -58,7 +58,7 @@ interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, L
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
     fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<WalletTransactionEntity>
     fun findAllByUserIdInOrderByCreatedAtDesc(userIds: Collection<Long>, pageable: Pageable): Page<WalletTransactionEntity>
-    fun findAllByUserIdInAndReferenceTypeOrderByCreatedAtDesc(userIds: Collection<Long>, referenceType: String, pageable: Pageable)
+    fun findAllByUserIdInAndReferenceTypeOrderByCreatedAtDesc(userIds: Collection<Long>, referenceType: String, pageable: Pageable): Page<WalletTransactionEntity>
     fun findAllByReferenceTypeOrderByCreatedAtDesc(referenceType: String, pageable: Pageable): Page<WalletTransactionEntity>
     fun findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, referenceType: String, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
     fun findByUserIdAndReferenceTypeInAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, referenceTypes: Collection<String>, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
@@ -111,7 +111,7 @@ interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntit
     fun findAllByUserIdInOrderByCreatedAtDesc(userIds: Collection<Long>, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByUserIdInAndStatusOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByUserIdInAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
-    fun findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, providerName: String, pageable: Pageable)
+    fun findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByProviderNameOrderByCreatedAtDesc(providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByStatusAndProviderNameOrderByCreatedAtDesc(status: String, providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
