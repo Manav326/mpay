@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
@@ -360,8 +361,8 @@ private fun VehicleCalendarDialog(
                         Text(calendar?.carName ?: "Vehicle calendar", style = MaterialTheme.typography.titleMedium)
                         Text(month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
-                    IconButton(onClick = onPrevious) { Text("‹", style = MaterialTheme.typography.headlineSmall) }
-                    IconButton(onClick = onNext) { Text("›", style = MaterialTheme.typography.headlineSmall) }
+                    IconButton(onClick = onPrevious) { Icon(Icons.Default.ChevronLeft, "Previous month") }
+                    IconButton(onClick = onNext) { Icon(Icons.Default.ChevronRight, "Next month") }
                 }
                 if (calendar == null) {
                     Box(Modifier.fillMaxWidth().height(170.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
