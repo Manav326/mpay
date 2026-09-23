@@ -2,6 +2,7 @@ package com.recharge.backend.service
 
 import com.recharge.backend.api.*
 import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.WalletTransactionEntity
 import com.recharge.backend.repository.*
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
