@@ -290,31 +290,6 @@ class CommissionRoleAdminController(
 }
 
 @RestController
-@RequestMapping("/api/v1/services")
-class ServicesController(
-    private val vendors: com.recharge.backend.repository.AdminVendorRepository
-) {
-    @GetMapping("/vendors")
-    fun activeVendors(
-        @RequestParam(required = false) category: String?,
-        @RequestParam(required = false) city: String?
-    ): List<AdminVendorResponse> {
-        val normalizedCategory = category?.trim()?.uppercase()
-        val normalizedCity = city?.trim()?.lowercase()
-        return vendors.findAllByActiveTrueOrderByCreatedAtDesc()
-            .asSequence()
-            .filter { normalizedCategory.isNullOrBlank() || it.category.equals(normalizedCategory, true) }
-            .filter { normalizedCity.isNullOrBlank() || it.city.lowercase().contains(normalizedCity) }
-            .map { AdminVendorResponse(
-                id = requireNotNull(it.id).toString(), name = it.name, category = it.category,
-                city = it.city, phone = it.phone, commissionRate = it.commissionRate.setScale(2),
-                active = it.active, createdAt = it.createdAt
-            ) }
-            .toList()
-    }
-}
-
-@RestController
 @RequestMapping("/api/v1/admin")
 class AdminController(
     private val adminService: com.recharge.backend.service.AdminService,
