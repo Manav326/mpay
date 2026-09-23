@@ -51,6 +51,7 @@ class RechargeTransactionEntity(
     @Column(name = "client_request_id", nullable = false, length = 100) var clientRequestId: String = "",
     @Column(nullable = false) var userId: Long = 0,
     @Column(nullable = false) var mobileNumber: String = "",
+    @Column(name = "recipient_name", length = 120) var recipientName: String? = null,
     @Column(nullable = false, length = 30) var operator: String = "",
     @Column(nullable = false, length = 100) var circle: String = "",
     @Column(nullable = false) var planId: String = "",

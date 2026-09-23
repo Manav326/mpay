@@ -67,6 +67,7 @@ data class RechargeHistoryItem(
     val transactionId: String,
     val clientRequestId: String,
     val mobileNumber: String,
+    val recipientName: String? = null,
     val operator: String,
     val circle: String,
     val planId: String,

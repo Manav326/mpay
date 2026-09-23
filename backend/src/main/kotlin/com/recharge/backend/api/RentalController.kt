@@ -44,6 +44,16 @@ class RentalController(
         @Valid @RequestBody request: RentalVendorOnboardingRequest
     ): RentalVendorResponse = rentalService.onboardVendor(userId(authentication), request)
 
+    @PutMapping("/vendor")
+    fun updateVendor(
+        authentication: Authentication,
+        @Valid @RequestBody request: RentalVendorUpdateRequest
+    ): RentalVendorResponse = rentalService.updateVendor(userId(authentication), request)
+
+    @GetMapping("/vendor/earnings")
+    fun vendorEarnings(authentication: Authentication): RentalVendorEarningsResponse =
+        rentalService.vendorEarnings(userId(authentication))
+
     @GetMapping("/vendor/payouts")
     fun vendorPayouts(authentication: Authentication): List<RentalVendorPayoutResponse> =
         rentalService.vendorPayouts(userId(authentication))
@@ -65,6 +75,13 @@ class RentalController(
         @Valid @RequestBody request: RentalVehicleUpdateRequest
     ): RentalCarResponse =
         rentalService.resubmitVehicle(userId(authentication), carId, request)
+
+    @PutMapping("/vendor/drivers/{driverId}/photo", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadDriverPhoto(
+        authentication: Authentication,
+        @PathVariable driverId: Long,
+        @RequestPart("photo") photo: MultipartFile
+    ): RentalCarResponse = rentalService.uploadDriverPhoto(userId(authentication), driverId, photo)
 
     @PutMapping(
         "/vendor/vehicles/{carId}/photos/{slot}",

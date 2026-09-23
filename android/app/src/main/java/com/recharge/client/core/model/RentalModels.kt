@@ -17,6 +17,8 @@ data class RentalVendorResponse(
     val payoutUpiId: String? = null,
     val bankAccountNumber: String? = null,
     val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null,
     val rejectionReason: String? = null,
     val submittedAt: String? = null
 )
@@ -32,7 +34,25 @@ data class RentalVendorOnboardingRequest(
     val panNumber: String? = null,
     val payoutUpiId: String? = null,
     val bankAccountNumber: String? = null,
-    val bankIfsc: String? = null
+    val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null
+)
+
+data class RentalVendorUpdateRequest(
+    val vendorType: String,
+    val fullName: String,
+    val businessName: String? = null,
+    val address: String,
+    val city: String,
+    val state: String,
+    val pinCode: String,
+    val panNumber: String? = null,
+    val payoutUpiId: String? = null,
+    val bankAccountNumber: String? = null,
+    val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null
 )
 
 data class RentalDriverRequest(
@@ -75,8 +95,10 @@ data class RentalCarResponse(
     val pickupAddress: String?,
     val imageUrl: String?,
     val pricePerDay: BigDecimal,
+    val driverId: String? = null,
     val driverName: String,
     val driverMobile: String? = null,
+    val driverPhotoUrl: String? = null,
     val driverRating: BigDecimal? = null,
     val approvalStatus: String? = null,
     val rejectionReason: String? = null,
@@ -147,6 +169,7 @@ data class RentalBookingResponse(
     val carName: String,
     val driverName: String,
     val driverMobile: String? = null,
+    val carImageUrl: String? = null,
     val pickup: String,
     val drop: String,
     val startDate: String,
@@ -174,6 +197,20 @@ data class RentalVendorPayoutResponse(
     val paidAt: String? = null
 )
 
+
+data class RentalVendorEarningsPeriodResponse(
+    val grossAmount: BigDecimal,
+    val platformFeeAmount: BigDecimal,
+    val vendorNetAmount: BigDecimal,
+    val bookingCount: Long,
+    val completedBookingCount: Long
+)
+
+data class RentalVendorEarningsResponse(
+    val today: RentalVendorEarningsPeriodResponse,
+    val monthly: RentalVendorEarningsPeriodResponse,
+    val upcomingBookingCount: Long
+)
 
 data class RentalVehicleUnavailabilityRequest(
     val reasonCode: String,

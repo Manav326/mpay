@@ -27,7 +27,7 @@ type WalletItem = {
 };
 type WithdrawalItem = {
   withdrawalId: string; clientRequestId?: string; amount: number; upiId: string; provider: string; status: string;
-  providerReference?: string; providerStatus?: string; failureReason?: string; walletLedgerRef?: string;
+  providerReference?: string; providerStatus?: string; failureReason?: string; walletLedgerRef?: string; message?: string | null;
   createdAt?: string; updatedAt?: string; completedAt?: string;
 };
 type RentalCar = {
@@ -503,6 +503,10 @@ export default function Portal() {
     } catch(e:any) { setNotice(e.message || 'Unable to load rental inventory.'); }
   }
 
+  function refreshRentalData() {
+    void loadRentalData();
+  }
+
   function searchRentalCars() {
     const location=rentalSearch.location.trim();
     const hasLocation=Boolean(location);
@@ -834,7 +838,7 @@ export default function Portal() {
           <div className="rental-form"><input placeholder="Pickup location for booking" value={rentalForm.pickup} onChange={e=>setRentalForm({...rentalForm,pickup:e.target.value})}/><input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e=>setRentalForm({...rentalForm,drop:e.target.value})}/><label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={isoNow()} onChange={e=>setRentalForm({...rentalForm,startDate:e.target.value})}/></label><label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e=>setRentalForm({...rentalForm,endDate:e.target.value})}/></label></div>
           {cars.length ? <div className="rental-car-grid">{cars.map(car=><div className={'rental-car '+(selectedCar?.id===car.id?'selected':'')} key={car.id}>
             <button className="rental-car-main" onClick={()=>{setSelectedCar(car);setRentalQuote(undefined);setRentalForm(x=>({...x,startDate:rentalSearch.startDate||x.startDate,endDate:rentalSearch.endDate||x.endDate}));}}><div className="rental-car-icon">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={26}/>}</div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong></button><button className="copy-btn" onClick={()=>setRentalDetails(car)}><Eye size={14}/><span>Details</span></button>
-          </div>)}</div> : <div className="rental-empty-state"><div className="rental-empty-icon"><Car size={28}/></div><b>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'No cars match this search':'No cars available right now'}</b><span>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'Try a different city, pickup area or rental window.':'There are no approved chauffeur-driven cars available for your account at the moment.'}</span><button className="landing-secondary" onClick={()=>loadRentalData()}><RefreshCw size={15}/> Check again</button></div>}
+          </div>)}</div> : <div className="rental-empty-state"><div className="rental-empty-icon"><Car size={28}/></div><b>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'No cars match this search':'No cars available right now'}</b><span>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'Try a different city, pickup area or rental window.':'There are no approved chauffeur-driven cars available for your account at the moment.'}</span><button className="landing-secondary" onClick={refreshRentalData}><RefreshCw size={15}/> Check again</button></div>}
           {selectedCar && <div className="rental-summary"><div><span>Selected</span><b>{selectedCar.name}</b></div><div><span>Billing</span><b>{rentalQuote ? rentalQuote.days+' day'+(rentalQuote.days>1?'s':''):'Check fare'}</b></div><div><span>Total</span><strong>{rentalQuote ? money(rentalQuote.total):'—'}</strong></div>
             {!rentalQuote?<button className="landing-primary" disabled={busy} onClick={checkRentalFare}>{busy?'Calculating…':'Check fare'} <ArrowRight size={16}/></button>:<button className="landing-primary" disabled={busy || Number(wallet?.availableBalance || 0)<Number(rentalQuote.total || 0)} onClick={bookCar}>{busy?'Confirming…':'Confirm booking'} <ArrowRight size={16}/></button>}
             <p className="rental-pricing-note">Price is per 24-hour day. Any partial day is charged as one full day; time is used for duration and availability. Payment is from your wallet.</p>
@@ -842,7 +846,7 @@ export default function Portal() {
         </div>
       </section>}
 
-      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={()=>loadRentalData()}><RefreshCw size={15}/> Refresh</button></div>
+      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={refreshRentalData}><RefreshCw size={15}/> Refresh</button></div>
         <div className="funding-picker">{bookingStatuses.map(s=><button key={s} className={bookingStatusFilter===s?'selected':''} onClick={()=>setBookingStatusFilter(s)}>{s==='ALL'?'All':s.replace(/_/g,' ')}</button>)}</div>
         {filteredBookings.length ? <div className="history-list">{filteredBookings.map(b=><div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {dt(b.startDate)} to {dt(b.endDate)} · Driver {b.driverName || '—'}</small></div><strong>{money(b.total)}</strong><div className="history-actions"><span className={statusClass(b.status)}>{String(b.status).toUpperCase()}</span><span>{b.paymentMethod || 'WALLET'}</span><button className="copy-btn" onClick={()=>copyText(bookingShareText(b),'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>{String(b.status).toUpperCase()==='CONFIRMED' && new Date(b.startDate).getTime()>Date.now() && <button className="text-danger-btn" disabled={busy} onClick={()=>cancelBooking(b.bookingId)}>Cancel</button>}</div></div>)}</div> : <div className="empty-state">No bookings match the selected status.</div>}
       </div></section>}

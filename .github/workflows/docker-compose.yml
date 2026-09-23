@@ -9,6 +9,7 @@ on:
       - 'admin-web/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-compose.yml'
+      - 'scripts/mpay-github-update.ps1'
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - 'admin-web/**'
       - 'docker-compose.yml'
       - '.github/workflows/docker-compose.yml'
+      - 'scripts/mpay-github-update.ps1'
 
 concurrency:
   group: mpay-docker-ci-${{ github.head_ref || github.ref_name }}
@@ -41,32 +43,40 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Calculate image tags
         shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            image_tag="ci-${GITHUB_SHA}"
+            branch_name="${{ github.event.pull_request.head.ref }}"
+            commit_sha="${{ github.event.pull_request.head.sha }}"
+            safe_branch="$(echo "${branch_name#feature/}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
+            image_tag="feature-${safe_branch}-latest"
           elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            commit_sha="${GITHUB_SHA}"
             image_tag="latest"
           else
             branch_name="${GITHUB_REF_NAME#feature/}"
             safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
+            commit_sha="${GITHUB_SHA}"
             image_tag="feature-${safe_branch}-latest"
           fi
 
           echo "MPAY_IMAGE_TAG=${image_tag}" >> "${GITHUB_ENV}"
-          echo "MPAY_SHA_TAG=sha-${GITHUB_SHA}" >> "${GITHUB_ENV}"
+          echo "MPAY_SHA_TAG=sha-${commit_sha}" >> "${GITHUB_ENV}"
+          echo "MPAY_COMMIT_SHA=${commit_sha}" >> "${GITHUB_ENV}"
 
           echo "Selected image tag: ${image_tag}"
-          echo "Commit image tag: sha-${GITHUB_SHA}"
+          echo "Commit image tag: sha-${commit_sha}"
 
       - name: Validate Docker Compose
         run: |
           docker compose -f docker-compose.yml config
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -78,24 +88,24 @@ jobs:
           docker compose -f docker-compose.yml build backend admin-web
 
       - name: Push branch/main image
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           docker compose -f docker-compose.yml push backend admin-web
 
       - name: Tag images with commit SHA
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           docker tag "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           docker tag "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
 
       - name: Push commit-tagged images
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           docker push "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           docker push "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
 
       - name: Verify pushed images
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}"
           docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"

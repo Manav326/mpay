@@ -8,7 +8,8 @@ data class RechargeRequest(
     val operator: String,
     val circle: String,
     val planId: String,
-    val clientRequestId: String
+    val clientRequestId: String,
+    val recipientName: String? = null
 )
 
 data class RechargeResponse(
@@ -18,7 +19,8 @@ data class RechargeResponse(
     val commission: BigDecimal,
     val walletDebitAmount: BigDecimal,
     val walletBalance: BigDecimal,
-    val walletAvailableBalance: BigDecimal = walletBalance
+    val walletAvailableBalance: BigDecimal = walletBalance,
+    val recipientName: String? = null
 )
 
 data class RechargeTransactionStatusResponse(

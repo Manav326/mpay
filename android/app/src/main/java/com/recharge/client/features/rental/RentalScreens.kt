@@ -8,6 +8,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
@@ -375,7 +377,8 @@ fun RentalVendorOnboardingScreen(
     onLoadVehicleAvailability: (String) -> Unit = {},
     onTakeVehicleOffMarket: (String, RentalVehicleUnavailabilityRequest, () -> Unit) -> Unit = { _, _, done -> done() },
     onRestoreVehicleToMarket: (String, String, () -> Unit) -> Unit = { _, _, done -> done() },
-    onLoadVehicleCalendar: (String, Int, Int) -> Unit = { _, _, _ -> }
+    onLoadVehicleCalendar: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onUpdateVendorProfile: (RentalVendorUpdateRequest, () -> Unit) -> Unit = { _, done -> done() }
 ) {
     var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
     var businessName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
@@ -385,6 +388,11 @@ fun RentalVendorOnboardingScreen(
     var pin by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.pinCode.orEmpty()) }
     var pan by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.panNumber.orEmpty()) }
     var upi by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutUpiId.orEmpty()) }
+    var bankName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankName.orEmpty()) }
+    var bankAccount by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankAccountNumber.orEmpty()) }
+    var bankIfsc by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankIfsc.orEmpty()) }
+    var primaryPayout by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutPrimaryMethod ?: "") }
+    var editingVendorProfile by remember { mutableStateOf(false) }
 
     var offMarketCar by remember { mutableStateOf<RentalCarResponse?>(null) }
     var offMarketStart by remember { mutableStateOf(LocalDate.now().plusDays(1).format(rentalDateFormatter)) }
@@ -449,6 +457,57 @@ fun RentalVendorOnboardingScreen(
             )
         }
 
+        if (editingVendorProfile) {
+            RentalVendorProfileDialog(
+                fullName = fullName,
+                businessName = businessName,
+                address = address,
+                city = city,
+                stateName = stateName,
+                pin = pin,
+                pan = pan,
+                bankName = bankName,
+                bankAccount = bankAccount,
+                bankIfsc = bankIfsc,
+                upi = upi,
+                primaryPayout = primaryPayout,
+                saving = state.saving,
+                error = state.error,
+                onFullName = { fullName = it },
+                onBusinessName = { businessName = it },
+                onAddress = { address = it },
+                onCity = { city = it },
+                onState = { stateName = it },
+                onPin = { pin = it },
+                onPan = { pan = it },
+                onBankName = { bankName = it },
+                onBankAccount = { bankAccount = it },
+                onBankIfsc = { bankIfsc = it },
+                onUpi = { upi = it },
+                onPrimaryPayout = { primaryPayout = it },
+                onDismiss = { if (!state.saving) editingVendorProfile = false },
+                onSave = {
+                    onUpdateVendorProfile(
+                        RentalVendorUpdateRequest(
+                            vendorType = state.vendor?.vendorType ?: "INDIVIDUAL",
+                            fullName = fullName.trim(),
+                            businessName = businessName.trim().ifBlank { null },
+                            address = address.trim(),
+                            city = city.trim(),
+                            state = stateName.trim(),
+                            pinCode = pin.trim(),
+                            panNumber = pan.trim().ifBlank { null },
+                            payoutUpiId = upi.trim().ifBlank { null },
+                            bankAccountNumber = bankAccount.trim().ifBlank { null },
+                            bankIfsc = bankIfsc.trim().ifBlank { null },
+                            bankName = bankName.trim().ifBlank { null },
+                            payoutPrimaryMethod = primaryPayout.trim().ifBlank { null }
+                        )
+                    ) { editingVendorProfile = false }
+                }
+            )
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
             contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
@@ -466,45 +525,109 @@ fun RentalVendorOnboardingScreen(
 
             state.vendor?.let { v ->
                 item {
-                    Card(shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Card(
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F7FF)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Vendor profile", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                Surface(shape = RoundedCornerShape(18.dp), color = AppColors.Success.copy(alpha = .12f)) {
-                                    Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFDBEAFE)) {
+                                    Icon(Icons.Default.Person, null, tint = Color(0xFF1D4ED8), modifier = Modifier.padding(9.dp).size(22.dp))
                                 }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                                Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(v.fullName ?: "—", fontWeight = FontWeight.SemiBold)
-                                    v.businessName?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall) }
+                                    Text("Vendor profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
+                                    Text("Business identity & marketplace status", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                                 }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text(v.vehicleCount.toString(), fontWeight = FontWeight.Bold)
-                                    Text("Vehicles", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(shape = RoundedCornerShape(16.dp), color = AppColors.Success.copy(alpha = .12f)) {
+                                        Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp))
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            fullName = v.fullName.orEmpty()
+                                            businessName = v.businessName.orEmpty()
+                                            address = v.address.orEmpty()
+                                            city = v.city.orEmpty()
+                                            stateName = v.state.orEmpty()
+                                            pin = v.pinCode.orEmpty()
+                                            pan = v.panNumber.orEmpty()
+                                            upi = v.payoutUpiId.orEmpty()
+                                            bankName = v.bankName.orEmpty()
+                                            bankAccount = v.bankAccountNumber.orEmpty()
+                                            bankIfsc = v.bankIfsc.orEmpty()
+                                            primaryPayout = v.payoutPrimaryMethod.orEmpty()
+                                            editingVendorProfile = true
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp)
+                                    ) { Text("Edit") }
                                 }
                             }
-                            Text(listOfNotBlank(v.city, v.state).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            HorizontalDivider(color = Color(0xFFD7E4F2))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Owner", style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                                    Text(v.fullName ?: "—", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    v.businessName?.takeIf { it.isNotBlank() }?.let {
+                                        Text(it, color = Color(0xFF2563EB), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                                Surface(shape = RoundedCornerShape(16.dp), color = Color.White) {
+                                    Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(v.vehicleCount.toString(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1D4ED8))
+                                        Text("Vehicles", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.LocationOn, null, tint = Color(0xFF2563EB), modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(5.dp))
+                                Text(listOfNotNull(v.city?.takeIf { it.isNotBlank() }, v.state?.takeIf { it.isNotBlank() }).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFFF8FAFC)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Text("Payout details", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Bank", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(v.bankName ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Account", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(v.bankAccountNumber ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("IFSC", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(v.bankIfsc ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("UPI", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(v.payoutUpiId ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Primary", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(v.payoutPrimaryMethod ?: "—", color = AppColors.PrimaryDark, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
             item {
-                val gross = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.grossAmount }
-                val fees = state.payouts.fold(BigDecimal.ZERO) { total, payout -> total + payout.platformFeeAmount }
-                val net = state.payouts.filter { it.status == "PAID" }.fold(BigDecimal.ZERO) { total, payout -> total + payout.vendorNetAmount }
-                Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Rental earnings", style = MaterialTheme.typography.titleMedium)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            EarningsMetric("Gross", gross)
-                            EarningsMetric("Platform fee", fees, alignEnd = true)
-                            EarningsMetric("Paid to you", net, alignEnd = true, emphasize = true)
-                        }
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Rental earnings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Same earnings view as Home, using your rental payout data.", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                 }
             }
+            item { RentalEarningsSummaryCard(state.earnings) }
 
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -529,133 +652,170 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             } else {
-                items(state.vendorCars, key = { it.id }) { car ->
-                    val status = car.approvalStatus?.uppercase() ?: "PENDING_REVIEW"
-                    val blackouts = state.vehicleUnavailabilityByCar[car.id].orEmpty()
-                    val today = LocalDate.now()
-                    val activeBlackout = blackouts.firstOrNull {
-                        val start = runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()
-                        val end = runCatching { LocalDate.parse(it.endDate, rentalDateFormatter) }.getOrNull()
-                        start != null && end != null && !start.isAfter(today) && !end.isBefore(today)
-                    }
-                    val scheduledBlackout = blackouts.firstOrNull {
-                        runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()?.isAfter(today) == true
-                    }
-                    val displayedBlackout = activeBlackout ?: scheduledBlackout
-                    val displayedOffMarket = activeBlackout != null
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        onClick = { detailsCar = car }
+                items(state.vendorCars.chunked(2), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = RoundedCornerShape(10.dp), color = AppColors.Primary.copy(alpha = .08f)) {
-                                    Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.padding(8.dp).size(22.dp))
-                                }
-                                Spacer(Modifier.width(9.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.weight(1f))
-                                        Surface(
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = when {
-                                                status == "REJECTED" -> AppColors.Error.copy(alpha = .12f)
-                                                status == "APPROVED" && (activeBlackout != null || scheduledBlackout != null) -> Color(0xFFFEF3C7)
-                                                status == "APPROVED" -> AppColors.Success.copy(alpha = .12f)
-                                                else -> Color(0xFFFFF7E6)
-                                            }
-                                        ) {
-                                            Text(
-                                                when {
-                                                    status == "REJECTED" -> "REJECTED"
-                                                    displayedOffMarket -> "OFF MARKET"
-                                                    scheduledBlackout != null -> "SCHEDULED"
-                                                    else -> status.replace("_", " ")
-                                                },
-                                                color = when {
-                                                    status == "REJECTED" -> AppColors.Error
-                                                    displayedOffMarket || scheduledBlackout != null -> Color(0xFF9A6408)
-                                                    status == "APPROVED" -> AppColors.Success
-                                                    else -> Color(0xFF9A6408)
-                                                },
-                                                style = MaterialTheme.typography.labelSmall,
-                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                                            )
-                                        }
+                        rowCars.forEach { car ->
+                            val status = car.approvalStatus?.uppercase() ?: "PENDING_REVIEW"
+                            val blackouts = state.vehicleUnavailabilityByCar[car.id].orEmpty()
+                            val today = LocalDate.now()
+                            val activeBlackout = blackouts.firstOrNull {
+                                val startDate = runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()
+                                val endDate = runCatching { LocalDate.parse(it.endDate, rentalDateFormatter) }.getOrNull()
+                                startDate != null && endDate != null && !startDate.isAfter(today) && !endDate.isBefore(today)
+                            }
+                            val scheduledBlackout = blackouts.firstOrNull {
+                                runCatching { LocalDate.parse(it.startDate, rentalDateFormatter) }.getOrNull()?.isAfter(today) == true
+                            }
+                            val displayedBlackout = activeBlackout ?: scheduledBlackout
+                            val displayedOffMarket = activeBlackout != null
+                            val statusColor = when (status) {
+                                "APPROVED" -> AppColors.Success
+                                "REJECTED" -> AppColors.Error
+                                else -> Color(0xFF9A6408)
+                            }
+                            val secondaryLabel = when {
+                                displayedOffMarket -> "OFF MARKET"
+                                scheduledBlackout != null -> "SCHEDULED"
+                                else -> null
+                            }
+                            val images = rentalPhotoSlots(car.imageUrl)
+
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(17.dp),
+                                onClick = { detailsCar = car },
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(9.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        RentalCarImageTile(images[0], Modifier.weight(1f).aspectRatio(1.05f))
+                                        RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.05f))
                                     }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.05f))
+                                        RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.05f))
+                                    }
+                                    Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
-                                        car.category + " • " + car.seats + " seats • " + car.transmission + " • " + (car.fuelType ?: "Fuel"),
+                                        car.category + " • " + car.seats + " seats",
                                         color = AppColors.TextSecondary,
                                         style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1
                                     )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
+                                        Text(
+                                            car.driverName + (car.driverMobile?.let { " • " + it } ?: ""),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(shape = RoundedCornerShape(9.dp), color = statusColor.copy(alpha = .12f)) {
+                                            Text(
+                                                status.replace("_", " "),
+                                                color = statusColor,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                                maxLines = 1
+                                            )
+                                        }
+                                        secondaryLabel?.let { label ->
+                                            Surface(shape = RoundedCornerShape(9.dp), color = Color(0xFFFFF3CD)) {
+                                                Text(
+                                                    label,
+                                                    color = Color(0xFF9A6408),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Text("₹" + car.pricePerDay.setScale(0) + "/day", fontWeight = FontWeight.Bold, color = Color(0xFF176B4D))
                                     Text(
-                                        "₹" + car.pricePerDay.setScale(0) + " / day • " + car.driverName + " • " + (car.city ?: "Location unavailable"),
-                                        style = MaterialTheme.typography.bodySmall,
+                                        car.transmission + " • " + (car.fuelType ?: "Fuel"),
+                                        color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1
                                     )
+                                    displayedBlackout?.let {
+                                        Surface(shape = RoundedCornerShape(9.dp), color = Color(0xFFFFF8E1)) {
+                                            Text(
+                                                formatRentalDate(it.startDate) + " → " + formatRentalDate(it.endDate),
+                                                color = Color(0xFF8A5A00),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        OutlinedButton(
+                                            onClick = { calendarCarId = car.id; calendarMonth = YearMonth.now() },
+                                            contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
+                                            shape = RoundedCornerShape(9.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text("Calendar", style = MaterialTheme.typography.labelSmall) }
+                                        if (displayedBlackout != null) {
+                                            OutlinedButton(
+                                                onClick = { onRestoreVehicleToMarket(car.id, displayedBlackout.id) { onLoadVehicleAvailability(car.id) } },
+                                                enabled = !state.saving,
+                                                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
+                                                shape = RoundedCornerShape(9.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) { Text("Restore", color = AppColors.Success, style = MaterialTheme.typography.labelSmall) }
+                                        } else if (status == "APPROVED") {
+                                            Button(
+                                                onClick = {
+                                                    offMarketCar = car
+                                                    offMarketStart = LocalDate.now().plusDays(1).format(rentalDateFormatter)
+                                                    offMarketEnd = LocalDate.now().plusDays(1).format(rentalDateFormatter)
+                                                    offMarketReason = "SERVICE_MAINTENANCE"
+                                                    offMarketNote = ""
+                                                },
+                                                enabled = !state.saving,
+                                                contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
+                                                shape = RoundedCornerShape(9.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) { Text("Off market", style = MaterialTheme.typography.labelSmall) }
+                                        }
+                                    }
+                                    if (status == "REJECTED") {
+                                        OutlinedButton(
+                                            onClick = { onAddVehicleWithCar(car) },
+                                            contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
+                                            shape = RoundedCornerShape(9.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) { Text("Correct & resubmit", style = MaterialTheme.typography.labelSmall) }
+                                    }
+                                    car.rejectionReason?.takeIf { it.isNotBlank() }?.let {
+                                        Text("Review: " + it, color = AppColors.Error, style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                                    }
                                 }
                             }
-
-                            displayedBlackout?.let {
-                                Text(
-                                    (if (displayedOffMarket) "Off market: " else "Scheduled off market: ") + formatRentalDate(it.startDate) + " → " + formatRentalDate(it.endDate) + " • " + it.reasonLabel,
-                                    color = Color(0xFF9A6408),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                OutlinedButton(
-                                    onClick = {
-                                        calendarCarId = car.id
-                                        calendarMonth = YearMonth.now()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) { Text("Calendar", style = MaterialTheme.typography.labelMedium) }
-
-                                if (displayedBlackout != null) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            onRestoreVehicleToMarket(car.id, displayedBlackout.id) {
-                                                onLoadVehicleAvailability(car.id)
-                                            }
-                                        },
-                                        enabled = !state.saving,
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) { Text("Restore", color = AppColors.Success, style = MaterialTheme.typography.labelMedium) }
-                                } else if (status == "APPROVED") {
-                                    Button(
-                                        onClick = {
-                                            offMarketCar = car
-                                            offMarketStart = LocalDate.now().plusDays(1).format(rentalDateFormatter)
-                                            offMarketEnd = LocalDate.now().plusDays(1).format(rentalDateFormatter)
-                                            offMarketReason = "SERVICE_MAINTENANCE"
-                                            offMarketNote = ""
-                                        },
-                                        enabled = !state.saving,
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) { Text("Take off market", style = MaterialTheme.typography.labelMedium) }
-                                }
-
-                                if (status == "REJECTED") {
-                                    OutlinedButton(
-                                        onClick = { onAddVehicleWithCar(car) },
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) { Text("Correct & resubmit", style = MaterialTheme.typography.labelMedium) }
-                                }
-                            }
-
-                            car.rejectionReason?.let { Text("Review note: " + it, color = AppColors.Error, style = MaterialTheme.typography.labelSmall) }
                         }
+                        if (rowCars.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
-            }
-
+                }
             item {
                 OutlinedButton(onClick = onAddVehicle, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Text("Add another vehicle")
@@ -742,8 +902,15 @@ fun RentalVendorOnboardingScreen(
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Payout details", style = MaterialTheme.typography.titleMedium)
-                            Text("Optional for now; you can complete payout details later.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text("Add UPI or bank details and choose which one is primary for payouts.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                             VendorField("Payout UPI (optional)", upi) { upi = it }
+                            CompactFieldRow("Bank name", bankName, { bankName = it }, "Bank account", bankAccount, { bankAccount = it })
+                            VendorField("Bank IFSC", bankIfsc) { bankIfsc = it }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Primary:", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
+                                FilterChip(selected = primaryPayout == "UPI", onClick = { primaryPayout = "UPI" }, label = { Text("UPI") }, enabled = upi.isNotBlank())
+                                FilterChip(selected = primaryPayout == "BANK", onClick = { primaryPayout = "BANK" }, label = { Text("Bank") }, enabled = bankAccount.isNotBlank() && bankIfsc.isNotBlank())
+                            }
                         }
                     }
                 }
@@ -893,7 +1060,7 @@ fun CarRentalMarketplaceScreen(
         val e = LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         e.isAfter(s) && !s.isBefore(LocalDateTime.now())
     }.getOrDefault(false)
-    val canApplyFilter = location.isNotBlank() || hasValidWindow
+    val canApplyFilter = location.trim().isNotBlank() || hasValidWindow
     val filterApplied = start.isNotBlank() || end.isNotBlank() || location.isNotBlank()
 
     LaunchedEffect(Unit) {
@@ -914,8 +1081,8 @@ fun CarRentalMarketplaceScreen(
                 Column(Modifier.weight(1f)) {
                     Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        if (filterApplied) "Showing vehicles matching your place and/or selected time window."
-                        else "Search by city or pickup area, with an optional rental time window.",
+                        if (filterApplied) "Filter by place or a From–To availability window."
+                        else "Compact search: city/pickup area or From–To time.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -923,15 +1090,21 @@ fun CarRentalMarketplaceScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(9.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     OutlinedTextField(
                         value = location,
                         onValueChange = { location = it },
                         singleLine = true,
-                        label = { Text("City or pickup area") },
-                        placeholder = { Text("e.g. Patna, Airport Road") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("City / pickup area", style = MaterialTheme.typography.labelSmall) },
+                        placeholder = { Text("Patna, Airport Road…", style = MaterialTheme.typography.bodySmall) },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        shape = RoundedCornerShape(11.dp)
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         RentalDateTimeField("From", start, { start = it }, Modifier.weight(1f))
@@ -940,26 +1113,26 @@ fun CarRentalMarketplaceScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
                             onClick = { onSearch(start, end, location.trim()) },
-                            enabled = canApplyFilter && !state.loading,
+                            enabled = canApplyFilter,
                             modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 8.dp),
+                            contentPadding = PaddingValues(vertical = 7.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             if (state.loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            else Text("Filter available cars")
+                            else Text("Filter", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                         if (filterApplied) {
                             OutlinedButton(
                                 onClick = {
                                     start = ""
                                     end = ""
+                                    location = ""
                                     onClearFilter()
                                 },
                                 enabled = !state.loading,
-                                modifier = Modifier.weight(.42f),
-                                contentPadding = PaddingValues(vertical = 8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
                                 shape = RoundedCornerShape(10.dp)
-                            ) { Text("Clear") }
+                            ) { Text("Clear", style = MaterialTheme.typography.labelLarge) }
                         }
                     }
                 }
@@ -986,51 +1159,69 @@ fun CarRentalMarketplaceScreen(
                 }
             }
         }
-        items(state.cars, key = { it.id }) { car ->
-            val images = rentalPhotoSlots(car.imageUrl)
-            Card(shape = RoundedCornerShape(18.dp)) {
-                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(112.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            RentalCarImageTile(images[0], Modifier.weight(1f).aspectRatio(1.12f))
-                            RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.12f))
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.12f))
-                            RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.12f))
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text(car.category + " • " + car.seats + " seats • " + car.transmission, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text(car.driverName, style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                        }
-                        Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("Chauffeur included", color = AppColors.Success, style = MaterialTheme.typography.labelSmall)
+        items(state.cars.chunked(2), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                rowCars.forEach { car ->
+                    val images = rentalPhotoSlots(car.imageUrl)
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box {
+                                RentalCarImageTile(images[0], Modifier.fillMaxWidth().aspectRatio(1.28f))
+                                Surface(
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(7.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color.Black.copy(alpha = .58f)
+                                ) {
+                                    Text(
+                                        car.category,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.18f))
+                                RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.18f))
+                                RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.18f))
+                            }
+                            Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, color = Color(0xFF172033))
+                            Text(car.seats.toString() + " seats • " + car.transmission, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text(car.driverName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                            Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF0FDF4)) {
+                                Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp)) {
+                                    Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
+                                    Text("Chauffeur included", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                             Button(
                                 onClick = { onBook(car, start, end) },
                                 enabled = !filterApplied || canApplyFilter,
-                                contentPadding = PaddingValues(horizontal = 11.dp, vertical = 7.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) { Text("Book", style = MaterialTheme.typography.labelLarge) }
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 7.dp),
+                                shape = RoundedCornerShape(11.dp)
+                            ) {
+                                Text("Book", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
+                if (rowCars.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
-
-
-
 @Composable
 private fun VehiclePhotoField(
     title: String,
@@ -1072,10 +1263,10 @@ private fun VehiclePhotoField(
 @Composable
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
-    onSubmit: (RentalVehicleOnboardingRequest, Map<Int, String>, () -> Unit) -> Unit,
+    onSubmit: (RentalVehicleOnboardingRequest, Map<Int, String>, String?, () -> Unit) -> Unit,
     onBack: () -> Unit,
     editingCar: RentalCarResponse? = null,
-    onResubmit: ((String, RentalVehicleUpdateRequest, Map<Int, String>, () -> Unit) -> Unit)? = null
+    onResubmit: ((String, RentalVehicleUpdateRequest, Map<Int, String>, String?, () -> Unit) -> Unit)? = null
 ) {
     var name by remember(editingCar?.id) { mutableStateOf(editingCar?.name.orEmpty()) }
     var make by remember(editingCar?.id) { mutableStateOf(editingCar?.make.orEmpty()) }
@@ -1107,6 +1298,7 @@ fun RentalVehicleOnboardingScreen(
     var licenseNumber by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseNumber.orEmpty()) }
     var licenseExpiry by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseExpiry.orEmpty()) }
     var driverAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.driverAddress.orEmpty()) }
+    var driverPhotoUri by remember(editingCar?.id) { mutableStateOf<String?>(null) }
 
     val combinedPhotos = listOf(photoFront, photoSide, photoRear, photoInterior)
         .map { it.trim() }
@@ -1128,6 +1320,9 @@ fun RentalVehicleOnboardingScreen(
     }
     val interiorGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         galleryInterior = uri?.toString()
+    }
+    val driverPhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        driverPhotoUri = uri?.toString()
     }
 
     LazyColumn(
@@ -1229,6 +1424,32 @@ fun RentalVehicleOnboardingScreen(
                     VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
                     RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it })
                     VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            RentalCarImageTile(
+                                driverPhotoUri ?: editingCar?.driverPhotoUrl,
+                                Modifier.size(72.dp)
+                            )
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Driver photo (optional)", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                Text("Shown in vehicle driver details.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            }
+                            OutlinedButton(
+                                onClick = { driverPhotoLauncher.launch("image/*") },
+                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(if (driverPhotoUri != null) "Change" else "Add", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1291,6 +1512,7 @@ fun RentalVehicleOnboardingScreen(
                                 driver = driver
                             ),
                             galleryPhotos,
+                            driverPhotoUri,
                             onBack
                         )
                     } else {
@@ -1315,6 +1537,7 @@ fun RentalVehicleOnboardingScreen(
                                 driver = driver
                             ),
                             galleryPhotos,
+                            driverPhotoUri,
                             onBack
                         )
                     }
@@ -1335,55 +1558,353 @@ private fun RentalVehicleDetailsDialog(
     car: RentalCarResponse,
     onDismiss: () -> Unit
 ) {
+    val status = car.approvalStatus?.replace("_", " ")?.uppercase() ?: "—"
+    val statusColor = when (car.approvalStatus?.uppercase()) {
+        "APPROVED" -> AppColors.Success
+        "REJECTED" -> AppColors.Error
+        else -> Color(0xFFB45309)
+    }
     Dialog(onDismissRequest = onDismiss) {
-        Card(Modifier.fillMaxWidth().padding(12.dp), shape = RoundedCornerShape(20.dp)) {
+        Card(
+            Modifier.fillMaxWidth().padding(10.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
             LazyColumn(
-                Modifier.fillMaxWidth().padding(15.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                Modifier.fillMaxWidth().padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(car.name, style = MaterialTheme.typography.titleLarge)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(car.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF102A43))
                             Text(
-                                car.category + " • " + car.seats + " seats • " + car.transmission,
-                                color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.bodySmall
+                                listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category },
+                                color = Color(0xFF2563EB),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                        TextButton(onClick = onDismiss) { Text("Close") }
+                        Surface(shape = RoundedCornerShape(14.dp), color = statusColor.copy(alpha = .12f)) {
+                            Text(status, color = statusColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
+                        }
                     }
                 }
                 item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        rentalPhotoSlots(car.imageUrl).forEach { photo ->
-                            RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1f))
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Vehicle photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                rentalPhotoSlots(car.imageUrl).forEach { photo ->
+                                    RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1.05f))
+                                }
+                            }
                         }
                     }
                 }
-                item { Text("Vehicle details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-                item { Text("Make / model: " + listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { "—" }) }
-                item { Text("Category / seats: " + car.category + " / " + car.seats) }
-                item { Text("Transmission / fuel: " + car.transmission + " / " + (car.fuelType ?: "—")) }
-                item { Text("Manufacturing year: " + (car.manufacturingYear?.toString() ?: "—")) }
-                item { Text("Registration year: " + (car.registrationYear?.toString() ?: "—")) }
-                item { Text("Registration number: " + (car.registrationNumber ?: "—")) }
-                item { Text("Price per day: ₹" + car.pricePerDay.setScale(2).toPlainString()) }
-                item { Text("Pickup address: " + (car.pickupAddress ?: "—")) }
-                item { Text("City / state: " + listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }) }
-                item { Text("Approval status: " + (car.approvalStatus ?: "—")) }
-                car.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
-                    item { Text("Review note: " + reason, color = AppColors.Error) }
+                item {
+                    RentalDetailSection(
+                        title = "Vehicle overview",
+                        tint = Color(0xFF1D4ED8),
+                        rows = listOf(
+                            "Make / model" to listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { "—" },
+                            "Category / seats" to (car.category + " / " + car.seats),
+                            "Transmission / fuel" to (car.transmission + " / " + (car.fuelType ?: "—")),
+                            "Manufacturing year" to (car.manufacturingYear?.toString() ?: "—"),
+                            "Registration year" to (car.registrationYear?.toString() ?: "—")
+                        )
+                    )
                 }
-                item { Text("Driver details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-                item { Text("Name: " + car.driverName) }
-                item { Text("Mobile: " + (car.driverMobile ?: "—")) }
-                item { Text("Licence number: " + (car.driverLicenseNumber ?: "—")) }
-                item { Text("Licence expiry: " + (car.driverLicenseExpiry ?: "—")) }
-                item { Text("Driver address: " + (car.driverAddress ?: "—")) }
+                item {
+                    RentalDetailSection(
+                        title = "Pricing & location",
+                        tint = Color(0xFF0F766E),
+                        rows = listOf(
+                            "Price per day" to ("₹" + car.pricePerDay.setScale(2).toPlainString()),
+                            "Registration number" to (car.registrationNumber ?: "—"),
+                            "Pickup address" to (car.pickupAddress ?: "—"),
+                            "City / state" to listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }
+                        )
+                    )
+                }
+                car.rejectionReason?.takeIf { it.isNotBlank() }?.let { reason ->
+                    item {
+                        Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Error.copy(alpha = .08f)) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Review note", style = MaterialTheme.typography.labelLarge, color = AppColors.Error, fontWeight = FontWeight.Bold)
+                                Text(reason, color = Color(0xFF7F1D1D), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+                if (!car.driverPhotoUrl.isNullOrBlank()) {
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Driver photo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                RentalCarImageTile(car.driverPhotoUrl, Modifier.fillMaxWidth().height(180.dp))
+                            }
+                        }
+                    }
+                }
+                item {
+                    RentalDetailSection(
+                        title = "Driver details",
+                        tint = Color(0xFF7C3AED),
+                        rows = listOf(
+                            "Name" to car.driverName,
+                            "Mobile" to (car.driverMobile ?: "—"),
+                            "Licence number" to (car.driverLicenseNumber ?: "—"),
+                            "Licence expiry" to (car.driverLicenseExpiry ?: "—"),
+                            "Driver address" to (car.driverAddress ?: "—")
+                        )
+                    )
+                }
+                item {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                        Text("Close details")
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun RentalDetailSection(
+    title: String,
+    tint: Color,
+    rows: List<Pair<String, String>>
+) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = tint)
+            HorizontalDivider()
+            rows.forEach { (label, value) ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                    Text(label, modifier = Modifier.weight(.85f), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text(value, modifier = Modifier.weight(1.15f), textAlign = androidx.compose.ui.text.style.TextAlign.End, color = Color(0xFF1F2937), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VendorEarningsCard(
+    label: String,
+    value: BigDecimal,
+    background: Color,
+    valueColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = background),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary, maxLines = 1)
+            Text("₹" + value.setScale(2).toPlainString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = valueColor, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun RentalEarningsSummaryCard(
+    earnings: RentalVendorEarningsResponse?
+) {
+    if (earnings == null) {
+        Card(shape = RoundedCornerShape(20.dp)) {
+            Column(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text("Rental earnings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Loading payout summary…", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        }
+        return
+    }
+
+    fun money(v: BigDecimal): String = "₹" + v.setScale(2).toPlainString()
+
+    @Composable
+    fun Metric(label: String, value: BigDecimal, tint: Color, modifier: Modifier) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = tint.copy(alpha = .09f),
+            modifier = modifier
+        ) {
+            Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = FontWeight.Bold)
+                Text(money(value), style = MaterialTheme.typography.titleMedium, color = tint, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
+    @Composable
+    fun Period(title: String, period: RentalVendorEarningsPeriodResponse, monthly: Boolean = false) {
+        Card(shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Metric("Gross", period.grossAmount, Color(0xFF334155), Modifier.weight(1f))
+                    Metric("Platform fee", period.platformFeeAmount, Color(0xFFD97706), Modifier.weight(1f))
+                    Metric("Net earning", period.vendorNetAmount, AppColors.Success, Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        if (monthly) "Bookings this month" else "Completed today",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        if (monthly) period.bookingCount.toString() else period.completedBookingCount.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (!monthly) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Upcoming confirmed bookings", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(earnings.upcomingBookingCount.toString(), color = AppColors.PrimaryDark, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    Period("Today", earnings.today)
+    Spacer(Modifier.height(8.dp))
+    Period("This month", earnings.monthly, monthly = true)
+}
+
+@Composable
+private fun RentalEarningsPeriodCard(
+    payouts: List<RentalVendorPayoutResponse>,
+    isToday: Boolean
+) {
+    val zone = ZoneId.of("Asia/Kolkata")
+    val now = java.time.ZonedDateTime.now(zone)
+    val from = if (isToday) now.toLocalDate().atStartOfDay(zone) else now.toLocalDate().withDayOfMonth(1).atStartOfDay(zone)
+    val paid = payouts.filter { payout ->
+        payout.status.equals("PAID", true) &&
+            runCatching {
+                val created = java.time.Instant.parse(payout.createdAt).atZone(zone)
+                !created.isBefore(from) && !created.isAfter(now)
+            }.getOrDefault(false)
+    }
+    val gross = paid.fold(BigDecimal.ZERO) { total, payout -> total + payout.grossAmount }
+    val net = paid.fold(BigDecimal.ZERO) { total, payout -> total + payout.vendorNetAmount }
+    val countLabel = paid.size.toString() + " completed rental" + if (paid.size == 1) "" else "s"
+
+    Card(shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                if (isToday) "Today • " + now.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH))
+                else now.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)),
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Earnings received", color = AppColors.TextSecondary)
+                    Text("₹" + net.setScale(2).toPlainString(), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                    Text(countLabel, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    Text("Rental volume", color = AppColors.TextSecondary)
+                    Text("₹" + gross.setScale(2).toPlainString(), style = MaterialTheme.typography.titleLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RentalVendorProfileDialog(
+    fullName: String,
+    businessName: String,
+    address: String,
+    city: String,
+    stateName: String,
+    pin: String,
+    pan: String,
+    bankName: String,
+    bankAccount: String,
+    bankIfsc: String,
+    upi: String,
+    primaryPayout: String,
+    saving: Boolean,
+    error: String?,
+    onFullName: (String) -> Unit,
+    onBusinessName: (String) -> Unit,
+    onAddress: (String) -> Unit,
+    onCity: (String) -> Unit,
+    onState: (String) -> Unit,
+    onPin: (String) -> Unit,
+    onPan: (String) -> Unit,
+    onBankName: (String) -> Unit,
+    onBankAccount: (String) -> Unit,
+    onBankIfsc: (String) -> Unit,
+    onUpi: (String) -> Unit,
+    onPrimaryPayout: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Edit vendor profile") },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item { CompactFieldRow("Full name", fullName, onFullName, "Business name", businessName, onBusinessName) }
+                item { VendorField("Address", address, onValueChange = onAddress) }
+                item { CompactFieldRow("City", city, onCity, "State", stateName, onState) }
+                item { CompactFieldRow("PIN", pin, onPin, "PAN", pan, onPan) }
+                item { Text("Payout details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
+                item { VendorField("Bank name", bankName, onValueChange = onBankName) }
+                item { CompactFieldRow("Bank account", bankAccount, onBankAccount, "IFSC", bankIfsc, onBankIfsc) }
+                item { VendorField("UPI ID", upi, onValueChange = onUpi) }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Primary payout method", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            FilterChip(selected = primaryPayout == "UPI", onClick = { onPrimaryPayout("UPI") }, label = { Text("UPI") }, enabled = upi.isNotBlank())
+                            FilterChip(selected = primaryPayout == "BANK", onClick = { onPrimaryPayout("BANK") }, label = { Text("Bank") }, enabled = bankAccount.isNotBlank() && bankIfsc.isNotBlank())
+                        }
+                    }
+                }
+                error?.let { message -> item { Text(message, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = !saving &&
+                    fullName.isNotBlank() && address.isNotBlank() && city.isNotBlank() && stateName.isNotBlank() && pin.isNotBlank() &&
+                    (primaryPayout.isBlank() ||
+                        (primaryPayout == "UPI" && upi.isNotBlank()) ||
+                        (primaryPayout == "BANK" && bankAccount.isNotBlank() && bankIfsc.isNotBlank()))
+            ) {
+                if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Save changes")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
+    )
 }
 
 @Composable
@@ -1537,6 +2058,14 @@ fun RentalMyBookingsScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[0], Modifier.weight(1f).aspectRatio(1.25f))
+                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[1], Modifier.weight(1f).aspectRatio(1.25f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[2], Modifier.weight(1f).aspectRatio(1.25f))
+                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[3], Modifier.weight(1f).aspectRatio(1.25f))
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.size(22.dp))
                         Spacer(Modifier.width(8.dp))
@@ -1597,13 +2126,17 @@ fun RentalMyBookingsScreen(
                         style = MaterialTheme.typography.labelSmall
                     )
                     if (booking.status.equals("CONFIRMED", true) && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start
+                        ) {
                             OutlinedButton(
                                 onClick = { cancelBookingId = booking.bookingId },
                                 enabled = !state.saving,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                                modifier = Modifier.height(42.dp)
                             ) {
-                                Text("Cancel", color = AppColors.Error, style = MaterialTheme.typography.labelMedium)
+                                Text("Cancel", color = AppColors.Error, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

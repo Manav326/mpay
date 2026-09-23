@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import jakarta.validation.ConstraintViolationException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import jakarta.servlet.http.HttpServletRequest
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -61,9 +62,9 @@ class GlobalExceptionHandler {
             .body(ErrorResponse(ex.message ?: "Access denied"))
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
-    fun handleUnreadableRequest(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> =
+    fun handleUnreadableRequest(ex: HttpMessageNotReadableException, request: HttpServletRequest): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse("Invalid request body: " + (ex.mostSpecificCause.message ?: "malformed JSON")))
+            .body(ErrorResponse("Invalid request body for ${request.method} ${request.requestURI}: " + (ex.mostSpecificCause.message ?: "malformed JSON")))
 
     @ExceptionHandler(ConstraintViolationException::class)
     fun handleConstraintViolation(ex: ConstraintViolationException): ResponseEntity<ErrorResponse> =

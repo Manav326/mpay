@@ -34,7 +34,26 @@ class RentalService(
     fun vendor(userId: Long): RentalVendorResponse {
         val vendor = vendors.findByUserId(userId).orElse(null)
         return vendor?.let {
-            RentalVendorResponse(it.id.toString(), it.status, it.vendorType, it.fullName, it.businessName, it.city, it.state, cars.countByVendorId(requireNotNull(it.id)), it.address, it.pinCode, it.panNumber, it.payoutUpiId, it.bankAccountNumber, it.bankIfsc, it.rejectionReason, it.createdAt)
+            RentalVendorResponse(
+                vendorId = it.id.toString(),
+                status = it.status,
+                vendorType = it.vendorType,
+                fullName = it.fullName,
+                businessName = it.businessName,
+                city = it.city,
+                state = it.state,
+                vehicleCount = cars.countByVendorId(requireNotNull(it.id)),
+                address = it.address,
+                pinCode = it.pinCode,
+                panNumber = maskSensitive(it.panNumber),
+                payoutUpiId = maskUpi(it.payoutUpiId),
+                bankAccountNumber = maskLastFour(it.bankAccountNumber),
+                bankIfsc = maskLastFour(it.bankIfsc),
+                bankName = it.bankName,
+                payoutPrimaryMethod = it.payoutPrimaryMethod,
+                rejectionReason = it.rejectionReason,
+                submittedAt = it.createdAt
+            )
         } ?: RentalVendorResponse(null, "NOT_ONBOARDED", null, null, null, null, null, 0)
     }
 
@@ -56,6 +75,8 @@ class RentalService(
             current.payoutUpiId = request.payoutUpiId?.trim()
             current.bankAccountNumber = request.bankAccountNumber?.trim()
             current.bankIfsc = request.bankIfsc?.trim()?.uppercase()
+            current.bankName = request.bankName?.trim()?.takeIf { it.isNotBlank() }
+            current.payoutPrimaryMethod = normalizePrimaryPayoutMethod(request.payoutPrimaryMethod, request.payoutUpiId, request.bankAccountNumber, request.bankIfsc)
             current.status = "PENDING"
             current.rejectionReason = null
             val now = Instant.now()
@@ -82,12 +103,69 @@ class RentalService(
                 payoutUpiId = request.payoutUpiId?.trim(),
                 bankAccountNumber = request.bankAccountNumber?.trim(),
                 bankIfsc = request.bankIfsc?.trim()?.uppercase(),
+                bankName = request.bankName?.trim()?.takeIf { it.isNotBlank() },
+                payoutPrimaryMethod = normalizePrimaryPayoutMethod(request.payoutPrimaryMethod, request.payoutUpiId, request.bankAccountNumber, request.bankIfsc),
                 createdAt = now,
                 updatedAt = now
             )
         )
         vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(saved.id), action = "SUBMITTED", actorUserId = userId, createdAt = now))
         return vendor(userId)
+    }
+
+    @Transactional
+    fun updateVendor(userId: Long, request: RentalVendorUpdateRequest): RentalVendorResponse {
+        val vendor = vendors.findByUserId(userId).orElseThrow { IllegalArgumentException("Complete vendor onboarding first") }
+        val type = request.vendorType.trim().uppercase()
+        require(type in setOf("INDIVIDUAL", "BUSINESS")) { "Vendor type must be INDIVIDUAL or BUSINESS" }
+
+        vendor.vendorType = type
+        vendor.fullName = request.fullName.trim()
+        vendor.businessName = request.businessName?.trim()?.takeIf { it.isNotBlank() }
+        vendor.address = request.address.trim()
+        vendor.city = request.city.trim()
+        vendor.state = request.state.trim()
+        vendor.pinCode = request.pinCode.trim()
+        val panInput = request.panNumber?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        val upiInput = request.payoutUpiId?.trim()?.takeIf { it.isNotBlank() }
+        val accountInput = request.bankAccountNumber?.trim()?.takeIf { it.isNotBlank() }
+        val ifscInput = request.bankIfsc?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+
+        if (panInput != null && !panInput.contains('*')) vendor.panNumber = panInput
+        if (upiInput != null && !upiInput.contains('*')) vendor.payoutUpiId = upiInput
+        if (accountInput != null && !accountInput.contains('*')) vendor.bankAccountNumber = accountInput
+        if (ifscInput != null && !ifscInput.contains('*')) vendor.bankIfsc = ifscInput
+        request.bankName?.trim()?.takeIf { it.isNotBlank() }?.let { vendor.bankName = it }
+        vendor.payoutPrimaryMethod = normalizePrimaryPayoutMethod(
+            request.payoutPrimaryMethod,
+            vendor.payoutUpiId,
+            vendor.bankAccountNumber,
+            vendor.bankIfsc
+        )
+        vendor.updatedAt = Instant.now()
+        vendors.save(vendor)
+        return vendor(userId)
+    }
+
+    private fun normalizePrimaryPayoutMethod(
+        requested: String?,
+        upiId: String?,
+        bankAccountNumber: String?,
+        bankIfsc: String?
+    ): String? {
+        val primary = requested?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        val hasUpi = !upiId.isNullOrBlank()
+        val hasBank = !bankAccountNumber.isNullOrBlank() && !bankIfsc.isNullOrBlank()
+        return when (primary) {
+            "UPI" -> { require(hasUpi) { "Primary UPI is selected but UPI ID is missing" }; "UPI" }
+            "BANK" -> { require(hasBank) { "Primary bank payout is selected but bank account and IFSC are incomplete" }; "BANK" }
+            null -> when {
+                hasUpi && !hasBank -> "UPI"
+                hasBank && !hasUpi -> "BANK"
+                else -> null
+            }
+            else -> throw IllegalArgumentException("Primary payout method must be BANK or UPI")
+        }
     }
 
     fun vendorCars(userId: Long): List<RentalCarResponse> {
@@ -264,6 +342,56 @@ class RentalService(
         return driver
     }
 
+    fun vendorEarnings(userId: Long): RentalVendorEarningsResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val carIds = cars.findAllByVendorIdOrderByIdDesc(vendorId).mapNotNull { it.id }
+        val now = Instant.now()
+        val zone = java.time.ZoneId.of("Asia/Kolkata")
+        val todayStart = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val tomorrowStart = java.time.LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant()
+        val monthStart = java.time.LocalDate.now(zone).withDayOfMonth(1).atStartOfDay(zone).toInstant()
+        val nextMonthStart = java.time.LocalDate.now(zone).plusMonths(1).withDayOfMonth(1).atStartOfDay(zone).toInstant()
+
+        fun period(from: Instant, to: Instant): RentalVendorEarningsPeriodResponse {
+            val paid = rentalPayouts.findByVendorUserId(userId).filter {
+                it.status.equals("PAID", true) && !it.createdAt.isBefore(from) && it.createdAt.isBefore(to)
+            }
+            val gross = paid.fold(BigDecimal.ZERO) { acc, row -> acc + row.grossAmount }
+            val fee = paid.fold(BigDecimal.ZERO) { acc, row -> acc + row.platformFeeAmount }
+            val net = paid.fold(BigDecimal.ZERO) { acc, row -> acc + row.vendorNetAmount }
+            val bookingCount = if (carIds.isEmpty()) {
+                0L
+            } else {
+                bookings.countByCarIdInAndStatusInAndCreatedAtBetween(
+                    carIds,
+                    listOf("CONFIRMED", "COMPLETED"),
+                    from,
+                    to
+                )
+            }
+            return RentalVendorEarningsPeriodResponse(
+                grossAmount = gross.setScale(2, RoundingMode.HALF_UP),
+                platformFeeAmount = fee.setScale(2, RoundingMode.HALF_UP),
+                vendorNetAmount = net.setScale(2, RoundingMode.HALF_UP),
+                bookingCount = bookingCount,
+                completedBookingCount = paid.size.toLong()
+            )
+        }
+
+        val upcomingBookingCount = if (carIds.isEmpty()) {
+            0L
+        } else {
+            bookings.countByCarIdInAndStatusAndStartDateAfter(carIds, "CONFIRMED", LocalDateTime.now())
+        }
+
+        return RentalVendorEarningsResponse(
+            today = period(todayStart, tomorrowStart),
+            monthly = period(monthStart, nextMonthStart),
+            upcomingBookingCount = upcomingBookingCount
+        )
+    }
+
     fun vendorPayouts(userId: Long): List<RentalVendorPayoutResponse> {
         verifiedVendor(userId)
         val payoutRows = rentalPayouts.findByVendorUserId(userId)
@@ -294,7 +422,7 @@ class RentalService(
             result.content.map { b ->
                 val car = carMap[b.carId]
                 val driver = car?.driverId?.let { drivers.findById(it).orElse(null) }
-                toBookingResponse(b, car?.name ?: "Car", driver)
+                toBookingResponse(b, car, driver)
             },
             result.number, result.size, result.totalElements, result.totalPages, result.hasNext()
         )
@@ -326,7 +454,7 @@ class RentalService(
             val existingCar = cars.findById(existingBooking.carId).orElse(null)
             return toBookingResponse(
                 existingBooking,
-                existingCar?.name ?: "Car",
+                existingCar,
                 existingCar?.driverId?.let { drivers.findById(it).orElse(null) }
             )
         }
@@ -343,7 +471,7 @@ class RentalService(
             val existingCar = cars.findById(existingBooking.carId).orElse(null)
             return toBookingResponse(
                 existingBooking,
-                existingCar?.name ?: "Car",
+                existingCar,
                 existingCar?.driverId?.let { drivers.findById(it).orElse(null) }
             )
         }
@@ -379,7 +507,7 @@ class RentalService(
                 createdAt = now, updatedAt = now
             )
         )
-        return toBookingResponse(saved, car.name, driver)
+        return toBookingResponse(saved, car, driver)
     }
 
     @Transactional
@@ -422,6 +550,32 @@ class RentalService(
         if (oldStoredKey != null) {
             rentalImageStorage.delete(oldStoredKey)
         }
+        return toCarResponse(car)
+    }
+
+    @Transactional
+    fun uploadDriverPhoto(userId: Long, driverId: Long, photo: MultipartFile): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Driver not found") }
+        require(driver.vendorId == vendorId) { "Driver does not belong to this vendor" }
+
+        val oldValue = driver.photoUrl.orEmpty()
+        val oldStoredKey = oldValue.removePrefix(RENTAL_PHOTO_URL_PREFIX)
+            .takeIf { oldValue.startsWith(RENTAL_PHOTO_URL_PREFIX) }
+        val newKey = rentalImageStorage.saveDriverPhoto(driverId, photo)
+        try {
+            driver.photoUrl = RENTAL_PHOTO_URL_PREFIX + newKey
+            driver.updatedAt = Instant.now()
+            drivers.save(driver)
+        } catch (error: Exception) {
+            rentalImageStorage.delete(newKey)
+            throw error
+        }
+        if (oldStoredKey != null) rentalImageStorage.delete(oldStoredKey)
+
+        val car = cars.findAllByVendorIdOrderByIdDesc(vendorId).firstOrNull { it.driverId == driverId }
+            ?: throw IllegalArgumentException("Vehicle for driver not found")
         return toCarResponse(car)
     }
 
@@ -621,7 +775,7 @@ class RentalService(
         val saved = bookings.save(booking)
         rentalPayouts.settleCompletedBooking(saved)
         val car = cars.findById(saved.carId).orElse(null)
-        return toBookingResponse(saved, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
+        return toBookingResponse(saved, car, car?.driverId?.let { drivers.findById(it).orElse(null) })
     }
 
     @Transactional
@@ -637,7 +791,7 @@ class RentalService(
         rentalPayments.refund(payment)
         val car = cars.findById(booking.carId).orElse(null)
         bookings.save(booking)
-        return toBookingResponse(booking, car?.name ?: "Car", car?.driverId?.let { drivers.findById(it).orElse(null) })
+        return toBookingResponse(booking, car, car?.driverId?.let { drivers.findById(it).orElse(null) })
     }
 
     fun adminDashboard(): RentalAdminDashboardResponse =
@@ -800,7 +954,10 @@ class RentalService(
             seats = car.seats, transmission = car.transmission, fuelType = car.fuelType,
             registrationYear = car.registrationYear, city = car.city, pickupAddress = car.pickupAddress,
             imageUrl = car.imageUrl, pricePerDay = car.pricePerDay.setScale(2),
-            driverName = driver?.fullName ?: "Driver assigned", driverMobile = driver?.mobile,
+            driverId = driver?.id?.toString(),
+            driverName = driver?.fullName ?: "Driver assigned",
+            driverMobile = driver?.mobile,
+            driverPhotoUrl = rentalPhotoDisplayUrl(driver?.photoUrl),
             approvalStatus = car.approvalStatus, rejectionReason = car.rejectionReason,
             make = car.make, model = car.model, variant = car.variant,
             manufacturingYear = car.manufacturingYear, registrationNumber = car.registrationNumber,
@@ -809,14 +966,47 @@ class RentalService(
         )
     }
 
+    private fun rentalPhotoDisplayUrl(value: String?): String? {
+        val trimmed = value?.trim().orEmpty()
+        if (trimmed.isBlank()) return null
+        return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            trimmed
+        } else {
+            RENTAL_PHOTO_URL_PREFIX + trimmed.removePrefix(RENTAL_PHOTO_URL_PREFIX)
+        }
+    }
+
+    private fun maskLastFour(value: String?): String? {
+        val raw = value?.trim().orEmpty()
+        if (raw.isBlank()) return null
+        val suffix = raw.takeLast(4)
+        return "*".repeat((raw.length - suffix.length).coerceAtLeast(1)) + suffix
+    }
+
+    private fun maskSensitive(value: String?): String? {
+        val raw = value?.trim().orEmpty()
+        if (raw.isBlank()) return null
+        if (raw.length <= 4) return "*".repeat(raw.length)
+        return "*".repeat(raw.length - 4) + raw.takeLast(4)
+    }
+
+    private fun maskUpi(value: String?): String? {
+        val raw = value?.trim().orEmpty()
+        if (raw.isBlank()) return null
+        val at = raw.indexOf('@')
+        if (at <= 0) return maskSensitive(raw)
+        return raw.first() + "*".repeat((at - 1).coerceAtLeast(3)) + raw.substring(at)
+    }
+
     companion object {
         private const val RENTAL_PHOTO_URL_PREFIX = "/api/v1/car-rental/photos/"
     }
 
-    private fun toBookingResponse(b: RentalBookingEntity, carName: String, driver: RentalDriverEntity?) =
+    private fun toBookingResponse(b: RentalBookingEntity, car: RentalCarEntity?, driver: RentalDriverEntity?) =
         RentalBookingResponse(
-            bookingId = b.bookingId, carName = carName, driverName = driver?.fullName ?: "Driver",
-            driverMobile = driver?.mobile, pickup = b.pickupLocation, drop = b.dropLocation,
+            bookingId = b.bookingId, carName = car?.name ?: "Car", driverName = driver?.fullName ?: "Driver",
+            driverMobile = driver?.mobile, carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
+            pickup = b.pickupLocation, drop = b.dropLocation,
             startDate = b.startDate, endDate = b.endDate, total = b.totalAmount.setScale(2),
             paymentMethod = b.paymentMethod, status = b.status, createdAt = b.createdAt
         )

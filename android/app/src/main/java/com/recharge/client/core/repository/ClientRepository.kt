@@ -13,6 +13,7 @@ import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeRequest
 import com.recharge.client.core.model.RechargeResponse
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
+import com.recharge.client.core.model.RentalVendorUpdateRequest
 import com.recharge.client.core.model.RechargeHistoryResponse
 import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.VerifyPaymentRequest
@@ -141,7 +142,8 @@ class ClientRepository(context: Context) {
         operator: String,
         circle: String,
         planId: String,
-        clientRequestId: String
+        clientRequestId: String,
+        recipientName: String? = null
     ): Result<RechargeResponse> = runCatching {
         val response = api.recharge(
             RechargeRequest(
@@ -149,7 +151,8 @@ class ClientRepository(context: Context) {
                 operator = operator,
                 circle = circle,
                 planId = planId,
-                clientRequestId = clientRequestId
+                clientRequestId = clientRequestId,
+                recipientName = recipientName?.trim()?.takeIf { it.isNotBlank() }
             )
         )
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
@@ -214,6 +217,12 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun updateRentalVendor(request: RentalVendorUpdateRequest): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
+        val response = api.updateRentalVendor(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun rentalCars(
         startDate: String? = null,
         endDate: String? = null,
@@ -224,6 +233,25 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+
+    suspend fun uploadRentalDriverPhoto(
+        driverId: String,
+        uri: Uri
+    ): Result<com.recharge.client.core.model.RentalCarResponse> = runCatching {
+        val resolver = appContext.contentResolver
+        val mime = resolver.getType(uri)?.lowercase() ?: "image/jpeg"
+        require(mime in setOf("image/jpeg", "image/png", "image/webp")) {
+            "Please select a JPG, PNG or WebP image."
+        }
+        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Unable to read selected driver photo")
+        require(bytes.size <= 5 * 1024 * 1024) { "Driver photo must be 5 MB or smaller." }
+        val body = bytes.toRequestBody(mime.toMediaType())
+        val part = MultipartBody.Part.createFormData("photo", "driver-photo", body)
+        val response = api.uploadRentalDriverPhoto(driverId, part)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
 
     suspend fun uploadRentalVehiclePhoto(
         carId: String,
@@ -242,6 +270,12 @@ class ClientRepository(context: Context) {
         val body = bytes.toRequestBody(mime.toMediaType())
         val part = MultipartBody.Part.createFormData("photo", "vehicle-photo-${slot}", body)
         val response = api.uploadRentalVehiclePhoto(carId, slot, part)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun rentalVendorEarnings(): Result<com.recharge.client.core.model.RentalVendorEarningsResponse> = runCatching {
+        val response = api.rentalVendorEarnings()
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }

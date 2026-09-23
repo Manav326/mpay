@@ -8,13 +8,12 @@ if ([string]::IsNullOrWhiteSpace($branch)) {
     throw "Could not determine the current Git branch."
 }
 
-if ($branch -eq "main") {
-    $imageTag = "latest"
-} else {
-    $featureName = $branch -replace '^feature/', ''
-    $safeFeatureName = $featureName.ToLower() -replace '[^a-z0-9._-]', '-'
-    $imageTag = "feature-$safeFeatureName-latest"
+$commitSha = (git rev-parse HEAD).Trim()
+if ($commitSha -notmatch '^[0-9a-f]{40}$') {
+    throw "Could not determine the current commit SHA."
 }
+
+$imageTag = "sha-$commitSha"
 
 $env:MPAY_BACKEND_IMAGE = "ghcr.io/manav326/mpay-backend"
 $env:MPAY_ADMIN_WEB_IMAGE = "ghcr.io/manav326/mpay-admin-web"
@@ -26,12 +25,13 @@ $adminWebImage = "$($env:MPAY_ADMIN_WEB_IMAGE):$imageTag"
 Write-Host ""
 Write-Host "mPay GitHub test environment" -ForegroundColor Cyan
 Write-Host "Branch    : $branch"
+Write-Host "Commit    : $commitSha"
 Write-Host "Image tag : $imageTag"
 Write-Host "Backend   : $backendImage"
 Write-Host "Admin Web : $adminWebImage"
 Write-Host ""
 
-Write-Host "Pulling exact branch images from GHCR via Compose..." -ForegroundColor Yellow
+Write-Host "Pulling exact commit images from GHCR via Compose..." -ForegroundColor Yellow
 docker compose -p mpay-github pull backend admin-web
 if ($LASTEXITCODE -ne 0) { throw "Docker image pull failed." }
 

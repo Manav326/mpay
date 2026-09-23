@@ -36,6 +36,7 @@ fun RechargeScreen(
     state: RechargeUiState,
     commissionRate: BigDecimal?,
     onMobileChange: (String) -> Unit,
+    onRecipientNameChange: (String) -> Unit,
     onChooseContact: () -> Unit,
     onDetect: () -> Unit,
     onRefreshPlans: () -> Unit,
@@ -75,7 +76,7 @@ fun RechargeScreen(
         is RechargeActionState.Success -> RechargeResultDialog(
             title = "Recharge successful",
             body = "₹${formatMoney(action.response.amount)} recharge completed. Wallet charged ₹${formatMoney(action.response.walletDebitAmount)} after commission.",
-            detail = "${state.mobile} • ${operatorLabel(state.operator?.operator.orEmpty())}",
+            detail = listOfNotNull(state.recipientName.takeIf { it.isNotBlank() }, state.mobile, operatorLabel(state.operator?.operator.orEmpty())).joinToString(" • "),
             positive = true,
             onDismiss = onDone
         )
@@ -98,7 +99,7 @@ fun RechargeScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -107,7 +108,7 @@ fun RechargeScreen(
             Text("Recharge any supported prepaid number securely from your wallet.", color = AppColors.TextSecondary)
         }
         item {
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm)) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Recharge number", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(10.dp))
@@ -127,12 +128,24 @@ fun RechargeScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         shape = RoundedCornerShape(16.dp)
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.recipientName,
+                        onValueChange = onRecipientNameChange,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        label = { Text("Recipient name (optional)") },
+                        placeholder = { Text("Phonebook name") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(13.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(6.dp))
                     Button(
                         onClick = onDetect,
                         enabled = state.mobile.length == 10 && !state.detecting && !state.loadingPlans,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                        shape = RoundedCornerShape(13.dp)
                     ) {
                         if (state.detecting || state.loadingPlans) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -152,7 +165,7 @@ fun RechargeScreen(
                 }
             }
         }
-        state.operator?.let { detected -> item { OperatorSummaryCard(detected, state.walletBalance, state.refreshingWallet, onRefreshWallet) } }
+        state.operator?.let { detected -> item { OperatorSummaryCard(detected, state.walletBalance, state.refreshingWallet, state.recipientName, onRefreshWallet) } }
 
         if (state.operator != null && state.plans.isNotEmpty()) {
             item {
@@ -221,35 +234,67 @@ fun RechargeScreen(
 }
 
 @Composable
-private fun OperatorSummaryCard(response: OperatorCheckResponse, balance: BigDecimal?, refreshing: Boolean, onRefreshWallet: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(46.dp).background(AppColors.SurfaceWarm, CircleShape), contentAlignment = Alignment.Center) {
-                    Text(operatorInitial(response.operator), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(operatorLabel(response.operator), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("${response.circle} • ${response.type ?: "Prepaid"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-                AssistChip(
-                    onClick = {}, enabled = false,
-                    colors = AssistChipDefaults.assistChipColors(containerColor = ColorLightGreen, labelColor = AppColors.Success, leadingIconContentColor = AppColors.Success),
-                    label = { Text("Detected", fontWeight = FontWeight.Bold) },
-                    leadingIcon = { Icon(Icons.Default.CheckCircle, null) }
+private fun OperatorSummaryCard(
+    response: OperatorCheckResponse,
+    balance: BigDecimal?,
+    refreshing: Boolean,
+    recipientName: String,
+    onRefreshWallet: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(38.dp).background(AppColors.SurfaceWarm, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    operatorInitial(response.operator),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.PrimaryDark
                 )
             }
-            Spacer(Modifier.height(14.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("Number", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Text(response.mobileNumber, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(9.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(operatorLabel(response.operator), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "${response.circle} • ${response.type ?: "Prepaid"}",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1
+                )
+                Text(
+                    listOfNotNull(recipientName.takeIf { it.isNotBlank() }, response.mobileNumber).joinToString(" • "),
+                    color = AppColors.PrimaryDark,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(shape = RoundedCornerShape(9.dp), color = ColorLightGreen) {
+                    Row(
+                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, "Detected", tint = AppColors.Success, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("Detected", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Available wallet", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Text(balance?.let { "₹${formatMoney(it)}" } ?: "Checking…", fontWeight = FontWeight.Bold)
-                }
+                Text(
+                    balance?.let { "₹${formatMoney(it)}" } ?: "Checking…",
+                    color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -282,24 +327,32 @@ private fun RechargePlanCard(plan: RechargePlan, selected: Boolean, enabled: Boo
     val borderColor = if (selected) AppColors.Primary else MaterialTheme.colorScheme.outlineVariant
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, borderColor),
+        shape = RoundedCornerShape(15.dp),
+        border = androidx.compose.foundation.BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor),
         color = if (selected) AppColors.SurfaceWarm else MaterialTheme.colorScheme.surface,
-        tonalElevation = if (selected) 1.dp else 0.dp
+        tonalElevation = if (selected) 2.dp else 1.dp
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) {
-                    Text("₹${formatMoney(plan.amount)}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    plan.validity?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold) }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text("₹" + formatMoney(plan.amount), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    plan.validity?.takeIf { it.isNotBlank() }?.let {
+                        Surface(shape = RoundedCornerShape(7.dp), color = AppColors.Primary.copy(alpha = .08f)) {
+                            Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp))
+                        }
+                    }
                 }
-                if (selected) Icon(Icons.Default.CheckCircle, "Selected", tint = AppColors.Success)
+                Text(plan.description?.takeIf { it.isNotBlank() } ?: "Recharge offer", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 2)
             }
-            Spacer(Modifier.height(8.dp))
-            Text(plan.description?.takeIf { it.isNotBlank() } ?: "Recharge offer", color = AppColors.TextSecondary)
+            if (selected) {
+                Surface(shape = CircleShape, color = ColorLightGreen) {
+                    Icon(Icons.Default.CheckCircle, "Selected", tint = AppColors.Success, modifier = Modifier.padding(2.dp).size(21.dp))
+                }
+            }
         }
     }
 }
+
 
 @Composable
 private fun RechargeConfirmationDialog(
@@ -322,6 +375,7 @@ private fun RechargeConfirmationDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 ConfirmRow("Mobile", state.mobile)
+                state.recipientName.takeIf { it.isNotBlank() }?.let { ConfirmRow("Name", it) }
                 ConfirmRow("Operator", operatorLabel(state.operator?.operator.orEmpty()))
                 ConfirmRow("Circle", state.operator?.circle.orEmpty())
                 ConfirmRow("Plan", plan.validity ?: "Recharge offer")

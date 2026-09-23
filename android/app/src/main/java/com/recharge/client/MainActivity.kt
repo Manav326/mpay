@@ -58,13 +58,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             val uri = result.data?.data ?: return@registerForActivityResult
             contentResolver.query(
                 uri,
-                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.Contacts.DISPLAY_NAME),
                 null,
                 null,
                 null
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val raw = cursor.getString(0).orEmpty()
+                    val contactName = cursor.getString(1).orEmpty().trim()
                     val digits = raw.filter { it.isDigit() }
                     val normalized = when {
                         digits.length == 10 -> digits
@@ -72,7 +73,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         digits.length >= 10 -> digits.takeLast(10)
                         else -> ""
                     }
-                    if (normalized.length == 10) rechargeViewModel.setMobile(normalized)
+                    if (normalized.length == 10) rechargeViewModel.setMobile(normalized, contactName)
                 }
             }
         }
@@ -477,6 +478,7 @@ private fun AppNavHost(
     rechargeViewModel.state.collectAsState().value,
     profileViewModel.state.collectAsState().value.user?.commissionRate,
     rechargeViewModel::setMobile,
+    rechargeViewModel::setRecipientName,
     onChooseContact,
     rechargeViewModel::detectAndLoad,
     rechargeViewModel::refreshPlans,
@@ -552,7 +554,8 @@ private fun AppNavHost(
                 onLoadVehicleAvailability = rentalViewModel::loadVehicleUnavailability,
                 onTakeVehicleOffMarket = rentalViewModel::takeVehicleOffMarket,
                 onRestoreVehicleToMarket = rentalViewModel::restoreVehicleToMarket,
-                onLoadVehicleCalendar = rentalViewModel::loadVehicleCalendar
+                onLoadVehicleCalendar = rentalViewModel::loadVehicleCalendar,
+                onUpdateVendorProfile = rentalViewModel::updateVendor
             )
         }
         composable("rental-booking") {
@@ -584,12 +587,16 @@ private fun AppNavHost(
         composable("rental-vehicle") {
             RentalVehicleOnboardingScreen(
                 state = rentalViewModel.state.collectAsState().value,
-                onSubmit = rentalViewModel::onboardVehicle,
+                onSubmit = { request, galleryPhotos, driverPhotoUri, onDone ->
+                    rentalViewModel.onboardVehicle(request, galleryPhotos, driverPhotoUri, onDone)
+                },
                 onBack = { nav.popBackStack() },
                 editingCar = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_edit_car_id")?.let { id ->
                     rentalViewModel.state.collectAsState().value.vendorCars.firstOrNull { it.id == id }
                 },
-                onResubmit = rentalViewModel::resubmitVehicle
+                onResubmit = { carId, request, galleryPhotos, driverPhotoUri, onDone ->
+                    rentalViewModel.resubmitVehicle(carId, request, galleryPhotos, driverPhotoUri, onDone)
+                }
             )
         }
         composable("recharge-history") {
