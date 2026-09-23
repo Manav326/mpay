@@ -264,7 +264,7 @@ private fun OperatorSummaryCard(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(operatorLabel(response.operator), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(
-                    "\${response.circle} • \${response.type ?: "Prepaid"}",
+                    "${response.circle} • ${response.type ?: "Prepaid"}",
                     color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1
