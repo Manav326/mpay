@@ -347,6 +347,14 @@ class AdminController(
     fun userDetail(authentication: Authentication, @PathVariable publicId: String): AdminUserDetailResponse =
         adminService.userDetail(currentUser(authentication), publicId)
 
+    @PostMapping("/users/{publicId}/status")
+    fun userStatus(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestBody request: AdminUserStatusRequest
+    ): AdminUserStatusResponse =
+        adminService.updateUserStatus(currentUser(authentication), publicId, request.active)
+
     @GetMapping("/users/{publicId}/recharges")
     fun userRecharges(
         authentication: Authentication,
