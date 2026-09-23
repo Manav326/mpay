@@ -61,6 +61,9 @@ interface ClientApi {
     @retrofit2.http.PUT("api/v1/car-rental/vendor")
     suspend fun updateRentalVendor(@Body request: RentalVendorUpdateRequest): Response<RentalVendorResponse>
 
+    @GET("api/v1/car-rental/vendor/earnings")
+    suspend fun rentalVendorEarnings(): Response<RentalVendorEarningsResponse>
+
     @GET("api/v1/car-rental/vendor/payouts")
     suspend fun rentalVendorPayouts(): Response<List<RentalVendorPayoutResponse>>
 
@@ -69,6 +72,13 @@ interface ClientApi {
 
     @POST("api/v1/car-rental/vendor/vehicles")
     suspend fun onboardRentalVehicle(@Body request: RentalVehicleOnboardingRequest): Response<RentalCarResponse>
+
+    @Multipart
+    @PUT("api/v1/car-rental/vendor/drivers/{driverId}/photo")
+    suspend fun uploadRentalDriverPhoto(
+        @retrofit2.http.Path("driverId") driverId: String,
+        @Part photo: MultipartBody.Part
+    ): Response<RentalCarResponse>
 
     @Multipart
     @PUT("api/v1/car-rental/vendor/vehicles/{carId}/photos/{slot}")
