@@ -1332,9 +1332,11 @@ fun CarRentalMarketplaceScreen(
                     message = if (filterApplied) "Try a broader pickup area or availability window." else "Approved chauffeur-driven vehicles will appear here.",
                     icon = { Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Rental, modifier = Modifier.size(30.dp)) },
                     actionLabel = if (filterApplied) "Clear filters" else null,
-                    onAction = if (filterApplied) ({
-                        start = ""; end = ""; location = ""; onClearFilter()
-                    }) else null
+                    onAction = if (filterApplied) {
+                        {
+                            start = ""; end = ""; location = ""; detailsCar = null; onClearFilter()
+                        }
+                    } else null
                 )
             }
         }
