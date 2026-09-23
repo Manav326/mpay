@@ -76,7 +76,7 @@ fun RechargeScreen(
         is RechargeActionState.Success -> RechargeResultDialog(
             title = "Recharge successful",
             body = "₹${formatMoney(action.response.amount)} recharge completed. Wallet charged ₹${formatMoney(action.response.walletDebitAmount)} after commission.",
-            detail = "${state.mobile} • ${operatorLabel(state.operator?.operator.orEmpty())}",
+            detail = listOfNotNull(state.recipientName.takeIf { it.isNotBlank() }, state.mobile, operatorLabel(state.operator?.operator.orEmpty())).joinToString(" • "),
             positive = true,
             onDismiss = onDone
         )
@@ -351,6 +351,7 @@ private fun RechargeConfirmationDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 ConfirmRow("Mobile", state.mobile)
+                state.recipientName.takeIf { it.isNotBlank() }?.let { ConfirmRow("Name", it) }
                 ConfirmRow("Operator", operatorLabel(state.operator?.operator.orEmpty()))
                 ConfirmRow("Circle", state.operator?.circle.orEmpty())
                 ConfirmRow("Plan", plan.validity ?: "Recharge offer")
