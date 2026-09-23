@@ -1735,7 +1735,7 @@ private fun RentalVendorProfileDialog(
                 if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Save changes")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
     )
 }
 
