@@ -1,5 +1,6 @@
 package com.recharge.backend.api
 
+import com.recharge.backend.service.AdminRentalOperationsService
 import com.recharge.backend.service.RentalService
 import com.recharge.backend.service.RoleAccessService
 import com.recharge.backend.repository.UserRepository
@@ -22,6 +23,9 @@ class RentalController(
 ) {
     private fun userId(authentication: Authentication): Long =
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+
+    private fun currentUser(authentication: Authentication) =
+        users.findById(userId(authentication)).orElseThrow { IllegalArgumentException("User not found") }
 
     @GetMapping("/cars")
     fun cars(
