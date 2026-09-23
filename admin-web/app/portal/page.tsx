@@ -736,6 +736,11 @@ export default function Portal() {
           <button onClick={()=>setView('wallet')}><WalletCards/><span>Add Money</span></button>
           <button onClick={()=>{setView('bookings');loadRentalData();}}><Clock3/><span>My Bookings</span></button>
         </div>
+        <div className="home-earnings-strip">
+          <div><span>Today's earnings</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div>
+          <div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>Recharge volume {money(commissionSummary?.monthly?.successfulRechargeAmount)}</small></div>
+          <button onClick={()=>setView('wallet')}><CircleDollarSign size={18}/><span>Wallet earnings</span><ArrowRight size={15}/></button>
+        </div>
         <section className="home-marketplace"><div className="home-section-label">Marketplace</div><button className="home-marketplace-card" onClick={()=>{setView('rental');loadRentalData();}}>
           <div className="home-marketplace-icon"><Car size={27}/></div><div className="home-marketplace-copy"><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose a chauffeur-driven car, set your trip time and book directly from Home.</p></div><ArrowRight size={19}/>
         </button></section>
