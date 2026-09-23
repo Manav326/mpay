@@ -587,12 +587,16 @@ private fun AppNavHost(
         composable("rental-vehicle") {
             RentalVehicleOnboardingScreen(
                 state = rentalViewModel.state.collectAsState().value,
-                onSubmit = rentalViewModel::onboardVehicle,
+                onSubmit = { request, galleryPhotos, driverPhotoUri, onDone ->
+                    rentalViewModel.onboardVehicle(request, galleryPhotos, driverPhotoUri, onDone)
+                },
                 onBack = { nav.popBackStack() },
                 editingCar = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_edit_car_id")?.let { id ->
                     rentalViewModel.state.collectAsState().value.vendorCars.firstOrNull { it.id == id }
                 },
-                onResubmit = rentalViewModel::resubmitVehicle
+                onResubmit = { carId, request, galleryPhotos, driverPhotoUri, onDone ->
+                    rentalViewModel.resubmitVehicle(carId, request, galleryPhotos, driverPhotoUri, onDone)
+                }
             )
         }
         composable("recharge-history") {
