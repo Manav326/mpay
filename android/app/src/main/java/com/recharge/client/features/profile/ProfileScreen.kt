@@ -119,20 +119,20 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 onClick = onBecomeVendor,
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                colors = CardDefaults.cardColors(containerColor = if (verified) AppColors.VendorNavy else Color(0xFFFFF7E6)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
             ) {
                 Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFFD1FAE5)) {
-                        Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF047857), modifier = Modifier.padding(10.dp).size(24.dp))
+                    Surface(shape = RoundedCornerShape(13.dp), color = if (verified) AppColors.VendorGold.copy(alpha = .16f) else AppColors.SurfaceWarm) {
+                        Icon(Icons.Default.DirectionsCar, null, tint = if (verified) AppColors.VendorGold else AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = Color(0xFF065F46), fontWeight = FontWeight.Bold)
-                        Text(vendorSubtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        if (hasVendorProfile) Text("Status: " + (vendor?.status ?: "—"), style = MaterialTheme.typography.labelMedium, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
+                        Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = if (verified) Color.White else AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
+                        Text(vendorSubtitle, color = if (verified) Color.White.copy(alpha = .74f) else AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        if (hasVendorProfile) Text("Status: " + (vendor?.status ?: "—"), style = MaterialTheme.typography.labelMedium, color = if (verified) AppColors.VendorGold else AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
                     }
-                    Icon(Icons.Default.ChevronRight, "Open vendor", tint = Color(0xFF047857))
+                    Icon(Icons.Default.ChevronRight, "Open vendor", tint = if (verified) Color.White else AppColors.PrimaryDark)
                 }
             }
         }
