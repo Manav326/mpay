@@ -34,7 +34,7 @@ class RentalService(
     fun vendor(userId: Long): RentalVendorResponse {
         val vendor = vendors.findByUserId(userId).orElse(null)
         return vendor?.let {
-            RentalVendorResponse(it.id.toString(), it.status, it.vendorType, it.fullName, it.businessName, it.city, it.state, cars.countByVendorId(requireNotNull(it.id)), it.address, it.pinCode, it.panNumber, it.payoutUpiId, it.bankAccountNumber, it.bankIfsc, it.rejectionReason, it.createdAt)
+            RentalVendorResponse(it.id.toString(), it.status, it.vendorType, it.fullName, it.businessName, it.city, it.state, cars.countByVendorId(requireNotNull(it.id)), it.address, it.pinCode, it.panNumber, it.payoutUpiId, it.bankAccountNumber, it.bankIfsc, it.bankName, it.payoutPrimaryMethod, it.rejectionReason, it.createdAt)
         } ?: RentalVendorResponse(null, "NOT_ONBOARDED", null, null, null, null, null, 0)
     }
 
@@ -56,6 +56,8 @@ class RentalService(
             current.payoutUpiId = request.payoutUpiId?.trim()
             current.bankAccountNumber = request.bankAccountNumber?.trim()
             current.bankIfsc = request.bankIfsc?.trim()?.uppercase()
+            current.bankName = request.bankName?.trim()?.takeIf { it.isNotBlank() }
+            current.payoutPrimaryMethod = normalizePrimaryPayoutMethod(request.payoutPrimaryMethod, request.payoutUpiId, request.bankAccountNumber, request.bankIfsc)
             current.status = "PENDING"
             current.rejectionReason = null
             val now = Instant.now()
@@ -82,12 +84,64 @@ class RentalService(
                 payoutUpiId = request.payoutUpiId?.trim(),
                 bankAccountNumber = request.bankAccountNumber?.trim(),
                 bankIfsc = request.bankIfsc?.trim()?.uppercase(),
+                bankName = request.bankName?.trim()?.takeIf { it.isNotBlank() },
+                payoutPrimaryMethod = normalizePrimaryPayoutMethod(request.payoutPrimaryMethod, request.payoutUpiId, request.bankAccountNumber, request.bankIfsc),
                 createdAt = now,
                 updatedAt = now
             )
         )
         vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(saved.id), action = "SUBMITTED", actorUserId = userId, createdAt = now))
         return vendor(userId)
+    }
+
+    @Transactional
+    fun updateVendor(userId: Long, request: RentalVendorUpdateRequest): RentalVendorResponse {
+        val vendor = vendors.findByUserId(userId).orElseThrow { IllegalArgumentException("Complete vendor onboarding first") }
+        val type = request.vendorType.trim().uppercase()
+        require(type in setOf("INDIVIDUAL", "BUSINESS")) { "Vendor type must be INDIVIDUAL or BUSINESS" }
+
+        vendor.vendorType = type
+        vendor.fullName = request.fullName.trim()
+        vendor.businessName = request.businessName?.trim()?.takeIf { it.isNotBlank() }
+        vendor.address = request.address.trim()
+        vendor.city = request.city.trim()
+        vendor.state = request.state.trim()
+        vendor.pinCode = request.pinCode.trim()
+        vendor.panNumber = request.panNumber?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        vendor.payoutUpiId = request.payoutUpiId?.trim()?.takeIf { it.isNotBlank() }
+        vendor.bankAccountNumber = request.bankAccountNumber?.trim()?.takeIf { it.isNotBlank() }
+        vendor.bankIfsc = request.bankIfsc?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        vendor.bankName = request.bankName?.trim()?.takeIf { it.isNotBlank() }
+        vendor.payoutPrimaryMethod = normalizePrimaryPayoutMethod(
+            request.payoutPrimaryMethod,
+            vendor.payoutUpiId,
+            vendor.bankAccountNumber,
+            vendor.bankIfsc
+        )
+        vendor.updatedAt = Instant.now()
+        vendors.save(vendor)
+        return vendor(userId)
+    }
+
+    private fun normalizePrimaryPayoutMethod(
+        requested: String?,
+        upiId: String?,
+        bankAccountNumber: String?,
+        bankIfsc: String?
+    ): String? {
+        val primary = requested?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        val hasUpi = !upiId.isNullOrBlank()
+        val hasBank = !bankAccountNumber.isNullOrBlank() && !bankIfsc.isNullOrBlank()
+        return when (primary) {
+            "UPI" -> { require(hasUpi) { "Primary UPI is selected but UPI ID is missing" }; "UPI" }
+            "BANK" -> { require(hasBank) { "Primary bank payout is selected but bank account and IFSC are incomplete" }; "BANK" }
+            null -> when {
+                hasUpi && !hasBank -> "UPI"
+                hasBank && !hasUpi -> "BANK"
+                else -> null
+            }
+            else -> throw IllegalArgumentException("Primary payout method must be BANK or UPI")
+        }
     }
 
     fun vendorCars(userId: Long): List<RentalCarResponse> {
