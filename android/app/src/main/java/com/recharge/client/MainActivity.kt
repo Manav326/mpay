@@ -369,10 +369,10 @@ private fun AppRoot(
     val nav = rememberNavController()
     val destinations = remember {
         listOf(
-            TopLevelDestination("home", "Home", Icons.Default.Home, Color(0xFFF59E0B)),
-            TopLevelDestination("recharge", "Recharge", Icons.Default.PhoneAndroid, Color(0xFFFB7185)),
-            TopLevelDestination("wallet", "Wallet", Icons.Default.AccountBalanceWallet, Color(0xFF22C55E)),
-            TopLevelDestination("profile", "Profile", Icons.Default.Person, Color(0xFF8B5CF6))
+            TopLevelDestination("home", "Home", Icons.Default.Home, AppColors.Primary),
+            TopLevelDestination("recharge", "Recharge", Icons.Default.PhoneAndroid, AppColors.Primary),
+            TopLevelDestination("wallet", "Wallet", Icons.Default.AccountBalanceWallet, AppColors.Primary),
+            TopLevelDestination("profile", "Profile", Icons.Default.Person, AppColors.Primary)
         )
     }
     val currentRoute = nav.currentBackStackEntryAsState().value?.destination?.route
