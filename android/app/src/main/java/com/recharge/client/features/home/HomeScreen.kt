@@ -59,6 +59,7 @@ fun HomeScreen(
     if (showWithdraw) {
         WithdrawDialog(
             state = walletUiState,
+            availableBalance = wallet?.availableBalance ?: BigDecimal.ZERO,
             onDismiss = { showWithdraw = false },
             onWithdraw = onWithdraw,
             onClearMessage = onClearWithdrawMessage
