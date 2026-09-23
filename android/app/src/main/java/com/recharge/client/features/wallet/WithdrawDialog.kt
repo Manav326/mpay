@@ -8,25 +8,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.viewmodel.WalletUiState
+import com.recharge.client.core.ui.MpayProviderSelector
+import com.recharge.client.core.ui.formatMoney
+import java.math.BigDecimal
 
 @Composable
-fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (String, String, String) -> Unit, onClearMessage: () -> Unit) {
+fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss: () -> Unit, onWithdraw: (String, String, String) -> Unit, onClearMessage: () -> Unit) {
     var amount by remember { mutableStateOf("") }
     var upiId by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("mock") }
     val busy = state.withdrawing
+    val parsedAmount = amount.toBigDecimalOrNull()
+    val validAmount = parsedAmount != null && parsedAmount >= BigDecimal("1.00") && parsedAmount <= availableBalance
+    val validUpi = Regex("^[^\\s@]+@[^\\s@]+$").matches(upiId.trim())
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Withdraw to UPI") },
         text = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Choose the withdrawal mode. Mock is for development/testing.", style = MaterialTheme.typography.bodyMedium)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ProviderButton("Mock", provider == "mock", { provider = "mock" }, !busy, Modifier.weight(1f))
-                    ProviderButton("Razorpay", provider == "razorpay", { provider = "razorpay" }, !busy, Modifier.weight(1f))
-                    ProviderButton("PayU", provider == "payu", { provider = "payu" }, !busy, Modifier.weight(1f))
-                }
+                MpayProviderSelector(provider, !busy) { provider = it }
                 OutlinedTextField(amount, { if (it.length <= 10 && it.all { c -> c.isDigit() || c == '.' }) amount = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Amount (INR)") }, prefix = { Text("₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !busy)
+                Text("Minimum ₹1 · Available ₹" + formatMoney(availableBalance), style = MaterialTheme.typography.labelSmall, color = if (amount.isBlank() || validAmount) com.recharge.client.core.theme.AppColors.TextSecondary else MaterialTheme.colorScheme.error)
                 OutlinedTextField(
                     upiId,
                     { if (it.length <= 120) upiId = it },
@@ -44,18 +47,10 @@ fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (Str
         },
         confirmButton = {
             if (state.withdrawSuccess == null) {
-                Button(onClick = { onWithdraw(amount, upiId, provider) }, enabled = !busy) { Text(if (busy) "Processing…" else "Withdraw") }
+                Button(onClick = { onWithdraw(amount, upiId, provider) }, enabled = !busy && validAmount && validUpi) { Text(if (busy) "Processing…" else "Withdraw") }
             }
         },
         dismissButton = { TextButton(onClick = { onClearMessage(); onDismiss() }, enabled = !busy) { Text("Close") } }
     )
 }
 
-@Composable
-private fun ProviderButton(label: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean, modifier: Modifier) {
-    if (selected) {
-        Button(onClick = onClick, enabled = enabled, modifier = modifier) { Text(label, maxLines = 1) }
-    } else {
-        OutlinedButton(onClick = onClick, enabled = enabled, modifier = modifier) { Text(label, maxLines = 1) }
-    }
-}
