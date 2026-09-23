@@ -377,6 +377,24 @@ export default function Portal() {
     rzp.open();
   }
 
+  async function monitorPayUVerification(orderId:string, purpose:'wallet'|'recharge') {
+    for(let i=0;i<24;i++){
+      await new Promise(r=>setTimeout(r,5000));
+      try {
+        const verified=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'payu',orderId})});
+        if(verified.status==='CAPTURED' || verified.transactionId || verified.rechargeStatus){
+          await refreshWallet();
+          await loadHistory();
+          setNotice(purpose === 'recharge'
+            ? ('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
+            : 'PayU payment verified and wallet updated.');
+          return;
+        }
+      } catch {}
+    }
+    setNotice('PayU checkout did not complete within the verification window. Refresh Wallet/History after returning.');
+  }
+
   async function launchPayU(order:any, purpose:'wallet'|'recharge') {
     const p=order.checkoutParams || {};
     const form=document.createElement('form');
@@ -396,21 +414,7 @@ export default function Portal() {
     document.body.appendChild(form); form.submit(); form.remove();
     setNotice('PayU checkout opened in a new tab. mPay will verify the payment while the checkout is completed.');
     const orderId=order.orderId;
-    for(let i=0;i<24;i++){
-      await new Promise(r=>setTimeout(r,5000));
-      try {
-        const verified=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'payu',orderId})});
-        if(verified.status==='CAPTURED' || verified.transactionId || verified.rechargeStatus){
-          await refreshWallet();
-          await loadHistory();
-          setNotice(purpose === 'recharge'
-            ? ('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
-            : 'PayU payment verified and wallet updated.');
-          return;
-        }
-      } catch {}
-    }
-    setNotice('PayU checkout did not complete within the verification window. Refresh Wallet/History after returning.');
+    void monitorPayUVerification(orderId,purpose);    setNotice('PayU checkout did not complete within the verification window. Refresh Wallet/History after returning.');
   }
 
   async function addMoney() {
@@ -715,6 +719,8 @@ export default function Portal() {
     } catch(e:any){setNotice(e.message || 'Unable to restore vehicle.');}
     finally{setBusy(false);}
   }
+
+  useEffect(() => () => { if(profileImage.startsWith('blob:')) URL.revokeObjectURL(profileImage); }, [profileImage]);
 
   useEffect(()=>{
     if(!localStorage.getItem('mpay_token')){window.location.href='/login';return;}
