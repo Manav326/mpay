@@ -141,6 +141,8 @@ export default function Portal() {
   const [rechargeFunding, setRechargeFunding] = useState<'WALLET'|'RAZORPAY'|'PAYU'>('WALLET');
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
+  const [selectedWalletItem, setSelectedWalletItem] = useState<WalletItem>();
+  const [commissionSummary, setCommissionSummary] = useState<any>();
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
   const [addMoneyProvider, setAddMoneyProvider] = useState<'mock'|'razorpay'|'payu'>('mock');
@@ -211,6 +213,10 @@ export default function Portal() {
     }
   }
 
+  async function loadCommissionSummary() {
+    try { setCommissionSummary(await api<any>('/api/v1/recharge/commission-summary')); } catch {}
+  }
+
   async function loadWithdrawals() {
     try {
       const data = await api<any>('/api/v1/wallet/withdrawals?page=0&size=25');
@@ -220,16 +226,26 @@ export default function Portal() {
     }
   }
 
+  async function loadProfileImage() {
+    const token = localStorage.getItem('mpay_token');
+    if (!token) return;
+    try {
+      const r = await fetch(base + '/api/v1/profile/image?v=' + Date.now(), { headers: { Authorization: 'Bearer ' + token } });
+      if (!r.ok) { setProfileImage(''); return; }
+      const url = URL.createObjectURL(await r.blob());
+      setProfileImage(current => {
+        if (current.startsWith('blob:')) URL.revokeObjectURL(current);
+        return url;
+      });
+    } catch { setProfileImage(''); }
+  }
+
   async function loadAccountData() {
     try {
       const p = await api<Me>('/api/v1/profile');
       setMe(p);
       setProfileForm({ name: p?.name || '', email: p?.email || '' });
-      if (p?.profileImageUrl || p?.profileImageVersion) {
-        setProfileImage(base + '/api/v1/profile/image?v=' + encodeURIComponent(String(p.profileImageVersion || Date.now())));
-      } else {
-        setProfileImage('');
-      }
+      await loadProfileImage();
     } catch (e:any) {
       setNotice(e.message || 'Unable to load profile.');
     }
@@ -276,7 +292,7 @@ export default function Portal() {
       fd.append('image', file);
       const p = await apiUpload<Me>('/api/v1/profile/image', 'PUT', fd);
       setMe(p);
-      setProfileImage(base + '/api/v1/profile/image?v=' + Date.now());
+      await loadProfileImage();
       setNotice('Profile photo updated.');
     } catch(e:any) { setNotice(e.message || 'Unable to upload profile photo.'); }
     finally { setBusy(false); }
@@ -432,23 +448,24 @@ export default function Portal() {
   async function recharge(plan:any) {
     const rechargeOperator=operatorName.trim();
     const rechargeCircle=operatorCircle.trim();
+    const planId=String(plan.id || plan.planId || plan.amount);
     if (!rechargeOperator || !rechargeCircle) { setNotice('Operator and circle are required for recharge.'); return; }
     setBusy(true); setNotice('');
     try {
       const clientRequestId=crypto.randomUUID();
       if(rechargeFunding==='WALLET'){
         const result=await api<any>('/api/v1/recharge',{method:'POST',body:JSON.stringify({
-          mobileNumber:mobile, operator:rechargeOperator, circle:rechargeCircle,
-          planId:String(plan.id || plan.planId || plan.amount), clientRequestId
+          mobileNumber:mobile, operator:rechargeOperator, circle:rechargeCircle, planId, clientRequestId
         })});
         await refreshWallet();
         await loadHistory();
         setNotice('Recharge request submitted. Status: ' + String(result.status || 'PENDING') + '.');
         setView('history');
       } else {
-        const order=await api<any>('/api/v1/recharge/payment-order',{method:'POST',body:JSON.stringify({
-          mobileNumber:mobile, operator:rechargeOperator, circle:rechargeCircle,
-          planId:String(plan.id || plan.planId || plan.amount), clientRequestId
+        const provider=rechargeFunding.toLowerCase();
+        const order=await api<any>('/api/v1/payments/orders',{method:'POST',body:JSON.stringify({
+          amount:Number(plan.amount), provider, clientRequestId, purpose:'RECHARGE',
+          rechargeMobileNumber:mobile, rechargeOperator:rechargeOperator, rechargeCircle:rechargeCircle, rechargePlanId:planId
         })});
         if(rechargeFunding==='RAZORPAY') await launchRazorpay(order,'recharge');
         else await launchPayU(order,'recharge');
@@ -639,10 +656,10 @@ export default function Portal() {
     Promise.all([api<Me>('/api/v1/me'),api<Wallet>('/api/v1/wallet')])
       .then(([a,b])=>{setMe(a);setWallet(b);setProfileForm({name:a?.name || '',email:a?.email || ''});})
       .catch(()=>{localStorage.removeItem('mpay_token');window.location.href='/login';});
-    loadHistory(); loadWithdrawals(); loadRentalData(); loadAccountData();
+    loadHistory(); loadWithdrawals(); loadCommissionSummary(); loadRentalData(); loadAccountData();
   },[]);
 
-  useEffect(()=>{ if(view==='history'||view==='wallet') { loadHistory(); loadWithdrawals(); } },[view,historyKind,historyFrom,historyTo]);
+  useEffect(()=>{ if(view==='history'||view==='wallet') { loadHistory(); loadWithdrawals(); loadCommissionSummary(); } },[view,historyKind,historyFrom,historyTo]);
 
   useEffect(()=>{
     if(selectedVendorVehicle){
@@ -758,12 +775,17 @@ export default function Portal() {
           {withdrawals.length>0 && <div className="history-list compact-list">{withdrawals.map(w=><div className="history-row" key={w.withdrawalId}><div><ReceiptText size={18}/><b>{money(w.amount)} → {w.upiId}</b><small>{w.withdrawalId} · {w.provider} · {dt(w.createdAt)}</small></div><div className="history-actions"><span className={statusClass(w.status)}>{String(w.status).toUpperCase()}</span>{w.providerReference && <button className="copy-btn" onClick={()=>copyText(w.providerReference || '')}><Copy size={14}/><span>Copy</span></button>}</div></div>)}</div>}
         </div>
 
+        <div className="portal-panel"><div className="panel-head"><div><h2>Earnings & recharge summary</h2><p>Android wallet earnings summary for daily and monthly periods.</p></div><CircleDollarSign size={22}/></div>
+          <div className="wallet-grid compact-wallet"><div className="wallet-big"><span>Commission %</span><strong>{commissionSummary?.commissionPercent != null ? Number(commissionSummary.commissionPercent).toFixed(2)+'%' : '—'}</strong></div><div><span>Today</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div><div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>{commissionSummary?.monthly?.successfulRechargeCount || 0} successful recharges</small></div></div>
+        </div>
+
         <div className="portal-panel"><div className="panel-head"><div><h2>Wallet ledger</h2><p>Balance movements, recharge debits, rental debits/refunds and gateway funding.</p></div><button className="landing-secondary" onClick={()=>{loadHistory();refreshWallet();}}><RefreshCw size={15}/> Refresh</button></div>
+          <div className="history-date-filters"><label>From<input type="date" value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom('');setHistoryTo('');setHistoryKind('');}}>Clear</button></div>
           <div className="funding-picker history-filter-picker"><span>Kind</span>{walletFilters.map(f=><button key={f.key} className={historyKind===f.key?'selected':''} onClick={()=>setHistoryKind(f.key)}>{f.label}</button>)}</div>
           {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i)=><div className="history-row" key={String(x.id || i)}>
             <div><ReceiptText size={18}/><b>{x.description || x.referenceType || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
             <strong className={walletAmountClass(x)}>{walletAmountLabel(x)}</strong>
-            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span>{x.referenceId && <button className="copy-btn" onClick={()=>copyText(String(x.referenceId),'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
+            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span><button className="copy-btn" onClick={()=>setSelectedWalletItem(x)}><Eye size={14}/><span>Details</span></button>{x.referenceId && <button className="copy-btn" onClick={()=>copyText(String(x.referenceId),'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
           </div>)}</div> : <div className="empty-state">No wallet transactions were returned.</div>}
         </div>
       </section>}
@@ -870,6 +892,8 @@ export default function Portal() {
           </div>}
         </div>
       </section>}
+
+      {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div></div></div>}
 
       {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
         <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
