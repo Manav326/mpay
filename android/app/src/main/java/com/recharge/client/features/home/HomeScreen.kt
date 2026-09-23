@@ -156,21 +156,21 @@ fun HomeScreen(
                 Card(
                     onClick = onCarRental,
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF8FF))
+                    colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .58f))
                 ) {
                     Row(
                         Modifier.fillMaxWidth().padding(18.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(shape = RoundedCornerShape(15.dp), color = Color(0xFFDDF1FF)) {
-                            Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF1677B8), modifier = Modifier.padding(11.dp))
+                        Surface(shape = RoundedCornerShape(15.dp), color = AppColors.SurfaceWarm) {
+                            Icon(Icons.Default.DirectionsCar, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(11.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text("Car Rental", style = MaterialTheme.typography.titleLarge)
                             Text("Chauffeur-driven cars, available directly from here.", color = AppColors.TextSecondary)
                         }
-                        Text("Explore", color = Color(0xFF1677B8), style = MaterialTheme.typography.labelLarge)
+                        Text("Explore", color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
