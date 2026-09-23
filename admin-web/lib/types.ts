@@ -121,6 +121,16 @@ export interface WalletHistoryResponse {
   toDate: string;
 }
 
+export interface Vendor {
+  id: string;
+  name: string;
+  category: 'CAR_RENT' | 'TRAVEL' | 'SERVICES';
+  city: string;
+  phone: string;
+  commissionRate: number;
+  active: boolean;
+  createdAt: string;
+}
 
 
 export interface WithdrawalHistoryItem {
@@ -261,7 +271,7 @@ export interface AdminFinancialRechargeOperation {
   updatedAt: string;
 }
 
-export interface AdminFinancialRechargePage {
+export interface AdminFinancialRechargePageResponse {
   items: AdminFinancialRechargeOperation[];
   page: number;
   size: number;
@@ -288,7 +298,7 @@ export interface AdminFinancialWithdrawalOperation {
   completedAt?: string | null;
 }
 
-export interface AdminFinancialWithdrawalPage {
+export interface AdminFinancialWithdrawalPageResponse {
   items: AdminFinancialWithdrawalOperation[];
   page: number;
   size: number;
@@ -312,7 +322,7 @@ export interface AdminFinancialWalletOperation {
   createdAt: string;
 }
 
-export interface AdminFinancialWalletPage {
+export interface AdminFinancialWalletPageResponse {
   items: AdminFinancialWalletOperation[];
   page: number;
   size: number;
@@ -321,43 +331,13 @@ export interface AdminFinancialWalletPage {
   hasNext: boolean;
 }
 
-export interface CurrentAdminProfile {
-  userId: number;
+export interface AdminProfile {
+  userId: number | string;
   publicUserId: string;
-  mobile: string;
   name?: string | null;
   email?: string | null;
+  mobile?: string | null;
   profileImageUrl?: string | null;
   profileImageVersion?: number | null;
   role: string;
-  commissionRate: number;
-  createdAt: string;
-  profileUpdatedAt?: string | null;
-}
-
-
-export interface RentalAdminPayout {
-  payoutId: string;
-  bookingId: string;
-  vendorId: string;
-  vendorName: string;
-  grossAmount: number;
-  platformFeePercent: number;
-  platformFeeAmount: number;
-  vendorNetAmount: number;
-  status: string;
-  walletLedgerRef?: string | null;
-  failureReason?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  paidAt?: string | null;
-}
-
-export interface RentalAdminPayoutPageResponse {
-  items: RentalAdminPayout[];
-  page: number;
-  size: number;
-  totalItems: number;
-  totalPages: number;
-  hasNext: boolean;
 }

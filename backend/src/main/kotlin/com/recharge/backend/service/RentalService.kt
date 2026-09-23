@@ -315,7 +315,9 @@ class RentalService(
         return available
             .filter { car ->
                 val vendorId = car.vendorId
-                val isOwnVehicle = vendorId != null && vendorById[vendorId]?.userId == userId
+                val vendor = vendorId?.let(vendorById::get)
+                val isVerifiedVendor = vendor?.status.equals("VERIFIED", true)
+                val isOwnVehicle = vendorId != null && vendor?.userId == userId
                 val driver = car.driverId?.let { driverById[it] }
                 val rentalEnd = endDate ?: now
                 val hasUsableDriver = driver?.active == true && driver.licenseExpiry.isAfter(rentalEnd)
@@ -323,7 +325,7 @@ class RentalService(
                 val matchesLocation = normalizedLocation == null ||
                     car.city?.contains(normalizedLocation, ignoreCase = true) == true ||
                     car.pickupAddress?.contains(normalizedLocation, ignoreCase = true) == true
-                !isOwnVehicle && hasUsableDriver && isDateAvailable && matchesLocation
+                isVerifiedVendor && !isOwnVehicle && hasUsableDriver && isDateAvailable && matchesLocation
             }
             .map(::toPublicCarResponse)
     }
@@ -779,22 +781,6 @@ class RentalService(
     }
 
     @Transactional
-    fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
-        val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
-        require(booking.userId == userId) { "Rental booking not found" }
-        check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
-        check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
-        booking.status = "CANCELLED"
-        booking.updatedAt = Instant.now()
-        val payment = rentalPaymentRepository.findByBookingIdAndUserId(bookingId, userId)
-            .orElseThrow { IllegalStateException("Rental payment not found for booking") }
-        rentalPayments.refund(payment)
-        val car = cars.findById(booking.carId).orElse(null)
-        bookings.save(booking)
-        return toBookingResponse(booking, car, car?.driverId?.let { drivers.findById(it).orElse(null) })
-    }
-
-    @Transactional
     fun adminCancelBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
         val booking = bookings.findByBookingIdForUpdate(bookingId)
             .orElseThrow { IllegalArgumentException("Rental booking not found") }
@@ -808,6 +794,22 @@ class RentalService(
         val saved = bookings.save(booking)
         val car = cars.findById(saved.carId).orElse(null)
         return toBookingResponse(saved, car, car?.driverId?.let { drivers.findById(it).orElse(null) })
+    }
+
+    @Transactional
+    fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
+        val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
+        require(booking.userId == userId) { "Rental booking not found" }
+        check(booking.status == "CONFIRMED") { "Only confirmed bookings can be cancelled" }
+        check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
+        booking.status = "CANCELLED"
+        booking.updatedAt = Instant.now()
+        val payment = rentalPaymentRepository.findByBookingIdAndUserId(bookingId, userId)
+            .orElseThrow { IllegalStateException("Rental payment not found for booking") }
+        rentalPayments.refund(payment)
+        val car = cars.findById(booking.carId).orElse(null)
+        bookings.save(booking)
+        return toBookingResponse(booking, car, car?.driverId?.let { drivers.findById(it).orElse(null) })
     }
 
     fun adminDashboard(): RentalAdminDashboardResponse =
@@ -932,7 +934,13 @@ class RentalService(
     @Transactional
     fun approveVehicle(carId: Long, actorUserId: Long): RentalCarResponse {
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
-        require(car.vendorId != null && car.driverId != null) { "Vehicle is not fully onboarded" }
+        val vendor = car.vendorId?.let { vendors.findById(it).orElse(null) }
+            ?: throw IllegalArgumentException("Vehicle vendor not found")
+        require(vendor.status == "VERIFIED") { "Vendor must be verified before approving a vehicle" }
+        val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
+            ?: throw IllegalArgumentException("Vehicle driver not found")
+        require(driver.active) { "Driver must be active before approving a vehicle" }
+        require(driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver license is expired" }
         car.approvalStatus = "APPROVED"; car.rejectionReason = null; car.active = true; cars.save(car)
         carReviews.save(RentalCarReviewEntity(carId = carId, action = "APPROVED", actorUserId = actorUserId, createdAt = Instant.now()))
         return toCarResponse(car)

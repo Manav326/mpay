@@ -1,15 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
+import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { cancelRentalBooking, completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword } from '@/lib/api';
-import RentalVendorReview from './RentalVendorReview';
+import { completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
-import RentalPayouts from './RentalPayouts';
-import RentalBookingActions from './RentalBookingActions';
-import AccountStatusControl from './AccountStatusControl';
+import RentalVendorReview from './RentalVendorReview';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
@@ -25,7 +22,7 @@ export default function Page() {
   const [portalRoles, setPortalRoles] = useState<string[]>(['ADMIN','MANAGER']);
   const [selectedPortalRole, setSelectedPortalRole] = useState('ADMIN');
   const [mobile, setMobile] = useState(''); const [password, setPassword] = useState(''); const [otp, setOtp] = useState(''); const [newPassword, setNewPassword] = useState('');
-  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'>('dashboard');
+  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [sidebarCollapsed, setSidebarCollapsed] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']);
   const [roleFilter, setRoleFilter] = useState<Role|'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high'); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false);
   const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>();
@@ -38,6 +35,7 @@ export default function Page() {
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
     if(raw) setSession(JSON.parse(raw));
+    setSidebarCollapsed(localStorage.getItem('mpay_admin_sidebar_collapsed') === '1');
     getPortalRoles().then(roles=>{ if(roles.length) { setPortalRoles(roles); if(!roles.includes(selectedPortalRole)) setSelectedPortalRole(roles[0]); } }).catch(()=>{});
   },[]);
 
@@ -58,31 +56,33 @@ export default function Page() {
   const canVendors = permissions.includes('MANAGE_VENDORS');
   const canRentalOperations = permissions.includes('MANAGE_RENTAL_OPERATIONS');
   const canFinancial = permissions.includes('VIEW_FINANCIAL_OPERATIONS');
+  const canManageUserStatus = permissions.includes('MANAGE_USER_STATUS');
+  const canRefreshRecharge = permissions.includes('MANAGE_RECHARGE_OPERATIONS');
   const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
   const menu = [
     ['dashboard','Dashboard',LayoutDashboard],
     ['users','Users & Wallet',Users],
-    ...(canFinancial ? [['financial','Financial Operations',WalletCards] as const] : []),
+    ...(canFinancial ? [['financial','Money Operations',WalletCards] as const] : []),
     ...(canVendors ? [['vendors','Rental Partners',CarFront] as const] : []),
     ...(canRentalOperations ? [['rental','Rental Operations',CalendarDays] as const] : []),
     ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
   ] as const;
 
   return <div className="shell">
-    <aside className={`sidebar ${drawer?'open':''}`}>
+    <aside className={`sidebar ${drawer?'open ':''}${sidebarCollapsed?'collapsed':''}`}>
       <div className="side-top"><Logo compact/><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={19}/></button></div>
       <div className="portal-role"><ShieldCheck size={16}/><span>{session.role.replace('_',' ')} portal</span></div>
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><div className="profile-mini"><div className="avatar">{session.name.charAt(0)}</div><div><b>{session.name}</b><span>{session.role}</span></div></div><button className="nav" onClick={logout}><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':view==='financial'?'Financial Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':'Commission Rules'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><AdminProfileMenu sessionName={session.name} role={session.role} onLogout={logout}/></div></header>
+    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':'Commission Rules'}</h1></div></div><div className="top-actions"><span className="role-pill">{session.role}</span><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
       {notice && <div className="admin-notice"><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-      {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} onUsers={()=>setView('users')} onFinancial={canFinancial?()=>setView('financial'):undefined} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
+      {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
+      {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
-      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected} canManageStatus={permissions.includes('MANAGE_USER_STATUS')} onStatusChanged={async userId=>{await loadUsers();setSelected(await getUserDetailById(userId));}}/>}
-      {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={permissions.includes('MANAGE_RECHARGE_OPERATIONS')} onNotice={setNotice}/>} 
+      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
-      {view==='rental' && canRentalOperations && <><RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id)=>{setBusy(true);try{await cancelRentalBooking(id);setNotice('Booking cancelled and the wallet payment was refunded.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} busy={busy}/><RentalPayouts onNotice={setNotice}/></>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
+      {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }
@@ -91,18 +91,19 @@ function AuthScreen(p:any){
   return <main className="auth-wrap"><div className="auth-card"><div className="auth-brand"><Logo/></div>{p.state==='login'?<><div className="auth-copy"><h1>Welcome to mPay Admin</h1><p>Sign in as Admin, Manager, or another enabled portal role.</p></div><form onSubmit={p.onLogin} className="form"><label>Portal role<select value={p.selectedPortalRole} onChange={e=>p.setSelectedPortalRole(e.target.value)}>{p.portalRoles.map((r:string)=><option key={r} value={r}>{r.charAt(0)+r.slice(1).toLowerCase()}</option>)}</select></label><label>Mobile number<input value={p.mobile} onChange={e=>p.setMobile(e.target.value)} placeholder="10-digit mobile number" /></label><label>Password<input type="password" value={p.password} onChange={e=>p.setPassword(e.target.value)} placeholder="Enter password" /></label>{p.notice&&<div className="alert">{p.notice}</div>}<button className="primary" disabled={p.busy}>{p.busy?'Signing in…':'Sign in'}</button><button type="button" className="link-btn" onClick={()=>{p.setState('forgot');p.notice&&p.setMobile(p.mobile)}}>Forgot password?</button></form></>:<><div className="auth-copy"><h1>Reset admin password</h1><p>Only Admin and Manager accounts can access this portal.</p></div><form onSubmit={p.onReset} className="form"><label>Registered mobile<input value={p.mobile} onChange={e=>p.setMobile(e.target.value)} placeholder="10-digit mobile number" /></label>{p.resetRequested&&<label>OTP<input value={p.otp} onChange={e=>p.setOtp(e.target.value)} placeholder="6-digit OTP" /></label>}{p.resetRequested&&<label>New password<input type="password" value={p.newPassword} onChange={e=>p.setNewPassword(e.target.value)} placeholder="New password" /></label>}{p.notice&&<div className="alert">{p.notice}</div>}<button className="primary" disabled={p.busy}>{p.busy?'Please wait…':p.resetRequested?'Reset password':'Send OTP'}</button><button type="button" className="link-btn" onClick={()=>{p.setState('login');p.setResetRequested(false)}}>Back to sign in</button></form></>}</div></main>
 }
 
-function Dashboard({data,rental,onUsers,onFinancial,onRental,onVendors,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;onUsers:()=>void;onFinancial?:()=>void;onRental:()=>void;onVendors:()=>void;onCommissions?:()=>void}){
+function Dashboard({data,rental,showRental,onUsers,onRental,onVendors,onFinancial,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;showRental:boolean;onUsers:()=>void;onRental:()=>void;onVendors:()=>void;onFinancial?:()=>void;onCommissions?:()=>void}){
   if(!data) return <div className="loading">Loading dashboard…</div>;
-  const cards=[['Today earnings',INR.format(data.todayCommission),'Company recharge commission today',CircleDollarSign],['Today volume',INR.format(data.todayVolume),'Successful recharge value',Wallet],['This month',INR.format(data.monthlyCommission),'Company commission through today',TrendingUp],['Active clients',data.activeClients.toLocaleString('en-IN'),'Currently active client accounts',Users],['Rental bookings',String(rental?.totalBookings ?? '—'),'Persisted chauffeur-driven bookings',CalendarDays],['Rental fees',rental ? INR.format(rental.totalPlatformFees) : '—','Platform fees from settled rentals',CarFront]] as const;
-  return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{value}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Common administration tasks.</p></div></div><div className="quick-grid"><button className="quick" onClick={onUsers}><Users size={20}/><div><b>Users & wallet</b><span>Balances, recharge, withdrawal and ledger history</span></div></button><button className="quick" onClick={onVendors}><CarFront size={20}/><div><b>Rental partners</b><span>Review vendors, vehicles and approvals</span></div></button><button className="quick" onClick={onRental}><CalendarDays size={20}/><div><b>Rental operations</b><span>Bookings, lifecycle and vendor settlement</span></div></button>{onFinancial&&<button className="quick" onClick={onFinancial}><WalletCards size={20}/><div><b>Financial operations</b><span>Recharges, withdrawals and wallet ledger</span></div></button>}{onCommissions&&<button className="quick" onClick={onCommissions}><BarChart3 size={20}/><div><b>Commission rules</b><span>Review and update role-based rates</span></div></button>}</div></section></div></div>
+  const cards:Array<[string,string,string,typeof CircleDollarSign]>=[['Today earnings',INR.format(data.todayCommission),'Company recharge commission today',CircleDollarSign],['Today volume',INR.format(data.todayVolume),'Successful recharge value',Wallet],['This month',INR.format(data.monthlyCommission),'Company commission through today',TrendingUp],['Active clients',data.activeClients.toLocaleString('en-IN'),'Currently active client accounts',Users]];
+  if(showRental) cards.push(['Rental bookings',String(rental?.totalBookings ?? '—'),'Persisted chauffeur-driven bookings',CalendarDays],['Rental fees',rental ? INR.format(rental.totalPlatformFees) : '—','Platform fees from settled rentals',CarFront]);
+  return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{value}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Jump directly into the operation you need.</p></div></div><div className="quick-grid"><button className="quick" onClick={onUsers}><Users size={20}/><div><b>Users & wallet</b><span>Balances, customer history and account status</span></div></button>{onFinancial&&<button className="quick" onClick={onFinancial}><WalletCards size={20}/><div><b>Money operations</b><span>Recharge, withdrawal and wallet ledger oversight</span></div></button>}{showRental&&<button className="quick" onClick={onVendors}><CarFront size={20}/><div><b>Rental partners</b><span>Vendor and vehicle review workflow</span></div></button>}{showRental&&<button className="quick" onClick={onRental}><CalendarDays size={20}/><div><b>Rental operations</b><span>Bookings and settlement lifecycle</span></div></button>}{onCommissions&&<button className="quick" onClick={onCommissions}><BarChart3 size={20}/><div><b>Commission rules</b><span>Review and update role-based rates</span></div></button>}</div></section></div></div>
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,selected,setSelected,canManageStatus,onStatusChanged}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageStatus:boolean;onStatusChanged:(userId:string)=>Promise<void>}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,selected,setSelected,canManageUserStatus,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
-  return <div className="content"><section className="panel"><div className="panel-head wrap"><div><h2>User hierarchy</h2><p>{role==='ADMIN'?'Admins can see managers and clients. Managers can see clients only.':'You can see client accounts assigned under your management.'}</p></div><div className="filters"><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>{allowed.map(r=><option key={r} value={r}>{r==='ALL'?'All users':r}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="today-high">Today: highest earnings</option><option value="today-low">Today: lowest earnings</option><option value="month-high">Month: highest earnings</option><option value="month-low">Month: lowest earnings</option></select></div></div><div className="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Today's earnings</th><th>Monthly earnings</th><th>Wallet</th><th>Status</th><th></th></tr></thead><tbody>{users.map(u=><tr key={u.id} onClick={async()=>setSelected(await getUserDetailById(u.id))}><td><div className="user-cell"><div className="avatar light">{u.name.charAt(0)}</div><div><b>{u.name}</b><span>{u.mobile} · {u.publicUserId}</span></div></div></td><td><span className={`type-pill ${(u.role || 'UNKNOWN').toLowerCase()}`}>{u.accountType}</span></td><td>{INR.format(u.todayEarnings)}</td><td>{INR.format(u.monthEarnings)}</td><td>{INR.format(u.walletBalance)}</td><td><span className={`status ${(u.status || 'UNKNOWN').toLowerCase()}`}>{u.status}</span></td><td><ChevronRight size={18}/></td></tr>)}</tbody></table></div></section>{selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageStatus={canManageStatus} onStatusChanged={onStatusChanged}/>}</div>
+  return <div className="content"><section className="panel"><div className="panel-head wrap"><div><h2>User hierarchy</h2><p>{role==='ADMIN'?'Admins can see managers and clients. Managers can see clients only.':'You can see client accounts assigned under your management.'}</p></div><div className="filters"><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>{allowed.map(r=><option key={r} value={r}>{r==='ALL'?'All users':r}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="today-high">Today: highest earnings</option><option value="today-low">Today: lowest earnings</option><option value="month-high">Month: highest earnings</option><option value="month-low">Month: lowest earnings</option></select></div></div><div className="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Today's earnings</th><th>Monthly earnings</th><th>Wallet</th><th>Status</th><th></th></tr></thead><tbody>{users.map(u=><tr key={u.id} onClick={async()=>setSelected(await getUserDetailById(u.id))}><td><div className="user-cell"><div className="avatar light">{u.name.charAt(0)}</div><div><b>{u.name}</b><span>{u.mobile} · {u.publicUserId}</span></div></div></td><td><span className={`type-pill ${(u.role || 'UNKNOWN').toLowerCase()}`}>{u.accountType}</span></td><td>{INR.format(u.todayEarnings)}</td><td>{INR.format(u.monthEarnings)}</td><td>{INR.format(u.walletBalance)}</td><td><span className={`status ${(u.status || 'UNKNOWN').toLowerCase()}`}>{u.status}</span></td><td><ChevronRight size={18}/></td></tr>)}</tbody></table></div></section>{selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} onStatusUpdated={onStatusUpdated}/>}</div>
 }
 
-function UserDrawer({user,onClose,canManageStatus,onStatusChanged}:{user:UserDetail;onClose:()=>void;canManageStatus:boolean;onStatusChanged:(userId:string)=>Promise<void>}){
+function UserDrawer({user,onClose,canManageUserStatus,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
@@ -117,6 +118,7 @@ function UserDrawer({user,onClose,canManageStatus,onStatusChanged}:{user:UserDet
   const [loadingRecharges,setLoadingRecharges] = useState(true);
   const [loadingWallet,setLoadingWallet] = useState(true);
   const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
+  const [statusBusy,setStatusBusy] = useState(false);
 
   useEffect(()=>{
     let active = true;
@@ -213,7 +215,10 @@ function UserDrawer({user,onClose,canManageStatus,onStatusChanged}:{user:UserDet
           <div><small><CalendarDays size={14}/> Joined</small><b>{dateTime(user.joinedAt)}</b></div>
           <div><small><History size={14}/> Profile updated</small><b>{user.profileUpdatedAt ? dateTime(user.profileUpdatedAt) : 'Not available'}</b></div>
         </div>
-        {canManageStatus && <AccountStatusControl user={user} onChanged={() => onStatusChanged(user.id)} />}
+        {canManageUserStatus && user.role.toUpperCase() !== 'ADMIN' && <div className="account-state-actions">
+          <div><b>{user.status === 'ACTIVE' ? 'Account is active' : 'Account is blocked'}</b><span>{user.status === 'ACTIVE' ? 'The client can use mPay normally.' : 'The client cannot use the platform until re-enabled.'}</span></div>
+          <button className={user.status === 'ACTIVE' ? 'status-toggle off' : 'status-toggle on'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{const next=await updateUserStatus(user.publicUserId,user.status!=='ACTIVE');onStatusUpdated(user.publicUserId,next.status);}catch(error:any){window.alert(error?.message||'Unable to update account status.');}finally{setStatusBusy(false);}}}>{statusBusy ? 'Saving…' : user.status === 'ACTIVE' ? 'Block account' : 'Unblock account'}</button>
+        </div>}
       </section>
 
       <div className="detail-tabs">
@@ -263,7 +268,7 @@ function UserDrawer({user,onClose,canManageStatus,onStatusChanged}:{user:UserDet
         {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
       </section>}
 
-      <div className="drawer-note"><ShieldCheck size={15}/> This view is read-only for customer data. Financial and rental controls are exposed only through dedicated protected operations screens.</div>
+      <div className="drawer-note"><ShieldCheck size={15}/> Customer history is read-only here. Account status uses the protected user-lifecycle API; money and rental state changes remain owned by their authoritative workflows.</div>
     </aside>
   </div>
 }
@@ -278,7 +283,6 @@ function RentalOperations(p:{
   onNext:()=>void;
   onRefresh:()=>void;
   onComplete:(id:string)=>void;
-  onCancel:(id:string)=>void;
   busy:boolean;
 }){
   const d=p.dashboard;
@@ -308,7 +312,7 @@ function RentalOperations(p:{
           <td><b>{b.pickup}</b><span>→ {b.drop}</span><span>{dateTime(b.startDate)} → {dateTime(b.endDate)}</span></td>
           <td><b>{money(b.total)}</b><span>{b.paymentMethod} · {b.paymentStatus}</span></td>
           <td><span className={'status '+statusClass(b.status)}>{b.status}</span></td>
-          <td><RentalBookingActions booking={b} busy={p.busy} onComplete={p.onComplete} onCancel={p.onCancel}/></td>
+          <td>{b.status==='CONFIRMED' && new Date(b.endDate).getTime()<=Date.now() ? <button className="secondary" disabled={p.busy} onClick={()=>p.onComplete(b.bookingId)}>Complete & settle</button> : <span>—</span>}</td>
         </tr>)}
       </tbody></table></div>}
       <div className="panel-head"><span>Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>

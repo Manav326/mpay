@@ -1,24 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CarFront, ChevronRight, Search, ShieldCheck, X } from 'lucide-react';
+import { CarFront, ChevronRight, ShieldCheck, X } from 'lucide-react';
 import { approveRentalVehicle, approveRentalVendor, getRentalAdminVendorVehicles, getRentalAdminVendors, getRentalAdminVehicleUnavailability, rejectRentalVendor, rejectRentalVehicle } from '@/lib/api';
 import { RentalAdminVendor, RentalAdminVehicleUnavailability } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
-const maskValue = (value?: string | null, visible = 4) => {
-  if (!value) return '—';
-  if (value.length <= visible) return '••••';
-  return '••••' + value.slice(-visible);
-};
-const maskUpi = (value?: string | null) => {
-  if (!value) return '—';
-  const parts = value.split('@');
-  if (parts.length !== 2) return '••••';
-  const left = parts[0];
-  return (left.length <= 2 ? '••••' : left.slice(0, 2) + '••••') + '@' + parts[1];
-};
 
 export default function RentalVendorReview() {
   const [vendors, setVendors] = useState<RentalAdminVendor[]>([]);
@@ -97,11 +85,7 @@ export default function RentalVendorReview() {
     return <section className="panel" style={{ marginTop: 16 }}>
     <div className="panel-head wrap">
       <div><h2>Rental vendor applications</h2><p>Review the vendor data submitted from the customer app. Only approved vehicles enter the marketplace.</p></div>
-      <div className="filters">
-        <label className="inline-search"><Search size={14}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search vendor or mobile" /></label>
-        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option>ALL</option><option>PENDING</option><option>VERIFIED</option><option>REJECTED</option></select>
-        <button className="secondary" onClick={() => refresh()}>Refresh</button>
-      </div>
+      <button className="secondary" onClick={() => refresh()}>Refresh</button>
     </div>
     {loading ? <div className="loading">Loading rental applications…</div> :
       visibleVendors.length === 0 ? <div className="empty-state">No rental vendor applications submitted yet.</div> :
@@ -112,7 +96,7 @@ export default function RentalVendorReview() {
             <b>{v.fullName}{v.businessName ? ' · ' + v.businessName : ''}</b>
             <span>{v.vendorType} · {v.mobile || 'No mobile'} · {v.email || 'No email'}</span>
             <span>{v.city}, {v.state} · Submitted {dateTime(v.submittedAt)}</span>
-            <span>Vehicles: {v.vehicleCount} · PAN: {maskValue(v.panNumber)} · Status: {v.status}</span>
+            <span>Vehicles: {v.vehicleCount} · PAN: {v.panNumber || 'Not provided'} · Status: {v.status}</span>
             {v.rejectionReason && <span>Review note: {v.rejectionReason}</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -167,10 +151,10 @@ export default function RentalVendorReview() {
           <div><small>Email</small><b>{selected.email || '—'}</b></div>
           <div><small>Address</small><b>{selected.address}</b></div>
           <div><small>Location</small><b>{selected.city}, {selected.state} {selected.pinCode}</b></div>
-          <div><small>PAN</small><b>{maskValue(selected.panNumber)}</b></div>
-          <div><small>Payout UPI</small><b>{maskUpi(selected.payoutUpiId)}</b></div>
-          <div><small>Bank account</small><b>{maskValue(selected.bankAccountNumber)}</b></div>
-          <div><small>IFSC</small><b>{maskValue(selected.bankIfsc)}</b></div>
+          <div><small>PAN</small><b>{selected.panNumber || '—'}</b></div>
+          <div><small>Payout UPI</small><b>{selected.payoutUpiId || '—'}</b></div>
+          <div><small>Bank account</small><b>{selected.bankAccountNumber || '—'}</b></div>
+          <div><small>IFSC</small><b>{selected.bankIfsc || '—'}</b></div>
           <div><small>Submitted</small><b>{dateTime(selected.submittedAt)}</b></div>
         </section>
 
@@ -189,12 +173,12 @@ export default function RentalVendorReview() {
                 {c.approvalStatus !== 'APPROVED' && <>
                   <input value={vehicleRejectReasons[c.id] || ''} onChange={e => setVehicleRejectReasons(current=>({...current,[c.id]:e.target.value}))} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
                   <button className="secondary" disabled={busy === 'vehicle-' + c.id || !(vehicleRejectReasons[c.id] || '').trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
-                  <button className="primary" disabled={busy === 'vehicle-' + c.id} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
+                  <button className="primary" disabled={busy === 'vehicle-' + c.id || selected.status.toUpperCase() !== 'VERIFIED'} title={selected.status.toUpperCase() === 'VERIFIED' ? 'Approve vehicle' : 'Verify the vendor before approving vehicles'} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
                 </>}
               </div>
             )}</div>}
         </section>
-        <div className="drawer-note"><ShieldCheck size={15}/> Approval changes the rental state only; unapproved vehicles are not visible to customers.</div>
+        <div className="drawer-note"><ShieldCheck size={15}/> Vendor verification is the first gate. A vehicle can become customer-visible only after its vendor is verified, the vehicle is approved, and its driver remains valid.</div>
       </aside>
     </div>}
   </section>;

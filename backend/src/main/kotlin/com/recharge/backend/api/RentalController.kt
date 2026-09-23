@@ -149,33 +149,33 @@ class RentalController(
         roleAccessService.requirePermission(user, permission)
     }
 
-    private fun requireVendorManagement(authentication: Authentication) =
+    private fun requireRentalPartnerAccess(authentication: Authentication) =
         requirePermission(authentication, "MANAGE_VENDORS")
 
-    private fun requireRentalOperations(authentication: Authentication) =
+    private fun requireRentalOperationsAccess(authentication: Authentication) =
         requirePermission(authentication, "MANAGE_RENTAL_OPERATIONS")
 
     @GetMapping("/admin/vehicle-unavailability")
     fun adminVehicleUnavailability(authentication: Authentication): List<RentalAdminVehicleUnavailabilityResponse> {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.adminVehicleUnavailability()
     }
 
     @GetMapping("/admin/vendors")
     fun adminVendors(authentication: Authentication): List<RentalAdminVendorResponse> {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.adminVendors()
     }
 
     @GetMapping("/admin/vendors/{vendorId}/vehicles")
     fun adminVendorVehicles(authentication: Authentication, @PathVariable vendorId: Long): List<RentalCarResponse> {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.adminVendorCars(vendorId)
     }
 
     @PostMapping("/admin/vendors/{vendorId}/approve")
     fun approveVendor(authentication: Authentication, @PathVariable vendorId: Long): RentalVendorResponse {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.approveVendor(vendorId, userId(authentication))
     }
 
@@ -185,13 +185,13 @@ class RentalController(
         @PathVariable vendorId: Long,
         @RequestBody(required = false) request: RentalAdminDecisionRequest?
     ): RentalVendorResponse {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.rejectVendor(vendorId, request?.reason, userId(authentication))
     }
 
     @GetMapping("/admin/dashboard")
     fun adminDashboard(authentication: Authentication): RentalAdminDashboardResponse {
-        requireRentalOperations(authentication)
+        requireRentalOperationsAccess(authentication)
         return rentalService.adminDashboard()
     }
 
@@ -211,25 +211,25 @@ class RentalController(
         @RequestParam(defaultValue = "25") size: Int,
         @RequestParam(required = false) status: String?
     ): RentalAdminBookingPageResponse {
-        requireRentalOperations(authentication)
+        requireRentalOperationsAccess(authentication)
         return rentalService.adminBookings(page, size, status)
     }
 
     @PostMapping("/admin/bookings/{bookingId}/complete")
     fun completeBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
-        requireRentalOperations(authentication)
+        requireRentalOperationsAccess(authentication)
         return rentalService.completeBooking(bookingId, userId(authentication))
     }
 
     @PostMapping("/admin/bookings/{bookingId}/cancel")
     fun cancelAdminBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
-        requireRentalOperations(authentication)
+        requireRentalOperationsAccess(authentication)
         return rentalService.adminCancelBooking(bookingId, userId(authentication))
     }
 
     @PostMapping("/admin/vehicles/{carId}/approve")
     fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.approveVehicle(carId, userId(authentication))
     }
 
@@ -239,7 +239,7 @@ class RentalController(
         @PathVariable carId: Long,
         @RequestBody(required = false) request: RentalAdminDecisionRequest?
     ): RentalCarResponse {
-        requireVendorManagement(authentication)
+        requireRentalPartnerAccess(authentication)
         return rentalService.rejectVehicle(carId, request?.reason, userId(authentication))
     }
 
