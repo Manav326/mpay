@@ -27,6 +27,11 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
     private val _state = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
     val state = _state.asStateFlow()
 
+    fun resetSession() {
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = PaymentUiState.Idle
+    }
+
     fun createOrder(amountText: String, provider: String = "razorpay") {
         if (_state.value is PaymentUiState.CreatingOrder || _state.value is PaymentUiState.Verifying) return
         val amount = amountText.toBigDecimalOrNull()
