@@ -386,6 +386,7 @@ fun RentalVendorOnboardingScreen(
     onLoadVehicleCalendar: (String, Int, Int) -> Unit = { _, _, _ -> },
     onUpdateVendorProfile: (RentalVendorUpdateRequest, () -> Unit) -> Unit = { _, done -> done() }
 ) {
+    var vendorType by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.vendorType ?: "INDIVIDUAL") }
     var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
     var businessName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
     var address by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.address.orEmpty()) }
@@ -543,7 +544,7 @@ fun RentalVendorOnboardingScreen(
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("Vendor profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
+                                    Text("Vendor Studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
                                     Text("Business identity & marketplace status", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -552,6 +553,7 @@ fun RentalVendorOnboardingScreen(
                                     }
                                     TextButton(
                                         onClick = {
+                                            vendorType = v.vendorType ?: "INDIVIDUAL"
                                             fullName = v.fullName.orEmpty()
                                             businessName = v.businessName.orEmpty()
                                             address = v.address.orEmpty()
@@ -893,6 +895,39 @@ fun RentalVendorOnboardingScreen(
             }
 
             if (!isPending) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.VendorNavy)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Text("Partner type", color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Choose the identity used for your vendor application.", color = Color.White.copy(alpha = .76f), style = MaterialTheme.typography.labelSmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(
+                                    selected = vendorType.equals("INDIVIDUAL", true),
+                                    onClick = { vendorType = "INDIVIDUAL" },
+                                    label = { Text("Individual") },
+                                    enabled = !isPending,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = AppColors.VendorGold,
+                                        selectedLabelColor = Color(0xFF3B2500)
+                                    )
+                                )
+                                FilterChip(
+                                    selected = vendorType.equals("BUSINESS", true),
+                                    onClick = { vendorType = "BUSINESS" },
+                                    label = { Text("Business") },
+                                    enabled = !isPending,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = AppColors.VendorGold,
+                                        selectedLabelColor = Color(0xFF3B2500)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
                 item {
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
