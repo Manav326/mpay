@@ -58,7 +58,9 @@ fun ForgotPasswordScreen(
             supportingText = { Text("10-digit Indian mobile number") },
             singleLine = true,
             enabled = !otpSent,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            colors = AuthFieldColors(),
+            shape = RoundedCornerShape(16.dp)
         )
         Spacer(Modifier.height(10.dp))
 
