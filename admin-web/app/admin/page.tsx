@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Camera, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, RefreshCw, Save, Settings, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { completeRentalBooking, deleteCurrentProfileImage, getCommissionRates, getCurrentProfile, getCurrentProfileImage, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, login, requestPasswordReset, resetPassword, updateCommissionRate, updateCurrentProfileImage, updateUserStatus } from '@/lib/api';
+import { completeRentalBooking, deleteCurrentProfileImage, getCommissionRates, getCurrentProfile, getCurrentProfileImage, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, login, requestPasswordReset, resetPassword, updateCommissionRate, uploadCurrentProfileImage, updateUserStatus } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
 import { CurrentUserProfile, DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, RoleCommissionRate, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem } from '@/lib/types';
 
@@ -243,7 +243,7 @@ function UserDrawer({user,onClose,canManageUserStatus,onStatusChanged}:{user:Use
       </section>}
 
       
-       {canManageUserStatus && !user.role.equals && <div className="drawer-note user-status-control"><div><b>Account access</b><span>Use this only for support or operational access control.</span></div><button className={user.status==='ACTIVE'?'text-danger-btn':'primary'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{const next=await updateUserStatus(user.id,user.status!=='ACTIVE');onStatusChanged(next.status); }catch(err:any){alert(err.message||'Unable to update account status.')}finally{setStatusBusy(false)}}}>{statusBusy?'Saving…':user.status==='ACTIVE'?'Block account':'Activate account'}</button></div>}
+       {canManageUserStatus && user.role.toUpperCase() !== 'ADMIN' && <div className="drawer-note user-status-control"><div><b>Account access</b><span>Use this only for support or operational access control.</span></div><button className={user.status==='ACTIVE'?'text-danger-btn':'primary'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{const next=await updateUserStatus(user.id,user.status!=='ACTIVE');onStatusChanged(next.status); }catch(err:any){alert(err.message||'Unable to update account status.')}finally{setStatusBusy(false)}}}>{statusBusy?'Saving…':user.status==='ACTIVE'?'Block account':'Activate account'}</button></div>}
 
        <div className="drawer-note"><ShieldCheck size={15}/> Financial ledger entries remain read-only. Account status changes are limited to the explicit access-control action above.</div>
     </aside>
