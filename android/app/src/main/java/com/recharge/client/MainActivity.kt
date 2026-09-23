@@ -37,7 +37,6 @@ import com.recharge.client.features.home.HomeScreen
 import com.recharge.client.features.profile.ProfileScreen
 import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
-import com.recharge.client.features.services.CarRentalComingSoonScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
 import com.recharge.client.features.rental.RentalMyBookingsScreen
 import com.recharge.client.features.rental.MarketplaceScreen
@@ -51,6 +50,7 @@ import com.razorpay.Checkout
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
 import org.json.JSONObject
+import java.math.BigDecimal
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     private val contactPicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -80,21 +80,42 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
     private val walletPaymentViewModel: WalletPaymentViewModel by viewModels()
     private val rechargeViewModel: RechargeViewModel by viewModels()
-    private var rechargeGatewayVerifier: ((String, String, String) -> Unit)? = null
+    private enum class RazorpayCheckoutTarget { WALLET, RECHARGE }
+
+    companion object {
+        private const val STATE_RAZORPAY_TARGET = "razorpay_checkout_target"
+        private const val STATE_RAZORPAY_ORDER_ID = "razorpay_checkout_order_id"
+    }
+
+    private var pendingRazorpayTarget: RazorpayCheckoutTarget? = null
+    private var pendingRazorpayOrderId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingRazorpayTarget = savedInstanceState?.getString(STATE_RAZORPAY_TARGET)
+            ?.let { runCatching { RazorpayCheckoutTarget.valueOf(it) }.getOrNull() }
+        pendingRazorpayOrderId = savedInstanceState?.getString(STATE_RAZORPAY_ORDER_ID)
         Checkout.preload(applicationContext)
         setContent { RechargeTheme { AppRoot(::startWalletPaymentCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, rechargeViewModel = rechargeViewModel) } }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(STATE_RAZORPAY_TARGET, pendingRazorpayTarget?.name)
+        outState.putString(STATE_RAZORPAY_ORDER_ID, pendingRazorpayOrderId)
+        super.onSaveInstanceState(outState)
     }
 
     private fun startWalletPaymentCheckout(order: PaymentOrderResponse) {
         try {
             when {
                 order.provider.equals("mock", true) -> {
+                    pendingRazorpayTarget = null
+                    pendingRazorpayOrderId = null
                     walletPaymentViewModel.verifyPayment("mock", null, order.orderId, null)
                 }
                 order.provider.equals("payu", true) -> {
+                    pendingRazorpayTarget = null
+                    pendingRazorpayOrderId = null
                     PayUCheckoutBridge.open(
                         this,
                         order.amount.setScale(2).toPlainString(),
@@ -165,10 +186,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         put("description", "Wallet add money")
                         put("theme.color", "#F59E0B")
                     }
+                    pendingRazorpayTarget = RazorpayCheckoutTarget.WALLET
+                    pendingRazorpayOrderId = order.orderId
                     checkout.open(this, options)
                 }
             }
         } catch (e: Exception) {
+            pendingRazorpayTarget = null
+            pendingRazorpayOrderId = null
             walletPaymentViewModel.paymentFailed(e.message ?: "Unable to open payment checkout")
         }
     }
@@ -176,6 +201,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     private fun startGatewayRechargeCheckout(order: PaymentOrderResponse, rechargeViewModel: RechargeViewModel) {
         try {
             if (order.provider.equals("payu", true)) {
+                pendingRazorpayTarget = null
+                pendingRazorpayOrderId = null
                 PayUCheckoutBridge.open(
                     this,
                     order.amount.setScale(2).toPlainString(),
@@ -245,42 +272,67 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     put("description", "Mobile recharge")
                     put("theme.color", "#F59E0B")
                 }
-                rechargeGatewayVerifier = { paymentId, orderId, signature ->
-                    rechargeViewModel.verifyGatewayPayment("razorpay", paymentId, orderId, signature)
-                }
+                pendingRazorpayTarget = RazorpayCheckoutTarget.RECHARGE
+                pendingRazorpayOrderId = order.orderId
                 checkout.open(this, options)
             }
         } catch (e: Exception) {
+            pendingRazorpayTarget = null
+            pendingRazorpayOrderId = null
             rechargeViewModel.gatewayPaymentFailed(e.message)
         }
     }
 
     override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
-        val rechargeVerifier = rechargeGatewayVerifier
-        if (rechargeVerifier != null) {
-            rechargeGatewayVerifier = null
-            rechargeVerifier(
-                razorpayPaymentId.orEmpty(),
-                paymentData?.orderId.orEmpty(),
-                paymentData?.signature.orEmpty()
+        val target = pendingRazorpayTarget
+        val expectedOrderId = pendingRazorpayOrderId
+        val returnedOrderId = paymentData?.orderId.orEmpty()
+        pendingRazorpayTarget = null
+        pendingRazorpayOrderId = null
+
+        if (target == null) {
+            walletPaymentViewModel.paymentFailed(
+                "Payment result received without a known checkout context. Please refresh your wallet or history."
             )
-        } else {
-            walletPaymentViewModel.verifyPayment(
+            return
+        }
+
+        if (expectedOrderId != null && returnedOrderId.isNotBlank() && expectedOrderId != returnedOrderId) {
+            when (target) {
+                RazorpayCheckoutTarget.WALLET ->
+                    walletPaymentViewModel.paymentFailed("Payment result did not match the active wallet order.")
+                RazorpayCheckoutTarget.RECHARGE ->
+                    rechargeViewModel.gatewayPaymentFailed("Payment result did not match the active recharge order.")
+            }
+            return
+        }
+
+        when (target) {
+            RazorpayCheckoutTarget.WALLET -> walletPaymentViewModel.verifyPayment(
                 provider = "razorpay",
                 paymentId = razorpayPaymentId,
-                orderId = paymentData?.orderId.orEmpty(),
+                orderId = returnedOrderId.ifBlank { expectedOrderId.orEmpty() },
+                signature = paymentData?.signature
+            )
+            RazorpayCheckoutTarget.RECHARGE -> rechargeViewModel.verifyGatewayPayment(
+                provider = "razorpay",
+                paymentId = razorpayPaymentId,
+                orderId = returnedOrderId.ifBlank { expectedOrderId.orEmpty() },
                 signature = paymentData?.signature
             )
         }
     }
 
     override fun onPaymentError(code: Int, response: String?, paymentData: PaymentData?) {
-        val rechargeVerifier = rechargeGatewayVerifier
-        if (rechargeVerifier != null) {
-            rechargeGatewayVerifier = null
-            rechargeViewModel.gatewayPaymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
-        } else {
-            walletPaymentViewModel.paymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
+        val target = pendingRazorpayTarget
+        pendingRazorpayTarget = null
+        pendingRazorpayOrderId = null
+        val message = response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)"
+
+        when (target) {
+            RazorpayCheckoutTarget.RECHARGE -> rechargeViewModel.gatewayPaymentFailed(message)
+            RazorpayCheckoutTarget.WALLET -> walletPaymentViewModel.paymentFailed(message)
+            null -> walletPaymentViewModel.paymentFailed("Payment failed, but the checkout context is no longer available.")
         }
     }
 }
@@ -312,10 +364,12 @@ private fun AppRoot(
     var authRoute by rememberSaveable { mutableStateOf("login") }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Authenticated) {
-            homeViewModel.load(); profileViewModel.load(); rechargeHistoryViewModel.refreshAll()
+            rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
             authRoute = "login"
         }
@@ -330,15 +384,26 @@ private fun AppRoot(
     }
 
     LaunchedEffect(rechargeState.gatewayOrder) {
-        rechargeState.gatewayOrder?.let { order ->
-            startGatewayRecharge(order, rechargeViewModel)
-        }
+        val order = rechargeState.gatewayOrder ?: return@LaunchedEffect
+        if (launchedRechargeOrderId == order.orderId) return@LaunchedEffect
+        launchedRechargeOrderId = order.orderId
+        startGatewayRecharge(order, rechargeViewModel)
     }
 
     LaunchedEffect(paymentState) {
         when (paymentState) {
-            is PaymentUiState.OrderCreated -> startWalletPayment((paymentState as PaymentUiState.OrderCreated).order)
-            is PaymentUiState.Success -> { homeViewModel.load(); profileViewModel.load(); showFundingDialog = false; paymentViewModel.reset() }
+            is PaymentUiState.OrderCreated -> {
+                val order = (paymentState as PaymentUiState.OrderCreated).order
+                if (launchedWalletOrderId != order.orderId) {
+                    launchedWalletOrderId = order.orderId
+                    startWalletPayment(order)
+                }
+            }
+            is PaymentUiState.Success -> {
+                homeViewModel.refreshWallet()
+                showFundingDialog = false
+                paymentViewModel.reset()
+            }
             else -> Unit
         }
     }
@@ -367,12 +432,35 @@ private fun AppRoot(
     }
 
     val nav = rememberNavController()
+    val logoutAndReset = {
+        nav.navigate("home") {
+            popUpTo(nav.graph.startDestinationId) {
+                inclusive = false
+                saveState = false
+            }
+            launchSingleTop = true
+            restoreState = false
+        }
+        homeViewModel.resetSession()
+        profileViewModel.resetSession()
+        rechargeViewModel.resetSession()
+        rechargeHistoryViewModel.resetSession()
+        rentalViewModel.resetSession()
+        walletViewModel.resetSession()
+        paymentViewModel.resetSession()
+        highlightTransactionId = null
+        launchedWalletOrderId = null
+        launchedRechargeOrderId = null
+        showFundingDialog = false
+        authViewModel.logout()
+    }
+
     val destinations = remember {
         listOf(
-            TopLevelDestination("home", "Home", Icons.Default.Home, Color(0xFFF59E0B)),
-            TopLevelDestination("recharge", "Recharge", Icons.Default.PhoneAndroid, Color(0xFFFB7185)),
-            TopLevelDestination("wallet", "Wallet", Icons.Default.AccountBalanceWallet, Color(0xFF22C55E)),
-            TopLevelDestination("profile", "Profile", Icons.Default.Person, Color(0xFF8B5CF6))
+            TopLevelDestination("home", "Home", Icons.Default.Home, AppColors.Primary),
+            TopLevelDestination("recharge", "Recharge", Icons.Default.PhoneAndroid, AppColors.Primary),
+            TopLevelDestination("wallet", "Wallet", Icons.Default.AccountBalanceWallet, AppColors.Primary),
+            TopLevelDestination("profile", "Profile", Icons.Default.Person, AppColors.Primary)
         )
     }
     val currentRoute = nav.currentBackStackEntryAsState().value?.destination?.route
@@ -381,10 +469,9 @@ private fun AppRoot(
 
     LaunchedEffect(currentRoute) {
         when (currentRoute) {
-            "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
             "marketplace" -> Unit
             "car-rental" -> rentalViewModel.clearCarSearch()
-            "rental-bookings" -> rentalViewModel.loadBookings()
+            "rental-booking" -> homeViewModel.refreshWallet()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
             else -> if (currentRoute != "recharge" && currentRoute != "recharge-history") highlightTransactionId = null
@@ -392,7 +479,7 @@ private fun AppRoot(
     }
 
     LaunchedEffect(walletUiState.withdrawSuccess) {
-        if (walletUiState.withdrawSuccess != null) homeViewModel.load()
+        if (walletUiState.withdrawSuccess != null) homeViewModel.refreshWallet()
     }
 
     LaunchedEffect(rechargeState.action) {
@@ -400,23 +487,26 @@ private fun AppRoot(
             is RechargeActionState.Success -> {
                 highlightTransactionId = action.response.transactionId
                 rechargeHistoryViewModel.refreshAll()
-                homeViewModel.load()
             }
             is RechargeActionState.Pending -> {
                 highlightTransactionId = action.response.transactionId
                 rechargeHistoryViewModel.refreshAll()
-                homeViewModel.load()
             }
             is RechargeActionState.Failure -> {
                 rechargeHistoryViewModel.refreshAll()
-                homeViewModel.load()
             }
             else -> Unit
         }
     }
 
     if (showFundingDialog) {
-        AddMoneyDialog(paymentState, { showFundingDialog = false; paymentViewModel.reset() }, paymentViewModel::createOrder, paymentViewModel::reset)
+        AddMoneyDialog(
+            paymentState,
+            { showFundingDialog = false; paymentViewModel.reset() },
+            paymentViewModel::createOrder,
+            paymentViewModel::reset,
+            availableBalance = homeViewModel.wallet.collectAsState().value?.availableBalance ?: BigDecimal.ZERO
+        )
     }
 
     if (sideNav) {
@@ -485,7 +575,7 @@ private fun AppNavHost(
     rechargeViewModel::selectPlan,
     rechargeViewModel::executeSelectedPlan,
     rechargeViewModel::startGatewayRechargePayment,
-    { rechargeViewModel.dismissResult(); homeViewModel.load(); rechargeHistoryViewModel.refreshAll(); navigateToTopLevel(nav, "home") },
+    { rechargeViewModel.dismissResult(); navigateToTopLevel(nav, "home") },
     { paymentViewModel.reset(); showFundingDialogSetter(true) },
     rechargeViewModel::refreshWallet,
     rechargeViewModel::clear
@@ -565,9 +655,18 @@ private fun AppNavHost(
                 RentalBookingScreen(
                     car = car,
                     state = rentalViewModel.state.collectAsState().value,
+                    wallet = homeViewModel.wallet.collectAsState().value,
                     onQuote = rentalViewModel::quoteBooking,
                     onBack = { nav.popBackStack() },
-                    onConfirm = rentalViewModel::createBooking,
+                    onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
+                    onRefreshWallet = homeViewModel::refreshWallet,
+                    onConfirm = { request, onDone ->
+                        rentalViewModel.createBooking(request) {
+                            homeViewModel.refreshWallet()
+                            rentalViewModel.loadBookings()
+                            onDone()
+                        }
+                    },
                     initialStart = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_start_date"),
                     initialEnd = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_end_date")
                 )
