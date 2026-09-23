@@ -20,11 +20,34 @@ class PaymentGatewayService(
     @Value("\${app.payment.gateway-providers:razorpay,payu}") private val configuredProviders: String
 ) {
     fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
-        val requested = request.provider.trim()
-        if (requested.isNotBlank()) {
-            return findConfiguredProvider(requested).createWalletOrder(userId, request)
+        val normalizedRequest = if (request.purpose.equals("RECHARGE", ignoreCase = true)) {
+            val mobile = request.rechargeMobileNumber?.trim().orEmpty()
+            val operator = request.rechargeOperator?.trim().orEmpty()
+            val circle = request.rechargeCircle?.trim().orEmpty()
+            val planId = request.rechargePlanId?.trim().orEmpty()
+            require(mobile.isNotBlank() && operator.isNotBlank() && circle.isNotBlank() && planId.isNotBlank()) {
+                "Recharge payment order is missing mobile number, operator, circle or plan"
+            }
+            rechargeService.createRechargePaymentOrder(
+                userId,
+                com.recharge.backend.api.RechargeRequest(
+                    mobileNumber = mobile,
+                    operator = operator,
+                    circle = circle,
+                    planId = planId,
+                    clientRequestId = request.clientRequestId,
+                    recipientName = request.rechargeRecipientName
+                )
+            ).copy(provider = request.provider)
+        } else {
+            request
         }
-        return resolveProvider().createWalletOrder(userId, request)
+
+        val requested = normalizedRequest.provider.trim()
+        if (requested.isNotBlank()) {
+            return findConfiguredProvider(requested).createWalletOrder(userId, normalizedRequest)
+        }
+        return resolveProvider().createWalletOrder(userId, normalizedRequest)
     }
 
     fun createRechargeOrder(
