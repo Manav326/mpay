@@ -899,6 +899,8 @@ class RentalService(
                 payoutUpiId = v.payoutUpiId,
                 bankAccountNumber = v.bankAccountNumber,
                 bankIfsc = v.bankIfsc,
+                bankName = v.bankName,
+                payoutPrimaryMethod = v.payoutPrimaryMethod,
                 vehicleCount = cars.countByVendorId(requireNotNull(v.id)),
                 rejectionReason = v.rejectionReason,
                 submittedAt = v.createdAt,
