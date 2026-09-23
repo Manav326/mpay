@@ -89,7 +89,8 @@ class RechargeService(
             rechargeMobileNumber = request.mobileNumber,
             rechargeOperator = request.operator.uppercase(),
             rechargeCircle = request.circle,
-            rechargePlanId = request.planId
+            rechargePlanId = request.planId,
+            rechargeRecipientName = request.recipientName?.trim()?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -118,6 +119,7 @@ class RechargeService(
             transactionId = transactionId,
             clientRequestId = request.clientRequestId,
             mobileNumber = request.mobileNumber,
+            recipientName = request.recipientName?.trim()?.takeIf { it.isNotBlank() },
             operator = request.operator.uppercase(),
             circle = request.circle
         )
@@ -204,6 +206,7 @@ class RechargeService(
             clientCommission = tx.clientCommission,
             companyCommission = tx.companyCommission,
             message = tx.message,
+            recipientName = tx.recipientName,
             walletBalance = wallet.balance,
             walletAvailableBalance = wallet.availableBalance
         )
