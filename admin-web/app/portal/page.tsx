@@ -33,7 +33,7 @@ type WithdrawalItem = {
 type RentalCar = {
   id: string; name: string; category: string; seats: number; transmission: string; fuelType?: string;
   registrationYear?: number; city?: string; pickupAddress?: string; imageUrl?: string; pricePerDay: number;
-  driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
+  driverId?: string; driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
   make?: string; model?: string; variant?: string; manufacturingYear?: number; registrationNumber?: string;
   state?: string; driverLicenseNumber?: string; driverLicenseExpiry?: string; driverAddress?: string;
 };
@@ -1004,7 +1004,7 @@ export default function Portal() {
 
       {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
         <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
-        <div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Registration <b>{rentalDetails.registrationNumber||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Driver <b>{rentalDetails.driverName||'—'} {rentalDetails.driverMobile||''}</b></span><span>Licence expiry <b>{date(rentalDetails.driverLicenseExpiry)}</b></span></div>
+        <div className="driver-profile-card public-driver-card"><div className="driver-profile-photo">{rentalDetails.driverPhotoUrl ? <img src={(rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl)} alt="Driver"/> : <UserRound size={22}/>}</div><div><b>{rentalDetails.driverName||'Driver'}</b><span>{rentalDetails.driverMobile||'Mobile not provided'}</span></div></div><div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Registration <b>{rentalDetails.registrationNumber||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Driver <b>{rentalDetails.driverName||'—'} {rentalDetails.driverMobile||''}</b></span><span>Licence expiry <b>{date(rentalDetails.driverLicenseExpiry)}</b></span></div>
       </div></div>}
     </main>
   </div>;
