@@ -38,6 +38,28 @@ data class RentalCarResponse(
     val driverAddress: String? = null
 )
 
+data class RentalPublicCarResponse(
+    val id: String,
+    val name: String,
+    val category: String,
+    val seats: Int,
+    val transmission: String,
+    val fuelType: String?,
+    val registrationYear: Int?,
+    val city: String?,
+    val pickupAddress: String?,
+    val imageUrl: String?,
+    val pricePerDay: BigDecimal,
+    val driverName: String,
+    val driverPhotoUrl: String? = null,
+    val driverRating: BigDecimal? = null,
+    val make: String? = null,
+    val model: String? = null,
+    val variant: String? = null,
+    val manufacturingYear: Int? = null,
+    val state: String? = null
+)
+
 data class RentalVendorResponse(
     val vendorId: String?,
     val status: String,
