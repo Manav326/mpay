@@ -65,7 +65,8 @@ class PayUPaymentGatewayProvider(
                 rechargeMobileNumber = request.rechargeMobileNumber,
                 rechargeOperator = request.rechargeOperator,
                 rechargeCircle = request.rechargeCircle,
-                rechargePlanId = request.rechargePlanId
+                rechargePlanId = request.rechargePlanId,
+                rechargeRecipientName = request.rechargeRecipientName
             )
         )
 
