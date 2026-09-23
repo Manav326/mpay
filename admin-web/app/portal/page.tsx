@@ -780,14 +780,23 @@ export default function Portal() {
 
   useEffect(()=>{
     if(!localStorage.getItem('mpay_token')){window.location.href='/login';return;}
-    Promise.all([api<Me>('/api/v1/me'),api<Wallet>('/api/v1/wallet'),api<any>('/api/v1/recharge/commission-summary')])
-      .then(([a,b,c])=>{
-        setMe(a);
-        setWallet(b);
-        setProfileForm({name:a?.name || '',email:a?.email || ''});
-        setCommissionSummary(c);
-      })
-      .catch(()=>{localStorage.removeItem('mpay_token');localStorage.removeItem('mpay_refresh_token');window.location.href='/login';});
+    void Promise.allSettled([
+      api<Me>('/api/v1/me'),
+      api<Wallet>('/api/v1/wallet'),
+      api<any>('/api/v1/recharge/commission-summary')
+    ]).then(([meResult,walletResult,commissionResult])=>{
+      if(meResult.status !== 'fulfilled' || walletResult.status !== 'fulfilled'){
+        localStorage.removeItem('mpay_token');
+        localStorage.removeItem('mpay_refresh_token');
+        window.location.href='/login';
+        return;
+      }
+      const a=meResult.value;
+      setMe(a);
+      setWallet(walletResult.value);
+      setProfileForm({name:a?.name || '',email:a?.email || ''});
+      if(commissionResult.status === 'fulfilled') setCommissionSummary(commissionResult.value);
+    });
     void loadProfileImage();
   },[]);
 
