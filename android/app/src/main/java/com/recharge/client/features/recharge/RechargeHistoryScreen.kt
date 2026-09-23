@@ -21,10 +21,13 @@ import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
+import com.recharge.client.core.ui.MpayEmptyState
 import com.recharge.client.core.viewmodel.HistoryFilter
 import com.recharge.client.core.viewmodel.RechargeHistoryUiState
 import java.time.LocalDate
 import java.util.Calendar
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +60,7 @@ fun RechargeHistoryScreen(state: RechargeHistoryUiState, onFilterToday: () -> Un
             FilterButton(HistoryFilter.THIS_MONTH, state.filter, "Month", onFilterMonth)
             FilterButton(HistoryFilter.CUSTOM, state.filter, "Custom", { showFromPicker = true })
         }
-        Text("${state.fromDate} → ${state.toDate}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
+        Text(state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) + " → " + state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 6.dp)) }
 
         if (state.loading && state.items.isEmpty()) {
@@ -65,7 +68,7 @@ fun RechargeHistoryScreen(state: RechargeHistoryUiState, onFilterToday: () -> Un
             return
         }
         if (state.items.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No recharge transactions for this period.", color = AppColors.TextSecondary) }
+            MpayEmptyState(title = "No recharge transactions", message = "There are no recharge records for the selected period.")
             return
         }
 
