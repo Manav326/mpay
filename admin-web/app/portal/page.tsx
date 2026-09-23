@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
@@ -193,6 +193,7 @@ export default function Portal() {
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const rentalLoadSeq = useRef(0);
 
   const walletSigned = (item: WalletItem) => {
     const amount = Math.abs(Number(item.amount || 0));
@@ -505,6 +506,7 @@ export default function Portal() {
   }
 
   async function loadRentalData(startDate='',endDate='',location='') {
+    const requestSeq = ++rentalLoadSeq.current;
     try {
       const params=new URLSearchParams();
       if(startDate) params.set('startDate',startDate);
@@ -515,11 +517,13 @@ export default function Portal() {
         api<any>(carsPath),
         api<any>('/api/v1/car-rental/bookings?page=0&size=25')
       ]);
+      if(requestSeq !== rentalLoadSeq.current) return;
       setCars(available?.items || available || []);
       setBookings(existing?.items || existing?.content || existing || []);
-    } catch(e:any) { setNotice(e.message || 'Unable to load rental inventory.'); }
+    } catch(e:any) {
+      if(requestSeq === rentalLoadSeq.current) setNotice(e.message || 'Unable to load rental inventory.');
+    }
   }
-
   function refreshRentalData() {
     void loadRentalData();
   }
