@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
+import { AdminFinancialRechargePage, AdminFinancialWithdrawalPage, AdminFinancialWalletPage, CurrentAdminProfile, DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, RoleCommissionRate } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -287,4 +287,77 @@ export async function updateCommissionRate(role: string, commissionPercent: numb
     method: 'PUT',
     body: JSON.stringify({ commissionPercent, active }),
   });
+}
+
+
+export async function updateUserStatus(id: string, active: boolean): Promise<{publicUserId: string; active: boolean; status: string}> {
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/status', {
+    method: 'POST',
+    body: JSON.stringify({ active }),
+  });
+}
+
+export async function getAdminFinancialRecharges(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialRechargePage> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') query.set('status', status);
+  if (provider && provider !== 'ALL') query.set('provider', provider);
+  return api('/api/v1/admin/financial/recharges?' + query.toString());
+}
+
+export async function refreshAdminRecharge(transactionId: string) {
+  return api('/api/v1/admin/financial/recharges/' + encodeURIComponent(transactionId) + '/refresh', { method: 'POST' });
+}
+
+export async function getAdminFinancialWithdrawals(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialWithdrawalPage> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') query.set('status', status);
+  if (provider && provider !== 'ALL') query.set('provider', provider);
+  return api('/api/v1/admin/financial/withdrawals?' + query.toString());
+}
+
+export async function getAdminFinancialWalletHistory(page = 0, size = 25, referenceType = 'ALL'): Promise<AdminFinancialWalletPage> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (referenceType && referenceType !== 'ALL') query.set('referenceType', referenceType);
+  return api('/api/v1/admin/financial/wallet-history?' + query.toString());
+}
+
+export async function getCurrentAdminProfile(): Promise<CurrentAdminProfile> {
+  return api('/api/v1/profile');
+}
+
+export async function getCurrentAdminProfileImage(): Promise<string | null> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const response = await fetch(baseUrl + '/api/v1/profile/image', {
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function uploadCurrentAdminProfileImage(file: File): Promise<CurrentAdminProfile> {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Please select a JPG, PNG or WebP image.');
+  }
+  if (file.size > 5 * 1024 * 1024) throw new Error('Profile image must be 5 MB or smaller.');
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const formData = new FormData();
+  formData.append('image', file, file.name || 'admin-profile');
+  const response = await fetch(baseUrl + '/api/v1/profile/image', {
+    method: 'PUT',
+    body: formData,
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+  if (response.status === 401 && typeof window !== 'undefined') {
+    localStorage.removeItem('mpay_admin_token');
+    localStorage.removeItem('mpay_admin_session');
+    window.location.href = '/admin';
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text || 'Profile image upload failed';
+    try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {}
+    throw new Error(message);
+  }
+  return response.json();
 }
