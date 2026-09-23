@@ -19,7 +19,7 @@ sealed interface PasswordResetUiState {
 }
 
 class PasswordResetViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AuthRepository(application)
+    private val repository = AuthRepository.getInstance(application)
     private val _state = MutableStateFlow<PasswordResetUiState>(PasswordResetUiState.Idle)
     val state = _state.asStateFlow()
 
