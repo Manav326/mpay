@@ -20,7 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.recharge.client.core.ui.MpayProviderSelector
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.ui.Modifier
@@ -49,11 +49,7 @@ fun AddMoneyDialog(
             Column(Modifier.fillMaxWidth()) {
                 Text("Choose how to fund the wallet. Mock is for development/testing; Razorpay and PayU use their configured test gateways.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(selected = provider == "mock", onClick = { provider = "mock" }, shape = SegmentedButtonDefaults.itemShape(0, 3)) { Text("Mock") }
-                    SegmentedButton(selected = provider == "razorpay", onClick = { provider = "razorpay" }, shape = SegmentedButtonDefaults.itemShape(1, 3)) { Text("Razorpay") }
-                    SegmentedButton(selected = provider == "payu", onClick = { provider = "payu" }, shape = SegmentedButtonDefaults.itemShape(2, 3)) { Text("PayU") }
-                }
+                MpayProviderSelector(provider, !busy) { provider = it }
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = amount,
@@ -68,14 +64,14 @@ fun AddMoneyDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("Minimum ₹10 · Maximum ₹50,000", style = MaterialTheme.typography.bodySmall)
+                Text("Minimum ₹1 · Maximum ₹50,000", style = MaterialTheme.typography.bodySmall)
                 error?.let {
                     Spacer(Modifier.height(10.dp))
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }
                 success?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = MaterialTheme.colorScheme.primary)
+                    Text(it, color = com.recharge.client.core.theme.AppColors.Success)
                 }
             }
         },
