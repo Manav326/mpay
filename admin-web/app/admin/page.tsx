@@ -48,7 +48,7 @@ export default function Page() {
   const permissions = session.permissions || [];
   function permissionsForSession(s: typeof session){ return s?.permissions || []; }
   const canRental = permissions.includes('MANAGE_VENDORS');
-  const canFinance = permissions.includes('VIEW_FINANCIAL_OPERATIONS') || permissions.includes('VIEW_USER_DETAIL');
+  const canFinance = permissions.includes('VIEW_FINANCIAL_OPERATIONS');
   const canSettings = permissions.includes('MANAGE_COMMISSION_RATES');
   const canManageUserStatus = permissions.includes('MANAGE_USER_STATUS');
   const menu = [
@@ -335,10 +335,10 @@ function SettingsView({rates,onSaved}:{rates:RoleCommissionRate[];onSaved:(rates
 }
 
 function RentalWorkspace(p:Parameters<typeof RentalOperations>[0]){
-  return <div className="content">
+  return <>
     <RentalOperations {...p}/>
     <RentalVendorReview/>
-  </div>;
+  </>;
 }
 
 function AdminProfileMenu({profile,imageSrc,onImageChange,onDelete,onLogout}:{profile?:CurrentUserProfile;imageSrc:string|null;onImageChange:(file:File)=>void;onDelete:()=>void;onLogout:()=>void}) {
