@@ -366,7 +366,7 @@ private fun AppRoot(
 
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Authenticated) {
-            homeViewModel.load(); profileViewModel.load(); rechargeHistoryViewModel.refreshAll()
+            rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
             authRoute = "login"
         }
@@ -389,7 +389,11 @@ private fun AppRoot(
     LaunchedEffect(paymentState) {
         when (paymentState) {
             is PaymentUiState.OrderCreated -> startWalletPayment((paymentState as PaymentUiState.OrderCreated).order)
-            is PaymentUiState.Success -> { homeViewModel.load(); profileViewModel.load(); showFundingDialog = false; paymentViewModel.reset() }
+            is PaymentUiState.Success -> {
+                homeViewModel.refreshWallet()
+                showFundingDialog = false
+                paymentViewModel.reset()
+            }
             else -> Unit
         }
     }
@@ -417,6 +421,17 @@ private fun AppRoot(
         return
     }
 
+    val logoutAndReset = {
+        homeViewModel.resetSession()
+        profileViewModel.resetSession()
+        rechargeViewModel.resetSession()
+        rechargeHistoryViewModel.resetSession()
+        rentalViewModel.resetSession()
+        walletViewModel.resetSession()
+        paymentViewModel.resetSession()
+        authViewModel.logout()
+    }
+
     val nav = rememberNavController()
     val destinations = remember {
         listOf(
@@ -432,10 +447,9 @@ private fun AppRoot(
 
     LaunchedEffect(currentRoute) {
         when (currentRoute) {
-            "wallet" -> { rechargeHistoryViewModel.refreshAll(); homeViewModel.load() }
             "marketplace" -> Unit
             "car-rental" -> rentalViewModel.clearCarSearch()
-            "rental-bookings" -> rentalViewModel.loadBookings()
+            "rental-booking" -> homeViewModel.refreshWallet()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
             else -> if (currentRoute != "recharge" && currentRoute != "recharge-history") highlightTransactionId = null
@@ -443,7 +457,7 @@ private fun AppRoot(
     }
 
     LaunchedEffect(walletUiState.withdrawSuccess) {
-        if (walletUiState.withdrawSuccess != null) homeViewModel.load()
+        if (walletUiState.withdrawSuccess != null) homeViewModel.refreshWallet()
     }
 
     LaunchedEffect(rechargeState.action) {
@@ -451,16 +465,13 @@ private fun AppRoot(
             is RechargeActionState.Success -> {
                 highlightTransactionId = action.response.transactionId
                 rechargeHistoryViewModel.refreshAll()
-                homeViewModel.load()
             }
             is RechargeActionState.Pending -> {
                 highlightTransactionId = action.response.transactionId
                 rechargeHistoryViewModel.refreshAll()
-                homeViewModel.load()
             }
             is RechargeActionState.Failure -> {
                 rechargeHistoryViewModel.refreshAll()
-                homeViewModel.load()
             }
             else -> Unit
         }
@@ -542,7 +553,7 @@ private fun AppNavHost(
     rechargeViewModel::selectPlan,
     rechargeViewModel::executeSelectedPlan,
     rechargeViewModel::startGatewayRechargePayment,
-    { rechargeViewModel.dismissResult(); homeViewModel.load(); rechargeHistoryViewModel.refreshAll(); navigateToTopLevel(nav, "home") },
+    { rechargeViewModel.dismissResult(); navigateToTopLevel(nav, "home") },
     { paymentViewModel.reset(); showFundingDialogSetter(true) },
     rechargeViewModel::refreshWallet,
     rechargeViewModel::clear
