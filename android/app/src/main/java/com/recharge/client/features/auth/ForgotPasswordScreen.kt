@@ -1,9 +1,7 @@
 package com.recharge.client.features.auth
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
@@ -16,6 +14,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.viewmodel.PasswordResetUiState
 
@@ -35,20 +36,14 @@ fun ForgotPasswordScreen(
     val otpSent = state is PasswordResetUiState.OtpSent || state is PasswordResetUiState.Resetting || state is PasswordResetUiState.Success
     val errorMessage = (state as? PasswordResetUiState.Error)?.message
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    AuthScreen {
+
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
         }
         Spacer(Modifier.height(8.dp))
         MpayBrandHeader(compact = true)
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(18.dp))
 
         Text("Forgot password?", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(6.dp))
@@ -66,7 +61,9 @@ fun ForgotPasswordScreen(
             supportingText = { Text("10-digit Indian mobile number") },
             singleLine = true,
             enabled = !otpSent,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            colors = AuthFieldColors(),
+            shape = RoundedCornerShape(16.dp)
         )
         Spacer(Modifier.height(10.dp))
 
@@ -76,8 +73,8 @@ fun ForgotPasswordScreen(
                 enabled = mobile.length == 10 && state !is PasswordResetUiState.Sending,
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                if (state is PasswordResetUiState.Sending) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(22.dp))
-                else Text("Send OTP")
+                if (state is PasswordResetUiState.Sending) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(22.dp), color = Color.White)
+                else Text("Send OTP", fontWeight = FontWeight.SemiBold)
             }
         } else {
             val otpState = state as? PasswordResetUiState.OtpSent
@@ -101,7 +98,9 @@ fun ForgotPasswordScreen(
                 label = { Text("OTP") },
                 supportingText = { Text("Enter the 6-digit OTP sent by SMS to your mobile number") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                colors = AuthFieldColors(),
+                shape = RoundedCornerShape(16.dp)
             )
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
@@ -111,6 +110,8 @@ fun ForgotPasswordScreen(
                 label = { Text("New password") },
                 supportingText = { Text("Minimum 8 characters") },
                 singleLine = true,
+                colors = AuthFieldColors(),
+                shape = RoundedCornerShape(16.dp),
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showPassword = !showPassword }) {
@@ -127,7 +128,9 @@ fun ForgotPasswordScreen(
                 label = { Text("Confirm new password") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                colors = AuthFieldColors(),
+                shape = RoundedCornerShape(16.dp)
             )
             Spacer(Modifier.height(8.dp))
             val localError = when {
@@ -145,8 +148,8 @@ fun ForgotPasswordScreen(
                 enabled = state !is PasswordResetUiState.Resetting && otp.length == 6 && newPassword.length >= 8 && newPassword == confirmPassword,
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
-                if (state is PasswordResetUiState.Resetting) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(22.dp))
-                else Text("Reset password")
+                if (state is PasswordResetUiState.Resetting) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(22.dp), color = Color.White)
+                else Text("Reset password", fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = { otp = ""; newPassword = ""; confirmPassword = ""; onRequestOtp(mobile) }) {
@@ -155,7 +158,7 @@ fun ForgotPasswordScreen(
         }
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("Back to login")
+            Text("Back to login", color = AppColors.PrimaryDark, fontWeight = FontWeight.SemiBold)
         }
     }
 }

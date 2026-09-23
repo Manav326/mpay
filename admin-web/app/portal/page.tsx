@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
@@ -33,7 +33,7 @@ type WithdrawalItem = {
 type RentalCar = {
   id: string; name: string; category: string; seats: number; transmission: string; fuelType?: string;
   registrationYear?: number; city?: string; pickupAddress?: string; imageUrl?: string; pricePerDay: number;
-  driverName: string; driverMobile?: string; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
+  driverId?: string; driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
   make?: string; model?: string; variant?: string; manufacturingYear?: number; registrationNumber?: string;
   state?: string; driverLicenseNumber?: string; driverLicenseExpiry?: string; driverAddress?: string;
 };
@@ -49,7 +49,13 @@ type RentalVendor = {
   vendorId?: string | null; status: string; vendorType?: string | null; fullName?: string | null; businessName?: string | null;
   city?: string | null; state?: string | null; vehicleCount?: number; address?: string | null; pinCode?: string | null;
   panNumber?: string | null; payoutUpiId?: string | null; bankAccountNumber?: string | null; bankIfsc?: string | null;
-  rejectionReason?: string | null; submittedAt?: string | null;
+  bankName?: string | null; payoutPrimaryMethod?: string | null; rejectionReason?: string | null; submittedAt?: string | null;
+};
+type RentalVendorEarningsPeriod = {
+  grossAmount: number; platformFeeAmount: number; vendorNetAmount: number; bookingCount: number; completedBookingCount: number;
+};
+type RentalVendorEarnings = {
+  today: RentalVendorEarningsPeriod; monthly: RentalVendorEarningsPeriod; upcomingBookingCount: number;
 };
 type RentalPayout = {
   payoutId: string; bookingId: string; carId: string; carName: string; grossAmount: number;
@@ -71,7 +77,8 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers || {})
     }
   });
-  if (!r.ok) throw new Error((await r.text()) || 'Request failed');
+  if (r.status === 401) { localStorage.removeItem('mpay_token'); localStorage.removeItem('mpay_refresh_token'); window.location.href = '/login'; throw new Error('Your session has expired. Please sign in again.'); }
+  if (!r.ok) { const text = await r.text(); let message = text || ('Request failed (' + r.status + ')'); try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {} throw new Error(message); }
   return r.status === 204 ? (undefined as T) : r.json();
 }
 
@@ -82,14 +89,33 @@ async function apiUpload<T = any>(path: string, method: 'PUT' | 'POST', formData
     body: formData,
     headers: token ? { Authorization: 'Bearer ' + token } : {}
   });
-  if (!r.ok) throw new Error((await r.text()) || 'Upload failed');
+  if (r.status === 401) {
+    localStorage.removeItem('mpay_token');
+    localStorage.removeItem('mpay_refresh_token');
+    window.location.href = '/login';
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+  if (!r.ok) {
+    const text = await r.text();
+    let message = text || 'Upload failed';
+    try {
+      const parsed = JSON.parse(text);
+      message = parsed?.message || parsed?.error || message;
+    } catch {}
+    throw new Error(message);
+  }
   return r.json();
 }
 
 const money = (n: any) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 const dt = (v?: string) => v ? new Date(v).toLocaleString('en-IN') : '—';
 const date = (v?: string) => v ? new Date(v).toLocaleDateString('en-IN') : '—';
-const isoNow = () => new Date().toISOString().slice(0, 16);
+const pad2 = (value: number) => String(value).padStart(2, '0');
+const localDateTimeInput = (d = new Date()) =>
+  d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+const isoNow = () => localDateTimeInput();
+const localDate = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const localYearMonth = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1);
 
 function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -123,6 +149,7 @@ function bookingShareText(b: RentalBooking) {
 export default function Portal() {
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [wallet, setWallet] = useState<Wallet>();
   const [me, setMe] = useState<Me>();
   const [profileImage, setProfileImage] = useState('');
@@ -136,8 +163,8 @@ export default function Portal() {
   const [plans, setPlans] = useState<any[]>([]);
   const [recharges, setRecharges] = useState<RechargeItem[]>([]);
   const [historyKind, setHistoryKind] = useState('');
-  const [historyFrom, setHistoryFrom] = useState('');
-  const [historyTo, setHistoryTo] = useState('');
+  const [historyFrom, setHistoryFrom] = useState(localDate());
+  const [historyTo, setHistoryTo] = useState(localDate());
   const [rechargeFunding, setRechargeFunding] = useState<'WALLET'|'RAZORPAY'|'PAYU'>('WALLET');
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
@@ -156,23 +183,24 @@ export default function Portal() {
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
   const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
-  const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '', startDate: '', endDate: '' });
+  const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '' });
   const [rentalSearch, setRentalSearch] = useState({ location: '', startDate: '', endDate: '' });
   const [rentalDetails, setRentalDetails] = useState<RentalCar>();
 
   const [vendor, setVendor] = useState<RentalVendor>();
   const [vendorPayouts, setVendorPayouts] = useState<RentalPayout[]>([]);
+  const [vendorEarnings, setVendorEarnings] = useState<RentalVendorEarnings>();
   const [vendorVehicles, setVendorVehicles] = useState<RentalCar[]>([]);
   const [selectedVendorVehicle, setSelectedVendorVehicle] = useState<RentalCar>();
   const [vehicleUnavailability, setVehicleUnavailability] = useState<VehicleUnavailability[]>([]);
   const [vehicleCalendar, setVehicleCalendar] = useState<CalendarDay[]>([]);
-  const [calendarMonth, setCalendarMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [calendarMonth, setCalendarMonth] = useState(localYearMonth());
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [vehicleEditId, setVehicleEditId] = useState('');
   const [vendorForm, setVendorForm] = useState({
     vendorType: 'INDIVIDUAL', fullName: '', businessName: '', address: '', city: '', state: '', pinCode: '',
-    panNumber: '', payoutUpiId: '', bankAccountNumber: '', bankIfsc: ''
+    panNumber: '', payoutUpiId: '', bankAccountNumber: '', bankIfsc: '', bankName: '', payoutPrimaryMethod: ''
   });
   const defaultVehicle = {
     name:'', category:'SEDAN', seats:4, transmission:'AUTOMATIC', fuelType:'PETROL',
@@ -181,10 +209,12 @@ export default function Portal() {
     driver:{fullName:'',mobile:'',licenseNumber:'',licenseExpiry:'',address:''}
   };
   const [vehicleForm, setVehicleForm] = useState<any>(defaultVehicle);
-  const [unavailabilityForm, setUnavailabilityForm] = useState({ reasonCode:'MAINTENANCE', reasonNote:'', startDate:'', endDate:'' });
+  const [unavailabilityForm, setUnavailabilityForm] = useState({ reasonCode:'SERVICE_MAINTENANCE', reasonNote:'', startDate:'', endDate:'' });
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const rentalLoadSeq = useRef(0);
+  const historyLoadSeq = useRef(0);
 
   const walletSigned = (item: WalletItem) => {
     const amount = Math.abs(Number(item.amount || 0));
@@ -195,23 +225,40 @@ export default function Portal() {
   const walletAmountLabel = (item: WalletItem) => (walletSigned(item) < 0 ? '-' : '+') + money(Math.abs(Number(item.amount || 0)));
 
   async function loadHistory() {
-    try {
-      const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
-      if (historyFrom) rechargeParams.set('from', historyFrom);
-      if (historyTo) rechargeParams.set('to', historyTo);
-      const walletParams = new URLSearchParams({ page:'0', size:'25' });
-      if (historyKind) walletParams.set('kind', historyKind);
-      if (historyFrom) walletParams.set('from', historyFrom);
-      if (historyTo) walletParams.set('to', historyTo);
-      const [r, w] = await Promise.all([
-        api<any>('/api/v1/recharge/history?' + rechargeParams.toString()),
-        api<any>('/api/v1/wallet/history?' + walletParams.toString())
-      ]);
-      setRecharges(r?.items || r?.content || r || []);
-      setWalletHistory(w?.items || w?.content || w || []);
-    } catch (e:any) {
-      setNotice(e.message || 'Unable to load transaction history.');
+    const requestSeq = ++historyLoadSeq.current;
+    if (historyFrom && historyTo && historyTo < historyFrom) {
+      setNotice('The history end date must be on or after the start date.');
+      return;
     }
+    const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
+    if (historyFrom) rechargeParams.set('from', historyFrom);
+    if (historyTo) rechargeParams.set('to', historyTo);
+    const walletParams = new URLSearchParams({ page:'0', size:'25' });
+    if (historyKind) walletParams.set('kind', historyKind);
+    if (historyFrom) walletParams.set('from', historyFrom);
+    if (historyTo) walletParams.set('to', historyTo);
+
+    const [rechargeResult, walletResult] = await Promise.allSettled([
+      api<any>('/api/v1/recharge/history?' + rechargeParams.toString()),
+      api<any>('/api/v1/wallet/history?' + walletParams.toString())
+    ]);
+
+    const messages:string[] = [];
+    if (requestSeq !== historyLoadSeq.current) return;
+
+    if (rechargeResult.status === 'fulfilled') {
+      const r = rechargeResult.value;
+      setRecharges(r?.items || r?.content || r || []);
+    } else {
+      messages.push(rechargeResult.reason?.message || 'Recharge history could not be loaded.');
+    }
+    if (walletResult.status === 'fulfilled') {
+      const w = walletResult.value;
+      setWalletHistory(w?.items || w?.content || w || []);
+    } else {
+      messages.push(walletResult.reason?.message || 'Wallet history could not be loaded.');
+    }
+    if (messages.length) setNotice(messages.join(' '));
   }
 
   async function loadCommissionSummary() {
@@ -242,28 +289,47 @@ export default function Portal() {
   }
 
   async function loadAccountData() {
-    try {
-      const p = await api<Me>('/api/v1/profile');
+    const [profileResult, vendorResult] = await Promise.allSettled([
+      api<Me>('/api/v1/profile'),
+      api<RentalVendor>('/api/v1/car-rental/vendor')
+    ]);
+
+    if (profileResult.status === 'fulfilled') {
+      const p = profileResult.value;
       setMe(p);
       setProfileForm({ name: p?.name || '', email: p?.email || '' });
-      await loadProfileImage();
-    } catch (e:any) {
-      setNotice(e.message || 'Unable to load profile.');
+    } else {
+      setNotice(profileResult.reason?.message || 'Unable to load profile.');
     }
-    try {
-      const v = await api<RentalVendor>('/api/v1/car-rental/vendor');
-      setVendor(v);
-      const [carsData, payouts] = await Promise.all([
-        api<any>('/api/v1/car-rental/vendor/vehicles'),
-        api<any>('/api/v1/car-rental/vendor/payouts')
-      ]);
-      setVendorVehicles(carsData?.items || carsData || []);
-      setVendorPayouts(payouts?.items || payouts || []);
-    } catch {
+
+    if (vendorResult.status === 'rejected') {
       setVendor(undefined);
       setVendorVehicles([]);
       setVendorPayouts([]);
+      setVendorEarnings(undefined);
+      if (profileResult.status !== 'fulfilled') setNotice(vendorResult.reason?.message || 'Unable to load vendor workspace.');
+      return;
     }
+
+    const v = vendorResult.value;
+    setVendor(v);
+    if (!v?.vendorId) {
+      setVendorVehicles([]);
+      setVendorPayouts([]);
+      setVendorEarnings(undefined);
+      return;
+    }
+
+    const results = await Promise.allSettled([
+      api<any>('/api/v1/car-rental/vendor/vehicles'),
+      api<any>('/api/v1/car-rental/vendor/payouts'),
+      String(v.status || '').toUpperCase() === 'VERIFIED'
+        ? api<RentalVendorEarnings>('/api/v1/car-rental/vendor/earnings')
+        : Promise.resolve(undefined)
+    ]);
+    if (results[0].status === 'fulfilled') setVendorVehicles(results[0].value?.items || results[0].value || []);
+    if (results[1].status === 'fulfilled') setVendorPayouts(results[1].value?.items || results[1].value || []);
+    if (results[2].status === 'fulfilled') setVendorEarnings(results[2].value as RentalVendorEarnings | undefined);
   }
 
   async function openWalletItem(item: WalletItem) {
@@ -357,6 +423,24 @@ export default function Portal() {
     rzp.open();
   }
 
+  async function monitorPayUVerification(orderId:string, purpose:'wallet'|'recharge') {
+    for(let i=0;i<24;i++){
+      await new Promise(r=>setTimeout(r,5000));
+      try {
+        const verified=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'payu',orderId})});
+        if(verified.status==='CAPTURED' || verified.transactionId || verified.rechargeStatus){
+          await refreshWallet();
+          await loadHistory();
+          setNotice(purpose === 'recharge'
+            ? ('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
+            : 'PayU payment verified and wallet updated.');
+          return;
+        }
+      } catch {}
+    }
+    setNotice('PayU checkout did not complete within the verification window. Refresh Wallet/History after returning.');
+  }
+
   async function launchPayU(order:any, purpose:'wallet'|'recharge') {
     const p=order.checkoutParams || {};
     const form=document.createElement('form');
@@ -376,21 +460,7 @@ export default function Portal() {
     document.body.appendChild(form); form.submit(); form.remove();
     setNotice('PayU checkout opened in a new tab. mPay will verify the payment while the checkout is completed.');
     const orderId=order.orderId;
-    for(let i=0;i<24;i++){
-      await new Promise(r=>setTimeout(r,5000));
-      try {
-        const verified=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'payu',orderId})});
-        if(verified.status==='CAPTURED' || verified.transactionId || verified.rechargeStatus){
-          await refreshWallet();
-          await loadHistory();
-          setNotice(purpose === 'recharge'
-            ? ('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
-            : 'PayU payment verified and wallet updated.');
-          return;
-        }
-      } catch {}
-    }
-    setNotice('PayU checkout did not complete within the verification window. Refresh Wallet/History after returning.');
+    void monitorPayUVerification(orderId,purpose);
   }
 
   async function addMoney() {
@@ -402,8 +472,8 @@ export default function Portal() {
         amount, provider:addMoneyProvider, clientRequestId:crypto.randomUUID(), purpose:'ADD_MONEY'
       })});
       if(addMoneyProvider==='mock'){
-        const result=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
-        setWallet({balance:result.balance,availableBalance:result.availableBalance,reservedBalance:wallet?.reservedBalance || 0});
+        await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
+        await refreshWallet();
         setAddMoneyAmount('');
         setNotice('Mock wallet top-up completed.');
         await loadHistory();
@@ -487,24 +557,41 @@ export default function Portal() {
     finally { setBusy(false); }
   }
 
-  async function loadRentalData(startDate='',endDate='',location='') {
+  async function loadRentalCars(startDate='',endDate='',location='') {
+    const requestSeq = ++rentalLoadSeq.current;
     try {
       const params=new URLSearchParams();
       if(startDate) params.set('startDate',startDate);
       if(endDate) params.set('endDate',endDate);
       if(location.trim()) params.set('location',location.trim());
       const carsPath='/api/v1/car-rental/cars' + (params.toString() ? '?' + params.toString() : '');
-      const [available,existing]=await Promise.all([
-        api<any>(carsPath),
-        api<any>('/api/v1/car-rental/bookings?page=0&size=25')
-      ]);
+      const available=await api<any>(carsPath);
+      if(requestSeq !== rentalLoadSeq.current) return;
       setCars(available?.items || available || []);
+    } catch(e:any) {
+      if(requestSeq === rentalLoadSeq.current) setNotice(e.message || 'Unable to load rental inventory.');
+    }
+  }
+
+  async function loadBookings() {
+    try {
+      const existing=await api<any>('/api/v1/car-rental/bookings?page=0&size=25');
       setBookings(existing?.items || existing?.content || existing || []);
-    } catch(e:any) { setNotice(e.message || 'Unable to load rental inventory.'); }
+    } catch(e:any) {
+      setNotice(e.message || 'Unable to load bookings.');
+    }
+  }
+
+  async function loadRentalData(startDate='',endDate='',location='') {
+    await Promise.all([loadRentalCars(startDate,endDate,location), loadBookings()]);
   }
 
   function refreshRentalData() {
-    void loadRentalData();
+    void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
+  }
+
+  function refreshBookings() {
+    void loadBookings();
   }
 
   function searchRentalCars() {
@@ -515,23 +602,24 @@ export default function Portal() {
     if((rentalSearch.startDate && !rentalSearch.endDate)||(!rentalSearch.startDate&&rentalSearch.endDate)){setNotice('Select both the start and end date & time.');return;}
     if(hasDates && new Date(rentalSearch.endDate).getTime() <= new Date(rentalSearch.startDate).getTime()){setNotice('End date & time must be after the start date & time.');return;}
     setSelectedCar(undefined); setRentalQuote(undefined);
-    setRentalForm(x=>({...x,startDate:rentalSearch.startDate || x.startDate,endDate:rentalSearch.endDate || x.endDate}));
     loadRentalData(rentalSearch.startDate,rentalSearch.endDate,location);
   }
 
   function clearRentalSearch() {
     setRentalSearch({location:'',startDate:'',endDate:''});
-    setSelectedCar(undefined); setRentalQuote(undefined); loadRentalData();
+    setSelectedCar(undefined); setRentalQuote(undefined); loadRentalCars();
   }
 
   async function checkRentalFare() {
-    if(!selectedCar || !rentalForm.pickup || !rentalForm.startDate || !rentalForm.endDate){setNotice('Select a car, pickup location and valid rental dates.');return;}
-    if(new Date(rentalForm.endDate).getTime() <= new Date(rentalForm.startDate).getTime()){setNotice('End date & time must be after the start date & time.');return;}
+    const startDate = rentalSearch.startDate;
+    const endDate = rentalSearch.endDate;
+    if(!selectedCar || !rentalForm.pickup || !startDate || !endDate){setNotice('Choose From and To date & time in the rental search, then enter your pickup location.');return;}
+    if(new Date(endDate).getTime() <= new Date(startDate).getTime()){setNotice('End date & time must be after the start date & time.');return;}
     setBusy(true); setNotice(''); setRentalQuote(undefined);
     try {
       const q=await api<RentalQuote>('/api/v1/car-rental/bookings/quote',{method:'POST',body:JSON.stringify({
         carId:selectedCar.id,pickupLocation:rentalForm.pickup.trim(),dropLocation:(rentalForm.drop || rentalForm.pickup).trim(),
-        startDate:rentalForm.startDate,endDate:rentalForm.endDate
+        startDate,endDate
       })});
       setRentalQuote(q);
     } catch(e:any){setNotice(e.message || 'Unable to calculate rental fare.');}
@@ -547,7 +635,7 @@ export default function Portal() {
         dropLocation:rentalQuote.drop,startDate:rentalQuote.startDate,endDate:rentalQuote.endDate,paymentMethod:'WALLET'
       })});
       setBookings(b=>[result,...b]);
-      await refreshWallet(); await loadRentalData();
+      await Promise.all([refreshWallet(), loadBookings()]);
       setNotice('Booking confirmed. Payment is from your wallet.');
       setSelectedCar(undefined); setRentalQuote(undefined);
       setView('bookings');
@@ -560,7 +648,7 @@ export default function Portal() {
     setBusy(true);
     try {
       await api('/api/v1/car-rental/bookings/'+encodeURIComponent(bookingId)+'/cancel',{method:'POST'});
-      await refreshWallet(); await loadRentalData();
+      await Promise.all([refreshWallet(), loadBookings()]);
       setNotice('Booking cancelled and the wallet amount was refunded.');
     } catch(e:any){setNotice(e.message || 'Unable to cancel booking.');}
     finally{setBusy(false);}
@@ -569,10 +657,23 @@ export default function Portal() {
   async function saveVendor() {
     setBusy(true);
     try {
-      const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method:'POST',body:JSON.stringify(vendorForm)});
-      setVendor(v); setShowVendorForm(false); setNotice('Vendor application submitted for admin verification.');
-    } catch(e:any){setNotice(e.message || 'Unable to submit vendor application.');}
+      const method = vendor?.vendorId ? 'PUT' : 'POST';
+      const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method,body:JSON.stringify(vendorForm)});
+      setVendor(v); setShowVendorForm(false);
+      setNotice(vendor?.vendorId ? 'Vendor profile updated.' : 'Vendor application submitted for admin verification.');
+      await loadAccountData();
+    } catch(e:any){setNotice(e.message || 'Unable to save vendor profile.');}
     finally{setBusy(false);}
+  }
+
+  function resetVendorForm(v: RentalVendor) {
+    setVendorForm({
+      vendorType: v.vendorType || 'INDIVIDUAL', fullName: v.fullName || '', businessName: v.businessName || '', address: v.address || '',
+      city: v.city || '', state: v.state || '', pinCode: v.pinCode || '', panNumber: v.panNumber || '',
+      payoutUpiId: v.payoutUpiId || '', bankAccountNumber: v.bankAccountNumber || '', bankIfsc: v.bankIfsc || '',
+      bankName: v.bankName || '', payoutPrimaryMethod: v.payoutPrimaryMethod || ''
+    });
+    setShowVendorForm(true);
   }
 
   function resetVehicleForm(car?:RentalCar) {
@@ -628,6 +729,18 @@ export default function Portal() {
     finally{setBusy(false);}
   }
 
+  async function uploadDriverPhoto(driverId:string,file:File) {
+    setBusy(true);
+    try {
+      const fd=new FormData(); fd.append('photo',file);
+      const saved=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(driverId)+'/photo','PUT',fd);
+      setVendorVehicles(v=>v.map(x=>x.id===saved.id?saved:x));
+      setSelectedVendorVehicle(saved);
+      setNotice('Driver photo uploaded.');
+    } catch(e:any){setNotice(e.message || 'Unable to upload driver photo.');}
+    finally{setBusy(false);}
+  }
+
   async function loadVehicleUnavailability(carId:string) {
     try {
       const list=await api<any>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(carId)+'/unavailability');
@@ -667,15 +780,49 @@ export default function Portal() {
     finally{setBusy(false);}
   }
 
+  useEffect(() => () => { if(profileImage.startsWith('blob:')) URL.revokeObjectURL(profileImage); }, [profileImage]);
+
   useEffect(()=>{
     if(!localStorage.getItem('mpay_token')){window.location.href='/login';return;}
-    Promise.all([api<Me>('/api/v1/me'),api<Wallet>('/api/v1/wallet')])
-      .then(([a,b])=>{setMe(a);setWallet(b);setProfileForm({name:a?.name || '',email:a?.email || ''});})
-      .catch(()=>{localStorage.removeItem('mpay_token');window.location.href='/login';});
-    loadHistory(); loadWithdrawals(); loadCommissionSummary(); loadRentalData(); loadAccountData();
+    void Promise.allSettled([
+      api<Me>('/api/v1/me'),
+      api<Wallet>('/api/v1/wallet'),
+      api<any>('/api/v1/recharge/commission-summary')
+    ]).then(([meResult,walletResult,commissionResult])=>{
+      if(meResult.status !== 'fulfilled' || walletResult.status !== 'fulfilled'){
+        localStorage.removeItem('mpay_token');
+        localStorage.removeItem('mpay_refresh_token');
+        window.location.href='/login';
+        return;
+      }
+      const a=meResult.value;
+      setMe(a);
+      setWallet(walletResult.value);
+      setProfileForm({name:a?.name || '',email:a?.email || ''});
+      if(commissionResult.status === 'fulfilled') setCommissionSummary(commissionResult.value);
+    });
+    void loadProfileImage();
   },[]);
 
-  useEffect(()=>{ if(view==='history'||view==='wallet') { loadHistory(); loadWithdrawals(); loadCommissionSummary(); } },[view,historyKind,historyFrom,historyTo]);
+  useEffect(()=>{
+    if(view==='history'){
+      void loadHistory();
+    } else if(view==='wallet'){
+      void Promise.all([loadHistory(),loadWithdrawals(),loadCommissionSummary()]);
+    } else if(view==='rental'){
+      void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
+    } else if(view==='bookings'){
+      void loadBookings();
+    } else if(view==='account'){
+      void loadAccountData();
+    }
+  },[view]);
+
+  useEffect(()=>{
+    if((view==='history'||view==='wallet')){
+      void loadHistory();
+    }
+  },[historyKind,historyFrom,historyTo]);
 
   useEffect(()=>{
     if(selectedVendorVehicle){
@@ -720,16 +867,18 @@ export default function Portal() {
   const walletFilters=[
     {key:'',label:'All'}, {key:'ADD_MONEY',label:'Add money'}, {key:'WITHDRAWN',label:'Withdrawals'}, {key:'RECHARGE',label:'Recharges'}, {key:'RENTAL',label:'Rental'}
   ];
+  const vendorStatus = String(vendor?.status || '').toUpperCase();
+  const vendorVerified = vendorStatus === 'VERIFIED';
 
   return <div className="portal-shell">
-    <aside className={'portal-sidebar ' + (drawer ? 'open' : '')}>
-      <div className="portal-side-head"><a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div>
+    <aside className={'portal-sidebar ' + (drawer ? 'open ' : '') + (sidebarCollapsed ? 'collapsed' : '')}>
+      <div className="portal-side-head"><a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a><div className="portal-side-controls"><button className="icon-btn sidebar-collapse-btn" title={sidebarCollapsed?'Expand navigation':'Collapse navigation'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</button><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div></div>
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
       <nav>{menu.map(([key,label,Icon])=>
         <button key={key} className={view===key?'portal-nav active':'portal-nav'} onClick={()=>{setView(key);setDrawer(false);}}>
-          <Icon size={18}/>{label}
+          <Icon size={18}/><span className="portal-nav-label">{label}</span>
         </button>)}</nav>
-      <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/>Logout</button>
+      <button className="portal-nav portal-logout" onClick={logout}><LogOut size={18}/><span className="portal-nav-label">Logout</span></button>
     </aside>
 
     <main className="portal-main">
@@ -750,14 +899,14 @@ export default function Portal() {
         <div className="portal-quick-actions">
           <button onClick={()=>setView('recharge')}><Smartphone/><span>Mobile Recharge</span></button>
           <button onClick={()=>setView('wallet')}><WalletCards/><span>Add Money</span></button>
-          <button onClick={()=>{setView('bookings');loadRentalData();}}><Clock3/><span>My Bookings</span></button>
+          <button onClick={()=>setView('bookings')}><Clock3/><span>My Bookings</span></button>
         </div>
         <div className="home-earnings-strip">
           <div><span>Today's earnings</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div>
           <div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>Recharge volume {money(commissionSummary?.monthly?.successfulRechargeAmount)}</small></div>
           <button onClick={()=>setView('wallet')}><CircleDollarSign size={18}/><span>Wallet earnings</span><ArrowRight size={15}/></button>
         </div>
-        <section className="home-marketplace"><div className="home-section-label">Marketplace</div><button className="home-marketplace-card" onClick={()=>{setView('rental');loadRentalData();}}>
+        <section className="home-marketplace"><div className="home-section-label">Marketplace</div><button className="home-marketplace-card" onClick={()=>setView('rental')}>
           <div className="home-marketplace-icon"><Car size={27}/></div><div className="home-marketplace-copy"><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose a chauffeur-driven car, set your trip time and book directly from Home.</p></div><ArrowRight size={19}/>
         </button></section>
         <button className="home-recharge-history" onClick={()=>{setView('history');loadHistory();}}>
@@ -784,24 +933,25 @@ export default function Portal() {
       {view==='wallet' && <section className="portal-content">
         <div className="wallet-grid"><div className="wallet-big"><span>Total balance</span><strong>{money(wallet?.balance)}</strong></div><div><span>Available</span><b>{money(wallet?.availableBalance)}</b></div><div><span>Reserved</span><b>{money(wallet?.reservedBalance)}</b></div></div>
 
-        <div className="portal-panel"><div className="panel-head"><div><h2>Add Money</h2><p>Use the same test-mode providers available in Android: Mock, Razorpay and PayU.</p></div><CircleDollarSign size={22}/></div>
+        <div className="wallet-actions-grid">
+        <div className="portal-panel wallet-action-card"><div className="panel-head"><div><h2>Add Money</h2><p>Top up with Mock, Razorpay or PayU.</p></div><CircleDollarSign size={22}/></div>
           <div className="funding-picker"><span>Provider</span><button className={addMoneyProvider==='mock'?'selected':''} onClick={()=>setAddMoneyProvider('mock')}>Mock</button><button className={addMoneyProvider==='razorpay'?'selected':''} onClick={()=>setAddMoneyProvider('razorpay')}>Razorpay</button><button className={addMoneyProvider==='payu'?'selected':''} onClick={()=>setAddMoneyProvider('payu')}>PayU</button></div>
           <div className="money-action-row"><input inputMode="decimal" value={addMoneyAmount} onChange={e=>setAddMoneyAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Amount (₹1 to ₹1,00,000)"/><button className="landing-primary" disabled={busy} onClick={addMoney}>{busy?'Processing…':'Add Money'} <ArrowRight size={16}/></button></div>
         </div>
 
-        <div className="portal-panel"><div className="panel-head"><div><h2>Withdraw to UPI</h2><p>UPI ID is mandatory for every withdrawal and is retained in withdrawal history.</p></div><Banknote size={22}/></div>
+        <div className="portal-panel wallet-action-card"><div className="panel-head"><div><h2>Withdraw to UPI</h2><p>UPI ID is mandatory and remains in withdrawal history.</p></div><Banknote size={22}/></div>
           <div className="money-action-grid"><label>Amount<input inputMode="decimal" value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Amount"/></label><label>UPI ID<input value={withdrawUpi} onChange={e=>setWithdrawUpi(e.target.value)} placeholder="name@upi"/></label></div>
           <div className="funding-picker"><span>Provider</span><button className={withdrawProvider==='mock'?'selected':''} onClick={()=>setWithdrawProvider('mock')}>Mock</button><button className={withdrawProvider==='razorpay'?'selected':''} onClick={()=>setWithdrawProvider('razorpay')}>Razorpay</button><button className={withdrawProvider==='payu'?'selected':''} onClick={()=>setWithdrawProvider('payu')}>PayU</button></div>
           <button className="landing-primary" disabled={busy} onClick={withdrawMoney}>{busy?'Processing…':'Withdraw money'} <ArrowRight size={16}/></button>
-          {withdrawals.length>0 && <div className="history-list compact-list">{withdrawals.map(w=><div className="history-row" key={w.withdrawalId}><div><ReceiptText size={18}/><b>{money(w.amount)} → {w.upiId}</b><small>{w.withdrawalId} · {w.provider} · {dt(w.createdAt)}</small></div><div className="history-actions"><span className={statusClass(w.status)}>{String(w.status).toUpperCase()}</span>{w.providerReference && <button className="copy-btn" onClick={()=>copyText(w.providerReference || '')}><Copy size={14}/><span>Copy</span></button>}</div></div>)}</div>}
-        </div>
+          {withdrawals.length>0 && <div className="history-list compact-list">{withdrawals.map(w=><div className="history-row" key={w.withdrawalId}><div><ReceiptText size={18}/><b className="amount-debit">-{money(w.amount)} → {w.upiId}</b><small>{w.withdrawalId} · {w.provider} · {dt(w.createdAt)}</small></div><div className="history-actions"><span className={statusClass(w.status)}>{String(w.status).toUpperCase()}</span>{w.providerReference && <button className="copy-btn" onClick={()=>copyText(w.providerReference || '')}><Copy size={14}/><span>Copy</span></button>}</div></div>)}</div>}
+        </div></div>
 
         <div className="portal-panel"><div className="panel-head"><div><h2>Earnings & recharge summary</h2><p>Android wallet earnings summary for daily and monthly periods.</p></div><CircleDollarSign size={22}/></div>
           <div className="wallet-grid compact-wallet"><div className="wallet-big"><span>Commission %</span><strong>{commissionSummary?.commissionPercent != null ? Number(commissionSummary.commissionPercent).toFixed(2)+'%' : '—'}</strong></div><div><span>Today</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div><div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>{commissionSummary?.monthly?.successfulRechargeCount || 0} successful recharges</small></div></div>
         </div>
 
         <div className="portal-panel"><div className="panel-head"><div><h2>Wallet ledger</h2><p>Balance movements, recharge debits, rental debits/refunds and gateway funding.</p></div><button className="landing-secondary" onClick={()=>{loadHistory();refreshWallet();}}><RefreshCw size={15}/> Refresh</button></div>
-          <div className="history-date-filters"><label>From<input type="date" value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom('');setHistoryTo('');setHistoryKind('');}}>Clear</button></div>
+          <div className="history-date-filters"><label>From<input type="date" max={localDate()} value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" max={localDate()} value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom(localDate());setHistoryTo(localDate());setHistoryKind('');}}>Clear</button></div>
           <div className="funding-picker history-filter-picker"><span>Kind</span>{walletFilters.map(f=><button key={f.key} className={historyKind===f.key?'selected':''} onClick={()=>setHistoryKind(f.key)}>{f.label}</button>)}</div>
           {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i)=><div className="history-row" key={String(x.id || i)}>
             <div><ReceiptText size={18}/><b>{x.description || x.referenceType || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
@@ -813,31 +963,31 @@ export default function Portal() {
 
       {view==='history' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>Recharge history</h2><p>Track submitted, pending, successful and failed recharges.</p></div><button className="landing-secondary" onClick={loadHistory}><RefreshCw size={15}/> Refresh</button></div>
-          <div className="history-date-filters"><label>From<input type="date" value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom('');setHistoryTo('');setHistoryKind('');}}>Clear filters</button></div>
+          <div className="history-date-filters"><label>From<input type="date" max={localDate()} value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" max={localDate()} min={historyFrom || undefined} value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom(localDate());setHistoryTo(localDate());setHistoryKind('');}}>Clear filters</button></div>
           {recharges.length ? <div className="history-list">{recharges.map((x,i)=><div className="history-row" key={String(x.transactionId || i)}>
             <div><ReceiptText size={18}/><b>{x.mobileNumber || 'Recharge'} · {x.operator || '—'}</b><small>{x.planDescription || 'Plan'} · {x.transactionId || 'No reference'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
-            <strong>{money(x.amount)}</strong>
+            <strong className="amount-debit">{money(x.amount)}</strong>
             <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span>{x.transactionId && <button className="copy-btn" onClick={()=>copyText(x.transactionId || '','Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
           </div>)}</div> : <div className="empty-state"><History size={22}/><b>No recharge history yet</b><span>Your completed and pending recharges will appear here.</span></div>}
         </div>
       </section>}
 
       {view==='marketplace' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>Marketplace</h2><p>Explore mPay service categories.</p></div><Car size={28}/></div>
-        <button className="rental-car selected" onClick={()=>{setView('rental');loadRentalData();}}><div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong></button>
+        <button className="rental-car selected" onClick={()=>setView('rental')}><div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong></button>
       </div></section>}
 
       {view==='rental' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Filter by city/pickup area and date & time, inspect the vehicle, review the fare and book from your wallet.</p></div><CarFront size={28}/></div>
-          <div className="rental-search-card"><div><b>Find available cars</b><span>Availability is enforced by the backend using the selected rental window.</span></div>
+          <div className="rental-search-card"><div className="rental-search-heading"><div><b>1. Set your trip window</b><span>These dates control availability and are reused for the fare quote and booking.</span></div>{(rentalSearch.startDate || rentalSearch.endDate || rentalSearch.location) && <span className="search-state-chip">Filter ready</span>}</div>
             <div className="rental-search-grid"><label>City or pickup area<input value={rentalSearch.location} placeholder="e.g. Patna, Airport Road" onChange={e=>setRentalSearch({...rentalSearch,location:e.target.value})}/></label>
               <label>From<input type="datetime-local" value={rentalSearch.startDate} min={isoNow()} onChange={e=>setRentalSearch({...rentalSearch,startDate:e.target.value})}/></label>
               <label>To<input type="datetime-local" value={rentalSearch.endDate} min={rentalSearch.startDate || isoNow()} onChange={e=>setRentalSearch({...rentalSearch,endDate:e.target.value})}/></label>
             </div>
             <div className="rental-search-actions"><button className="landing-secondary" onClick={clearRentalSearch}>Clear</button><button className="landing-primary" onClick={searchRentalCars}>Find cars <ArrowRight size={16}/></button></div>
+            {selectedCar && <div className="rental-trip-details"><div className="rental-trip-context"><span>2. Complete booking details</span><b>{selectedCar.name}</b><small>{rentalSearch.startDate && rentalSearch.endDate ? dt(rentalSearch.startDate)+' → '+dt(rentalSearch.endDate) : 'Choose From and To above before checking fare.'}</small></div><label>Pickup location<input placeholder="Pickup location" value={rentalForm.pickup} onChange={e=>setRentalForm({...rentalForm,pickup:e.target.value})}/></label><label>Drop location <em>(optional)</em><input placeholder="Drop location" value={rentalForm.drop} onChange={e=>setRentalForm({...rentalForm,drop:e.target.value})}/></label></div>}
           </div>
-          <div className="rental-form"><input placeholder="Pickup location for booking" value={rentalForm.pickup} onChange={e=>setRentalForm({...rentalForm,pickup:e.target.value})}/><input placeholder="Drop location (optional)" value={rentalForm.drop} onChange={e=>setRentalForm({...rentalForm,drop:e.target.value})}/><label>Start date & time<input type="datetime-local" value={rentalForm.startDate} min={isoNow()} onChange={e=>setRentalForm({...rentalForm,startDate:e.target.value})}/></label><label>End date & time<input type="datetime-local" value={rentalForm.endDate} min={rentalForm.startDate} onChange={e=>setRentalForm({...rentalForm,endDate:e.target.value})}/></label></div>
           {cars.length ? <div className="rental-car-grid">{cars.map(car=><div className={'rental-car '+(selectedCar?.id===car.id?'selected':'')} key={car.id}>
-            <button className="rental-car-main" onClick={()=>{setSelectedCar(car);setRentalQuote(undefined);setRentalForm(x=>({...x,startDate:rentalSearch.startDate||x.startDate,endDate:rentalSearch.endDate||x.endDate}));}}><div className="rental-car-icon">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={26}/>}</div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong></button><button className="copy-btn" onClick={()=>setRentalDetails(car)}><Eye size={14}/><span>Details</span></button>
+            <button className="rental-car-main" onClick={()=>{setSelectedCar(car);setRentalQuote(undefined);}}><div className="rental-car-icon">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={26}/>}</div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong></button><button className="copy-btn" onClick={()=>setRentalDetails(car)}><Eye size={14}/><span>Details</span></button>
           </div>)}</div> : <div className="rental-empty-state"><div className="rental-empty-icon"><Car size={28}/></div><b>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'No cars match this search':'No cars available right now'}</b><span>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'Try a different city, pickup area or rental window.':'There are no approved chauffeur-driven cars available for your account at the moment.'}</span><button className="landing-secondary" onClick={refreshRentalData}><RefreshCw size={15}/> Check again</button></div>}
           {selectedCar && <div className="rental-summary"><div><span>Selected</span><b>{selectedCar.name}</b></div><div><span>Billing</span><b>{rentalQuote ? rentalQuote.days+' day'+(rentalQuote.days>1?'s':''):'Check fare'}</b></div><div><span>Total</span><strong>{rentalQuote ? money(rentalQuote.total):'—'}</strong></div>
             {!rentalQuote?<button className="landing-primary" disabled={busy} onClick={checkRentalFare}>{busy?'Calculating…':'Check fare'} <ArrowRight size={16}/></button>:<button className="landing-primary" disabled={busy || Number(wallet?.availableBalance || 0)<Number(rentalQuote.total || 0)} onClick={bookCar}>{busy?'Confirming…':'Confirm booking'} <ArrowRight size={16}/></button>}
@@ -846,9 +996,9 @@ export default function Portal() {
         </div>
       </section>}
 
-      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={refreshRentalData}><RefreshCw size={15}/> Refresh</button></div>
+      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={refreshBookings}><RefreshCw size={15}/> Refresh</button></div>
         <div className="funding-picker">{bookingStatuses.map(s=><button key={s} className={bookingStatusFilter===s?'selected':''} onClick={()=>setBookingStatusFilter(s)}>{s==='ALL'?'All':s.replace(/_/g,' ')}</button>)}</div>
-        {filteredBookings.length ? <div className="history-list">{filteredBookings.map(b=><div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {dt(b.startDate)} to {dt(b.endDate)} · Driver {b.driverName || '—'}</small></div><strong>{money(b.total)}</strong><div className="history-actions"><span className={statusClass(b.status)}>{String(b.status).toUpperCase()}</span><span>{b.paymentMethod || 'WALLET'}</span><button className="copy-btn" onClick={()=>copyText(bookingShareText(b),'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>{String(b.status).toUpperCase()==='CONFIRMED' && new Date(b.startDate).getTime()>Date.now() && <button className="text-danger-btn" disabled={busy} onClick={()=>cancelBooking(b.bookingId)}>Cancel</button>}</div></div>)}</div> : <div className="empty-state">No bookings match the selected status.</div>}
+        {filteredBookings.length ? <div className="history-list">{filteredBookings.map(b=><div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {dt(b.startDate)} to {dt(b.endDate)} · Driver {b.driverName || '—'}</small></div><strong className={['CANCELLED','REFUNDED'].includes(String(b.status || '').toUpperCase()) ? 'amount-credit' : 'amount-debit'}>{money(b.total)}</strong><div className="history-actions"><span className={statusClass(b.status)}>{String(b.status).toUpperCase()}</span><span>{b.paymentMethod || 'WALLET'}</span><button className="copy-btn" onClick={()=>copyText(bookingShareText(b),'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>{String(b.status).toUpperCase()==='CONFIRMED' && new Date(b.startDate).getTime()>Date.now() && <button className="text-danger-btn" disabled={busy} onClick={()=>cancelBooking(b.bookingId)}>Cancel</button>}</div></div>)}</div> : <div className="empty-state">No bookings match the selected status.</div>}
       </div></section>}
 
       {view==='account' && <section className="portal-content">
@@ -867,19 +1017,53 @@ export default function Portal() {
           {editingProfile && <div className="profile-edit-form"><input value={profileForm.name} placeholder="Full name" onChange={e=>setProfileForm({...profileForm,name:e.target.value})}/><input value={profileForm.email} placeholder="Email" onChange={e=>setProfileForm({...profileForm,email:e.target.value})}/><button className="landing-primary" disabled={busy} onClick={saveProfile}><Save size={15}/> Save profile</button></div>}
         </div>
 
-        <div className="portal-panel"><div className="panel-head"><div><h2>Rental Vendor</h2><p>Onboarding, submitted status, fleet management, photos, availability, calendar and payout history.</p></div><CarFront size={24}/></div>
-          {vendor && !vendor.vendorId && <div className="vendor-cta"><div><b>Become a rental partner</b><span>Submit your profile for admin review.</span></div><button className="landing-primary" onClick={()=>setShowVendorForm(true)}><Plus size={16}/> Become a Vendor</button></div>}
-          {vendor?.vendorId && <><div className="vendor-summary-grid"><div><span>Status</span><b className={statusClass(vendor.status)}>{String(vendor.status).toUpperCase()}</b></div><div><span>Vehicles</span><b>{vendor.vehicleCount ?? vendorVehicles.length}</b></div><div><span>City</span><b>{vendor.city || '—'}</b></div><div><span>Vendor type</span><b>{vendor.vendorType || '—'}</b></div>{vendor.rejectionReason && <div className="vendor-rejection"><span>Review note</span><b>{vendor.rejectionReason}</b></div>}</div>
-            <div className="vendor-actions">{(String(vendor.status||'').toUpperCase()==='REJECTED'||String(vendor.status||'').toUpperCase()==='PENDING') && <button className="landing-secondary" onClick={()=>{setVendorForm({
-              vendorType:vendor.vendorType||'INDIVIDUAL',fullName:vendor.fullName||'',businessName:vendor.businessName||'',address:vendor.address||'',
-              city:vendor.city||'',state:vendor.state||'',pinCode:vendor.pinCode||'',panNumber:vendor.panNumber||'',payoutUpiId:vendor.payoutUpiId||'',
-              bankAccountNumber:vendor.bankAccountNumber||'',bankIfsc:vendor.bankIfsc||''});setShowVendorForm(true);}}><Edit3 size={15}/> {String(vendor.status).toUpperCase()==='REJECTED'?'Resubmit':'Edit application'}</button>}
-              <button className="landing-secondary" onClick={loadAccountData}><RefreshCw size={15}/> Refresh vendor</button>
+        <div className="portal-panel vendor-hub">
+          <div className="vendor-hub-hero">
+            <div className="vendor-hub-icon"><CarFront size={25}/></div>
+            <div className="vendor-hub-title"><span>mPAY MOBILITY PARTNER</span><h2>Vendor Studio</h2><p>Your chauffeur-driven fleet, availability, payouts and marketplace identity in one workspace.</p></div>
+            {vendor?.vendorId ? <span className={statusClass(vendor.status) + ' vendor-hub-status'}>{vendorStatus}</span> : <span className="vendor-hub-status vendor-status-neutral">NOT ONBOARDED</span>}
+          </div>
+
+          {vendor && !vendor.vendorId && <div className="vendor-cta"><div><b>Become a rental partner</b><span>Submit your profile for admin review. Your vendor workspace unlocks after verification.</span></div><button className="landing-primary" onClick={()=>{resetVendorForm(vendor);setShowVendorForm(true);}}><Plus size={16}/> Become a Vendor</button></div>}
+
+          {vendor?.vendorId && <>
+            <div className="vendor-summary-grid">
+              <div><span>Partner status</span><b className={statusClass(vendor.status)}>{vendorStatus}</b></div>
+              <div><span>Fleet</span><b>{vendor.vehicleCount ?? vendorVehicles.length}</b></div>
+              <div><span>Base location</span><b>{vendor.city || '—'}</b></div>
+              <div><span>Primary payout</span><b>{vendor.payoutPrimaryMethod || '—'}</b></div>
+              {vendor.rejectionReason && <div className="vendor-rejection"><span>Admin review note</span><b>{vendor.rejectionReason}</b></div>}
+            </div>
+            {vendorVerified && vendorEarnings && <div className="vendor-earnings-grid">
+              <div><span>Today · net</span><b className="amount-credit">{money(vendorEarnings.today.vendorNetAmount)}</b><small>{vendorEarnings.today.completedBookingCount} completed</small></div>
+              <div><span>Today · bookings</span><b>{vendorEarnings.today.bookingCount}</b><small>confirmed / completed</small></div>
+              <div><span>This month · net</span><b className="amount-credit">{money(vendorEarnings.monthly.vendorNetAmount)}</b><small>{vendorEarnings.monthly.completedBookingCount} completed</small></div>
+              <div><span>Upcoming bookings</span><b>{vendorEarnings.upcomingBookingCount}</b><small>currently confirmed</small></div>
+            </div>}
+            <div className="vendor-actions">
+              <button className="landing-secondary" onClick={()=>resetVendorForm(vendor)}><Edit3 size={15}/> {vendorStatus==='REJECTED'?'Resubmit profile':'Edit profile'}</button>
+              <button className="landing-secondary" onClick={loadAccountData}><RefreshCw size={15}/> Refresh workspace</button>
             </div>
           </>}
-          {showVendorForm && <div className="vendor-form"><div className="vendor-section-head"><b>Vendor application</b><button className="icon-btn" onClick={()=>setShowVendorForm(false)}><X size={16}/></button></div>
-            <div className="vendor-form-grid">{Object.keys(vendorForm).map(k=><label key={k}>{k.replace(/([A-Z])/g,' $1').replace(/^./,m=>m.toUpperCase())}<input value={(vendorForm as any)[k]} onChange={e=>setVendorForm({...vendorForm,[k]:e.target.value})}/></label>)}</div>
-            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVendorForm(false)}>Cancel</button><button className="landing-primary" disabled={busy} onClick={saveVendor}>Submit for review</button></div>
+
+          {showVendorForm && <div className="vendor-form">
+            <div className="vendor-section-head"><div><b>{vendor?.vendorId ? 'Edit vendor profile' : 'Vendor application'}</b><span className="vendor-form-subtitle">{vendor?.vendorId ? 'Update identity and payout preferences without leaving the workspace.' : 'Tell us about the business and preferred payout method.'}</span></div><button className="icon-btn" onClick={()=>setShowVendorForm(false)}><X size={16}/></button></div>
+            <div className="vendor-form-grid">
+              <label>Vendor type<select value={vendorForm.vendorType} onChange={e=>setVendorForm({...vendorForm,vendorType:e.target.value})}><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label>
+              <label>Full name<input value={vendorForm.fullName} onChange={e=>setVendorForm({...vendorForm,fullName:e.target.value})}/></label>
+              <label>Business / fleet name<input value={vendorForm.businessName} onChange={e=>setVendorForm({...vendorForm,businessName:e.target.value})}/></label>
+              <label className="vendor-field-wide">Address<input value={vendorForm.address} onChange={e=>setVendorForm({...vendorForm,address:e.target.value})}/></label>
+              <label>City<input value={vendorForm.city} onChange={e=>setVendorForm({...vendorForm,city:e.target.value})}/></label>
+              <label>State<input value={vendorForm.state} onChange={e=>setVendorForm({...vendorForm,state:e.target.value})}/></label>
+              <label>PIN code<input value={vendorForm.pinCode} onChange={e=>setVendorForm({...vendorForm,pinCode:e.target.value})}/></label>
+              <label>PAN<input value={vendorForm.panNumber} onChange={e=>setVendorForm({...vendorForm,panNumber:e.target.value})}/></label>
+              <label>UPI ID<input value={vendorForm.payoutUpiId} onChange={e=>setVendorForm({...vendorForm,payoutUpiId:e.target.value})}/></label>
+              <label>Bank name<input value={vendorForm.bankName} onChange={e=>setVendorForm({...vendorForm,bankName:e.target.value})}/></label>
+              <label>Bank account<input value={vendorForm.bankAccountNumber} onChange={e=>setVendorForm({...vendorForm,bankAccountNumber:e.target.value})}/></label>
+              <label>IFSC<input value={vendorForm.bankIfsc} onChange={e=>setVendorForm({...vendorForm,bankIfsc:e.target.value})}/></label>
+              <label>Primary payout<select value={vendorForm.payoutPrimaryMethod} onChange={e=>setVendorForm({...vendorForm,payoutPrimaryMethod:e.target.value})}><option value="">Auto select</option><option value="UPI">UPI</option><option value="BANK">Bank</option></select></label>
+            </div>
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVendorForm(false)}>Cancel</button><button className="landing-primary" disabled={busy} onClick={saveVendor}>{vendor?.vendorId ? 'Save profile' : 'Submit for review'}</button></div>
           </div>}
 
           {vendor?.vendorId && <div className="vendor-dashboard">
@@ -887,19 +1071,19 @@ export default function Portal() {
             {vendorVehicles.length ? <div className="vendor-vehicle-grid">{vendorVehicles.map(car=><div className="vendor-vehicle-card" key={car.id}>
               <div className="vendor-vehicle-image">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={26}/>}</div>
               <div className="vendor-vehicle-main"><b>{car.name}</b><span>{car.make || ''} {car.model || ''} · {car.category} · {car.seats} seats</span><small>{money(car.pricePerDay)} / day · Driver {car.driverName || '—'}</small><div className="vendor-card-status"><span className={statusClass(car.approvalStatus)}>{String(car.approvalStatus || 'PENDING').toUpperCase()}</span></div></div>
-              <div className="vendor-card-actions"><button className="icon-btn" title="Details" onClick={()=>setSelectedVendorVehicle(car)}><Eye size={16}/></button><button className="icon-btn" title="Edit/resubmit" onClick={()=>resetVehicleForm(car)}><Edit3 size={16}/></button></div>
+              <div className="vendor-card-actions"><button className="icon-btn" title="Details" onClick={()=>setSelectedVendorVehicle(car)}><Eye size={16}/></button>{String(car.approvalStatus || '').toUpperCase()==='REJECTED' && <button className="icon-btn" title="Edit/resubmit" onClick={()=>resetVehicleForm(car)}><Edit3 size={16}/></button>}</div>
             </div>)}</div> : <div className="empty-state">No vehicles submitted yet.</div>}
 
             {selectedVendorVehicle && <div className="vehicle-detail-panel">
               <div className="panel-head"><div><h3>{selectedVendorVehicle.name}</h3><p>{selectedVendorVehicle.make || '—'} {selectedVendorVehicle.model || ''} · Driver {selectedVendorVehicle.driverName || '—'}</p></div><button className="icon-btn" onClick={()=>setSelectedVendorVehicle(undefined)}><X size={17}/></button></div>
-              <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}<label className="upload-photo-btn"><Camera size={14}/> Upload<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0] && uploadVehicleSlot(selectedVendorVehicle.id,slot,e.target.files[0])}/></label></div>;})}</div>
+              <div className="driver-profile-card"><div className="driver-profile-photo">{selectedVendorVehicle.driverPhotoUrl ? <img src={(selectedVendorVehicle.driverPhotoUrl.startsWith('http') ? selectedVendorVehicle.driverPhotoUrl : base + selectedVendorVehicle.driverPhotoUrl)} alt="Driver"/> : <UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName || 'Driver'}</b><span>{selectedVendorVehicle.driverMobile || 'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber || 'Licence not provided'}</small></div><label className="landing-secondary upload-label"><Camera size={14}/> Driver photo<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0] && selectedVendorVehicle.driverId && uploadDriverPhoto(selectedVendorVehicle.driverId,e.target.files[0])}/></label></div><div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}<label className="upload-photo-btn"><Camera size={14}/> Upload<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0] && uploadVehicleSlot(selectedVendorVehicle.id,slot,e.target.files[0])}/></label></div>;})}</div>
               <div className="detail-grid-web"><span>Approval <b>{selectedVendorVehicle.approvalStatus || '—'}</b></span><span>Registration <b>{selectedVendorVehicle.registrationNumber || '—'}</b></span><span>Fuel <b>{selectedVendorVehicle.fuelType || '—'}</b></span><span>Price/day <b>{money(selectedVendorVehicle.pricePerDay)}</b></span><span>Pickup <b>{selectedVendorVehicle.pickupAddress || '—'}</b></span><span>City/State <b>{selectedVendorVehicle.city || '—'} / {selectedVendorVehicle.state || '—'}</b></span><span>Driver licence <b>{selectedVendorVehicle.driverLicenseNumber || '—'}</b></span><span>Licence expiry <b>{date(selectedVendorVehicle.driverLicenseExpiry)}</b></span></div>
               {selectedVendorVehicle.rejectionReason && <div className="vendor-rejection">{selectedVendorVehicle.rejectionReason}</div>}
-              <div className="unavailability-box"><div className="vendor-section-head"><b>Availability controls</b><CalendarDays size={18}/></div>
-                <div className="availability-form"><select value={unavailabilityForm.reasonCode} onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonCode:e.target.value})}><option value="SERVICE_MAINTENANCE">Service / maintenance</option><option value="PRIVATE_USE">Private use</option><option value="DRIVER_UNAVAILABLE">Driver unavailable</option><option value="LEGAL_DOCUMENTATION">Documentation / compliance</option><option value="PERSONAL_REASON">Personal reason</option><option value="OTHER">Other</option></select><input value={unavailabilityForm.reasonNote} placeholder="Reason note" onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonNote:e.target.value})}/><input type="date" value={unavailabilityForm.startDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,startDate:e.target.value})}/><input type="date" value={unavailabilityForm.endDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,endDate:e.target.value})}/><button className="landing-secondary" onClick={()=>takeVehicleOffMarket(selectedVendorVehicle.id)}>Take off market</button></div>
+              <div className="unavailability-box"><div className="vendor-section-head"><div><b>Availability controls</b><span className="vendor-form-subtitle">{String(selectedVendorVehicle.approvalStatus || '').toUpperCase()==='APPROVED' ? 'Temporarily remove this approved vehicle from customer search.' : 'Available after the vehicle is approved.'}</span></div><CalendarDays size={18}/></div>
+                <div className="availability-form"><select disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.reasonCode} onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonCode:e.target.value})}><option value="SERVICE_MAINTENANCE">Service / maintenance</option><option value="PRIVATE_USE">Private use</option><option value="DRIVER_UNAVAILABLE">Driver unavailable</option><option value="LEGAL_DOCUMENTATION">Documentation / compliance</option><option value="PERSONAL_REASON">Personal reason</option><option value="OTHER">Other</option></select><input disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.reasonNote} placeholder="Reason note" onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonNote:e.target.value})}/><input type="date" disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.startDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,startDate:e.target.value})}/><input type="date" disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.endDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,endDate:e.target.value})}/><button className="landing-secondary" disabled={busy || String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} onClick={()=>takeVehicleOffMarket(selectedVendorVehicle.id)}>Take off market</button></div>
                 {vehicleUnavailability.length ? <div className="history-list compact-list">{vehicleUnavailability.map(u=><div className="history-row" key={u.id}><div><b>{u.reasonLabel}</b><small>{u.startDate} → {u.endDate}{u.reasonNote?' · '+u.reasonNote:''}</small></div><div className="history-actions"><span className={statusClass(u.status)}>{String(u.status).toUpperCase()}</span>{String(u.status).toUpperCase()==='ACTIVE' && <button className="text-danger-btn" onClick={()=>restoreOffMarket(selectedVendorVehicle.id,u.id)}>Restore</button>}</div></div>)}</div> : <div className="empty-state">No active off-market periods.</div>}
               </div>
-              <div className="calendar-box"><div className="vendor-section-head"><b>Vehicle calendar</b><div className="calendar-nav"><button className="icon-btn" onClick={()=>{const d=new Date(calendarMonth+'-01');d.setMonth(d.getMonth()-1);setCalendarMonth(d.toISOString().slice(0,7));}}><ChevronLeft size={15}/></button><b>{calendarMonth}</b><button className="icon-btn" onClick={()=>{const d=new Date(calendarMonth+'-01');d.setMonth(d.getMonth()+1);setCalendarMonth(d.toISOString().slice(0,7));}}><ChevronRight size={15}/></button></div></div><div className="calendar-grid">{vehicleCalendar.map(d=><div className={'calendar-day calendar-'+String(d.status||'UNKNOWN').toLowerCase()} key={d.date}><b>{new Date(d.date).getDate()}</b><span>{d.reasonLabel || d.status || '—'}</span></div>)}</div></div>
+              <div className="calendar-box"><div className="vendor-section-head"><b>Vehicle calendar</b><div className="calendar-nav"><button className="icon-btn" onClick={()=>{const [y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m-2,1)));}}><ChevronLeft size={15}/></button><b>{calendarMonth}</b><button className="icon-btn" onClick={()=>{const [y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m,1)));}}><ChevronRight size={15}/></button></div></div><div className="calendar-grid">{vehicleCalendar.map(d=><div className={'calendar-day calendar-'+String(d.status||'UNKNOWN').toLowerCase()} key={d.date}><b>{new Date(d.date).getDate()}</b><span>{d.reasonLabel || d.status || '—'}</span></div>)}</div></div>
             </div>}
 
             {showVehicleForm && <div className="vehicle-form"><div className="vendor-section-head"><b>{vehicleEditId?'Resubmit vehicle':'Submit vehicle for review'}</b><button className="icon-btn" onClick={()=>setShowVehicleForm(false)}><X size={16}/></button></div>
@@ -919,7 +1103,7 @@ export default function Portal() {
 
       {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
         <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
-        <div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Registration <b>{rentalDetails.registrationNumber||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Driver <b>{rentalDetails.driverName||'—'} {rentalDetails.driverMobile||''}</b></span><span>Licence expiry <b>{date(rentalDetails.driverLicenseExpiry)}</b></span></div>
+        <div className="driver-profile-card public-driver-card"><div className="driver-profile-photo">{rentalDetails.driverPhotoUrl ? <img src={(rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl)} alt="Chauffeur"/> : <UserRound size={22}/>}</div><div><b>{rentalDetails.driverName||'Chauffeur'}</b><span>Professional driver assigned for this vehicle</span></div></div><div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Daily rate <b>{money(rentalDetails.pricePerDay)}</b></span></div>
       </div></div>}
     </main>
   </div>;

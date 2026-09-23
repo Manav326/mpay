@@ -29,6 +29,9 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
@@ -47,6 +50,10 @@ import coil.compose.AsyncImage
 import com.recharge.client.core.model.*
 import com.recharge.client.core.network.ApiConfig
 import com.recharge.client.core.theme.AppColors
+import com.recharge.client.core.ui.MpayEmptyState
+import com.recharge.client.core.ui.MpayFinancialAmount
+import com.recharge.client.core.ui.MpayStatusPill
+import com.recharge.client.core.ui.statusColor
 import com.recharge.client.core.viewmodel.RentalUiState
 
 
@@ -129,6 +136,41 @@ private fun VendorField(
 }
 
 @Composable
+private fun VendorSelectField(
+    label: String,
+    value: String,
+    options: List<String>,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember(value) { mutableStateOf(false) }
+    val safeOptions = (listOf(value).filter { it.isNotBlank() } + options).distinct()
+    Box(modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                Text(value.ifBlank { "Select" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            safeOptions.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = { onValueChange(option); expanded = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun CompactFieldRow(
     leftLabel: String,
     leftValue: String,
@@ -198,20 +240,23 @@ private fun RentalDateField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    minDate: LocalDate? = null
 ) {
     val context = LocalContext.current
     val display = if (value.isBlank()) "Select date" else formatRentalDate(value)
     OutlinedButton(
         onClick = {
-            val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { LocalDate.now() }
+            val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { minDate ?: LocalDate.now() }
             DatePickerDialog(
                 context,
                 { _, year, month, day -> onValueChange(LocalDate.of(year, month + 1, day).format(rentalDateFormatter)) },
                 initial.year,
                 initial.monthValue - 1,
                 initial.dayOfMonth
-            ).show()
+            ).apply {
+                minDate?.let { datePicker.minDate = it.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+            }.show()
         },
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
@@ -253,8 +298,8 @@ private fun VehicleOffMarketDialog(
                     color = AppColors.TextSecondary
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RentalDateField("From", startDate, onStartDate, Modifier.weight(1f))
-                    RentalDateField("To", endDate, onEndDate, Modifier.weight(1f))
+                    RentalDateField("From", startDate, onStartDate, Modifier.weight(1f), minDate = LocalDate.now())
+                    RentalDateField("To", endDate, onEndDate, Modifier.weight(1f), minDate = LocalDate.now())
                 }
                 Box {
                     OutlinedButton(
@@ -274,11 +319,19 @@ private fun VehicleOffMarketDialog(
                     }
                 }
                 VendorField("Optional note for admin", reasonNote, onValueChange = onNote)
+                val validPeriod = runCatching {
+                    val from = LocalDate.parse(startDate, rentalDateFormatter)
+                    val to = LocalDate.parse(endDate, rentalDateFormatter)
+                    !from.isBefore(LocalDate.now()) && !to.isBefore(from)
+                }.getOrDefault(false)
+                if (startDate.isNotBlank() && endDate.isNotBlank() && !validPeriod) {
+                    Text("Choose a current/future period with the end date on or after the start date.", color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
+                }
                 error?.let { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) }
             }
         },
         confirmButton = {
-            Button(onClick = onSubmit, enabled = !saving && startDate.isNotBlank() && endDate.isNotBlank()) {
+            Button(onClick = onSubmit, enabled = !saving && startDate.isNotBlank() && endDate.isNotBlank() && runCatching { val from = LocalDate.parse(startDate, rentalDateFormatter); val to = LocalDate.parse(endDate, rentalDateFormatter); !from.isBefore(LocalDate.now()) && !to.isBefore(from) }.getOrDefault(false)) {
                 if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Keep off market")
             }
         },
@@ -308,8 +361,8 @@ private fun VehicleCalendarDialog(
                         Text(calendar?.carName ?: "Vehicle calendar", style = MaterialTheme.typography.titleMedium)
                         Text(month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
-                    IconButton(onClick = onPrevious) { Text("‹", style = MaterialTheme.typography.headlineSmall) }
-                    IconButton(onClick = onNext) { Text("›", style = MaterialTheme.typography.headlineSmall) }
+                    IconButton(onClick = onPrevious) { Icon(Icons.Default.ChevronLeft, "Previous month") }
+                    IconButton(onClick = onNext) { Icon(Icons.Default.ChevronRight, "Next month") }
                 }
                 if (calendar == null) {
                     Box(Modifier.fillMaxWidth().height(170.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -380,6 +433,7 @@ fun RentalVendorOnboardingScreen(
     onLoadVehicleCalendar: (String, Int, Int) -> Unit = { _, _, _ -> },
     onUpdateVendorProfile: (RentalVendorUpdateRequest, () -> Unit) -> Unit = { _, done -> done() }
 ) {
+    var vendorType by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.vendorType ?: "INDIVIDUAL") }
     var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
     var businessName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
     var address by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.address.orEmpty()) }
@@ -514,11 +568,20 @@ fun RentalVendorOnboardingScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
-                    Column(Modifier.weight(1f)) {
-                        Text("Vendor dashboard", style = MaterialTheme.typography.headlineSmall)
-                        Text("Manage your fleet, earnings and availability", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.VendorNavy),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 7.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = Color.White) }
+                        Column(Modifier.weight(1f)) {
+                            Text("Vendor Studio", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Fleet, payouts, earnings and availability", color = Color.White.copy(alpha = .76f), style = MaterialTheme.typography.bodySmall)
+                        }
+                        Surface(shape = RoundedCornerShape(50), color = AppColors.VendorGold) {
+                            Text("VERIFIED", color = Color(0xFF3B2500), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
+                        }
                     }
                 }
             }
@@ -537,7 +600,7 @@ fun RentalVendorOnboardingScreen(
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("Vendor profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
+                                    Text("Vendor Studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
                                     Text("Business identity & marketplace status", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -546,6 +609,7 @@ fun RentalVendorOnboardingScreen(
                                     }
                                     TextButton(
                                         onClick = {
+                                            vendorType = v.vendorType ?: "INDIVIDUAL"
                                             fullName = v.fullName.orEmpty()
                                             businessName = v.businessName.orEmpty()
                                             address = v.address.orEmpty()
@@ -624,7 +688,7 @@ fun RentalVendorOnboardingScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Rental earnings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Same earnings view as Home, using your rental payout data.", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
+                    Text("Rental payout overview — separate from your recharge commission earnings.", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                 }
             }
             item { RentalEarningsSummaryCard(state.earnings) }
@@ -888,6 +952,39 @@ fun RentalVendorOnboardingScreen(
 
             if (!isPending) {
                 item {
+                    Card(
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppColors.VendorNavy)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Text("Partner type", color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Choose the identity used for your vendor application.", color = Color.White.copy(alpha = .76f), style = MaterialTheme.typography.labelSmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(
+                                    selected = vendorType.equals("INDIVIDUAL", true),
+                                    onClick = { vendorType = "INDIVIDUAL" },
+                                    label = { Text("Individual") },
+                                    enabled = !isPending,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = AppColors.VendorGold,
+                                        selectedLabelColor = Color(0xFF3B2500)
+                                    )
+                                )
+                                FilterChip(
+                                    selected = vendorType.equals("BUSINESS", true),
+                                    onClick = { vendorType = "BUSINESS" },
+                                    label = { Text("Business") },
+                                    enabled = !isPending,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = AppColors.VendorGold,
+                                        selectedLabelColor = Color(0xFF3B2500)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Your profile", style = MaterialTheme.typography.titleMedium)
@@ -922,7 +1019,7 @@ fun RentalVendorOnboardingScreen(
                     onClick = {
                         onSubmit(
                             RentalVendorOnboardingRequest(
-                                vendorType = "INDIVIDUAL",
+                                vendorType = vendorType,
                                 fullName = fullName.trim(),
                                 businessName = businessName.trim().ifBlank { null },
                                 address = address.trim(),
@@ -930,7 +1027,11 @@ fun RentalVendorOnboardingScreen(
                                 state = stateName.trim(),
                                 pinCode = pin.trim(),
                                 panNumber = pan.trim().ifBlank { null },
-                                payoutUpiId = upi.trim().ifBlank { null }
+                                payoutUpiId = upi.trim().ifBlank { null },
+                                bankAccountNumber = bankAccount.trim().ifBlank { null },
+                                bankIfsc = bankIfsc.trim().ifBlank { null },
+                                bankName = bankName.trim().ifBlank { null },
+                                payoutPrimaryMethod = primaryPayout.trim().ifBlank { null }
                             ), {}
                         )
                     },
@@ -983,6 +1084,98 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+        }
+    }
+}
+
+@Composable
+private fun RentalPublicCarDetailsDialog(
+    car: RentalCarResponse,
+    bookEnabled: Boolean,
+    onDismiss: () -> Unit,
+    onBook: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            Modifier.fillMaxWidth().padding(12.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+        ) {
+            LazyColumn(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    Box {
+                        RentalCarImageTile(rentalPhotoSlots(car.imageUrl)[0], Modifier.fillMaxWidth().aspectRatio(1.65f))
+                        Surface(
+                            Modifier.align(Alignment.TopEnd).padding(8.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.Black.copy(alpha = .60f)
+                        ) {
+                            Text(car.category, color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
+                        }
+                    }
+                }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(car.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary)
+                        }
+                        Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppColors.Success)
+                    }
+                }
+                item {
+                    RentalDetailSection("Vehicle", AppColors.Rental, listOf(
+                        "Seats" to car.seats.toString(),
+                        "Transmission" to car.transmission,
+                        "Fuel" to (car.fuelType ?: "—"),
+                        "Location" to listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }
+                    ))
+                }
+                item {
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .70f))) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RentalCarImageTile(car.driverPhotoUrl, Modifier.size(68.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Chauffeur", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
+                                Text(car.driverName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                car.driverRating?.let {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Star, null, tint = AppColors.PrimaryDark, modifier = Modifier.size(15.dp))
+                                        Text(" " + it.setScale(1).toPlainString(), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    if (!bookEnabled) {
+                        Text(
+                            "Complete a valid future availability window before booking.",
+                            color = AppColors.Error,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    Button(
+                        onClick = onBook,
+                        enabled = bookEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(13.dp)
+                    ) {
+                        Text("Book with driver", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
+                    }
+                }
+                item {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) { Text("Close") }
+                }
+            }
         }
     }
 }
@@ -1055,71 +1248,87 @@ fun CarRentalMarketplaceScreen(
     var start by remember { mutableStateOf("") }
     var end by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
-    val hasValidWindow = runCatching {
-        val s = LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        val e = LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        e.isAfter(s) && !s.isBefore(LocalDateTime.now())
-    }.getOrDefault(false)
-    val canApplyFilter = location.trim().isNotBlank() || hasValidWindow
-    val filterApplied = start.isNotBlank() || end.isNotBlank() || location.isNotBlank()
+    var detailsCar by remember { mutableStateOf<RentalCarResponse?>(null) }
+
+    val parsedStart = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    val parsedEnd = runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    val hasDateInput = start.isNotBlank() || end.isNotBlank()
+    val validWindow = parsedStart != null && parsedEnd != null && parsedEnd.isAfter(parsedStart) && !parsedStart.isBefore(LocalDateTime.now())
+    val dateInputValid = !hasDateInput || validWindow
+    val locationInput = location.trim()
+    val canApplyFilter = locationInput.isNotBlank() || validWindow
+    val filterApplied = locationInput.isNotBlank() || hasDateInput
+
+    detailsCar?.let { car ->
+        RentalPublicCarDetailsDialog(
+            car = car,
+            bookEnabled = !hasDateInput || validWindow,
+            onDismiss = { detailsCar = null },
+            onBook = {
+                detailsCar = null
+                onBook(car, start, end)
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         start = ""
         end = ""
         location = ""
+        detailsCar = null
         onClearFilter()
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
                 Column(Modifier.weight(1f)) {
-                    Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall)
-                    Text(
-                        if (filterApplied) "Filter by place or a From–To availability window."
-                        else "Compact search: city/pickup area or From–To time.",
-                        color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Find chauffeur-driven cars by place and availability.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
         item {
             Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .62f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(9.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     OutlinedTextField(
                         value = location,
                         onValueChange = { location = it },
                         singleLine = true,
-                        label = { Text("City / pickup area", style = MaterialTheme.typography.labelSmall) },
-                        placeholder = { Text("Patna, Airport Road…", style = MaterialTheme.typography.bodySmall) },
+                        label = { Text("City / pickup area") },
+                        placeholder = { Text("Patna, Airport Road…") },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, null) },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        shape = RoundedCornerShape(11.dp)
+                        shape = RoundedCornerShape(13.dp)
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         RentalDateTimeField("From", start, { start = it }, Modifier.weight(1f))
                         RentalDateTimeField("To", end, { end = it }, Modifier.weight(1f))
                     }
+                    if (!dateInputValid) {
+                        Text("Choose both dates and times, with an end later than the start and a future start.", color = AppColors.Error, style = MaterialTheme.typography.labelSmall)
+                    } else if (locationInput.isBlank() && !hasDateInput) {
+                        Text("Use a place, a time window, or both.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
-                            onClick = { onSearch(start, end, location.trim()) },
-                            enabled = canApplyFilter,
+                            onClick = { onSearch(start, end, locationInput) },
+                            enabled = canApplyFilter && dateInputValid && !state.loading,
                             modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 7.dp),
-                            shape = RoundedCornerShape(10.dp)
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            shape = RoundedCornerShape(11.dp)
                         ) {
-                            if (state.loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            else Text("Filter", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            if (state.loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                            else Text("Apply filters", fontWeight = FontWeight.Bold)
                         }
                         if (filterApplied) {
                             OutlinedButton(
@@ -1127,101 +1336,94 @@ fun CarRentalMarketplaceScreen(
                                     start = ""
                                     end = ""
                                     location = ""
+                                    detailsCar = null
                                     onClearFilter()
                                 },
                                 enabled = !state.loading,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) { Text("Clear", style = MaterialTheme.typography.labelLarge) }
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(11.dp)
+                            ) { Text("Clear") }
                         }
                     }
                 }
             }
         }
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+
         if (state.loading && state.cars.isEmpty()) {
-            item { Box(Modifier.fillMaxWidth().padding(26.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+            item { Box(Modifier.fillMaxWidth().padding(26.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
         }
         if (!state.loading && state.cars.isEmpty()) {
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F8FC))) {
-                    Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFE2F2FC)) {
-                            Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF1677B8), modifier = Modifier.padding(12.dp).size(28.dp))
+                MpayEmptyState(
+                    title = if (filterApplied) "No cars match these filters" else "No cars available right now",
+                    message = if (filterApplied) "Try a broader pickup area or availability window." else "Approved chauffeur-driven vehicles will appear here.",
+                    icon = { Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Rental, modifier = Modifier.size(30.dp)) },
+                    actionLabel = if (filterApplied) "Clear filters" else null,
+                    onAction = if (filterApplied) {
+                        {
+                            start = ""; end = ""; location = ""; detailsCar = null; onClearFilter()
                         }
-                        Text(if (filterApplied) "No cars available for this period." else "No cars available right now.", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            if (filterApplied) "Clear the filter to see all marketplace vehicles again." else "Approved vehicles will appear here when available.",
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
+                    } else null
+                )
             }
         }
-        items(state.cars.chunked(2), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                rowCars.forEach { car ->
-                    val images = rentalPhotoSlots(car.imageUrl)
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Box {
-                                RentalCarImageTile(images[0], Modifier.fillMaxWidth().aspectRatio(1.28f))
-                                Surface(
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(7.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color.Black.copy(alpha = .58f)
-                                ) {
-                                    Text(
-                                        car.category,
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.18f))
-                                RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.18f))
-                                RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.18f))
-                            }
-                            Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, color = Color(0xFF172033))
-                            Text(car.seats.toString() + " seats • " + car.transmission, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(car.driverName, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 1)
-                            }
-                            Text((car.fuelType ?: "Fuel") + " • " + (car.city ?: "Location unavailable"), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF0FDF4)) {
-                                Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 8.dp)) {
-                                    Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
-                                    Text("Chauffeur included", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                            Button(
-                                onClick = { onBook(car, start, end) },
-                                enabled = !filterApplied || canApplyFilter,
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(vertical = 7.dp),
-                                shape = RoundedCornerShape(11.dp)
-                            ) {
-                                Text("Book", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                            }
+
+        items(state.cars, key = { it.id }) { car ->
+            val image = rentalPhotoSlots(car.imageUrl).firstOrNull().orEmpty()
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box {
+                        RentalCarImageTile(image, Modifier.fillMaxWidth().aspectRatio(1.72f))
+                        Surface(
+                            Modifier.align(Alignment.TopEnd).padding(8.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.Black.copy(alpha = .58f)
+                        ) {
+                            Text(car.category, color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp))
                         }
                     }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(car.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        }
+                        Text("₹" + car.pricePerDay.setScale(2) + "/day", color = AppColors.Success, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RentalCarImageTile(car.driverPhotoUrl, Modifier.size(46.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(car.driverName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(car.seats.toString() + " seats • " + car.transmission + " • " + (car.fuelType ?: "Fuel"), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                car.driverRating?.let {
+                                    Text("  •  ★ " + it.setScale(1), color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                        Text(listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "Location unavailable" }, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.widthIn(max = 110.dp))
+                    }
+                    Text("Chauffeur included", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { detailsCar = car }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Text("View details") }
+                        Button(
+                            onClick = { onBook(car, start, end) },
+                            enabled = !hasDateInput || validWindow,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text("Book", fontWeight = FontWeight.Bold) }
+                    }
                 }
-                if (rowCars.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
+
 @Composable
 private fun VehiclePhotoField(
     title: String,
@@ -1363,8 +1565,14 @@ fun RentalVehicleOnboardingScreen(
 
                     CompactFieldRow("Vehicle name", name, { name = it }, "Make", make, { make = it })
                     CompactFieldRow("Model", model, { model = it }, "Variant (optional)", variant, { variant = it })
-                    CompactFieldRow("Category", category, { category = it }, "Seats", seats, { seats = it })
-                    CompactFieldRow("Transmission", transmission, { transmission = it }, "Fuel type", fuel, { fuel = it })
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorSelectField("Category", category, listOf("Sedan", "SUV", "Hatchback", "MUV", "Luxury", "Other"), modifier = Modifier.weight(1f), onValueChange = { category = it })
+                        VendorSelectField("Seats", seats, (2..8).map { it.toString() }, modifier = Modifier.weight(1f), onValueChange = { seats = it })
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorSelectField("Transmission", transmission, listOf("Automatic", "Manual"), modifier = Modifier.weight(1f), onValueChange = { transmission = it })
+                        VendorSelectField("Fuel type", fuel, listOf("Petrol", "Diesel", "CNG", "Electric", "Hybrid", "Other"), modifier = Modifier.weight(1f), onValueChange = { fuel = it })
+                    }
                     CompactFieldRow("Manufacturing year", manufacturingYear, { manufacturingYear = it }, "Registration year", registrationYear, { registrationYear = it })
                     VendorField("Registration number", registrationNumber) { registrationNumber = it }
                     CompactFieldRow("City", city, { city = it }, "State", stateName, { stateName = it })
@@ -1422,7 +1630,7 @@ fun RentalVehicleOnboardingScreen(
                     }
                     CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
                     VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
-                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it })
+                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it }, minDate = LocalDate.now())
                     VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                     Card(
                         shape = RoundedCornerShape(14.dp),
@@ -1654,12 +1862,12 @@ private fun RentalVehicleDetailsDialog(
                 item {
                     RentalDetailSection(
                         title = "Driver details",
-                        tint = Color(0xFF7C3AED),
+                        tint = AppColors.VendorNavy,
                         rows = listOf(
                             "Name" to car.driverName,
                             "Mobile" to (car.driverMobile ?: "—"),
                             "Licence number" to (car.driverLicenseNumber ?: "—"),
-                            "Licence expiry" to (car.driverLicenseExpiry ?: "—"),
+                            "Licence expiry" to (car.driverLicenseExpiry?.takeIf { it.isNotBlank() }?.let { formatRentalDate(it) } ?: "—"),
                             "Driver address" to (car.driverAddress ?: "—")
                         )
                     )
@@ -1911,67 +2119,196 @@ private fun RentalVendorProfileDialog(
 fun RentalBookingScreen(
     car: RentalCarResponse,
     state: RentalUiState,
+    wallet: WalletResponse?,
     onQuote: (RentalBookingQuoteRequest, (RentalBookingQuoteResponse) -> Unit) -> Unit,
     onBack: () -> Unit,
+    onAddMoney: () -> Unit,
+    onRefreshWallet: () -> Unit,
     onConfirm: (RentalBookingRequest, () -> Unit) -> Unit,
     initialStart: String? = null,
     initialEnd: String? = null
 ) {
-    var pickup by remember { mutableStateOf(car.pickupAddress.orEmpty()) }
-    var drop by remember { mutableStateOf(car.city.orEmpty()) }
-    var start by remember { mutableStateOf(initialStart.orEmpty()) }
-    var end by remember { mutableStateOf(initialEnd.orEmpty()) }
-    var quote by remember { mutableStateOf<RentalBookingQuoteResponse?>(null) }
+    var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
+    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.city.orEmpty()) }
+    var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
+    var end by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialEnd.orEmpty()) }
+    var quote by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalBookingQuoteResponse?>(null) }
+
+    val parsedStart = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    val parsedEnd = runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
+    val validWindow = parsedStart != null && parsedEnd != null && parsedEnd.isAfter(parsedStart) && !parsedStart.isBefore(LocalDateTime.now())
+    val walletKnown = wallet != null
+    val available = wallet?.availableBalance ?: BigDecimal.ZERO
+    val insufficient = walletKnown && quote != null && available < quote!!.total
+
+    fun clearQuote() { quote = null }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Book with driver", style = MaterialTheme.typography.headlineSmall) } }
-        item { Text(car.name, style = MaterialTheme.typography.titleLarge) }
-        item { Text("Driver: " + car.driverName + (car.driverMobile?.let { " · " + it } ?: ""), color = AppColors.TextSecondary) }
-        item { VendorField("Pickup location", pickup) { pickup = it } }
-        item { VendorField("Drop location", drop) { drop = it } }
-        item { RentalDateTimeField("Start date & time", start, onValueChange = { start = it }) }
-        item { RentalDateTimeField("End date & time", end, onValueChange = { end = it }) }
         item {
-            Text(
-                "Pricing is per day (24 hours). Any partial day is charged as one full day; time is used for availability and the exact rental duration.",
-                color = AppColors.TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
+                Column(Modifier.weight(1f)) {
+                    Text("Book with driver", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Your payment will come from the available wallet balance.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
-        quote?.let { q ->
-            item {
-                Card(shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Fare summary", style = MaterialTheme.typography.titleLarge)
-                        Text("${q.days} day(s) × ₹${q.pricePerDay}")
-                        Text("Total: ₹${q.total}", style = MaterialTheme.typography.titleLarge)
-                        Text("Payment: From your wallet", fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                        Text("₹${q.total.setScale(2).toPlainString()} will be deducted from your wallet when you confirm.", color = AppColors.TextSecondary)
-                        Button(
-                            enabled = !state.saving,
-                            onClick = { onConfirm(RentalBookingRequest(UUID.randomUUID().toString(), car.id, pickup.trim(), drop.trim(), start, end, "WALLET"), onBack) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp)
-                        ) { if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Confirm booking") }
+        item {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RentalCarImageTile(car.imageUrl?.split("|")?.firstOrNull(), Modifier.size(76.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text("Chauffeur: " + car.driverName, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
-        } ?: item {
-            Button(
-                enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess && runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.isSuccess,
-                onClick = { onQuote(RentalBookingQuoteRequest(car.id, pickup.trim(), drop.trim(), start, end)) { quote = it } },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Check fare") }
         }
-        state.error?.let { item { Text(it, color = AppColors.Error) } }
+        item { VendorField("Pickup location", pickup, onValueChange = { pickup = it; clearQuote() }) }
+        item { VendorField("Drop location", drop, onValueChange = { drop = it; clearQuote() }) }
+        item { RentalDateTimeField("Start date & time", start, { start = it; clearQuote() }) }
+        item { RentalDateTimeField("End date & time", end, { end = it; clearQuote() }) }
+        item {
+            if (!validWindow) {
+                Text(
+                    "Choose a future start and an end date/time later than the start.",
+                    color = if (start.isNotBlank() || end.isNotBlank()) AppColors.Error else AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                Text(
+                    "Pricing is per day (24 hours). Any partial day is charged as one full day; time also controls availability.",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        item {
+            if (quote == null) {
+                Button(
+                    enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && validWindow,
+                    onClick = {
+                        val request = RentalBookingQuoteRequest(
+                            car.id,
+                            pickup.trim(),
+                            drop.trim(),
+                            start,
+                            end
+                        )
+                        onQuote(request) { response ->
+                            if (
+                                car.id == request.carId &&
+                                pickup.trim() == request.pickupLocation &&
+                                drop.trim() == request.dropLocation &&
+                                start == request.startDate &&
+                                end == request.endDate
+                            ) {
+                                quote = response
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                    else Text("Check fare", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        quote?.let { q ->
+            item {
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .65f))) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Fare summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                Text(q.days.toString() + " day(s) × ₹" + q.pricePerDay.setScale(2), color = AppColors.TextSecondary)
+                            }
+                            Text("₹" + q.total.setScale(2), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = AppColors.Debit)
+                        }
+                        HorizontalDivider()
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Available balance", color = AppColors.TextSecondary)
+                            Text(
+                                if (walletKnown) "₹" + available.setScale(2) else "Unavailable",
+                                fontWeight = FontWeight.Bold,
+                                color = if (walletKnown) MaterialTheme.colorScheme.onSurface else AppColors.Error
+                            )
+                        }
+                        Text("Payment method: Wallet", color = AppColors.PrimaryDark, fontWeight = FontWeight.SemiBold)
+                        when {
+                            !walletKnown -> {
+                                Card(
+                                    shape = RoundedCornerShape(13.dp),
+                                    colors = CardDefaults.cardColors(containerColor = AppColors.Warning.copy(alpha = .08f))
+                                ) {
+                                    Column(
+                                        Modifier.fillMaxWidth().padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Text("Wallet balance unavailable", color = AppColors.Warning, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "We cannot safely confirm this booking until the latest available wallet balance is loaded.",
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        OutlinedButton(
+                                            onClick = onRefreshWallet,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(11.dp)
+                                        ) { Text("Refresh wallet") }
+                                    }
+                                }
+                            }
+                            insufficient -> {
+                                Card(shape = RoundedCornerShape(13.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Error.copy(alpha = .07f))) {
+                                    Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text("Not enough available balance", color = AppColors.Error, fontWeight = FontWeight.Bold)
+                                        Text("Add ₹" + q.total.subtract(available).max(BigDecimal.ZERO).setScale(2) + " to complete this booking.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                        OutlinedButton(onClick = onAddMoney, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(11.dp)) { Text("Add money") }
+                                    }
+                                }
+                            }
+                            else -> {
+                                Text("₹" + q.total.setScale(2) + " will be deducted from your available wallet balance when you confirm.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Button(
+                                    enabled = !state.saving && walletKnown,
+                                    onClick = {
+                                        onConfirm(
+                                            RentalBookingRequest(
+                                                UUID.randomUUID().toString(),
+                                                car.id,
+                                                pickup.trim(),
+                                                drop.trim(),
+                                                start,
+                                                end,
+                                                "WALLET"
+                                            ),
+                                            onBack
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                                    else Text("Confirm booking", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        TextButton(onClick = { clearQuote() }, enabled = !state.saving, modifier = Modifier.align(Alignment.End)) { Text("Recheck fare") }
+                    }
+                }
+            }
+        }
+        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
     }
 }
-
 
 @Composable
 fun RentalMyBookingsScreen(
@@ -2001,7 +2338,8 @@ fun RentalMyBookingsScreen(
                             onRefresh()
                         }
                     },
-                    enabled = !state.saving
+                    enabled = !state.saving,
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Error)
                 ) { Text(if (state.saving) "Cancelling…" else "Cancel booking") }
             },
             dismissButton = { TextButton(onClick = { cancelBookingId = null }, enabled = !state.saving) { Text("Keep booking") } }
@@ -2017,13 +2355,13 @@ fun RentalMyBookingsScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
                 Column(Modifier.weight(1f)) {
-                    Text("My Bookings", style = MaterialTheme.typography.headlineSmall)
-                    Text("Your chauffeur-driven rental bookings", color = AppColors.TextSecondary)
+                    Text("My Bookings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Your chauffeur-driven rental bookings", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 IconButton(onClick = onRefresh, enabled = !state.loading) { Icon(Icons.Default.Refresh, "Refresh bookings") }
             }
         }
-        state.error?.let { item { Text(it, color = AppColors.Error) } }
+        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
         item {
             val filters = listOf("ALL") + state.bookings.map { it.status.uppercase() }.distinct()
             Row(
@@ -2042,45 +2380,38 @@ fun RentalMyBookingsScreen(
         }
 
         if (state.loading && state.bookings.isEmpty()) {
-            item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+            item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
         }
         if (!state.loading && state.bookings.isEmpty()) {
-            item { Text("No rental bookings yet.", color = AppColors.TextSecondary) }
+            item {
+                MpayEmptyState(
+                    title = "No rental bookings yet",
+                    message = "Confirmed chauffeur-driven rentals will appear here.",
+                    icon = { Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Rental, modifier = Modifier.size(30.dp)) }
+                )
+            }
         }
         val filteredBookings = state.bookings.filter { statusFilter == "ALL" || it.status.equals(statusFilter, true) }
         if (!state.loading && filteredBookings.isEmpty() && state.bookings.isNotEmpty()) {
-            item { Text("No bookings match the selected status.", color = AppColors.TextSecondary) }
+            item { MpayEmptyState(title = "No matching bookings", message = "Try another status filter.") }
         }
+
         items(filteredBookings, key = { it.bookingId }) { booking ->
-            val statusColor = rentalStatusColor(booking.status)
-            Card(shape = RoundedCornerShape(18.dp)) {
+            val status = booking.status.uppercase()
+            val credit = status == "CANCELLED" || status == "REFUNDED"
+            Card(shape = RoundedCornerShape(20.dp)) {
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                    Modifier.fillMaxWidth().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[0], Modifier.weight(1f).aspectRatio(1.25f))
-                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[1], Modifier.weight(1f).aspectRatio(1.25f))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[2], Modifier.weight(1f).aspectRatio(1.25f))
-                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[3], Modifier.weight(1f).aspectRatio(1.25f))
+                    Row(Modifier.fillMaxWidth().height(172.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[0], Modifier.fillMaxSize().clip(RoundedCornerShape(13.dp)))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Primary, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Rental, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                            Text(booking.carName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            Spacer(Modifier.width(7.dp))
-                            Surface(shape = RoundedCornerShape(14.dp), color = statusColor.copy(alpha = .12f)) {
-                                Text(
-                                    booking.status.uppercase(),
-                                    color = statusColor,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
+                        Text(booking.carName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
+                        MpayStatusPill(status)
                         IconButton(
                             onClick = {
                                 clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
@@ -2095,49 +2426,45 @@ fun RentalMyBookingsScreen(
                             )
                         }
                     }
-                    Text(
-                        "Booking " + booking.bookingId,
-                        color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Driver", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        Text(booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""), style = MaterialTheme.typography.bodySmall)
+                    Text("Booking " + booking.bookingId, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("Payment", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(booking.paymentMethod, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
-                        Text("Trip", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        Text(booking.pickup + " → " + booking.drop, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
-                        Text("When", color = AppColors.Primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            formatRentalBookingDateTime(booking.startDate) + " to " + formatRentalBookingDateTime(booking.endDate),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Paid from wallet", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text("₹" + booking.total.setScale(2).toPlainString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Trip", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(booking.pickup + " → " + booking.drop, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                            Text("Total", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            MpayFinancialAmount(booking.total, credit = credit)
+                        }
                     }
                     Text(
-                        "Booked " + formatRentalBookingDateTime(booking.createdAt),
-                        color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelSmall
+                        formatRentalBookingDateTime(booking.startDate) + " → " + formatRentalBookingDateTime(booking.endDate),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppColors.TextSecondary
                     )
-                    if (booking.status.equals("CONFIRMED", true) && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Start
+                    Text("Booked " + formatRentalBookingDateTime(booking.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+
+                    if (status == "CONFIRMED" && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
+                        OutlinedButton(
+                            onClick = { cancelBookingId = booking.bookingId },
+                            enabled = !state.saving,
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().height(42.dp),
+                            shape = RoundedCornerShape(11.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Error)
                         ) {
-                            OutlinedButton(
-                                onClick = { cancelBookingId = booking.bookingId },
-                                enabled = !state.saving,
-                                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
-                                modifier = Modifier.height(42.dp)
-                            ) {
-                                Text("Cancel", color = AppColors.Error, fontWeight = FontWeight.Bold)
-                            }
+                            Text("Cancel booking", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

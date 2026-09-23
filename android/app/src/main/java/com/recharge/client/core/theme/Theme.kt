@@ -15,6 +15,14 @@ object AppColors {
     val TextSecondary = Color(0xFF737373)
     val Success = Color(0xFF16A34A)
     val Error = Color(0xFFDC2626)
+    val Warning = Color(0xFFD97706)
+    val Info = Color(0xFF2563EB)
+    val Debit = Error
+    val Credit = Success
+    val Rental = Color(0xFF0F4C81)
+    val VendorNavy = Color(0xFF102A43)
+    val VendorGold = Primary
+    val NeutralTint = Color(0xFFF8FAFC)
 }
 
 private val LightScheme = lightColorScheme(

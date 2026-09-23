@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 sealed interface PasswordResetUiState {
@@ -18,13 +19,14 @@ sealed interface PasswordResetUiState {
 }
 
 class PasswordResetViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AuthRepository(application)
+    private val repository = AuthRepository.getInstance(application)
     private val _state = MutableStateFlow<PasswordResetUiState>(PasswordResetUiState.Idle)
     val state = _state.asStateFlow()
 
     fun requestOtp(mobile: String) {
+        if (_state.value is PasswordResetUiState.Sending || _state.value is PasswordResetUiState.Resetting) return
+        _state.value = PasswordResetUiState.Sending
         viewModelScope.launch {
-            _state.value = PasswordResetUiState.Sending
             _state.value = repository.forgotPassword(mobile).fold(
                 onSuccess = { PasswordResetUiState.OtpSent(it.expiresInSeconds, it.demoOtp, it.deliveryMode) },
                 onFailure = { PasswordResetUiState.Error(it.message ?: "Unable to send OTP") }
@@ -33,8 +35,9 @@ class PasswordResetViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun resetPassword(mobile: String, otp: String, newPassword: String) {
+        if (_state.value is PasswordResetUiState.Resetting || _state.value is PasswordResetUiState.Sending) return
+        _state.value = PasswordResetUiState.Resetting
         viewModelScope.launch {
-            _state.value = PasswordResetUiState.Resetting
             _state.value = repository.resetPassword(mobile, otp, newPassword).fold(
                 onSuccess = { PasswordResetUiState.Success },
                 onFailure = { PasswordResetUiState.Error(it.message ?: "Unable to reset password") }
@@ -42,5 +45,8 @@ class PasswordResetViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun clear() { _state.value = PasswordResetUiState.Idle }
+    fun clear() {
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = PasswordResetUiState.Idle
+    }
 }

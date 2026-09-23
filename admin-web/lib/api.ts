@@ -10,7 +10,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.headers || {}) },
   });
-  if (!response.ok) throw new Error((await response.text()) || `Request failed (${response.status})`);
+  if (response.status === 401 && typeof window !== 'undefined') { localStorage.removeItem('mpay_admin_token'); localStorage.removeItem('mpay_admin_session'); window.location.href = '/admin'; throw new Error('Your admin session has expired. Please sign in again.'); }
+  if (!response.ok) { const text = await response.text(); let message = text || ('Request failed (' + response.status + ')'); try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {} throw new Error(message); }
   return response.json();
 }
 

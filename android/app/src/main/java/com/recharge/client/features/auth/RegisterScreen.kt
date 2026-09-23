@@ -211,9 +211,9 @@ fun RegisterScreen(
                 disabledElevation = 0.dp
             ),
             colors = ButtonDefaults.buttonColors(
-                containerColor = AppColors.TextPrimary,
+                containerColor = AppColors.Primary,
                 contentColor = Color.White,
-                disabledContainerColor = Color(0xFFD6D3CD),
+                disabledContainerColor = Color(0xFFE8E0CF),
                 disabledContentColor = Color(0xFF8A867F)
             )
         ) {

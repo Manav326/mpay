@@ -5,7 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.*
 import com.recharge.client.core.repository.ClientRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -26,10 +29,27 @@ data class RentalUiState(
 )
 
 class RentalViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
     private val _state = MutableStateFlow(RentalUiState())
     private var carsJob: Job? = null
+    private var calendarJob: Job? = null
+    private var bookingsJob: Job? = null
+    private var carsGeneration = 0L
+    private var bookingsGeneration = 0L
     val state = _state.asStateFlow()
+
+    fun resetSession() {
+        carsJob?.cancel()
+        calendarJob?.cancel()
+        bookingsJob?.cancel()
+        carsGeneration++
+        bookingsGeneration++
+        carsJob = null
+        calendarJob = null
+        bookingsJob = null
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = RentalUiState()
+    }
 
     fun loadVendor() {
         viewModelScope.launch {
@@ -42,11 +62,13 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearCarSearch() {
         carsJob?.cancel()
+        carsGeneration++
         _state.value = _state.value.copy(cars = emptyList(), loading = false, error = null)
     }
 
     fun loadCars(startDate: String? = null, endDate: String? = null, location: String? = null) {
         carsJob?.cancel()
+        val generation = ++carsGeneration
         carsJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             repository.rentalCars(
@@ -54,22 +76,32 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                 endDate?.takeIf { it.isNotBlank() },
                 location?.trim()?.takeIf { !it.isNullOrBlank() }
             )
-                .onSuccess { _state.value = _state.value.copy(cars = it, loading = false) }
+                .onSuccess {
+                    if (generation != carsGeneration) return@onSuccess
+                    _state.value = _state.value.copy(cars = it, loading = false, error = null)
+                }
                 .onFailure { failure ->
-                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                        _state.value = _state.value.copy(loading = false, error = failure.message ?: "Unable to load rental cars")
-                    }
+                    if (generation != carsGeneration || !kotlinx.coroutines.currentCoroutineContext().isActive) return@onFailure
+                    _state.value = _state.value.copy(loading = false, error = failure.message ?: "Unable to load rental cars")
                 }
         }
     }
 
 
     fun loadBookings() {
-        viewModelScope.launch {
+        bookingsJob?.cancel()
+        val generation = ++bookingsGeneration
+        bookingsJob = viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
             repository.rentalBookings()
-                .onSuccess { response -> _state.value = _state.value.copy(bookings = response.items, loading = false) }
-                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load rental bookings") }
+                .onSuccess { response ->
+                    if (generation != bookingsGeneration) return@onSuccess
+                    _state.value = _state.value.copy(bookings = response.items, loading = false, error = null)
+                }
+                .onFailure { e ->
+                    if (generation != bookingsGeneration || !kotlinx.coroutines.currentCoroutineContext().isActive) return@onFailure
+                    _state.value = _state.value.copy(loading = false, error = e.message ?: "Unable to load rental bookings")
+                }
         }
     }
 
@@ -127,10 +159,14 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadVendorPayouts() {
         viewModelScope.launch {
-            repository.rentalVendorPayouts()
+            val payoutsRequest = async { repository.rentalVendorPayouts() }
+            val earningsRequest = async { repository.rentalVendorEarnings() }
+
+            payoutsRequest.await()
                 .onSuccess { _state.value = _state.value.copy(payouts = it) }
                 .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vendor payouts") }
-            repository.rentalVendorEarnings()
+
+            earningsRequest.await()
                 .onSuccess { _state.value = _state.value.copy(earnings = it) }
                 .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load rental earnings") }
         }
@@ -196,11 +232,20 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadVehicleCalendar(carId: String, year: Int, month: Int) {
-        viewModelScope.launch {
+        calendarJob?.cancel()
+        calendarJob = viewModelScope.launch {
             _state.value = _state.value.copy(error = null)
             repository.rentalVehicleCalendar(carId, year, month)
-                .onSuccess { _state.value = _state.value.copy(vehicleCalendar = it) }
-                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vehicle calendar") }
+                .onSuccess { response ->
+                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                        _state.value = _state.value.copy(vehicleCalendar = response)
+                    }
+                }
+                .onFailure { failure ->
+                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                        _state.value = _state.value.copy(error = failure.message ?: "Unable to load vehicle calendar")
+                    }
+                }
         }
     }
 
@@ -290,22 +335,45 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     private suspend fun uploadDriverPhotoIfNeeded(
         current: RentalCarResponse,
         photoUri: String?
-    ): Result<RentalCarResponse> = runCatching {
-        if (photoUri.isNullOrBlank()) return@runCatching current
-        require(!current.driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
-        repository.uploadRentalDriverPhoto(current.driverId, android.net.Uri.parse(photoUri)).getOrThrow()
+    ): Result<RentalCarResponse> = try {
+        if (photoUri.isNullOrBlank()) {
+            // Vehicle-photo uploads may have already updated the in-memory car.
+            // Preserve that newer aggregate instead of reverting to the original create/update response.
+            Result.success(
+                _state.value.vendorCars.firstOrNull { it.id == current.id } ?: current
+            )
+        } else {
+            require(!current.driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
+            Result.success(
+                repository.uploadRentalDriverPhoto(
+                    current.driverId,
+                    android.net.Uri.parse(photoUri)
+                ).getOrThrow()
+            )
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     private suspend fun uploadRentalVehiclePhotos(
         carId: String,
         galleryPhotos: Map<Int, String>
-    ): Result<Unit> = runCatching {
+    ): Result<Unit> = try {
         galleryPhotos.toSortedMap().forEach { (slot, uri) ->
-            val uploaded = repository.uploadRentalVehiclePhoto(carId, slot, android.net.Uri.parse(uri)).getOrThrow()
+            val uploaded = repository.uploadRentalVehiclePhoto(
+                carId, slot, android.net.Uri.parse(uri)
+            ).getOrThrow()
             _state.value = _state.value.copy(
                 vendorCars = _state.value.vendorCars.map { if (it.id == uploaded.id) uploaded else it }
             )
         }
+        Result.success(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
     fun onboardVendor(request: RentalVendorOnboardingRequest, onDone: () -> Unit) {

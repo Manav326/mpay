@@ -133,6 +133,7 @@ class WalletService(
             "RECHARGE" -> ledger.findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId, "RECHARGE", fromInstant, toExclusive, pageable)
             "ADD_MONEY" -> ledger.findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId, "ADD_MONEY", fromInstant, toExclusive, pageable)
             "WITHDRAWAL", "WITHDRAW", "WITHDRAWN" -> ledger.findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId, "WITHDRAWAL", fromInstant, toExclusive, pageable)
+            "RENTAL", "RENTAL_PAYMENT" -> ledger.findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId, "RENTAL_PAYMENT", fromInstant, toExclusive, pageable)
             else -> ledger.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId, fromInstant, toExclusive, pageable)
         }
         return WalletHistorySnapshot(pageData.content, pageData.number, pageData.size, pageData.totalElements, pageData.totalPages, pageData.hasNext(), from.toString(), to.toString())
