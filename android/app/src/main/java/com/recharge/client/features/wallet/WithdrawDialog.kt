@@ -13,7 +13,7 @@ import com.recharge.client.core.ui.formatMoney
 import java.math.BigDecimal
 
 @Composable
-fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (String, String, String) -> Unit, onClearMessage: () -> Unit) {
+fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss: () -> Unit, onWithdraw: (String, String, String) -> Unit, onClearMessage: () -> Unit) {
     var amount by remember { mutableStateOf("") }
     var upiId by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("mock") }
@@ -25,7 +25,7 @@ fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (Str
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Choose the withdrawal mode. Mock is for development/testing.", style = MaterialTheme.typography.bodyMedium)
                 MpayProviderSelector(provider, !busy) { provider = it }
-                Text("Available balance: " + state.availableBalanceText(), style = MaterialTheme.typography.bodySmall, color = com.recharge.client.core.theme.AppColors.TextSecondary)
+                Text("Available balance: ₹" + formatMoney(availableBalance), style = MaterialTheme.typography.bodySmall, color = com.recharge.client.core.theme.AppColors.TextSecondary)
                 OutlinedTextField(amount, { if (it.length <= 10 && it.all { c -> c.isDigit() || c == '.' }) amount = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Amount (INR)") }, prefix = { Text("₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !busy)
                 OutlinedTextField(
                     upiId,
@@ -50,8 +50,6 @@ fun WithdrawDialog(state: WalletUiState, onDismiss: () -> Unit, onWithdraw: (Str
         dismissButton = { TextButton(onClick = { onClearMessage(); onDismiss() }, enabled = !busy) { Text("Close") } }
     )
 }
-
-private fun WalletUiState.availableBalanceText(): String = "₹" + "—"
 
 @Composable
 private fun ProviderButton(label: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean, modifier: Modifier) {
