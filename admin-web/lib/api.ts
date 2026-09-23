@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock, vendorsMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
+import { AdminUserStatusResult, CurrentUserProfile, DashboardSummary, RechargeHistoryResponse, Role, RoleCommissionRate, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -12,6 +12,58 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) throw new Error((await response.text()) || `Request failed (${response.status})`);
   return response.json();
+}
+
+export async function updateUserStatus(id: string, active: boolean): Promise<AdminUserStatusResult> {
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/status', {
+    method: 'POST',
+    body: JSON.stringify({ active }),
+  });
+}
+
+export async function getCommissionRates(): Promise<RoleCommissionRate[]> {
+  return api('/api/v1/admin/commission-roles');
+}
+
+export async function updateCommissionRate(role: string, commissionPercent: number, active: boolean): Promise<RoleCommissionRate> {
+  return api('/api/v1/admin/commission-roles/' + encodeURIComponent(role), {
+    method: 'PUT',
+    body: JSON.stringify({ commissionPercent, active }),
+  });
+}
+
+export async function getCurrentProfile(): Promise<CurrentUserProfile> {
+  return api('/api/v1/profile');
+}
+
+export async function getCurrentProfileImage(): Promise<string | null> {
+  if (demo) return null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const response = await fetch(baseUrl + '/api/v1/profile/image', {
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function uploadCurrentProfileImage(file: File): Promise<string | null> {
+  if (demo) return null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const body = new FormData();
+  body.append('file', file);
+  const response = await fetch(baseUrl + '/api/v1/profile/image', {
+    method: 'PUT',
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+    body,
+  });
+  if (!response.ok) throw new Error((await response.text()) || 'Profile image upload failed (' + response.status + ')');
+  return getCurrentProfileImage();
+}
+
+export async function deleteCurrentProfileImage(): Promise<void> {
+  if (demo) return;
+  await api('/api/v1/profile/image', { method: 'DELETE' });
 }
 
 export async function getPortalRoles(): Promise<string[]> {
