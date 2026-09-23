@@ -1,4 +1,4 @@
-import { DashboardSummary, UserDetail, UserSummary, Vendor } from './types';
+import { DashboardSummary, UserDetail, UserSummary } from './types';
 
 export const dashboardMock: DashboardSummary = {
   todayVolume: 142890,
@@ -43,12 +43,6 @@ export const usersMock: UserSummary[] = Array.from({ length: 24 }, (_, i) => {
     status: i === 9 ? 'BLOCKED' : 'ACTIVE',
   };
 });
-
-export const vendorsMock: Vendor[] = [
-  { id: 'v1', name: 'CityRide Cars', category: 'CAR_RENT', city: 'Patna', phone: '9876543210', commissionRate: 5, active: true, createdAt: new Date().toISOString() },
-  { id: 'v2', name: 'Bihar Wheels', category: 'CAR_RENT', city: 'Muzaffarpur', phone: '9876543211', commissionRate: 4, active: true, createdAt: new Date().toISOString() },
-  { id: 'v3', name: 'QuickTrip Services', category: 'TRAVEL', city: 'Patna', phone: '9876543212', commissionRate: 3, active: false, createdAt: new Date().toISOString() },
-];
 
 export function getUserDetail(id: string): UserDetail {
   const base = usersMock.find(u => u.id === id) ?? usersMock[0];
