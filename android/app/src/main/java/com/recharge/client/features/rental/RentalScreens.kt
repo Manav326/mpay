@@ -1014,7 +1014,7 @@ fun CarRentalMarketplaceScreen(
         val e = LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         e.isAfter(s) && !s.isBefore(LocalDateTime.now())
     }.getOrDefault(false)
-    val canApplyFilter = location.isNotBlank() || hasValidWindow
+    val canApplyFilter = location.trim().isNotBlank() || hasValidWindow
     val filterApplied = start.isNotBlank() || end.isNotBlank() || location.isNotBlank()
 
     LaunchedEffect(Unit) {
@@ -1035,8 +1035,8 @@ fun CarRentalMarketplaceScreen(
                 Column(Modifier.weight(1f)) {
                     Text("Car Rental Marketplace", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        if (filterApplied) "Showing vehicles matching your place and/or selected time window."
-                        else "Search by city or pickup area, with an optional rental time window.",
+                        if (filterApplied) "Filter by place or a From–To availability window."
+                        else "Compact search: city/pickup area or From–To time.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -1044,15 +1044,21 @@ fun CarRentalMarketplaceScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(9.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     OutlinedTextField(
                         value = location,
                         onValueChange = { location = it },
                         singleLine = true,
-                        label = { Text("City or pickup area") },
-                        placeholder = { Text("e.g. Patna, Airport Road") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("City / pickup area", style = MaterialTheme.typography.labelSmall) },
+                        placeholder = { Text("Patna, Airport Road…", style = MaterialTheme.typography.bodySmall) },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        shape = RoundedCornerShape(11.dp)
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         RentalDateTimeField("From", start, { start = it }, Modifier.weight(1f))
@@ -1061,26 +1067,26 @@ fun CarRentalMarketplaceScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
                             onClick = { onSearch(start, end, location.trim()) },
-                            enabled = canApplyFilter && !state.loading,
+                            enabled = canApplyFilter,
                             modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(vertical = 8.dp),
+                            contentPadding = PaddingValues(vertical = 7.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             if (state.loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                            else Text("Filter available cars")
+                            else Text("Filter", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                         if (filterApplied) {
                             OutlinedButton(
                                 onClick = {
                                     start = ""
                                     end = ""
+                                    location = ""
                                     onClearFilter()
                                 },
                                 enabled = !state.loading,
-                                modifier = Modifier.weight(.42f),
-                                contentPadding = PaddingValues(vertical = 8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
                                 shape = RoundedCornerShape(10.dp)
-                            ) { Text("Clear") }
+                            ) { Text("Clear", style = MaterialTheme.typography.labelLarge) }
                         }
                     }
                 }
