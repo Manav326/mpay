@@ -167,7 +167,7 @@ interface RentalPaymentRepository : JpaRepository<RentalPaymentEntity, Long> {
 
 
 interface RentalPayoutRepository : JpaRepository<RentalPayoutEntity, Long> {
-    fun findByBookingId(bookingId: String)
+    fun findByBookingId(bookingId: String): Optional<RentalPayoutEntity>
     fun findAllByOrderByCreatedAtDesc(pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<RentalPayoutEntity>
     fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: org.springframework.data.domain.Pageable): Optional<RentalPayoutEntity>
 
