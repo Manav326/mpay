@@ -43,6 +43,8 @@ interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Lon
     fun findTop20ByUserIdOrderByCreatedAtDesc(userId: Long): List<WalletWithdrawalEntity>
 
     fun findByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<WalletWithdrawalEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<WalletWithdrawalEntity>
+    fun findByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<WalletWithdrawalEntity>
 }
 
 interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, Long> {
@@ -94,6 +96,8 @@ interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntit
     fun findByTransactionId(transactionId: String): Optional<RechargeTransactionEntity>
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<RechargeTransactionEntity>
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toInclusive: Instant, pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<RechargeTransactionEntity>
 
     @Query("""
         select coalesce(sum(r.clientCommission), 0)
