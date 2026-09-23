@@ -334,3 +334,30 @@ export interface CurrentAdminProfile {
   createdAt: string;
   profileUpdatedAt?: string | null;
 }
+
+
+export interface RentalAdminPayout {
+  payoutId: string;
+  bookingId: string;
+  vendorId: string;
+  vendorName: string;
+  grossAmount: number;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+  vendorNetAmount: number;
+  status: string;
+  walletLedgerRef?: string | null;
+  failureReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  paidAt?: string | null;
+}
+
+export interface RentalAdminPayoutPageResponse {
+  items: RentalAdminPayout[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
