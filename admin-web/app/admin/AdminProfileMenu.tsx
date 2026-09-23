@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ChevronDown, LogOut, Mail, Smartphone, Upload, UserRound, X } from 'lucide-react';
+import { Camera, ChevronDown, LogOut, Mail, Smartphone, UserRound, X } from 'lucide-react';
 import { getCurrentAdminProfile, getCurrentAdminProfileImage, uploadCurrentAdminProfileImage } from '@/lib/api';
 import { CurrentAdminProfile } from '@/lib/types';
 
