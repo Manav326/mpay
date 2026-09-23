@@ -28,6 +28,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var walletJob: Job? = null
     private var requestGeneration = 0L
 
+    fun resetSession() {
+        viewModelScope.coroutineContext.cancelChildren()
+        _user.value = null
+        _wallet.value = null
+        _loading.value = false
+        _error.value = null
+    }
+
     fun load() {
         val generation = ++requestGeneration
         loadJob?.cancel()
