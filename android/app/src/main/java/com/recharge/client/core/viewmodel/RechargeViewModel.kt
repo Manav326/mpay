@@ -51,10 +51,15 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     val state = _state.asStateFlow()
 
     private var pollingJob: Job? = null
+    private var detectJob: Job? = null
+    private var detectGeneration = 0L
 
     fun resetSession() {
         pollingJob?.cancel()
+        detectJob?.cancel()
         pollingJob = null
+        detectJob = null
+        detectGeneration++
         viewModelScope.coroutineContext.cancelChildren()
         _state.value = RechargeUiState()
     }
@@ -70,6 +75,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
         }
 
         pollingJob?.cancel()
+        detectJob?.cancel()
+        detectGeneration++
         _state.value = current.copy(
             mobile = normalized,
             recipientName = contactName?.trim()?.takeIf { it.isNotBlank() } ?: "",
@@ -92,30 +99,38 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     fun detectAndLoad() {
         val mobile = _state.value.mobile
         if (!isValidIndianMobile(mobile)) {
+            detectJob?.cancel()
+            detectGeneration++
             _state.value = _state.value.copy(
                 operator = null,
                 plans = emptyList(),
                 selectedPlan = null,
+                detecting = false,
+                loadingPlans = false,
                 error = "Enter a valid 10-digit Indian mobile number"
             )
             return
         }
 
+        detectJob?.cancel()
+        val generation = ++detectGeneration
         pollingJob?.cancel()
-        viewModelScope.launch {
-            _state.value = _state.value.copy(
-                detecting = true,
-                loadingPlans = false,
-                error = null,
-                operator = null,
-                plans = emptyList(),
-                selectedPlan = null,
-                action = RechargeActionState.Idle,
-                transactionStatus = null
-            )
+        _state.value = _state.value.copy(
+            detecting = true,
+            loadingPlans = false,
+            error = null,
+            operator = null,
+            plans = emptyList(),
+            selectedPlan = null,
+            action = RechargeActionState.Idle,
+            transactionStatus = null
+        )
 
+        detectJob = viewModelScope.launch {
             repository.detectOperator(mobile)
                 .onSuccess { detected ->
+                    if (generation != detectGeneration || _state.value.mobile != mobile) return@onSuccess
+
                     if (detected.pending) {
                         _state.value = _state.value.copy(
                             operator = null,
@@ -148,8 +163,15 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                         error = null
                     )
 
-                    repository.plans(mobile, detected.operator, detected.circle, detected.providerOperator, detected.providerCircle)
+                    repository.plans(
+                        mobile,
+                        detected.operator,
+                        detected.circle,
+                        detected.providerOperator,
+                        detected.providerCircle
+                    )
                         .onSuccess { plans ->
+                            if (generation != detectGeneration || _state.value.mobile != mobile) return@onSuccess
                             _state.value = _state.value.copy(
                                 loadingPlans = false,
                                 plans = plans.sortedWith(compareBy<RechargePlan> { it.amount }.thenBy { it.id }),
@@ -158,6 +180,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                             )
                         }
                         .onFailure { failure ->
+                            if (generation != detectGeneration || _state.value.mobile != mobile) return@onFailure
                             _state.value = _state.value.copy(
                                 loadingPlans = false,
                                 plans = emptyList(),
@@ -167,6 +190,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                         }
                 }
                 .onFailure { failure ->
+                    if (generation != detectGeneration || _state.value.mobile != mobile) return@onFailure
                     _state.value = _state.value.copy(
                         detecting = false,
                         loadingPlans = false,
