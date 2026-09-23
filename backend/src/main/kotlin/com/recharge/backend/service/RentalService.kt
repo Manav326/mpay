@@ -781,6 +781,22 @@ class RentalService(
     }
 
     @Transactional
+    fun adminCancelBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
+        val booking = bookings.findByBookingIdForUpdate(bookingId)
+            .orElseThrow { IllegalArgumentException("Rental booking not found") }
+        check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be cancelled" }
+        check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
+        val payment = rentalPaymentRepository.findByBookingIdAndUserId(bookingId, booking.userId)
+            .orElseThrow { IllegalStateException("Rental payment not found for booking") }
+        booking.status = "CANCELLED"
+        booking.updatedAt = Instant.now()
+        rentalPayments.refund(payment)
+        val saved = bookings.save(booking)
+        val car = cars.findById(saved.carId).orElse(null)
+        return toBookingResponse(saved, car, car?.driverId?.let { drivers.findById(it).orElse(null) })
+    }
+
+    @Transactional
     fun cancelBooking(userId: Long, bookingId: String): RentalBookingResponse {
         val booking = bookings.findByBookingIdForUpdate(bookingId).orElseThrow { IllegalArgumentException("Rental booking not found") }
         require(booking.userId == userId) { "Rental booking not found" }

@@ -2,6 +2,7 @@ package com.recharge.backend.service
 
 import com.recharge.backend.api.*
 import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.WalletTransactionEntity
 import com.recharge.backend.repository.*
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
@@ -19,7 +20,7 @@ class AdminFinancialService(
 ) {
     fun recharges(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialRechargePageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
-        val result = rechargePage(page, size, status, provider)
+        val result = rechargePage(viewer, page, size, status, provider)
         val userMap = users.findAllById(result.content.map { it.userId }.distinct()).associateBy { requireNotNull(it.id) }
         return AdminFinancialRechargePageResponse(
             items = result.content.map { tx ->
@@ -56,7 +57,7 @@ class AdminFinancialService(
 
     fun withdrawals(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialWithdrawalPageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
-        val result = withdrawalPage(page, size, status, provider)
+        val result = withdrawalPage(viewer, page, size, status, provider)
         val userMap = users.findAllById(result.content.map { it.userId }.distinct()).associateBy { requireNotNull(it.id) }
         return AdminFinancialWithdrawalPageResponse(
             items = result.content.map { tx ->
@@ -93,10 +94,13 @@ class AdminFinancialService(
         require(size in 1..50) { "Page size must be between 1 and 50" }
         val normalized = referenceType?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         val pageable = PageRequest.of(page, size)
-        val result = if (normalized == null) {
-            walletLedger.findAllByOrderByCreatedAtDesc(pageable)
+        val visibleUserIds = visibleUserIds(viewer)
+        val result = if (visibleUserIds.isEmpty()) {
+            org.springframework.data.domain.Page.empty<WalletTransactionEntity>(pageable)
+        } else if (normalized == null) {
+            walletLedger.findAllByUserIdInOrderByCreatedAtDesc(visibleUserIds, pageable)
         } else {
-            walletLedger.findAllByReferenceTypeOrderByCreatedAtDesc(normalized, pageable)
+            walletLedger.findAllByUserIdInAndReferenceTypeOrderByCreatedAtDesc(visibleUserIds, normalized, pageable)
         }
         val userMap = users.findAllById(result.content.map { it.userId }.distinct()).associateBy { requireNotNull(it.id) }
         return AdminFinancialWalletPageResponse(
@@ -130,34 +134,45 @@ class AdminFinancialService(
         roleAccess.requirePermission(viewer, "MANAGE_RECHARGE_OPERATIONS")
         val tx = recharges.findByTransactionId(transactionId)
             .orElseThrow { IllegalArgumentException("Recharge transaction not found") }
+        val target = users.findById(tx.userId).orElseThrow { IllegalArgumentException("Recharge user not found") }
+        roleAccess.requireCanView(viewer, target)
         return rechargeService.transaction(tx.userId, tx.transactionId)
     }
 
-    private fun rechargePage(page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.RechargeTransactionEntity> {
+    private fun visibleUserIds(viewer: UserEntity): Set<Long> =
+        users.findAllByRoleIn(roleAccess.visibleRolesFor(viewer.role).toList())
+            .mapNotNull { it.id }
+            .toSet()
+
+    private fun rechargePage(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.RechargeTransactionEntity> {
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
         val pageable = PageRequest.of(page, size)
+        val userIds = visibleUserIds(viewer)
+        if (userIds.isEmpty()) return org.springframework.data.domain.Page.empty(pageable)
         val s = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         val p = provider?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         return when {
-            s != null && p != null -> recharges.findAllByStatusAndProviderNameOrderByCreatedAtDesc(s, p, pageable)
-            s != null -> recharges.findAllByStatusOrderByCreatedAtDesc(s, pageable)
-            p != null -> recharges.findAllByProviderNameOrderByCreatedAtDesc(p, pageable)
-            else -> recharges.findAllByOrderByCreatedAtDesc(pageable)
+            s != null && p != null -> recharges.findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds, s, p, pageable)
+            s != null -> recharges.findAllByUserIdInAndStatusOrderByCreatedAtDesc(userIds, s, pageable)
+            p != null -> recharges.findAllByUserIdInAndProviderNameOrderByCreatedAtDesc(userIds, p, pageable)
+            else -> recharges.findAllByUserIdInOrderByCreatedAtDesc(userIds, pageable)
         }
     }
 
-    private fun withdrawalPage(page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.WalletWithdrawalEntity> {
+    private fun withdrawalPage(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.WalletWithdrawalEntity> {
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
         val pageable = PageRequest.of(page, size)
+        val userIds = visibleUserIds(viewer)
+        if (userIds.isEmpty()) return org.springframework.data.domain.Page.empty(pageable)
         val s = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         val p = provider?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         return when {
-            s != null && p != null -> withdrawals.findAllByStatusAndProviderNameOrderByCreatedAtDesc(s, p, pageable)
-            s != null -> withdrawals.findAllByStatusOrderByCreatedAtDesc(s, pageable)
-            p != null -> withdrawals.findAllByProviderNameOrderByCreatedAtDesc(p, pageable)
-            else -> withdrawals.findAllByOrderByCreatedAtDesc(pageable)
+            s != null && p != null -> withdrawals.findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds, s, p, pageable)
+            s != null -> withdrawals.findAllByUserIdInAndStatusOrderByCreatedAtDesc(userIds, s, pageable)
+            p != null -> withdrawals.findAllByUserIdInAndProviderNameOrderByCreatedAtDesc(userIds, p, pageable)
+            else -> withdrawals.findAllByUserIdInOrderByCreatedAtDesc(userIds, pageable)
         }
     }
 }

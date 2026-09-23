@@ -1,5 +1,6 @@
 package com.recharge.backend.api
 
+import com.recharge.backend.service.AdminRentalOperationsService
 import com.recharge.backend.service.RentalService
 import com.recharge.backend.service.RoleAccessService
 import com.recharge.backend.repository.UserRepository
@@ -16,11 +17,15 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/v1/car-rental")
 class RentalController(
     private val rentalService: RentalService,
+    private val adminRentalOperationsService: AdminRentalOperationsService,
     private val users: UserRepository,
     private val roleAccessService: RoleAccessService
 ) {
     private fun userId(authentication: Authentication): Long =
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+
+    private fun currentUser(authentication: Authentication) =
+        users.findById(userId(authentication)).orElseThrow { IllegalArgumentException("User not found") }
 
     @GetMapping("/cars")
     fun cars(
@@ -190,6 +195,15 @@ class RentalController(
         return rentalService.adminDashboard()
     }
 
+    @GetMapping("/admin/payouts")
+    fun adminPayouts(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) status: String?
+    ): RentalAdminPayoutPageResponse =
+        adminRentalOperationsService.payouts(currentUser(authentication), page, size, status)
+
     @GetMapping("/admin/bookings")
     fun adminBookings(
         authentication: Authentication,
@@ -205,6 +219,12 @@ class RentalController(
     fun completeBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
         requireRentalOperationsAccess(authentication)
         return rentalService.completeBooking(bookingId, userId(authentication))
+    }
+
+    @PostMapping("/admin/bookings/{bookingId}/cancel")
+    fun cancelAdminBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
+        requireRentalOperationsAccess(authentication)
+        return rentalService.adminCancelBooking(bookingId, userId(authentication))
     }
 
     @PostMapping("/admin/vehicles/{carId}/approve")

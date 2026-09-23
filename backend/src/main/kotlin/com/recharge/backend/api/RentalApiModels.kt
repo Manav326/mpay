@@ -367,3 +367,30 @@ data class RentalAdminDashboardResponse(
     val totalVendorPayouts: BigDecimal,
     val totalPlatformFees: BigDecimal
 )
+
+
+data class RentalAdminPayoutResponse(
+    val payoutId: String,
+    val bookingId: String,
+    val vendorId: String,
+    val vendorName: String,
+    val grossAmount: BigDecimal,
+    val platformFeePercent: BigDecimal,
+    val platformFeeAmount: BigDecimal,
+    val vendorNetAmount: BigDecimal,
+    val status: String,
+    val walletLedgerRef: String?,
+    val failureReason: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val paidAt: Instant?
+)
+
+data class RentalAdminPayoutPageResponse(
+    val items: List<RentalAdminPayoutResponse>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)

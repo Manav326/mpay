@@ -506,22 +506,3 @@ data class AdminDashboardResponse(
     val monthTo: Instant
 )
 
-data class AdminVendorResponse(
-    val id: String,
-    val name: String,
-    val category: String,
-    val city: String,
-    val phone: String,
-    val commissionRate: BigDecimal,
-    val active: Boolean,
-    val createdAt: Instant
-)
-
-data class CreateAdminVendorRequest(
-    @field:NotBlank val name: String,
-    @field:NotBlank val category: String,
-    @field:NotBlank val city: String,
-    @field:NotBlank val phone: String,
-    @field:DecimalMin("0.00") val commissionRate: BigDecimal,
-    val active: Boolean = true
-)
