@@ -29,6 +29,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     private val repository = ClientRepository(application)
     private val _state = MutableStateFlow(RentalUiState())
     private var carsJob: Job? = null
+    private var calendarJob: Job? = null
     val state = _state.asStateFlow()
 
     fun loadVendor() {
@@ -196,11 +197,20 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadVehicleCalendar(carId: String, year: Int, month: Int) {
-        viewModelScope.launch {
+        calendarJob?.cancel()
+        calendarJob = viewModelScope.launch {
             _state.value = _state.value.copy(error = null)
             repository.rentalVehicleCalendar(carId, year, month)
-                .onSuccess { _state.value = _state.value.copy(vehicleCalendar = it) }
-                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vehicle calendar") }
+                .onSuccess { response ->
+                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                        _state.value = _state.value.copy(vehicleCalendar = response)
+                    }
+                }
+                .onFailure { failure ->
+                    if (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                        _state.value = _state.value.copy(error = failure.message ?: "Unable to load vehicle calendar")
+                    }
+                }
         }
     }
 
