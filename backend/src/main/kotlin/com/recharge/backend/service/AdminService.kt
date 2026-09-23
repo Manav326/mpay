@@ -267,6 +267,22 @@ class AdminService(
         )
     }
 
+    @Transactional
+    fun updateUserStatus(viewer: UserEntity, targetPublicId: String, active: Boolean): AdminUserStatusResponse {
+        roleAccess.requirePermission(viewer, "MANAGE_USER_STATUS")
+        val target = resolveTarget(viewer, targetPublicId)
+        require(requireId(target) != requireId(viewer)) { "You cannot change your own account status" }
+        require(!target.role.equals("ADMIN", true)) { "Admin accounts cannot be deactivated from the portal" }
+
+        target.active = active
+        users.save(target)
+        return AdminUserStatusResponse(
+            publicUserId = target.publicId,
+            active = target.active,
+            status = if (target.active) "ACTIVE" else "BLOCKED"
+        )
+    }
+
     fun vendorList(viewer: UserEntity): List<AdminVendorResponse> {
         roleAccess.requirePermission(viewer, "MANAGE_VENDORS")
         return vendors.findAllByOrderByCreatedAtDesc().map(::toVendor)
