@@ -1720,6 +1720,77 @@ private fun VendorEarningsCard(
 }
 
 @Composable
+private fun RentalEarningsSummaryCard(
+    earnings: RentalVendorEarningsResponse?
+) {
+    if (earnings == null) {
+        Card(shape = RoundedCornerShape(20.dp)) {
+            Column(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text("Rental earnings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Loading payout summary…", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        }
+        return
+    }
+
+    fun money(v: BigDecimal): String = "₹" + v.setScale(2).toPlainString()
+
+    @Composable
+    fun Metric(label: String, value: BigDecimal, tint: Color) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = tint.copy(alpha = .09f),
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = FontWeight.Bold)
+                Text(money(value), style = MaterialTheme.typography.titleMedium, color = tint, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
+    @Composable
+    fun Period(title: String, period: RentalVendorEarningsPeriodResponse, monthly: Boolean = false) {
+        Card(shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Metric("Gross", period.grossAmount, Color(0xFF334155))
+                    Metric("Platform fee", period.platformFeeAmount, Color(0xFFD97706))
+                    Metric("Net earning", period.vendorNetAmount, AppColors.Success)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        if (monthly) "Bookings this month" else "Completed today",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        if (monthly) period.bookingCount.toString() else period.completedBookingCount.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (!monthly) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Upcoming confirmed bookings", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(earnings.upcomingBookingCount.toString(), color = AppColors.PrimaryDark, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    Period("Today", earnings.today)
+    Spacer(Modifier.height(8.dp))
+    Period("This month", earnings.monthly, monthly = true)
+}
+
+@Composable
 private fun RentalEarningsPeriodCard(
     payouts: List<RentalVendorPayoutResponse>,
     isToday: Boolean
