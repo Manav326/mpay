@@ -248,17 +248,25 @@ private fun ActionCard(text: String, icon: androidx.compose.ui.graphics.vector.I
 @Composable
 private fun EarningsPeriodCard(period: com.recharge.client.core.model.CommissionPeriodSummary?, isToday: Boolean) {
     Card(shape = RoundedCornerShape(20.dp)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(if (isToday) formatAsOf(period?.to) else formatPeriod(period?.from, period?.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text("Commission earned", color = AppColors.TextSecondary)
-                    Text("₹${formatMoney(period?.commission ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
-                    Text("${period?.successfulRechargeCount ?: 0} successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                    Text("Recharge volume", color = AppColors.TextSecondary)
-                    Text("₹${formatMoney(period?.successfulRechargeAmount ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.titleLarge)
+        if (period == null) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Earnings are loading", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("We are refreshing the latest recharge commission summary.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        } else {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (isToday) formatAsOf(period.to) else formatPeriod(period.from, period.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Commission earned", color = AppColors.TextSecondary)
+                        Text("₹" + formatMoney(period.commission), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                        Text(period.successfulRechargeCount.toString() + " successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("Recharge volume", color = AppColors.TextSecondary)
+                        Text("₹" + formatMoney(period.successfulRechargeAmount), style = MaterialTheme.typography.titleLarge)
+                    }
                 }
             }
         }
