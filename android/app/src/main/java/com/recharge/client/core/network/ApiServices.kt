@@ -13,6 +13,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Path
 import com.recharge.client.core.model.RentalVendorOnboardingRequest
 import com.recharge.client.core.model.RentalVendorResponse
 import com.recharge.client.core.model.RentalVehicleOnboardingRequest
@@ -200,4 +201,7 @@ interface ClientApi {
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20
     ): Response<WithdrawalHistoryResponse>
+
+    @GET("api/v1/wallet/withdrawals/{withdrawalId}")
+    suspend fun withdrawal(@Path("withdrawalId") withdrawalId: String): Response<WithdrawMoneyResponse>
 }
