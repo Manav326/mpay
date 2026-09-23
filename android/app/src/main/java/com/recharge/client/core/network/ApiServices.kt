@@ -58,6 +58,9 @@ interface ClientApi {
     @POST("api/v1/car-rental/vendor")
     suspend fun onboardRentalVendor(@Body request: RentalVendorOnboardingRequest): Response<RentalVendorResponse>
 
+    @retrofit2.http.PUT("api/v1/car-rental/vendor")
+    suspend fun updateRentalVendor(@Body request: RentalVendorUpdateRequest): Response<RentalVendorResponse>
+
     @GET("api/v1/car-rental/vendor/payouts")
     suspend fun rentalVendorPayouts(): Response<List<RentalVendorPayoutResponse>>
 
