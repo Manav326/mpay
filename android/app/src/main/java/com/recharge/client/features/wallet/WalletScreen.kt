@@ -28,7 +28,7 @@ import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.model.WalletResponse
 import com.recharge.client.core.model.WalletHistoryItem
-import com.recharge.client.core.model.WithdrawalHistoryItem
+import com.recharge.client.core.model.WithdrawMoneyResponse
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatAsOf
 import com.recharge.client.core.ui.formatExactTimestamp
@@ -340,7 +340,7 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
 }
 
 @Composable
-private fun WalletTransactionDetailCard(item: WalletHistoryItem, withdrawal: WithdrawalHistoryItem? = null) {
+private fun WalletTransactionDetailCard(item: WalletHistoryItem, withdrawal: WithdrawMoneyResponse? = null) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1500); copied = false } }
