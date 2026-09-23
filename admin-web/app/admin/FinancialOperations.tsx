@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Search, WalletCards, CircleDollarSign, Smartphone, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { RefreshCw, WalletCards, Smartphone, ArrowUpRight } from 'lucide-react';
 import {
   getAdminFinancialRecharges,
   getAdminFinancialWalletHistory,
