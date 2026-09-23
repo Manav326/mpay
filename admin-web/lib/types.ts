@@ -238,3 +238,10 @@ export interface RentalAdminDashboard {
   totalVendorPayouts: number;
   totalPlatformFees: number;
 }
+
+
+export interface RoleCommissionRate {
+  role: string;
+  commissionPercent: number;
+  active: boolean;
+}
