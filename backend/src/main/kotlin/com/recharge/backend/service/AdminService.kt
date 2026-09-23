@@ -38,7 +38,7 @@ class AdminService(
         val todayStart = now.toLocalDate().atStartOfDay(zoneId).toInstant()
         val tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay(zoneId).toInstant()
         val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zoneId).toInstant()
-        val walletsByUserId = wallets.findAllByUserIds(userIds).associateBy { requireNotNull(it.user.id) }
+        val walletsByUserId = wallets.findAllByUserIds(userIds).associateBy { requireNotNull(it.user?.id) }
         val todayAggregates = recharges.aggregateSuccessfulForUsers(userIds, todayStart, tomorrowStart).associateBy { it.userId }
         val monthAggregates = recharges.aggregateSuccessfulForUsers(userIds, monthStart, now.toInstant().plusNanos(1)).associateBy { it.userId }
         val today = records.map { user ->
@@ -349,12 +349,6 @@ class AdminService(
         status = tx.status,
         createdAt = tx.createdAt,
         transactionId = tx.transactionId
-    )
-
-    private fun toVendor(vendor: AdminVendorEntity) = AdminVendorResponse(
-        id = requireNotNull(vendor.id).toString(), name = vendor.name, category = vendor.category,
-        city = vendor.city, phone = vendor.phone, commissionRate = vendor.commissionRate.setScale(2),
-        active = vendor.active, createdAt = vendor.createdAt
     )
 
     private fun requireId(user: UserEntity): Long = requireNotNull(user.id)
