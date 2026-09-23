@@ -225,11 +225,11 @@ export default function Portal() {
   const walletAmountLabel = (item: WalletItem) => (walletSigned(item) < 0 ? '-' : '+') + money(Math.abs(Number(item.amount || 0)));
 
   async function loadHistory() {
+    const requestSeq = ++historyLoadSeq.current;
     if (historyFrom && historyTo && historyTo < historyFrom) {
       setNotice('The history end date must be on or after the start date.');
       return;
     }
-    const requestSeq = ++historyLoadSeq.current;
     const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
     if (historyFrom) rechargeParams.set('from', historyFrom);
     if (historyTo) rechargeParams.set('to', historyTo);
