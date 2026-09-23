@@ -76,6 +76,8 @@ data class RentalAdminVendorResponse(
     val payoutUpiId: String?,
     val bankAccountNumber: String?,
     val bankIfsc: String?,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null,
     val vehicleCount: Int,
     val rejectionReason: String?,
     val submittedAt: Instant,
