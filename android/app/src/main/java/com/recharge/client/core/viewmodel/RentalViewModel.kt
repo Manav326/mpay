@@ -33,6 +33,15 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     private var calendarJob: Job? = null
     val state = _state.asStateFlow()
 
+    fun resetSession() {
+        carsJob?.cancel()
+        calendarJob?.cancel()
+        carsJob = null
+        calendarJob = null
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = RentalUiState()
+    }
+
     fun loadVendor() {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
