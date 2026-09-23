@@ -238,7 +238,8 @@ class RechargeService(
             commission = tx.clientCommission,
             walletDebitAmount = tx.walletDebitAmount,
             walletBalance = wallet.balance,
-            walletAvailableBalance = wallet.availableBalance
+            walletAvailableBalance = wallet.availableBalance,
+            recipientName = tx.recipientName
         )
     }
 }
