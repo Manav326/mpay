@@ -363,6 +363,8 @@ private fun AppRoot(
     var authRoute by rememberSaveable { mutableStateOf("login") }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Authenticated) {
@@ -381,14 +383,21 @@ private fun AppRoot(
     }
 
     LaunchedEffect(rechargeState.gatewayOrder) {
-        rechargeState.gatewayOrder?.let { order ->
-            startGatewayRecharge(order, rechargeViewModel)
-        }
+        val order = rechargeState.gatewayOrder ?: return@LaunchedEffect
+        if (launchedRechargeOrderId == order.orderId) return@LaunchedEffect
+        launchedRechargeOrderId = order.orderId
+        startGatewayRecharge(order, rechargeViewModel)
     }
 
     LaunchedEffect(paymentState) {
         when (paymentState) {
-            is PaymentUiState.OrderCreated -> startWalletPayment((paymentState as PaymentUiState.OrderCreated).order)
+            is PaymentUiState.OrderCreated -> {
+                val order = (paymentState as PaymentUiState.OrderCreated).order
+                if (launchedWalletOrderId != order.orderId) {
+                    launchedWalletOrderId = order.orderId
+                    startWalletPayment(order)
+                }
+            }
             is PaymentUiState.Success -> {
                 homeViewModel.refreshWallet()
                 showFundingDialog = false
