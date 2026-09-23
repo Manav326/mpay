@@ -342,6 +342,16 @@ data class UpdateRoleCommissionRateRequest(
     val active: Boolean = true
 )
 
+data class AdminUserStatusRequest(
+    val active: Boolean
+)
+
+data class AdminUserStatusResponse(
+    val publicUserId: String,
+    val active: Boolean,
+    val status: String
+)
+
 data class AdminUserSummaryResponse(
     val id: String,
     val publicUserId: String,
