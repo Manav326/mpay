@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.repository.ClientRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -32,9 +33,12 @@ data class RechargeHistoryUiState(
 )
 
 class RechargeHistoryViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
     private val _state = MutableStateFlow(RechargeHistoryUiState())
     val state = _state.asStateFlow()
+
+    private var historyJob: Job? = null
+    private var historyRequestGeneration = 0L
 
     private fun todayIndia(): LocalDate = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDate()
 
@@ -51,19 +55,46 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun load(refresh: Boolean = true) {
-        if (_state.value.loading || _state.value.refreshing) return
-        viewModelScope.launch {
-            _state.value = _state.value.copy(loading = !refresh && _state.value.items.isEmpty(), refreshing = refresh, error = null)
-            val page = if (refresh) 0 else _state.value.page + 1
-            repository.rechargeHistory(page, 20, _state.value.fromDate.toString(), _state.value.toDate.toString())
+        val current = _state.value
+        if (!refresh && (current.loading || current.refreshing)) return
+        if (refresh) historyJob?.cancel()
+
+        val fromDate = current.fromDate.toString()
+        val toDate = current.toDate.toString()
+        val page = if (refresh) 0 else current.page + 1
+        val generation = ++historyRequestGeneration
+
+        historyJob = viewModelScope.launch {
+            _state.value = _state.value.copy(
+                loading = !refresh && _state.value.items.isEmpty(),
+                refreshing = refresh,
+                error = null
+            )
+
+            repository.rechargeHistory(page, 20, fromDate, toDate)
                 .onSuccess { response ->
+                    if (generation != historyRequestGeneration) return@onSuccess
                     val items = if (refresh) response.items else _state.value.items + response.items
                     _state.value = _state.value.copy(
-                        items = items.distinctBy { it.transactionId }, page = response.page, totalItems = response.totalItems, hasNext = response.hasNext,
-                        loading = false, loadingMore = false, refreshing = false, error = null
+                        items = items.distinctBy { it.transactionId },
+                        page = response.page,
+                        totalItems = response.totalItems,
+                        hasNext = response.hasNext,
+                        loading = false,
+                        loadingMore = false,
+                        refreshing = false,
+                        error = null
                     )
                 }
-                .onFailure { e -> _state.value = _state.value.copy(loading = false, loadingMore = false, refreshing = false, error = e.message ?: "Unable to load recharge history.") }
+                .onFailure { e ->
+                    if (generation != historyRequestGeneration) return@onFailure
+                    _state.value = _state.value.copy(
+                        loading = false,
+                        loadingMore = false,
+                        refreshing = false,
+                        error = e.message ?: "Unable to load recharge history."
+                    )
+                }
         }
     }
 
