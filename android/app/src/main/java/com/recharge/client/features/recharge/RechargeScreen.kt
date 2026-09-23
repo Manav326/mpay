@@ -233,44 +233,67 @@ fun RechargeScreen(
 }
 
 @Composable
-private fun OperatorSummaryCard(response: OperatorCheckResponse, balance: BigDecimal?, refreshing: Boolean, recipientName: String, onRefreshWallet: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(46.dp).background(AppColors.SurfaceWarm, CircleShape), contentAlignment = Alignment.Center) {
-                    Text(operatorInitial(response.operator), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(operatorLabel(response.operator), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("${response.circle} • ${response.type ?: "Prepaid"}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-                AssistChip(
-                    onClick = {},
-                    enabled = false,
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = ColorLightGreen,
-                        labelColor = AppColors.Success,
-                        leadingIconContentColor = AppColors.Success,
-                        disabledContainerColor = ColorLightGreen,
-                        disabledLabelColor = AppColors.Success,
-                        disabledLeadingIconContentColor = AppColors.Success
-                    ),
-                    label = { Text("Detected", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) },
-                    leadingIcon = { Icon(Icons.Default.CheckCircle, null, tint = AppColors.Success, modifier = Modifier.size(17.dp)) }
+private fun OperatorSummaryCard(
+    response: OperatorCheckResponse,
+    balance: BigDecimal?,
+    refreshing: Boolean,
+    recipientName: String,
+    onRefreshWallet: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(38.dp).background(AppColors.SurfaceWarm, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    operatorInitial(response.operator),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.PrimaryDark
                 )
             }
-            Spacer(Modifier.height(14.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
-                    Text("Recharge number", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Text(response.mobileNumber, fontWeight = FontWeight.Bold)
-                    recipientName.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1) }
+            Spacer(Modifier.width(9.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(operatorLabel(response.operator), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "\${response.circle} • \${response.type ?: "Prepaid"}",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1
+                )
+                Text(
+                    listOfNotNull(recipientName.takeIf { it.isNotBlank() }, response.mobileNumber).joinToString(" • "),
+                    color = AppColors.PrimaryDark,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(shape = RoundedCornerShape(9.dp), color = ColorLightGreen) {
+                    Row(
+                        Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CheckCircle, "Detected", tint = AppColors.Success, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("Detected", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Available wallet", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Text(balance?.let { "₹${formatMoney(it)}" } ?: "Checking…", fontWeight = FontWeight.Bold)
-                }
+                Text(
+                    balance?.let { "₹\${formatMoney(it)}" } ?: "Checking…",
+                    color = AppColors.TextPrimary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
