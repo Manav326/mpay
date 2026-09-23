@@ -64,11 +64,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             if (loadGenerationAtStart != loadGeneration) return@launch
 
             userResult.onSuccess { _user.value = it }
-            if (walletGenerationAtStart == walletGeneration) {
+            val walletIsCurrent = walletGenerationAtStart == walletGeneration
+            if (walletIsCurrent) {
                 walletResult.onSuccess { _wallet.value = it }
             }
             _error.value = userResult.exceptionOrNull()?.message
-                ?: walletResult.exceptionOrNull()?.message
+                ?: if (walletIsCurrent) walletResult.exceptionOrNull()?.message else null
             _loading.value = false
         }
     }
