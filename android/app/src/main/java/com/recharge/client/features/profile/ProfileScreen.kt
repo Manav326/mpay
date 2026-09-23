@@ -78,9 +78,9 @@ fun ProfileScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
+            Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .55f)), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Account details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF4C1D95))
+                    Text("Account details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
                     Text("Permanent account information and activity", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                     HorizontalDivider()
                     CopyableValue("Account ID", user?.publicUserId.orEmpty())
