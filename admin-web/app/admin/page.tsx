@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, UserCog, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { completeRentalBooking, createVendor, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUsers, getVendors, getVisibleRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import { completeRentalBooking, createVendor, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVendors, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
-import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem } from '@/lib/types';
+import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, Vendor, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -29,6 +29,7 @@ export default function Page() {
   const [rentalBookingPage, setRentalBookingPage] = useState(0);
   const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
   const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
+  const [commissionRates, setCommissionRates] = useState<RoleCommissionRate[]>([]);
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
@@ -36,7 +37,7 @@ export default function Page() {
     getPortalRoles().then(roles=>{ if(roles.length) { setPortalRoles(roles); if(!roles.includes(selectedPortalRole)) setSelectedPortalRole(roles[0]); } }).catch(()=>{});
   },[]);
 
-  useEffect(()=>{ if(session) { getDashboard().then(setDashboard); getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); loadUsers(); if(session.permissions?.includes('MANAGE_VENDORS')) getVendors().then(setVendors); } },[session]);
+  useEffect(()=>{ if(session) { getDashboard().then(setDashboard); getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); loadUsers(); if(session.permissions?.includes('MANAGE_VENDORS')) { getVendors().then(setVendors); getRentalAdminDashboard().then(setRentalDashboard).catch(()=>{}); } if(session.permissions?.includes('MANAGE_COMMISSION_RATES')) getCommissionRates().then(setCommissionRates).catch(()=>{}); } },[session]);
   async function loadUsers(){ setUsers(await getUsers(roleFilter, sort)); }
   async function loadRental(){ try { const [summary, page] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus)]); setRentalDashboard(summary); setRentalBookings(page.items); setRentalBookingHasNext(page.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
   useEffect(()=>{ if(session) loadUsers(); },[roleFilter, sort]);
@@ -51,8 +52,9 @@ export default function Page() {
   const permissions = session.permissions || [];
   function permissionsForSession(s: typeof session){ return s?.permissions || []; }
   const canVendors = permissions.includes('MANAGE_VENDORS');
+  const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
   const menu = [
-    ['dashboard','Dashboard',LayoutDashboard], ['users','Users',Users], ...(canVendors ? [['vendors','Vendors',CarFront] as const, ['rental','Rental Operations',CalendarDays] as const] : []),
+    ['dashboard','Dashboard',LayoutDashboard], ['users','Users & Wallet',Users], ...(canVendors ? [['vendors','Rental Partners',CarFront] as const, ['rental','Rental Operations',CalendarDays] as const] : []), ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
   ] as const;
 
   return <div className="shell">
@@ -63,7 +65,8 @@ export default function Page() {
       <div className="side-bottom"><div className="profile-mini"><div className="avatar">{session.name.charAt(0)}</div><div><b>{session.name}</b><span>{session.role}</span></div></div><button className="nav" onClick={logout}><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
     <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users':view==='vendors'?'Vendors & Services':'Rental Operations'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><button className="icon-btn"><UserCog size={18}/></button></div></header>
-      {view==='dashboard' && <Dashboard data={dashboard} onUsers={()=>setView('users')} />}
+      {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
+      {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected}/>} 
       {view==='vendors' && canVendors && <VendorsView vendors={vendors} newVendor={newVendor} setNewVendor={setNewVendor} onAdd={async()=>{const v=await createVendor(newVendor);setVendors(x=>[v,...x]);setNewVendor({name:'',category:'CAR_RENT',city:'',phone:'',commissionRate:5,active:true});}}/>}
       {view==='rental' && canVendors && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
@@ -75,10 +78,10 @@ function AuthScreen(p:any){
   return <main className="auth-wrap"><div className="auth-card"><div className="auth-brand"><Logo/></div>{p.state==='login'?<><div className="auth-copy"><h1>Welcome to mPay Admin</h1><p>Sign in as Admin, Manager, or another enabled portal role.</p></div><form onSubmit={p.onLogin} className="form"><label>Portal role<select value={p.selectedPortalRole} onChange={e=>p.setSelectedPortalRole(e.target.value)}>{p.portalRoles.map((r:string)=><option key={r} value={r}>{r.charAt(0)+r.slice(1).toLowerCase()}</option>)}</select></label><label>Mobile number<input value={p.mobile} onChange={e=>p.setMobile(e.target.value)} placeholder="10-digit mobile number" /></label><label>Password<input type="password" value={p.password} onChange={e=>p.setPassword(e.target.value)} placeholder="Enter password" /></label>{p.notice&&<div className="alert">{p.notice}</div>}<button className="primary" disabled={p.busy}>{p.busy?'Signing in…':'Sign in'}</button><button type="button" className="link-btn" onClick={()=>{p.setState('forgot');p.notice&&p.setMobile(p.mobile)}}>Forgot password?</button></form></>:<><div className="auth-copy"><h1>Reset admin password</h1><p>Only Admin and Manager accounts can access this portal.</p></div><form onSubmit={p.onReset} className="form"><label>Registered mobile<input value={p.mobile} onChange={e=>p.setMobile(e.target.value)} placeholder="10-digit mobile number" /></label>{p.resetRequested&&<label>OTP<input value={p.otp} onChange={e=>p.setOtp(e.target.value)} placeholder="6-digit OTP" /></label>}{p.resetRequested&&<label>New password<input type="password" value={p.newPassword} onChange={e=>p.setNewPassword(e.target.value)} placeholder="New password" /></label>}{p.notice&&<div className="alert">{p.notice}</div>}<button className="primary" disabled={p.busy}>{p.busy?'Please wait…':p.resetRequested?'Reset password':'Send OTP'}</button><button type="button" className="link-btn" onClick={()=>{p.setState('login');p.setResetRequested(false)}}>Back to sign in</button></form></>}</div></main>
 }
 
-function Dashboard({data,onUsers}:{data?:DashboardSummary;onUsers:()=>void}){
+function Dashboard({data,rental,onUsers,onRental,onVendors,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;onUsers:()=>void;onRental:()=>void;onVendors:()=>void;onCommissions?:()=>void}){
   if(!data) return <div className="loading">Loading dashboard…</div>;
-  const cards=[['Today earnings',data.todayCommission,'Commission earned today',CircleDollarSign],['Today volume',data.todayVolume,'Successful recharge value',Wallet],['This month',data.monthlyCommission,'Commission through today',TrendingUp],['Active clients',data.activeClients,'Currently active client accounts',Users]] as const;
-  return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{typeof value==='number'&&title!=='Active clients'?INR.format(value):value.toLocaleString('en-IN')}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Common administration tasks.</p></div></div><div className="quick-grid"><button className="quick"><Users size={20}/><div><b>Manage users</b><span>View hierarchy, balances and earnings</span></div></button><button className="quick"><CarFront size={20}/><div><b>Manage vendors</b><span>Add car rental and service partners</span></div></button><button className="quick"><BarChart3 size={20}/><div><b>Commission rates</b><span>Review role-based earning rules</span></div></button><button className="quick"><Clock3 size={20}/><div><b>Audit activity</b><span>Review changes and operational events</span></div></button></div></section></div></div>
+  const cards=[['Today earnings',data.todayCommission,'Company recharge commission today',CircleDollarSign],['Today volume',data.todayVolume,'Successful recharge value',Wallet],['This month',data.monthlyCommission,'Company commission through today',TrendingUp],['Active clients',data.activeClients,'Currently active client accounts',Users],['Rental bookings',rental?.totalBookings ?? '—','Persisted chauffeur-driven bookings',CalendarDays],['Rental fees',rental ? INR.format(rental.totalPlatformFees) : '—','Platform fees from settled rentals',CarFront]] as const;
+  return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{typeof value==='number'&&title!=='Active clients'?INR.format(value):value.toLocaleString('en-IN')}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Common administration tasks.</p></div></div><div className="quick-grid"><button className="quick" onClick={onUsers}><Users size={20}/><div><b>Users & wallet</b><span>Balances, recharge, withdrawal and ledger history</span></div></button><button className="quick" onClick={onVendors}><CarFront size={20}/><div><b>Rental partners</b><span>Review vendors, vehicles and approvals</span></div></button><button className="quick" onClick={onRental}><CalendarDays size={20}/><div><b>Rental operations</b><span>Bookings, lifecycle and vendor settlement</span></div></button>{onCommissions&&<button className="quick" onClick={onCommissions}><BarChart3 size={20}/><div><b>Commission rules</b><span>Review and update role-based rates</span></div></button>}</div></section></div></div>
 }
 
 function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,selected,setSelected}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void}){
@@ -277,4 +280,24 @@ function RentalOperations(p:{
       <div className="panel-head"><span>Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>
     </section>
   </div>;
+}
+
+
+function CommissionView(p:{rates:RoleCommissionRate[];busy:boolean;onSave:(role:string,percent:number,active:boolean)=>void}){
+  return <div className="content">
+    <section className="panel">
+      <div className="panel-head wrap"><div><h2>Commission rules</h2><p>Role-based recharge commission rules used by the backend. Changes are saved through the protected admin API.</p></div></div>
+      {p.rates.length===0 ? <div className="empty-state">No commission rules available for this account.</div> :
+      <div className="table-wrap"><table><thead><tr><th>Role</th><th>Commission %</th><th>State</th><th>Action</th></tr></thead><tbody>
+        {p.rates.map(r=><CommissionRow key={r.role} rate={r} busy={p.busy} onSave={p.onSave}/>)}
+      </tbody></table></div>}
+    </section>
+  </div>;
+}
+
+function CommissionRow(p:{rate:RoleCommissionRate;busy:boolean;onSave:(role:string,percent:number,active:boolean)=>void}){
+  const [percent,setPercent]=useState(String(p.rate.commissionPercent));
+  const [active,setActive]=useState(p.rate.active);
+  useEffect(()=>{setPercent(String(p.rate.commissionPercent));setActive(p.rate.active)},[p.rate.commissionPercent,p.rate.active]);
+  return <tr><td><b>{p.rate.role}</b></td><td><input className="inline-number" type="number" min="0" max="99.99" step="0.01" value={percent} onChange={e=>setPercent(e.target.value)}/></td><td><button className={"status-toggle "+(active?'on':'off')} onClick={()=>setActive(v=>!v)}>{active?'ACTIVE':'INACTIVE'}</button></td><td><button className="secondary" disabled={p.busy || Number(percent)<0 || Number(percent)>=100} onClick={()=>p.onSave(p.rate.role,Number(percent),active)}>Save</button></td></tr>;
 }
