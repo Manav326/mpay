@@ -54,7 +54,12 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
     fun setMobile(value: String, contactName: String? = null) {
         val normalized = value.filter(Char::isDigit).take(10)
         val current = _state.value
-        if (current.mobile == normalized) return
+        if (current.mobile == normalized) {
+            contactName?.trim()?.takeIf { it.isNotBlank() }?.let { name ->
+                _state.value = current.copy(recipientName = name.take(120))
+            }
+            return
+        }
 
         pollingJob?.cancel()
         _state.value = current.copy(
