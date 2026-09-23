@@ -142,6 +142,7 @@ export default function Portal() {
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
   const [selectedWalletItem, setSelectedWalletItem] = useState<WalletItem>();
+  const [selectedRechargeDetail, setSelectedRechargeDetail] = useState<any>();
   const [commissionSummary, setCommissionSummary] = useState<any>();
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
@@ -262,6 +263,17 @@ export default function Portal() {
       setVendor(undefined);
       setVendorVehicles([]);
       setVendorPayouts([]);
+    }
+  }
+
+  async function openWalletItem(item: WalletItem) {
+    setSelectedWalletItem(item);
+    setSelectedRechargeDetail(undefined);
+    if (String(item.referenceType || '').toUpperCase() !== 'RECHARGE' || !item.referenceId) return;
+    try {
+      setSelectedRechargeDetail(await api<any>('/api/v1/recharge/' + encodeURIComponent(String(item.referenceId))));
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to load recharge transaction details.');
     }
   }
 
@@ -790,7 +802,7 @@ export default function Portal() {
           {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i)=><div className="history-row" key={String(x.id || i)}>
             <div><ReceiptText size={18}/><b>{x.description || x.referenceType || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
             <strong className={walletAmountClass(x)}>{walletAmountLabel(x)}</strong>
-            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span><button className="copy-btn" onClick={()=>setSelectedWalletItem(x)}><Eye size={14}/><span>Details</span></button>{x.referenceId && <button className="copy-btn" onClick={()=>copyText(String(x.referenceId),'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
+            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span><button className="copy-btn" onClick={()=>openWalletItem(x)}><Eye size={14}/><span>Details</span></button>{x.referenceId && <button className="copy-btn" onClick={()=>copyText(String(x.referenceId),'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
           </div>)}</div> : <div className="empty-state">No wallet transactions were returned.</div>}
         </div>
       </section>}
@@ -898,7 +910,8 @@ export default function Portal() {
         </div>
       </section>}
 
-      {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div></div></div>}
+      {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div>
+          {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>Wallet debit <b>{money(selectedRechargeDetail.walletDebitAmount)}</b></span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}</div></div>}
 
       {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
         <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
