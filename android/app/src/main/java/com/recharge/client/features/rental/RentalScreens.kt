@@ -1091,6 +1091,7 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
 @Composable
 private fun RentalPublicCarDetailsDialog(
     car: RentalCarResponse,
+    bookEnabled: Boolean,
     onDismiss: () -> Unit,
     onBook: () -> Unit
 ) {
@@ -1153,7 +1154,19 @@ private fun RentalPublicCarDetailsDialog(
                     }
                 }
                 item {
-                    Button(onClick = onBook, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                    if (!bookEnabled) {
+                        Text(
+                            "Complete a valid future availability window before booking.",
+                            color = AppColors.Error,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    Button(
+                        onClick = onBook,
+                        enabled = bookEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(13.dp)
+                    ) {
                         Text("Book with driver", fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(6.dp))
                         Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
@@ -1249,6 +1262,7 @@ fun CarRentalMarketplaceScreen(
     detailsCar?.let { car ->
         RentalPublicCarDetailsDialog(
             car = car,
+            bookEnabled = !hasDateInput || validWindow,
             onDismiss = { detailsCar = null },
             onBook = {
                 detailsCar = null
@@ -2109,21 +2123,23 @@ fun RentalBookingScreen(
     onQuote: (RentalBookingQuoteRequest, (RentalBookingQuoteResponse) -> Unit) -> Unit,
     onBack: () -> Unit,
     onAddMoney: () -> Unit,
+    onRefreshWallet: () -> Unit,
     onConfirm: (RentalBookingRequest, () -> Unit) -> Unit,
     initialStart: String? = null,
     initialEnd: String? = null
 ) {
-    var pickup by remember { mutableStateOf(car.pickupAddress.orEmpty()) }
-    var drop by remember { mutableStateOf(car.city.orEmpty()) }
-    var start by remember { mutableStateOf(initialStart.orEmpty()) }
-    var end by remember { mutableStateOf(initialEnd.orEmpty()) }
-    var quote by remember { mutableStateOf<RentalBookingQuoteResponse?>(null) }
+    var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
+    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.city.orEmpty()) }
+    var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
+    var end by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialEnd.orEmpty()) }
+    var quote by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalBookingQuoteResponse?>(null) }
 
     val parsedStart = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
     val parsedEnd = runCatching { LocalDateTime.parse(end, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
     val validWindow = parsedStart != null && parsedEnd != null && parsedEnd.isAfter(parsedStart) && !parsedStart.isBefore(LocalDateTime.now())
+    val walletKnown = wallet != null
     val available = wallet?.availableBalance ?: BigDecimal.ZERO
-    val insufficient = quote != null && available < quote!!.total
+    val insufficient = walletKnown && quote != null && available < quote!!.total
 
     fun clearQuote() { quote = null }
 
@@ -2178,9 +2194,24 @@ fun RentalBookingScreen(
                 Button(
                     enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && validWindow,
                     onClick = {
-                        onQuote(
-                            RentalBookingQuoteRequest(car.id, pickup.trim(), drop.trim(), start, end)
-                        ) { quote = it }
+                        val request = RentalBookingQuoteRequest(
+                            car.id,
+                            pickup.trim(),
+                            drop.trim(),
+                            start,
+                            end
+                        )
+                        onQuote(request) { response ->
+                            if (
+                                car.id == request.carId &&
+                                pickup.trim() == request.pickupLocation &&
+                                drop.trim() == request.dropLocation &&
+                                start == request.startDate &&
+                                end == request.endDate
+                            ) {
+                                quote = response
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
@@ -2204,40 +2235,70 @@ fun RentalBookingScreen(
                         HorizontalDivider()
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Available balance", color = AppColors.TextSecondary)
-                            Text("₹" + available.setScale(2), fontWeight = FontWeight.Bold)
+                            Text(
+                                if (walletKnown) "₹" + available.setScale(2) else "Unavailable",
+                                fontWeight = FontWeight.Bold,
+                                color = if (walletKnown) MaterialTheme.colorScheme.onSurface else AppColors.Error
+                            )
                         }
                         Text("Payment method: Wallet", color = AppColors.PrimaryDark, fontWeight = FontWeight.SemiBold)
-                        if (insufficient) {
-                            Card(shape = RoundedCornerShape(13.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Error.copy(alpha = .07f))) {
-                                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text("Not enough available balance", color = AppColors.Error, fontWeight = FontWeight.Bold)
-                                    Text("Add ₹" + q.total.subtract(available).max(BigDecimal.ZERO).setScale(2) + " to complete this booking.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                    OutlinedButton(onClick = onAddMoney, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(11.dp)) { Text("Add money") }
+                        when {
+                            !walletKnown -> {
+                                Card(
+                                    shape = RoundedCornerShape(13.dp),
+                                    colors = CardDefaults.cardColors(containerColor = AppColors.Warning.copy(alpha = .08f))
+                                ) {
+                                    Column(
+                                        Modifier.fillMaxWidth().padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Text("Wallet balance unavailable", color = AppColors.Warning, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "We cannot safely confirm this booking until the latest available wallet balance is loaded.",
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        OutlinedButton(
+                                            onClick = onRefreshWallet,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(11.dp)
+                                        ) { Text("Refresh wallet") }
+                                    }
                                 }
                             }
-                        } else {
-                            Text("₹" + q.total.setScale(2) + " will be deducted from your available wallet balance when you confirm.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            Button(
-                                enabled = !state.saving,
-                                onClick = {
-                                    onConfirm(
-                                        RentalBookingRequest(
-                                            UUID.randomUUID().toString(),
-                                            car.id,
-                                            pickup.trim(),
-                                            drop.trim(),
-                                            start,
-                                            end,
-                                            "WALLET"
-                                        ),
-                                        onBack
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
-                                else Text("Confirm booking", fontWeight = FontWeight.Bold)
+                            insufficient -> {
+                                Card(shape = RoundedCornerShape(13.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Error.copy(alpha = .07f))) {
+                                    Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text("Not enough available balance", color = AppColors.Error, fontWeight = FontWeight.Bold)
+                                        Text("Add ₹" + q.total.subtract(available).max(BigDecimal.ZERO).setScale(2) + " to complete this booking.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                        OutlinedButton(onClick = onAddMoney, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(11.dp)) { Text("Add money") }
+                                    }
+                                }
+                            }
+                            else -> {
+                                Text("₹" + q.total.setScale(2) + " will be deducted from your available wallet balance when you confirm.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Button(
+                                    enabled = !state.saving && walletKnown,
+                                    onClick = {
+                                        onConfirm(
+                                            RentalBookingRequest(
+                                                UUID.randomUUID().toString(),
+                                                car.id,
+                                                pickup.trim(),
+                                                drop.trim(),
+                                                start,
+                                                end,
+                                                "WALLET"
+                                            ),
+                                            onBack
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    if (state.saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                                    else Text("Confirm booking", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                         TextButton(onClick = { clearQuote() }, enabled = !state.saving, modifier = Modifier.align(Alignment.End)) { Text("Recheck fare") }
