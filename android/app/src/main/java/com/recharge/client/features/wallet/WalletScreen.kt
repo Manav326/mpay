@@ -191,7 +191,7 @@ private fun WithdrawalHistoryCard(items: List<WithdrawalHistoryItem>) {
                                 Text(item.withdrawalId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                                 item.failureReason?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                             }
-                            Text(status, color = statusColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            MpayStatusPill(status)
                         }
                     }
                 }
