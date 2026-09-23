@@ -7,6 +7,7 @@ import { completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBook
 import RentalVendorReview from './RentalVendorReview';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
+import RentalPayouts from './RentalPayouts';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
@@ -80,7 +81,7 @@ export default function Page() {
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected} canManageStatus={canManageUserStatus} onStatusChanged={async userId=>{await loadUsers();setSelected(await getUserDetailById(userId));}}/>}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={permissions.includes('MANAGE_RECHARGE_OPERATIONS')} onNotice={setNotice}/>} 
       
-      {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
+      {view==='rental' && canRentalOperations && <><RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>}<RentalPayouts onNotice={setNotice}/></>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }
