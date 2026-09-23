@@ -13,6 +13,7 @@ import com.recharge.client.core.repository.ClientRepository
 import java.math.BigDecimal
 import java.util.UUID
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
