@@ -108,6 +108,21 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     }
 
 
+    fun updateVendor(request: RentalVendorUpdateRequest, onDone: () -> Unit = {}) {
+        if (_state.value.saving) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(saving = true, error = null)
+            repository.updateRentalVendor(request)
+                .onSuccess {
+                    _state.value = _state.value.copy(vendor = it, saving = false)
+                    onDone()
+                }
+                .onFailure {
+                    _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to update vendor profile")
+                }
+        }
+    }
+
     fun loadVendorPayouts() {
         viewModelScope.launch {
             repository.rentalVendorPayouts()
