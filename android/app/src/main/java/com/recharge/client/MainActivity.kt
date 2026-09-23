@@ -140,9 +140,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         pendingRazorpayOrderId = null
 
         if (target == null) {
-            walletPaymentViewModel.paymentFailed("Payment result received without a known checkout context. Please refresh your wallet or history.")
+            walletPaymentViewModel.paymentFailed(
+                "Payment result received without a known checkout context. Please refresh your wallet or history."
+            )
             return
         }
+
         if (expectedOrderId != null && returnedOrderId.isNotBlank() && expectedOrderId != returnedOrderId) {
             when (target) {
                 RazorpayCheckoutTarget.WALLET ->
@@ -163,7 +166,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             RazorpayCheckoutTarget.RECHARGE -> rechargeViewModel.verifyGatewayPayment(
                 provider = "razorpay",
                 paymentId = razorpayPaymentId,
-                orderId = returnedOrderId.ifBlank { expectedOrderId },
+                orderId = returnedOrderId.ifBlank { expectedOrderId.orEmpty() },
                 signature = paymentData?.signature
             )
         }
@@ -207,10 +210,6 @@ private fun AppRoot(
     val profileState by profileViewModel.state.collectAsState()
     val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
-    val homeUser by homeViewModel.user.collectAsState()
-    val homeWallet by homeViewModel.wallet.collectAsState()
-    val homeLoading by homeViewModel.loading.collectAsState()
-    val homeError by homeViewModel.error.collectAsState()
     var authRoute by rememberSaveable { mutableStateOf("login") }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -323,7 +322,7 @@ private fun AppRoot(
             { showFundingDialog = false; paymentViewModel.reset() },
             paymentViewModel::createOrder,
             paymentViewModel::reset,
-            availableBalance = homeWallet?.availableBalance ?: BigDecimal.ZERO
+            availableBalance = homeViewModel.wallet.collectAsState().value?.availableBalance ?: BigDecimal.ZERO
         )
     }
 
@@ -333,59 +332,11 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            AppNavHost(
-                nav = nav,
-                currentRoute = currentRoute,
-                homeViewModel = homeViewModel,
-                profileViewModel = profileViewModel,
-                rechargeViewModel = rechargeViewModel,
-                rechargeHistoryViewModel = rechargeHistoryViewModel,
-                rentalViewModel = rentalViewModel,
-                walletViewModel = walletViewModel,
-                historyState = historyState,
-                homeUser = homeUser,
-                homeWallet = homeWallet,
-                homeLoading = homeLoading,
-                homeError = homeError,
-                profileState = profileState,
-                rechargeState = rechargeState,
-                rentalState = rentalState,
-                walletUiState = walletUiState,
-                showFundingDialogSetter = { showFundingDialog = it },
-                paymentViewModel = paymentViewModel,
-                highlightTransactionId = highlightTransactionId,
-                authLogout = { authViewModel.logout() },
-                onChooseContact = onChooseContact,
-                modifier = Modifier.weight(1f
-            ))
+            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.weight(1f))
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            AppNavHost(
-                nav = nav,
-                currentRoute = currentRoute,
-                homeViewModel = homeViewModel,
-                profileViewModel = profileViewModel,
-                rechargeViewModel = rechargeViewModel,
-                rechargeHistoryViewModel = rechargeHistoryViewModel,
-                rentalViewModel = rentalViewModel,
-                walletViewModel = walletViewModel,
-                historyState = historyState,
-                homeUser = homeUser,
-                homeWallet = homeWallet,
-                homeLoading = homeLoading,
-                homeError = homeError,
-                profileState = profileState,
-                rechargeState = rechargeState,
-                rentalState = rentalState,
-                walletUiState = walletUiState,
-                showFundingDialogSetter = { showFundingDialog = it },
-                paymentViewModel = paymentViewModel,
-                highlightTransactionId = highlightTransactionId,
-                authLogout = { authViewModel.logout() },
-                onChooseContact = onChooseContact,
-                modifier = Modifier.padding(inner
-            ))
+            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.padding(inner))
         }
     }
 }
@@ -403,20 +354,18 @@ private fun ColoredNavigationRailItem(d: TopLevelDestination, currentRoute: Stri
 private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
     rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
-    homeUser: com.recharge.client.core.model.CurrentUserResponse?, homeWallet: com.recharge.client.core.model.WalletResponse?, homeLoading: Boolean, homeError: String?,
-    profileState: ProfileUiState, rechargeState: RechargeUiState, rentalState: RentalUiState, walletUiState: WalletUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
     authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier
 ) {
     NavHost(navController = nav, startDestination = "home", modifier = modifier.fillMaxSize()) {
         composable("home") {
             HomeScreen(
-                user = homeUser,
-                wallet = homeWallet,
-                loading = homeLoading,
+                user = homeViewModel.user.collectAsState().value,
+                wallet = homeViewModel.wallet.collectAsState().value,
+                loading = homeViewModel.loading.collectAsState().value,
                 commission = historyState.commission,
                 latestRecharge = historyState.items.firstOrNull(),
-                error = homeError,
+                error = homeViewModel.error.collectAsState().value,
                 isVisible = currentRoute == "home",
                 onRefresh = { homeViewModel.load(); rechargeHistoryViewModel.loadCommission() },
                 onRefreshBalance = homeViewModel::refreshWallet,
@@ -425,7 +374,7 @@ private fun AppNavHost(
                 onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
                 onWithdraw = walletViewModel::withdraw,
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
-                walletUiState = walletUiState,
+                walletUiState = walletViewModel.state.collectAsState().value,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
                 onRentalBookings = { nav.navigate("rental-bookings") },
                 onCarRental = { nav.navigate("car-rental") }
@@ -451,7 +400,7 @@ private fun AppNavHost(
         }
         composable("wallet") {
             WalletScreen(
-                wallet = homeWallet,
+                wallet = homeViewModel.wallet.collectAsState().value,
                 loading = homeViewModel.loading.collectAsState().value,
                 commission = historyState.commission,
                 commissionLoading = historyState.commissionLoading,
@@ -476,14 +425,14 @@ private fun AppNavHost(
             )
         }
         composable("profile") {
-            ProfileScreen(profileState, rentalState.vendor, profileViewModel::load, rentalViewModel::loadVendor, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
+            ProfileScreen(profileViewModel.state.collectAsState().value, rentalViewModel.state.collectAsState().value.vendor, profileViewModel::load, rentalViewModel::loadVendor, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
         composable("marketplace") {
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
         }
         composable("car-rental") {
             CarRentalMarketplaceScreen(
-                state = rentalState,
+                state = rentalViewModel.state.collectAsState().value,
                 onBack = { nav.popBackStack() },
                 onBook = { car, startDate, endDate ->
                     nav.currentBackStackEntry?.savedStateHandle?.apply {
@@ -518,11 +467,11 @@ private fun AppNavHost(
         }
         composable("rental-booking") {
             val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
-            val car = rentalState.cars.firstOrNull { it.id == carId }
+            val car = rentalViewModel.state.collectAsState().value.cars.firstOrNull { it.id == carId }
             if (car != null) {
                 RentalBookingScreen(
                     car = car,
-                    state = rentalState,
+                    state = rentalViewModel.state.collectAsState().value,
                     wallet = homeViewModel.wallet.collectAsState().value,
                     onQuote = rentalViewModel::quoteBooking,
                     onBack = { nav.popBackStack() },
@@ -558,7 +507,7 @@ private fun AppNavHost(
                 },
                 onBack = { nav.popBackStack() },
                 editingCar = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_edit_car_id")?.let { id ->
-                    rentalState.vendorCars.firstOrNull { it.id == id }
+                    rentalViewModel.state.collectAsState().value.vendorCars.firstOrNull { it.id == id }
                 },
                 onResubmit = { carId, request, galleryPhotos, driverPhotoUri, onDone ->
                     rentalViewModel.resubmitVehicle(carId, request, galleryPhotos, driverPhotoUri, onDone)
