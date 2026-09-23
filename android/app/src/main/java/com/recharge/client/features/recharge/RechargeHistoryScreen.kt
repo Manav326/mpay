@@ -25,6 +25,8 @@ import com.recharge.client.core.viewmodel.HistoryFilter
 import com.recharge.client.core.viewmodel.RechargeHistoryUiState
 import java.time.LocalDate
 import java.util.Calendar
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +59,7 @@ fun RechargeHistoryScreen(state: RechargeHistoryUiState, onFilterToday: () -> Un
             FilterButton(HistoryFilter.THIS_MONTH, state.filter, "Month", onFilterMonth)
             FilterButton(HistoryFilter.CUSTOM, state.filter, "Custom", { showFromPicker = true })
         }
-        Text("${state.fromDate} → ${state.toDate}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
+        Text(state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) + " → " + state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 6.dp)) }
 
         if (state.loading && state.items.isEmpty()) {
