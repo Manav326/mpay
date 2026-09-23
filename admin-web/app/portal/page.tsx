@@ -114,8 +114,7 @@ const pad2 = (value: number) => String(value).padStart(2, '0');
 const localDateTimeInput = (d = new Date()) =>
   d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
 const isoNow = () => localDateTimeInput();
-const localDate = () => localDateTimeTime(new Date());
-const localDateTimeTime = (d: Date) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const localDate = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 const localYearMonth = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1);
 
 function statusClass(value?: string) {
