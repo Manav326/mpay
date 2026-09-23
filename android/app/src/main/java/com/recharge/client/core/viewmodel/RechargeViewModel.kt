@@ -51,6 +51,13 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     private var pollingJob: Job? = null
 
+    fun resetSession() {
+        pollingJob?.cancel()
+        pollingJob = null
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = RechargeUiState()
+    }
+
     fun setMobile(value: String, contactName: String? = null) {
         val normalized = value.filter(Char::isDigit).take(10)
         val current = _state.value
