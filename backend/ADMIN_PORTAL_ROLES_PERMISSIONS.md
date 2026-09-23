@@ -1,76 +1,59 @@
 # mPay Admin Portal Roles, Login and Permissions
 
-## Initial portal accounts
+## Development portal accounts
 
-**ADMIN**
-- Mobile: `9999999999`
-- Password: `Admin@123`
-- Name: `System Admin`
-- Email: `admin@mpay.local`
+The repository contains local/development seed accounts. Change their credentials before production deployment.
 
-**MANAGER**
-- Mobile: `9999999998`
-- Password: `Manager@123`
-- Name: `System Manager`
-- Email: `manager@mpay.local`
+## Portal login
 
-These are local/development credentials. Change them before production use.
+- ADMIN and MANAGER can authenticate through the dedicated portal login endpoints.
+- GET /api/v1/auth/portal-roles exposes portal roles which have PORTAL_LOGIN.
 
-## How role is determined
+## Current permissions
 
-The role is stored on `users.role`. Normal login authenticates the user with the same BCrypt/JWT flow already used by clients. The JWT filter loads the current user from the database and sets `ROLE_<role>` in Spring Security. Portal login additionally requires that the selected portal role matches the user's database role.
+### ADMIN
 
-## Portal login endpoints
+- PORTAL_LOGIN
+- VIEW_DASHBOARD
+- VIEW_USERS
+- VIEW_USER_DETAIL
+- MANAGE_USER_STATUS
+- VIEW_FINANCIAL_OPERATIONS
+- MANAGE_RECHARGE_OPERATIONS
+- MANAGE_VENDORS
+- MANAGE_RENTAL_OPERATIONS
+- MANAGE_COMMISSION_RATES
 
-- `POST /api/v1/auth/admin-login`
-- `POST /api/v1/auth/manager-login`
-- `POST /api/v1/auth/portal-login` with `{ mobile, password, portalRole }`
-- `GET /api/v1/auth/portal-roles` returns roles that have the `PORTAL_LOGIN` permission.
+### MANAGER
 
-The Admin Web displays a role dropdown and calls the matching endpoint. Future portal roles can be added by inserting `PORTAL_LOGIN` plus their other permissions; the dropdown can then discover the new role automatically.
+- PORTAL_LOGIN
+- VIEW_DASHBOARD
+- VIEW_USERS
+- VIEW_USER_DETAIL
+- VIEW_FINANCIAL_OPERATIONS
 
-## Permissions
-
-Current seeded permissions:
-
-ADMIN:
-- `PORTAL_LOGIN`
-- `VIEW_DASHBOARD`
-- `VIEW_USERS`
-- `VIEW_USER_DETAIL`
-- `MANAGE_VENDORS`
-- `MANAGE_COMMISSION_RATES`
-
-MANAGER:
-- `PORTAL_LOGIN`
-- `VIEW_DASHBOARD`
-- `VIEW_USERS`
-- `VIEW_USER_DETAIL`
+The financial permission is intentionally visibility-only for MANAGER unless additional mutation permissions are explicitly granted in a future migration.
 
 ## Visibility hierarchy
 
-`role_hierarchy` controls which target roles a viewer may inspect:
+role_hierarchy controls which target roles a viewer may inspect:
 
 - ADMIN -> ADMIN
 - ADMIN -> MANAGER
 - ADMIN -> CLIENT
 - MANAGER -> CLIENT
 
-Add future roles by inserting rows into `role_permissions` and `role_hierarchy`. Server-side authorization uses these tables; the web UI is only a presentation layer.
+Financial operation queries use this same hierarchy when selecting recharge, withdrawal and wallet-ledger records. UI hiding is not used as an authorization mechanism.
 
-## Example: add a new supervisor role
+## Rental permission split
 
-```sql
-INSERT INTO role_permissions(role, permission) VALUES
-  ('SUPERVISOR', 'PORTAL_LOGIN'),
-  ('SUPERVISOR', 'VIEW_DASHBOARD'),
-  ('SUPERVISOR', 'VIEW_USERS'),
-  ('SUPERVISOR', 'VIEW_USER_DETAIL')
-ON CONFLICT DO NOTHING;
+Rental administration is intentionally divided:
 
-INSERT INTO role_hierarchy(viewer_role, target_role) VALUES
-  ('SUPERVISOR', 'CLIENT')
-ON CONFLICT DO NOTHING;
-```
+- MANAGE_VENDORS -> vendor/vehicle submission review, approval/rejection and availability inspection.
+- MANAGE_RENTAL_OPERATIONS -> rental dashboard, booking operations and eligible booking completion/settlement.
 
-Then create a `users` row with `role='SUPERVISOR'`. No Java/Kotlin code change is needed for the role to appear in `/api/v1/auth/portal-roles`.
+This prevents vendor onboarding permissions from silently becoming booking-operations permissions.
+
+## Future roles
+
+A new role can be introduced with database rows in role_permissions and role_hierarchy. The web portal discovers available login roles through the API; backend authorization remains data-driven.
