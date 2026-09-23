@@ -27,9 +27,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private var loadJob: Job? = null
     private var walletJob: Job? = null
-    private var requestGeneration = 0L
+    private var loadGeneration = 0L
+    private var walletGeneration = 0L
+
 
     fun resetSession() {
+        loadJob?.cancel()
+        walletJob?.cancel()
+        loadJob = null
+        walletJob = null
+        loadGeneration++
+        walletGeneration++
         viewModelScope.coroutineContext.cancelChildren()
         _user.value = null
         _wallet.value = null
@@ -37,10 +45,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _error.value = null
     }
 
+
     fun load() {
-        val generation = ++requestGeneration
+        val loadGenerationAtStart = ++loadGeneration
+        val walletGenerationAtStart = ++walletGeneration
         loadJob?.cancel()
         walletJob?.cancel()
+
         loadJob = viewModelScope.launch {
             _loading.value = true
             _error.value = null
@@ -50,10 +61,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val userResult = userRequest.await()
             val walletResult = walletRequest.await()
 
-            if (generation != requestGeneration) return@launch
+            if (loadGenerationAtStart != loadGeneration) return@launch
 
             userResult.onSuccess { _user.value = it }
-            walletResult.onSuccess { _wallet.value = it }
+            if (walletGenerationAtStart == walletGeneration) {
+                walletResult.onSuccess { _wallet.value = it }
+            }
             _error.value = userResult.exceptionOrNull()?.message
                 ?: walletResult.exceptionOrNull()?.message
             _loading.value = false
@@ -61,25 +74,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshWallet() {
-        val generation = ++requestGeneration
-        loadJob?.cancel()
+        val generation = ++walletGeneration
         walletJob?.cancel()
-        _loading.value = false
+        _error.value = null
         walletJob = viewModelScope.launch {
-            _error.value = null
             repository.wallet()
                 .onSuccess {
-                    if (generation == requestGeneration) _wallet.value = it
+                    if (generation == walletGeneration) _wallet.value = it
                 }
                 .onFailure {
-                    if (generation == requestGeneration) _error.value = it.message
+                    if (generation == walletGeneration) _error.value = it.message
                 }
         }
     }
-
-    override fun onCleared() {
-        loadJob?.cancel()
-        walletJob?.cancel()
-        super.onCleared()
     }
 }
