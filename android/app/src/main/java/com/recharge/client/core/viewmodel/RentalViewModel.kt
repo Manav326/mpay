@@ -17,12 +17,15 @@ data class RentalUiState(
     val vendorCars: List<RentalCarResponse> = emptyList(),
     val bookings: List<RentalBookingResponse> = emptyList(),
     val payouts: List<RentalVendorPayoutResponse> = emptyList(),
+    val earnings: RentalVendorEarningsResponse? = null,
     val vehicleUnavailabilityByCar: Map<String, List<RentalVehicleUnavailabilityResponse>> = emptyMap(),
     val vehicleCalendar: RentalVehicleCalendarResponse? = null,
     val loading: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null
 )
+
+private object DriverPhotoNotSelectedException : IllegalStateException()
 
 class RentalViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ClientRepository(application)
@@ -129,6 +132,9 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
             repository.rentalVendorPayouts()
                 .onSuccess { _state.value = _state.value.copy(payouts = it) }
                 .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vendor payouts") }
+            repository.rentalVendorEarnings()
+                .onSuccess { _state.value = _state.value.copy(earnings = it) }
+                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load rental earnings") }
         }
     }
     fun loadVendorVehicles() {
@@ -204,6 +210,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         carId: String,
         request: RentalVehicleUpdateRequest,
         galleryPhotos: Map<Int, String>,
+        driverPhotoUri: String?,
         onDone: () -> Unit
     ) {
         if (_state.value.saving) return
@@ -216,8 +223,20 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     uploadRentalVehiclePhotos(carId, galleryPhotos)
                         .onSuccess {
-                            _state.value = _state.value.copy(saving = false)
-                            onDone()
+                            uploadDriverPhotoIfNeeded(updated.driverId, driverPhotoUri)
+                                .onSuccess { driverUpdated ->
+                                    _state.value = _state.value.copy(
+                                        vendorCars = _state.value.vendorCars.map { if (it.id == driverUpdated.id) driverUpdated else it },
+                                        saving = false
+                                    )
+                                    onDone()
+                                }
+                                .onFailure {
+                                    _state.value = _state.value.copy(
+                                        saving = false,
+                                        error = it.message ?: "Vehicle submitted, but the driver photo could not be saved"
+                                    )
+                                }
                         }
                         .onFailure {
                             _state.value = _state.value.copy(
@@ -233,6 +252,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     fun onboardVehicle(
         request: RentalVehicleOnboardingRequest,
         galleryPhotos: Map<Int, String>,
+        driverPhotoUri: String?,
         onDone: () -> Unit
     ) {
         if (_state.value.saving) return
@@ -243,8 +263,20 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + created)
                     uploadRentalVehiclePhotos(created.id, galleryPhotos)
                         .onSuccess {
-                            _state.value = _state.value.copy(saving = false)
-                            onDone()
+                            uploadDriverPhotoIfNeeded(created.driverId, driverPhotoUri)
+                                .onSuccess { driverUpdated ->
+                                    _state.value = _state.value.copy(
+                                        vendorCars = _state.value.vendorCars.map { if (it.id == driverUpdated.id) driverUpdated else it },
+                                        saving = false
+                                    )
+                                    onDone()
+                                }
+                                .onFailure {
+                                    _state.value = _state.value.copy(
+                                        saving = false,
+                                        error = it.message ?: "Vehicle created, but the driver photo could not be saved"
+                                    )
+                                }
                         }
                         .onFailure {
                             _state.value = _state.value.copy(
@@ -255,6 +287,17 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to submit vehicle") }
         }
+    }
+
+    private suspend fun uploadDriverPhotoIfNeeded(
+        driverId: String?,
+        photoUri: String?
+    ): Result<RentalCarResponse> = runCatching {
+        if (photoUri.isNullOrBlank()) {
+            throw DriverPhotoNotSelectedException
+        }
+        require(!driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
+        repository.uploadRentalDriverPhoto(driverId, android.net.Uri.parse(photoUri)).getOrThrow()
     }
 
     private suspend fun uploadRentalVehiclePhotos(
