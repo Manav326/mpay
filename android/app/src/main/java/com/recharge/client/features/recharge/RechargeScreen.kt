@@ -164,7 +164,7 @@ fun RechargeScreen(
                 }
             }
         }
-        state.operator?.let { detected -> item { OperatorSummaryCard(detected, state.walletBalance, state.refreshingWallet, onRefreshWallet) } }
+        state.operator?.let { detected -> item { OperatorSummaryCard(detected, state.walletBalance, state.refreshingWallet, state.recipientName, onRefreshWallet) } }
 
         if (state.operator != null && state.plans.isNotEmpty()) {
             item {
@@ -233,7 +233,7 @@ fun RechargeScreen(
 }
 
 @Composable
-private fun OperatorSummaryCard(response: OperatorCheckResponse, balance: BigDecimal?, refreshing: Boolean, onRefreshWallet: () -> Unit) {
+private fun OperatorSummaryCard(response: OperatorCheckResponse, balance: BigDecimal?, refreshing: Boolean, recipientName: String, onRefreshWallet: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.padding(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -263,8 +263,9 @@ private fun OperatorSummaryCard(response: OperatorCheckResponse, balance: BigDec
             Spacer(Modifier.height(14.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
-                    Text("Number", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Text("Recharge number", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Text(response.mobileNumber, fontWeight = FontWeight.Bold)
+                    recipientName.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1) }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Available wallet", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelMedium)
