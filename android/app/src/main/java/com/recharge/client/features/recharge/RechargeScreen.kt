@@ -99,7 +99,7 @@ fun RechargeScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 22.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
@@ -108,7 +108,7 @@ fun RechargeScreen(
             Text("Recharge any supported prepaid number securely from your wallet.", color = AppColors.TextSecondary)
         }
         item {
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm)) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Recharge number", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(10.dp))
@@ -132,19 +132,20 @@ fun RechargeScreen(
                     OutlinedTextField(
                         value = state.recipientName,
                         onValueChange = onRecipientNameChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Recharge contact name (optional)") },
-                        placeholder = { Text("Auto-filled from phonebook when available") },
-                        supportingText = { Text("You can edit this name before recharge.") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+                        label = { Text("Recipient name (optional)") },
+                        placeholder = { Text("Phonebook name") },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(13.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     Button(
                         onClick = onDetect,
                         enabled = state.mobile.length == 10 && !state.detecting && !state.loadingPlans,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                        shape = RoundedCornerShape(13.dp)
                     ) {
                         if (state.detecting || state.loadingPlans) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -289,7 +290,7 @@ private fun OperatorSummaryCard(
                     }
                 }
                 Text(
-                    balance?.let { "₹\${formatMoney(it)}" } ?: "Checking…",
+                    balance?.let { "₹${formatMoney(it)}" } ?: "Checking…",
                     color = AppColors.TextPrimary,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
