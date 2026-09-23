@@ -51,6 +51,8 @@ data class RentalVendorResponse(
     val payoutUpiId: String? = null,
     val bankAccountNumber: String? = null,
     val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null,
     val rejectionReason: String? = null,
     val submittedAt: Instant? = null
 )
@@ -93,7 +95,25 @@ data class RentalVendorOnboardingRequest(
     @field:Size(max = 20) val panNumber: String? = null,
     @field:Size(max = 254) val payoutUpiId: String? = null,
     @field:Size(max = 64) val bankAccountNumber: String? = null,
-    @field:Size(max = 20) val bankIfsc: String? = null
+    @field:Size(max = 20) val bankIfsc: String? = null,
+    @field:Size(max = 120) val bankName: String? = null,
+    @field:Pattern(regexp = "^(BANK|UPI)$", message = "Primary payout method must be BANK or UPI") val payoutPrimaryMethod: String? = null
+)
+
+data class RentalVendorUpdateRequest(
+    @field:NotBlank val vendorType: String,
+    @field:NotBlank @field:Size(max = 120) val fullName: String,
+    @field:Size(max = 160) val businessName: String? = null,
+    @field:NotBlank @field:Size(max = 300) val address: String,
+    @field:NotBlank @field:Size(max = 100) val city: String,
+    @field:NotBlank @field:Size(max = 100) val state: String,
+    @field:NotBlank @field:Size(max = 10) val pinCode: String,
+    @field:Size(max = 20) val panNumber: String? = null,
+    @field:Size(max = 254) val payoutUpiId: String? = null,
+    @field:Size(max = 64) val bankAccountNumber: String? = null,
+    @field:Size(max = 20) val bankIfsc: String? = null,
+    @field:Size(max = 120) val bankName: String? = null,
+    @field:Pattern(regexp = "^(BANK|UPI)$", message = "Primary payout method must be BANK or UPI") val payoutPrimaryMethod: String? = null
 )
 
 data class RentalDriverRequest(
