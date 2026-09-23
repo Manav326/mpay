@@ -172,3 +172,7 @@
   .availability-form{grid-template-columns:1fr}
   .calendar-grid{gap:4px}.calendar-day{min-height:46px;padding:5px}.calendar-day span{font-size:7px}
 }
+
+
+.compact-wallet{margin-top:10px}.compact-wallet>div{min-height:86px}.compact-wallet small{display:block;color:#7f766c;font-size:9px;margin-top:4px}
+.small-modal{max-width:640px}.portal-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
