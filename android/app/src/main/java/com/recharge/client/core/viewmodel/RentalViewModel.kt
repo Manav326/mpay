@@ -326,7 +326,11 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         photoUri: String?
     ): Result<RentalCarResponse> = try {
         if (photoUri.isNullOrBlank()) {
-            Result.success(current)
+            // Vehicle-photo uploads may have already updated the in-memory car.
+            // Preserve that newer aggregate instead of reverting to the original create/update response.
+            Result.success(
+                _state.value.vendorCars.firstOrNull { it.id == current.id } ?: current
+            )
         } else {
             require(!current.driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
             Result.success(
