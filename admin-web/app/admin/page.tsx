@@ -114,7 +114,7 @@ function UserDrawer({user,onClose,canManageUserStatus,onStatusChanged}:{user:Use
       getUserRechargeHistory(user.id,0,25),
       getUserWalletHistory(user.id,0,25),
       getUserWithdrawalHistory(user.id,0,25),
-    ]).then(([rechargePageData,walletPageData])=>{
+     ]).then(([rechargePageData,walletPageData,withdrawalPageData])=>{
       if(!active) return;
       setRecharges(rechargePageData.items);
       setRechargePage(rechargePageData.page);
