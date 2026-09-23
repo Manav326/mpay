@@ -82,22 +82,21 @@ fun WalletScreen(
                 confirmButton = { Button(onClick = onCloseWalletDetail) { Text("Okay") } }
             )
         }
-        walletUiState.selectedWalletItem?.referenceType.equals("RECHARGE", true) && walletUiState.detailLoading -> {
+        walletUiState.selectedWalletItem != null && walletUiState.detailLoading -> {
             AlertDialog(
                 onDismissRequest = onCloseWalletDetail,
-                title = { Text("Recharge details") },
+                title = { Text(walletTransactionTitle(walletUiState.selectedWalletItem)) },
                 text = { Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
                 confirmButton = { TextButton(onClick = onCloseWalletDetail) { Text("Cancel") } }
             )
         }
         walletUiState.selectedWalletItem != null -> {
-            val selectedWithdrawal = walletUiState.withdrawals.firstOrNull { it.withdrawalId == walletUiState.selectedWalletItem?.referenceId }
             AlertDialog(
                 onDismissRequest = onCloseWalletDetail,
                 title = { Text(walletTransactionTitle(walletUiState.selectedWalletItem)) },
                 text = {
                     if (walletUiState.detailError != null) Text(walletUiState.detailError, color = MaterialTheme.colorScheme.error)
-                    else WalletTransactionDetailCard(walletUiState.selectedWalletItem, selectedWithdrawal)
+                    else WalletTransactionDetailCard(walletUiState.selectedWalletItem, walletUiState.selectedWithdrawal)
                 },
                 confirmButton = { Button(onClick = onCloseWalletDetail) { Text("Okay") } }
             )
