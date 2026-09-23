@@ -59,7 +59,7 @@ fun WalletScreen(
     var pendingFrom by remember { mutableStateOf<LocalDate?>(null) }
 
     LaunchedEffect(isVisible) { if (isVisible) { onRefresh(); onRefreshCommission(); onRefreshWalletHistory() } }
-    if (showWithdraw) WithdrawDialog(walletUiState, { showWithdraw = false }, onWithdraw, onClearWithdrawMessage)
+    if (showWithdraw) WithdrawDialog(walletUiState, wallet?.availableBalance ?: BigDecimal.ZERO, { showWithdraw = false }, onWithdraw, onClearWithdrawMessage)
 
     if (showFromPicker) WalletDatePicker(walletUiState.fromDate) { date -> pendingFrom = date; showFromPicker = false; showToPicker = true }
     if (showToPicker) WalletDatePicker(maxOf(walletUiState.toDate, pendingFrom ?: walletUiState.toDate)) { date ->
