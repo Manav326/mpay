@@ -54,13 +54,15 @@ export default function Page() {
   const permissions = session.permissions || [];
   function permissionsForSession(s: typeof session){ return s?.permissions || []; }
   const canVendors = permissions.includes('MANAGE_VENDORS');
+  const canRentalOperations = permissions.includes('MANAGE_RENTAL_OPERATIONS');
   const canFinancial = permissions.includes('VIEW_FINANCIAL_OPERATIONS');
   const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
   const menu = [
     ['dashboard','Dashboard',LayoutDashboard],
     ['users','Users & Wallet',Users],
     ...(canFinancial ? [['financial','Financial Operations',WalletCards] as const] : []),
-    ...(canVendors ? [['vendors','Rental Partners',CarFront] as const, ['rental','Rental Operations',CalendarDays] as const] : []),
+    ...(canVendors ? [['vendors','Rental Partners',CarFront] as const] : []),
+    ...(canRentalOperations ? [['rental','Rental Operations',CalendarDays] as const] : []),
     ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
   ] as const;
 
@@ -78,7 +80,7 @@ export default function Page() {
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected}/>}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={permissions.includes('MANAGE_RECHARGE_OPERATIONS')} onNotice={setNotice}/>} 
       
-      {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>}<RentalPayouts onNotice={setNotice}/> \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
+      {view==='rental' && canRentalOperations && <><RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/><RentalPayouts onNotice={setNotice}/></>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }
