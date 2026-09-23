@@ -25,8 +25,6 @@ data class RentalUiState(
     val error: String? = null
 )
 
-private object DriverPhotoNotSelectedException : IllegalStateException()
-
 class RentalViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ClientRepository(application)
     private val _state = MutableStateFlow(RentalUiState())
@@ -223,7 +221,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     uploadRentalVehiclePhotos(carId, galleryPhotos)
                         .onSuccess {
-                            uploadDriverPhotoIfNeeded(updated.driverId, driverPhotoUri)
+                            uploadDriverPhotoIfNeeded(updated, driverPhotoUri)
                                 .onSuccess { driverUpdated ->
                                     _state.value = _state.value.copy(
                                         vendorCars = _state.value.vendorCars.map { if (it.id == driverUpdated.id) driverUpdated else it },
@@ -263,7 +261,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + created)
                     uploadRentalVehiclePhotos(created.id, galleryPhotos)
                         .onSuccess {
-                            uploadDriverPhotoIfNeeded(created.driverId, driverPhotoUri)
+                            uploadDriverPhotoIfNeeded(created, driverPhotoUri)
                                 .onSuccess { driverUpdated ->
                                     _state.value = _state.value.copy(
                                         vendorCars = _state.value.vendorCars.map { if (it.id == driverUpdated.id) driverUpdated else it },
@@ -290,14 +288,12 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private suspend fun uploadDriverPhotoIfNeeded(
-        driverId: String?,
+        current: RentalCarResponse,
         photoUri: String?
     ): Result<RentalCarResponse> = runCatching {
-        if (photoUri.isNullOrBlank()) {
-            throw DriverPhotoNotSelectedException
-        }
-        require(!driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
-        repository.uploadRentalDriverPhoto(driverId, android.net.Uri.parse(photoUri)).getOrThrow()
+        if (photoUri.isNullOrBlank()) return@runCatching current
+        require(!current.driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
+        repository.uploadRentalDriverPhoto(current.driverId, android.net.Uri.parse(photoUri)).getOrThrow()
     }
 
     private suspend fun uploadRentalVehiclePhotos(
