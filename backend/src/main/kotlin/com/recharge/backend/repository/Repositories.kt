@@ -43,12 +43,19 @@ interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Lon
     fun findTop20ByUserIdOrderByCreatedAtDesc(userId: Long): List<WalletWithdrawalEntity>
 
     fun findByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<WalletWithdrawalEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<WalletWithdrawalEntity>
+    fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<WalletWithdrawalEntity>
+    fun findAllByProviderNameOrderByCreatedAtDesc(providerName: String, pageable: Pageable): Page<WalletWithdrawalEntity>
+    fun findAllByStatusAndProviderNameOrderByCreatedAtDesc(status: String, providerName: String, pageable: Pageable)
 }
 
 interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, Long> {
     fun existsByExternalRef(externalRef: String): Boolean
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<WalletTransactionEntity>
+    fun findAllByReferenceTypeOrderByCreatedAtDesc(referenceType: String, pageable: Pageable): Page<WalletTransactionEntity>
     fun findByUserIdAndReferenceTypeAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, referenceType: String, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
+    fun findByUserIdAndReferenceTypeInAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, referenceTypes: Collection<String>, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
 
     @Query("""
         select coalesce(sum(w.amount), 0)
@@ -94,6 +101,10 @@ interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntit
     fun findByTransactionId(transactionId: String): Optional<RechargeTransactionEntity>
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<RechargeTransactionEntity>
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toInclusive: Instant, pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findAllByProviderNameOrderByCreatedAtDesc(providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findAllByStatusAndProviderNameOrderByCreatedAtDesc(status: String, providerName: String, pageable: Pageable)
 
     @Query("""
         select coalesce(sum(r.clientCommission), 0)
