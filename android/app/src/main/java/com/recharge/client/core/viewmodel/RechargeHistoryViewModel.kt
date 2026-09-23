@@ -50,8 +50,6 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
 
     private fun todayIndia(): LocalDate = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDate()
 
-    init { load(refresh = true) }
-
     fun setToday() { val end = todayIndia(); setRange(HistoryFilter.TODAY, end, end) }
     fun setLast7Days() { val end = todayIndia(); setRange(HistoryFilter.LAST_7_DAYS, end.minusDays(6), end) }
     fun setThisMonth() { val end = todayIndia(); setRange(HistoryFilter.THIS_MONTH, end.withDayOfMonth(1), end) }
