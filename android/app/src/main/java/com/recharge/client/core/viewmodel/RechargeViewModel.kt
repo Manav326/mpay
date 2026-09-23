@@ -28,6 +28,7 @@ sealed interface RechargeActionState {
 
 data class RechargeUiState(
     val mobile: String = "",
+    val recipientName: String = "",
     val operator: OperatorCheckResponse? = null,
     val plans: List<RechargePlan> = emptyList(),
     val selectedPlan: RechargePlan? = null,
@@ -50,7 +51,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     private var pollingJob: Job? = null
 
-    fun setMobile(value: String) {
+    fun setMobile(value: String, contactName: String? = null) {
         val normalized = value.filter(Char::isDigit).take(10)
         val current = _state.value
         if (current.mobile == normalized) return
@@ -58,6 +59,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
         pollingJob?.cancel()
         _state.value = current.copy(
             mobile = normalized,
+            recipientName = contactName?.trim()?.takeIf { it.isNotBlank() } ?: "",
             operator = null,
             plans = emptyList(),
             selectedPlan = null,
@@ -68,6 +70,10 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
             transactionStatus = null,
             gatewayOrder = null
         )
+    }
+
+    fun setRecipientName(value: String) {
+        _state.value = _state.value.copy(recipientName = value.take(120))
     }
 
     fun detectAndLoad() {
@@ -215,7 +221,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
                     operator = operator.operator,
                     circle = operator.circle,
                     planId = plan.id,
-                    clientRequestId = "ANDROID-RECHARGE-PAY-" + UUID.randomUUID()
+                    clientRequestId = "ANDROID-RECHARGE-PAY-" + UUID.randomUUID(),
+                    recipientName = current.recipientName.trim().takeIf { it.isNotBlank() }
                 )
             ).onSuccess { order ->
                 _state.value = _state.value.copy(executing = false, gatewayOrder = order)
