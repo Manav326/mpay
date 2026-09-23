@@ -1740,11 +1740,11 @@ private fun RentalEarningsSummaryCard(
     fun money(v: BigDecimal): String = "₹" + v.setScale(2).toPlainString()
 
     @Composable
-    fun Metric(label: String, value: BigDecimal, tint: Color) {
+    fun Metric(label: String, value: BigDecimal, tint: Color, modifier: Modifier) {
         Surface(
             shape = RoundedCornerShape(14.dp),
             color = tint.copy(alpha = .09f),
-            modifier = Modifier.weight(1f)
+            modifier = modifier
         ) {
             Column(Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = FontWeight.Bold)
@@ -1759,9 +1759,9 @@ private fun RentalEarningsSummaryCard(
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Metric("Gross", period.grossAmount, Color(0xFF334155))
-                    Metric("Platform fee", period.platformFeeAmount, Color(0xFFD97706))
-                    Metric("Net earning", period.vendorNetAmount, AppColors.Success)
+                    Metric("Gross", period.grossAmount, Color(0xFF334155), Modifier.weight(1f))
+                    Metric("Platform fee", period.platformFeeAmount, Color(0xFFD97706), Modifier.weight(1f))
+                    Metric("Net earning", period.vendorNetAmount, AppColors.Success, Modifier.weight(1f))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
