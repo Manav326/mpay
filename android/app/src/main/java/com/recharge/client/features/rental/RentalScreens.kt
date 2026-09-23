@@ -1019,7 +1019,7 @@ fun RentalVendorOnboardingScreen(
                     onClick = {
                         onSubmit(
                             RentalVendorOnboardingRequest(
-                                vendorType = "INDIVIDUAL",
+                                vendorType = vendorType,
                                 fullName = fullName.trim(),
                                 businessName = businessName.trim().ifBlank { null },
                                 address = address.trim(),
@@ -1027,7 +1027,11 @@ fun RentalVendorOnboardingScreen(
                                 state = stateName.trim(),
                                 pinCode = pin.trim(),
                                 panNumber = pan.trim().ifBlank { null },
-                                payoutUpiId = upi.trim().ifBlank { null }
+                                payoutUpiId = upi.trim().ifBlank { null },
+                                bankAccountNumber = bankAccount.trim().ifBlank { null },
+                                bankIfsc = bankIfsc.trim().ifBlank { null },
+                                bankName = bankName.trim().ifBlank { null },
+                                payoutPrimaryMethod = primaryPayout.trim().ifBlank { null }
                             ), {}
                         )
                     },
