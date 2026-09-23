@@ -1122,14 +1122,12 @@ private fun RentalPublicCarDetailsDialog(
                     }
                 }
                 item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        RentalDetailSection("Vehicle", AppColors.Rental, listOf(
-                            "Seats" to car.seats.toString(),
-                            "Transmission" to car.transmission,
-                            "Fuel" to (car.fuelType ?: "—"),
-                            "Location" to listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }
-                        ))
-                    }
+                    RentalDetailSection("Vehicle", AppColors.Rental, listOf(
+                        "Seats" to car.seats.toString(),
+                        "Transmission" to car.transmission,
+                        "Fuel" to (car.fuelType ?: "—"),
+                        "Location" to listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }
+                    ))
                 }
                 item {
                     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .70f))) {
