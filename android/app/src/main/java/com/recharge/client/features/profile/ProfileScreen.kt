@@ -33,6 +33,7 @@ import com.recharge.client.core.ui.CopyableValue
 import com.recharge.client.core.ui.ProfileAvatar
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
+import com.recharge.client.core.ui.MpayStatusPill
 import com.recharge.client.core.viewmodel.ProfileUiState
 import java.math.BigDecimal
 
@@ -130,7 +131,7 @@ fun ProfileScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = if (verified) Color.White else AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
                         Text(vendorSubtitle, color = if (verified) Color.White.copy(alpha = .74f) else AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        if (hasVendorProfile) Text("Status: " + (vendor?.status ?: "—"), style = MaterialTheme.typography.labelMedium, color = if (verified) AppColors.VendorGold else AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
+                        if (hasVendorProfile) MpayStatusPill(vendor?.status ?: "—")
                     }
                     Icon(Icons.Default.ChevronRight, "Open vendor", tint = if (verified) Color.White else AppColors.PrimaryDark)
                 }
