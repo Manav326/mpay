@@ -416,7 +416,13 @@ private fun AppRoot(
     }
 
     if (showFundingDialog) {
-        AddMoneyDialog(paymentState, { showFundingDialog = false; paymentViewModel.reset() }, paymentViewModel::createOrder, paymentViewModel::reset)
+        AddMoneyDialog(
+            paymentState,
+            { showFundingDialog = false; paymentViewModel.reset() },
+            paymentViewModel::createOrder,
+            paymentViewModel::reset,
+            availableBalance = homeViewModel.wallet.collectAsState().value?.availableBalance ?: BigDecimal.ZERO
+        )
     }
 
     if (sideNav) {
