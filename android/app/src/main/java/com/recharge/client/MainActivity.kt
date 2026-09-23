@@ -432,7 +432,14 @@ private fun AppRoot(
 
     val nav = rememberNavController()
     val logoutAndReset = {
-        nav.popBackStack("home", false)
+        nav.navigate("home") {
+            popUpTo(nav.graph.startDestinationId) {
+                inclusive = false
+                saveState = false
+            }
+            launchSingleTop = true
+            restoreState = false
+        }
         homeViewModel.resetSession()
         profileViewModel.resetSession()
         rechargeViewModel.resetSession()
