@@ -27,7 +27,7 @@ type WalletItem = {
 };
 type WithdrawalItem = {
   withdrawalId: string; clientRequestId?: string; amount: number; upiId: string; provider: string; status: string;
-  providerReference?: string; providerStatus?: string; failureReason?: string; walletLedgerRef?: string;
+  providerReference?: string; providerStatus?: string; failureReason?: string; walletLedgerRef?: string; message?: string | null;
   createdAt?: string; updatedAt?: string; completedAt?: string;
 };
 type RentalCar = {
