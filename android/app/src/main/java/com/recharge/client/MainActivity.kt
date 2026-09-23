@@ -565,8 +565,10 @@ private fun AppNavHost(
                 RentalBookingScreen(
                     car = car,
                     state = rentalViewModel.state.collectAsState().value,
+                    wallet = homeViewModel.wallet.collectAsState().value,
                     onQuote = rentalViewModel::quoteBooking,
                     onBack = { nav.popBackStack() },
+                    onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
                     onConfirm = rentalViewModel::createBooking,
                     initialStart = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_start_date"),
                     initialEnd = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_end_date")
