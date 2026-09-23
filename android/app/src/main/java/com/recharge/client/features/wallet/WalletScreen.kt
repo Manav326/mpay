@@ -42,6 +42,8 @@ import com.recharge.client.features.recharge.operatorColor
 import com.recharge.client.features.recharge.operatorLabel
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.Calendar
 import kotlinx.coroutines.delay
 
@@ -241,7 +243,7 @@ private fun WalletActivityCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Wallet history", style = MaterialTheme.typography.titleLarge)
-                    Text("${state.fromDate} → ${state.toDate}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) + " → " + state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 IconButton(onClick = onRefresh, enabled = !state.refreshing) { Icon(Icons.Default.Refresh, "Refresh wallet history") }
             }
