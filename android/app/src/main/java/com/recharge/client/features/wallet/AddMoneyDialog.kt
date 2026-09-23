@@ -27,13 +27,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.viewmodel.PaymentUiState
+import com.recharge.client.core.ui.formatMoney
+import java.math.BigDecimal
 
 @Composable
 fun AddMoneyDialog(
     paymentState: PaymentUiState,
     onDismiss: () -> Unit,
     onCreateOrder: (String, String) -> Unit,
-    onClearMessage: () -> Unit
+    onClearMessage: () -> Unit,
+    availableBalance: BigDecimal = BigDecimal.ZERO
 ) {
     var amount by remember { mutableStateOf("100") }
     var provider by remember { mutableStateOf("mock") }
@@ -41,6 +44,8 @@ fun AddMoneyDialog(
     val busy = paymentState is PaymentUiState.CreatingOrder || paymentState is PaymentUiState.Verifying
     val error = (paymentState as? PaymentUiState.Error)?.message
     val success = (paymentState as? PaymentUiState.Success)?.message
+    val parsedAmount = amount.toBigDecimalOrNull()
+    val validAmount = parsedAmount != null && parsedAmount in BigDecimal("1.00")..BigDecimal("50000.00")
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -50,7 +55,9 @@ fun AddMoneyDialog(
                 Text("Choose how to fund the wallet. Mock is for development/testing; Razorpay and PayU use their configured test gateways.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
                 MpayProviderSelector(provider, !busy) { provider = it }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
+                Text("Current available balance: ₹" + formatMoney(availableBalance), style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { input ->
@@ -64,7 +71,11 @@ fun AddMoneyDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("Minimum ₹1 · Maximum ₹50,000", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Minimum ₹1 · Maximum ₹50,000",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (validAmount || amount.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                )
                 error?.let {
                     Spacer(Modifier.height(10.dp))
                     Text(it, color = MaterialTheme.colorScheme.error)
@@ -79,7 +90,7 @@ fun AddMoneyDialog(
             if (success == null) {
                 Button(
                     onClick = { onCreateOrder(amount, provider) },
-                    enabled = !busy
+                    enabled = !busy && validAmount
                 ) {
                     if (busy) {
                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(18.dp))
