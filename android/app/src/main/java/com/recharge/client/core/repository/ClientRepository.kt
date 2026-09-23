@@ -13,6 +13,7 @@ import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeRequest
 import com.recharge.client.core.model.RechargeResponse
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
+import com.recharge.client.core.model.RentalVendorUpdateRequest
 import com.recharge.client.core.model.RechargeHistoryResponse
 import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.VerifyPaymentRequest
@@ -141,7 +142,8 @@ class ClientRepository(context: Context) {
         operator: String,
         circle: String,
         planId: String,
-        clientRequestId: String
+        clientRequestId: String,
+        recipientName: String? = null
     ): Result<RechargeResponse> = runCatching {
         val response = api.recharge(
             RechargeRequest(
@@ -149,7 +151,8 @@ class ClientRepository(context: Context) {
                 operator = operator,
                 circle = circle,
                 planId = planId,
-                clientRequestId = clientRequestId
+                clientRequestId = clientRequestId,
+                recipientName = recipientName?.trim()?.takeIf { it.isNotBlank() }
             )
         )
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
@@ -210,6 +213,12 @@ class ClientRepository(context: Context) {
 
     suspend fun onboardRentalVendor(request: com.recharge.client.core.model.RentalVendorOnboardingRequest): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
         val response = api.onboardRentalVendor(request)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun updateRentalVendor(request: RentalVendorUpdateRequest): Result<com.recharge.client.core.model.RentalVendorResponse> = runCatching {
+        val response = api.updateRentalVendor(request)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
