@@ -52,6 +52,17 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private var historyRequestGeneration = 0L
     private var detailRequestGeneration = 0L
 
+    fun resetSession() {
+        historyJob?.cancel()
+        detailJob?.cancel()
+        historyJob = null
+        detailJob = null
+        historyRequestGeneration++
+        detailRequestGeneration++
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = WalletUiState()
+    }
+
     fun selectFilter(filter: WalletHistoryFilter) {
         _state.value = _state.value.copy(filter = filter)
         loadHistory(refresh = true)
