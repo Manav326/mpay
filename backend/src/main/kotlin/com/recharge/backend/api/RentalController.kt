@@ -138,11 +138,17 @@ class RentalController(
             .body(stored.bytes)
     }
 
-    private fun requireAdmin(authentication: Authentication) {
+    private fun requirePermission(authentication: Authentication, permission: String) {
         val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
         val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
-        roleAccessService.requirePermission(user, "MANAGE_VENDORS")
+        roleAccessService.requirePermission(user, permission)
     }
+
+    private fun requireVendorManagement(authentication: Authentication) =
+        requirePermission(authentication, "MANAGE_VENDORS")
+
+    private fun requireRentalOperations(authentication: Authentication) =
+        requirePermission(authentication, "MANAGE_RENTAL_OPERATIONS")
 
     @GetMapping("/admin/vehicle-unavailability")
     fun adminVehicleUnavailability(authentication: Authentication): List<RentalAdminVehicleUnavailabilityResponse> {
