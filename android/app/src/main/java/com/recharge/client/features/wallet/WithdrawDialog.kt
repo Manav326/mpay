@@ -18,6 +18,9 @@ fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss
     var upiId by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("mock") }
     val busy = state.withdrawing
+    val parsedAmount = amount.toBigDecimalOrNull()
+    val validAmount = parsedAmount != null && parsedAmount >= BigDecimal("1.00") && parsedAmount <= availableBalance
+    val validUpi = Regex("^[^\\s@]+@[^\\s@]+$").matches(upiId.trim())
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Withdraw to UPI") },
@@ -25,8 +28,8 @@ fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Choose the withdrawal mode. Mock is for development/testing.", style = MaterialTheme.typography.bodyMedium)
                 MpayProviderSelector(provider, !busy) { provider = it }
-                Text("Available balance: ₹" + formatMoney(availableBalance), style = MaterialTheme.typography.bodySmall, color = com.recharge.client.core.theme.AppColors.TextSecondary)
                 OutlinedTextField(amount, { if (it.length <= 10 && it.all { c -> c.isDigit() || c == '.' }) amount = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Amount (INR)") }, prefix = { Text("₹") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !busy)
+                Text("Minimum ₹1 · Available ₹" + formatMoney(availableBalance), style = MaterialTheme.typography.labelSmall, color = if (amount.isBlank() || validAmount) com.recharge.client.core.theme.AppColors.TextSecondary else MaterialTheme.colorScheme.error)
                 OutlinedTextField(
                     upiId,
                     { if (it.length <= 120) upiId = it },
@@ -44,7 +47,7 @@ fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss
         },
         confirmButton = {
             if (state.withdrawSuccess == null) {
-                Button(onClick = { onWithdraw(amount, upiId, provider) }, enabled = !busy) { Text(if (busy) "Processing…" else "Withdraw") }
+                Button(onClick = { onWithdraw(amount, upiId, provider) }, enabled = !busy && validAmount && validUpi) { Text(if (busy) "Processing…" else "Withdraw") }
             }
         },
         dismissButton = { TextButton(onClick = { onClearMessage(); onDismiss() }, enabled = !busy) { Text("Close") } }
