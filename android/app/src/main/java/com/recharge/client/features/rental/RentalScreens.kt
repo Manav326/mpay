@@ -1623,6 +1623,123 @@ private fun VendorEarningsCard(
 }
 
 @Composable
+private fun RentalEarningsPeriodCard(
+    payouts: List<RentalVendorPayoutResponse>,
+    isToday: Boolean
+) {
+    val zone = ZoneId.of("Asia/Kolkata")
+    val now = java.time.ZonedDateTime.now(zone)
+    val from = if (isToday) now.toLocalDate().atStartOfDay(zone) else now.toLocalDate().withDayOfMonth(1).atStartOfDay(zone)
+    val paid = payouts.filter { payout ->
+        payout.status.equals("PAID", true) &&
+            runCatching {
+                val created = java.time.Instant.parse(payout.createdAt).atZone(zone)
+                !created.isBefore(from) && !created.isAfter(now)
+            }.getOrDefault(false)
+    }
+    val gross = paid.fold(BigDecimal.ZERO) { total, payout -> total + payout.grossAmount }
+    val net = paid.fold(BigDecimal.ZERO) { total, payout -> total + payout.vendorNetAmount }
+    val countLabel = paid.size.toString() + " completed rental" + if (paid.size == 1) "" else "s"
+
+    Card(shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                if (isToday) "Today • " + now.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH))
+                else now.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)),
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Earnings received", color = AppColors.TextSecondary)
+                    Text("₹" + net.setScale(2).toPlainString(), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                    Text(countLabel, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                    Text("Rental volume", color = AppColors.TextSecondary)
+                    Text("₹" + gross.setScale(2).toPlainString(), style = MaterialTheme.typography.titleLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RentalVendorProfileDialog(
+    fullName: String,
+    businessName: String,
+    address: String,
+    city: String,
+    stateName: String,
+    pin: String,
+    pan: String,
+    bankName: String,
+    bankAccount: String,
+    bankIfsc: String,
+    upi: String,
+    primaryPayout: String,
+    saving: Boolean,
+    error: String?,
+    onFullName: (String) -> Unit,
+    onBusinessName: (String) -> Unit,
+    onAddress: (String) -> Unit,
+    onCity: (String) -> Unit,
+    onState: (String) -> Unit,
+    onPin: (String) -> Unit,
+    onPan: (String) -> Unit,
+    onBankName: (String) -> Unit,
+    onBankAccount: (String) -> Unit,
+    onBankIfsc: (String) -> Unit,
+    onUpi: (String) -> Unit,
+    onPrimaryPayout: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Edit vendor profile") },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item { CompactFieldRow("Full name", fullName, onFullName, "Business name", businessName, onBusinessName) }
+                item { VendorField("Address", address, onValueChange = onAddress) }
+                item { CompactFieldRow("City", city, onCity, "State", stateName, onState) }
+                item { CompactFieldRow("PIN", pin, onPin, "PAN", pan, onPan) }
+                item { Text("Payout details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
+                item { VendorField("Bank name", bankName, onValueChange = onBankName) }
+                item { CompactFieldRow("Bank account", bankAccount, onBankAccount, "IFSC", bankIfsc, onBankIfsc) }
+                item { VendorField("UPI ID", upi, onValueChange = onUpi) }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Primary payout method", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            FilterChip(selected = primaryPayout == "UPI", onClick = { onPrimaryPayout("UPI") }, label = { Text("UPI") }, enabled = upi.isNotBlank())
+                            FilterChip(selected = primaryPayout == "BANK", onClick = { onPrimaryPayout("BANK") }, label = { Text("Bank") }, enabled = bankAccount.isNotBlank() && bankIfsc.isNotBlank())
+                        }
+                    }
+                }
+                error?.let { message -> item { Text(message, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                enabled = !saving &&
+                    fullName.isNotBlank() && address.isNotBlank() && city.isNotBlank() && stateName.isNotBlank() && pin.isNotBlank() &&
+                    (primaryPayout.isBlank() ||
+                        (primaryPayout == "UPI" && upi.isNotBlank()) ||
+                        (primaryPayout == "BANK" && bankAccount.isNotBlank() && bankIfsc.isNotBlank()))
+            ) {
+                if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Save changes")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
+    )
+}
+
+@Composable
 fun RentalBookingScreen(
     car: RentalCarResponse,
     state: RentalUiState,
