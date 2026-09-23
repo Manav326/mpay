@@ -12,6 +12,7 @@ interface RentalImageStorage {
     data class StoredImage(val key: String, val contentType: String, val bytes: ByteArray)
 
     fun save(carId: Long, slot: Int, file: MultipartFile): String
+    fun saveDriverPhoto(driverId: Long, file: MultipartFile): String
     fun load(key: String): StoredImage?
     fun delete(key: String?)
 }
@@ -36,6 +37,23 @@ class LocalRentalImageStorage(
             else -> "jpg"
         }
         val key = "rental_${carId}_${slot}_${UUID.randomUUID()}.$ext"
+        Files.write(resolve(key), file.bytes)
+        return key
+    }
+
+    override fun saveDriverPhoto(driverId: Long, file: MultipartFile): String {
+        require(!file.isEmpty) { "Driver photo is empty" }
+
+        val contentType = file.contentType?.lowercase().orEmpty()
+        require(contentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
+        require(file.size <= MAX_BYTES) { "Driver photo must be 5 MB or smaller" }
+
+        val ext = when (contentType) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            else -> "jpg"
+        }
+        val key = "rental_driver_${driverId}_${UUID.randomUUID()}.$ext"
         Files.write(resolve(key), file.bytes)
         return key
     }
