@@ -20,20 +20,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.recharge.client.core.ui.MpayProviderSelector
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.viewmodel.PaymentUiState
+import com.recharge.client.core.ui.formatMoney
+import java.math.BigDecimal
 
 @Composable
 fun AddMoneyDialog(
     paymentState: PaymentUiState,
     onDismiss: () -> Unit,
     onCreateOrder: (String, String) -> Unit,
-    onClearMessage: () -> Unit
+    onClearMessage: () -> Unit,
+    availableBalance: BigDecimal = BigDecimal.ZERO
 ) {
     var amount by remember { mutableStateOf("100") }
     var provider by remember { mutableStateOf("mock") }
@@ -41,6 +44,8 @@ fun AddMoneyDialog(
     val busy = paymentState is PaymentUiState.CreatingOrder || paymentState is PaymentUiState.Verifying
     val error = (paymentState as? PaymentUiState.Error)?.message
     val success = (paymentState as? PaymentUiState.Success)?.message
+    val parsedAmount = amount.toBigDecimalOrNull()
+    val validAmount = parsedAmount != null && parsedAmount in BigDecimal("1.00")..BigDecimal("50000.00")
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -49,12 +54,10 @@ fun AddMoneyDialog(
             Column(Modifier.fillMaxWidth()) {
                 Text("Choose how to fund the wallet. Mock is for development/testing; Razorpay and PayU use their configured test gateways.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    SegmentedButton(selected = provider == "mock", onClick = { provider = "mock" }, shape = SegmentedButtonDefaults.itemShape(0, 3)) { Text("Mock") }
-                    SegmentedButton(selected = provider == "razorpay", onClick = { provider = "razorpay" }, shape = SegmentedButtonDefaults.itemShape(1, 3)) { Text("Razorpay") }
-                    SegmentedButton(selected = provider == "payu", onClick = { provider = "payu" }, shape = SegmentedButtonDefaults.itemShape(2, 3)) { Text("PayU") }
-                }
-                Spacer(Modifier.height(12.dp))
+                MpayProviderSelector(provider, !busy) { provider = it }
+                Spacer(Modifier.height(8.dp))
+                Text("Current available balance: ₹" + formatMoney(availableBalance), style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { input ->
@@ -68,14 +71,18 @@ fun AddMoneyDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("Minimum ₹10 · Maximum ₹50,000", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Minimum ₹1 · Maximum ₹50,000",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (validAmount || amount.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                )
                 error?.let {
                     Spacer(Modifier.height(10.dp))
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }
                 success?.let {
                     Spacer(Modifier.height(10.dp))
-                    Text(it, color = MaterialTheme.colorScheme.primary)
+                    Text(it, color = com.recharge.client.core.theme.AppColors.Success)
                 }
             }
         },
@@ -83,7 +90,7 @@ fun AddMoneyDialog(
             if (success == null) {
                 Button(
                     onClick = { onCreateOrder(amount, provider) },
-                    enabled = !busy
+                    enabled = !busy && validAmount
                 ) {
                     if (busy) {
                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(18.dp))
