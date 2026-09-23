@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, updateUserStatus, login, requestPasswordReset, resetPassword } from '@/lib/api';
+import { cancelRentalBooking, completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, updateUserStatus, login, requestPasswordReset, resetPassword } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
@@ -81,7 +81,7 @@ export default function Page() {
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected} canManageStatus={canManageUserStatus} onStatusChanged={async userId=>{await loadUsers();setSelected(await getUserDetailById(userId));}}/>}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={permissions.includes('MANAGE_RECHARGE_OPERATIONS')} onNotice={setNotice}/>} 
       
-      {view==='rental' && canRentalOperations && <><RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/><RentalPayouts onNotice={setNotice}/></>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
+      {view==='rental' && canRentalOperations && <><RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id)=>{setBusy(true);try{await cancelRentalBooking(id);setNotice('Booking cancelled and the wallet payment was refunded.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} busy={busy}/><RentalPayouts onNotice={setNotice}/></>}\n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }
@@ -286,10 +286,12 @@ function RentalOperations(p:{
   onNext:()=>void;
   onRefresh:()=>void;
   onComplete:(id:string)=>void;
+  onCancel:(id:string)=>void;
   busy:boolean;
 }){
   const d=p.dashboard;
   const money=(v:number)=>INR.format(v);
+  const [cancelTarget,setCancelTarget] = useState<RentalAdminBooking | null>(null);
   const statusClass=(s:string)=>(s||'UNKNOWN').toLowerCase().replace(/_/g,'-');
   return <div className="content">
     <section className="metric-grid">
@@ -315,11 +317,28 @@ function RentalOperations(p:{
           <td><b>{b.pickup}</b><span>→ {b.drop}</span><span>{dateTime(b.startDate)} → {dateTime(b.endDate)}</span></td>
           <td><b>{money(b.total)}</b><span>{b.paymentMethod} · {b.paymentStatus}</span></td>
           <td><span className={'status '+statusClass(b.status)}>{b.status}</span></td>
-          <td>{b.status==='CONFIRMED' && new Date(b.endDate).getTime()<=Date.now() ? <button className="secondary" disabled={p.busy} onClick={()=>p.onComplete(b.bookingId)}>Complete & settle</button> : <span>—</span>}</td>
+          <td>{b.status==='CONFIRMED' ? <div className="booking-actions">
+            {new Date(b.endDate).getTime()<=Date.now() && <button className="secondary" disabled={p.busy} onClick={()=>p.onComplete(b.bookingId)}>Complete & settle</button>}
+            {new Date(b.startDate).getTime()>Date.now() && <button className="text-danger-btn" disabled={p.busy} onClick={()=>setCancelTarget(b)}>Cancel & refund</button>}
+          </div> : <span>—</span>}</td>
         </tr>)}
       </tbody></table></div>}
       <div className="panel-head"><span>Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>
     </section>
+    {cancelTarget && <div className="drawer-overlay" onClick={()=>setCancelTarget(null)}>
+      <aside className="user-drawer" onClick={e=>e.stopPropagation()}>
+        <div className="drawer-head"><div><div className="eyebrow">Rental operation</div><h2>Cancel and refund booking?</h2></div><button className="icon-btn" onClick={()=>setCancelTarget(null)}><X/></button></div>
+        <div className="detail-card">
+          <div className="detail-top"><span className="status confirmed">CONFIRMED</span><span className="mono">{cancelTarget.bookingId}</span></div>
+          <b>{cancelTarget.carName}</b>
+          <div className="detail-row"><span>Customer</span><strong>{cancelTarget.userName || cancelTarget.userId}</strong></div>
+          <div className="detail-row"><span>Rental window</span><strong>{dateTime(cancelTarget.startDate)} → {dateTime(cancelTarget.endDate)}</strong></div>
+          <div className="detail-row"><span>Wallet refund</span><strong className="green">{money(cancelTarget.total)}</strong></div>
+        </div>
+        <div className="drawer-note"><ShieldCheck size={15}/> This uses the existing rental refund workflow. No manual ledger adjustment is created.</div>
+        <div className="drawer-actions"><button className="secondary" disabled={p.busy} onClick={()=>setCancelTarget(null)}>Keep booking</button><button className="text-danger-btn" disabled={p.busy} onClick={()=>{setCancelTarget(null);p.onCancel(cancelTarget.bookingId)}}>{p.busy?'Processing…':'Confirm cancellation & refund'}</button></div>
+      </aside>
+    </div>}
   </div>;
 }
 
