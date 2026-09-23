@@ -369,14 +369,6 @@ class AdminController(
             .cacheControl(CacheControl.noCache().cachePrivate())
             .body(stored.bytes)
     }
-
-    @GetMapping("/vendors")
-    fun vendors(authentication: Authentication): List<AdminVendorResponse> =
-        adminService.vendorList(currentUser(authentication))
-
-    @PostMapping("/vendors")
-    fun createVendor(authentication: Authentication, @Valid @RequestBody request: CreateAdminVendorRequest): AdminVendorResponse =
-        adminService.createVendor(currentUser(authentication), request)
 }
 
 
