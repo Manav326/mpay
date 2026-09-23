@@ -9,6 +9,7 @@ import com.recharge.client.core.repository.ClientRepository
 import java.math.BigDecimal
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -22,19 +23,25 @@ sealed interface PaymentUiState {
 }
 
 class WalletPaymentViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
 
     private val _state = MutableStateFlow<PaymentUiState>(PaymentUiState.Idle)
     val state = _state.asStateFlow()
 
+    fun resetSession() {
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = PaymentUiState.Idle
+    }
+
     fun createOrder(amountText: String, provider: String = "razorpay") {
+        if (_state.value is PaymentUiState.CreatingOrder || _state.value is PaymentUiState.Verifying) return
         val amount = amountText.toBigDecimalOrNull()
         if (amount == null || amount <= BigDecimal.ZERO) {
             _state.value = PaymentUiState.Error("Enter a valid amount")
             return
         }
-        if (amount < BigDecimal("10.00")) {
-            _state.value = PaymentUiState.Error("Minimum add-money amount is ₹10")
+        if (amount < BigDecimal("1.00")) {
+            _state.value = PaymentUiState.Error("Minimum add-money amount is ₹1")
             return
         }
         if (amount > BigDecimal("50000.00")) {
@@ -42,8 +49,8 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
             return
         }
 
+        _state.value = PaymentUiState.CreatingOrder
         viewModelScope.launch {
-            _state.value = PaymentUiState.CreatingOrder
             repository.createPaymentOrder(
                 amount = amount.setScale(2),
                 clientRequestId = "ANDROID-${UUID.randomUUID()}",
@@ -61,13 +68,14 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun verifyPayment(provider: String, paymentId: String?, orderId: String, signature: String?) {
+        if (_state.value is PaymentUiState.Verifying) return
         if (orderId.isBlank()) {
             _state.value = PaymentUiState.Error("Payment verification data is incomplete")
             return
         }
 
+        _state.value = PaymentUiState.Verifying
         viewModelScope.launch {
-            _state.value = PaymentUiState.Verifying
             repository.verifyPayment(
                 VerifyPaymentRequest(
                     provider = provider,
