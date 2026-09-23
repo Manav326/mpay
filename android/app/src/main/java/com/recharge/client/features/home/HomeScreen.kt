@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Send
@@ -58,6 +59,7 @@ fun HomeScreen(
     if (showWithdraw) {
         WithdrawDialog(
             state = walletUiState,
+            availableBalance = wallet?.availableBalance ?: BigDecimal.ZERO,
             onDismiss = { showWithdraw = false },
             onWithdraw = onWithdraw,
             onClearMessage = onClearWithdrawMessage
@@ -82,10 +84,16 @@ fun HomeScreen(
             Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = AppColors.Primary)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Wallet balance", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f), modifier = Modifier.weight(1f))
+                        Text("Available balance", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f), modifier = Modifier.weight(1f))
                         IconButton(onClick = onRefreshBalance, enabled = !loading) { Icon(Icons.Default.Refresh, "Refresh balance", tint = MaterialTheme.colorScheme.onPrimary) }
                     }
                     Text(if (loading) "Loading…" else "₹${formatMoney(wallet?.availableBalance ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onPrimary, maxLines = 1, softWrap = false)
+                    if (!loading) {
+                        Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Text("Total ₹${formatMoney(wallet?.balance ?: BigDecimal.ZERO)}", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.labelSmall)
+                            Text("Reserved ₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)}", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
                     if ((wallet?.reservedBalance ?: BigDecimal.ZERO) > BigDecimal.ZERO) {
                         Spacer(Modifier.height(6.dp))
                         Text("₹${formatMoney(wallet?.reservedBalance ?: BigDecimal.ZERO)} reserved in pending transactions", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
@@ -111,7 +119,7 @@ fun HomeScreen(
         item {
             Card(
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F5FF))
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9EC))
             ) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Text("Quick actions", style = MaterialTheme.typography.titleLarge)
@@ -133,8 +141,8 @@ fun HomeScreen(
                         )
                         ActionCard(
                             "My Bookings",
-                            Icons.Default.History,
-                            Color(0xFF7C3AED),
+                            Icons.Default.EventAvailable,
+                            AppColors.PrimaryDark,
                             onRentalBookings,
                             Modifier.weight(1f)
                         )
@@ -148,21 +156,21 @@ fun HomeScreen(
                 Card(
                     onClick = onCarRental,
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF8FF))
+                    colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .58f))
                 ) {
                     Row(
                         Modifier.fillMaxWidth().padding(18.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(shape = RoundedCornerShape(15.dp), color = Color(0xFFDDF1FF)) {
-                            Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF1677B8), modifier = Modifier.padding(11.dp))
+                        Surface(shape = RoundedCornerShape(15.dp), color = AppColors.SurfaceWarm) {
+                            Icon(Icons.Default.DirectionsCar, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(11.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text("Car Rental", style = MaterialTheme.typography.titleLarge)
                             Text("Chauffeur-driven cars, available directly from here.", color = AppColors.TextSecondary)
                         }
-                        Text("Explore", color = Color(0xFF1677B8), style = MaterialTheme.typography.labelLarge)
+                        Text("Explore", color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -200,14 +208,14 @@ fun HomeScreen(
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Today’s earnings", style = MaterialTheme.typography.titleLarge)
+                Text("Today’s recharge earnings", style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = onRefreshEarnings) { Icon(Icons.Default.Refresh, "Refresh today's earnings") }
             }
         }
         item { EarningsPeriodCard(commission?.daily, isToday = true) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Monthly earnings", style = MaterialTheme.typography.titleLarge)
+                Text("Monthly recharge earnings", style = MaterialTheme.typography.titleLarge)
             }
         }
         item { EarningsPeriodCard(commission?.monthly, isToday = false) }
@@ -240,17 +248,25 @@ private fun ActionCard(text: String, icon: androidx.compose.ui.graphics.vector.I
 @Composable
 private fun EarningsPeriodCard(period: com.recharge.client.core.model.CommissionPeriodSummary?, isToday: Boolean) {
     Card(shape = RoundedCornerShape(20.dp)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(if (isToday) formatAsOf(period?.to) else formatPeriod(period?.from, period?.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text("Commission earned", color = AppColors.TextSecondary)
-                    Text("₹${formatMoney(period?.commission ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
-                    Text("${period?.successfulRechargeCount ?: 0} successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                    Text("Recharge volume", color = AppColors.TextSecondary)
-                    Text("₹${formatMoney(period?.successfulRechargeAmount ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.titleLarge)
+        if (period == null) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Earnings are loading", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("We are refreshing the latest recharge commission summary.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        } else {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (isToday) formatAsOf(period.to) else formatPeriod(period.from, period.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Commission earned", color = AppColors.TextSecondary)
+                        Text("₹" + formatMoney(period.commission), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                        Text(period.successfulRechargeCount.toString() + " successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("Recharge volume", color = AppColors.TextSecondary)
+                        Text("₹" + formatMoney(period.successfulRechargeAmount), style = MaterialTheme.typography.titleLarge)
+                    }
                 }
             }
         }
