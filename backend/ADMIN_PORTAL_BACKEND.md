@@ -1,55 +1,88 @@
 # mPay Admin Portal Backend Integration
 
-Admin portal endpoints added on top of the existing client APIs.
+The Admin Portal is an operations surface over the existing wallet, recharge and chauffeur-driven car-rental state machines. Administrative actions are permission-gated on the backend; the web UI is not the security boundary.
 
-## Authentication
+## Authentication and profile
 
-`POST /api/v1/auth/admin-login`
+POST /api/v1/auth/admin-login
+POST /api/v1/auth/manager-login
+POST /api/v1/auth/portal-login
+GET /api/v1/auth/portal-roles
 
-Accepts the normal mobile/password payload but only returns a token for `ADMIN` or `MANAGER` users. `CLIENT` accounts receive `403`.
+The authenticated admin user can manage their own profile through the existing profile APIs:
 
-Existing forgot/reset password endpoints remain:
+- GET /api/v1/profile
+- PATCH /api/v1/profile
+- GET /api/v1/profile/image
+- PUT /api/v1/profile/image
+- DELETE /api/v1/profile/image
 
-- `POST /api/v1/auth/forgot-password`
-- `POST /api/v1/auth/reset-password`
+## Dashboard and users
 
-## Dashboard
+GET /api/v1/admin/dashboard
 
-`GET /api/v1/admin/dashboard`
+Dashboard metrics are scoped to the roles visible to the authenticated portal user.
 
-- ADMIN: company-wide successful recharge volume and company commission.
-- MANAGER: aggregate metrics scoped to visible CLIENT accounts.
+GET /api/v1/admin/users?role=ALL&sort=today-high
+GET /api/v1/admin/users/{publicId}
+POST /api/v1/admin/users/{publicId}/status
 
-## Users
+User visibility is enforced server-side through role_hierarchy. Account status changes require MANAGE_USER_STATUS; administrators cannot deactivate their own account or another ADMIN account.
 
-`GET /api/v1/admin/users?role=ALL&sort=today-high`
+## Financial operations
 
-Sort values:
+The portal has a dedicated financial operations workspace:
 
-- `today-high`
-- `today-low`
-- `month-high`
-- `month-low`
+- GET /api/v1/admin/financial/recharges
+- POST /api/v1/admin/financial/recharges/{transactionId}/refresh
+- GET /api/v1/admin/financial/withdrawals
+- GET /api/v1/admin/financial/wallet-history
 
-Visibility is enforced server-side:
+These views are filtered by the authenticated user's role hierarchy. Financial records for users outside that hierarchy are not returned.
 
-- ADMIN -> ADMIN, MANAGER, CLIENT
-- MANAGER -> CLIENT
-- CLIENT -> denied
+Recharge refresh re-reads the current persisted provider workflow state. It does not allow an administrator to manufacture SUCCESS or FAILED states.
 
-`GET /api/v1/admin/users/{publicId}` returns read-only detail data. No admin endpoint in this layer can recharge, add money, or withdraw from a user's wallet.
+Withdrawal operations remain owned by the withdrawal/provider workflow. The portal is intentionally read-only for payout state transitions.
 
-## Vendors
+## Rental partner review
 
-Admin-only:
+The supported rental administration workflow uses the real rental domain:
 
-- `GET /api/v1/admin/vendors`
-- `POST /api/v1/admin/vendors`
+- GET /api/v1/car-rental/admin/vendors
+- GET /api/v1/car-rental/admin/vendors/{vendorId}/vehicles
+- POST /api/v1/car-rental/admin/vendors/{vendorId}/approve
+- POST /api/v1/car-rental/admin/vendors/{vendorId}/reject
+- POST /api/v1/car-rental/admin/vehicles/{carId}/approve
+- POST /api/v1/car-rental/admin/vehicles/{carId}/reject
+- GET /api/v1/car-rental/admin/vehicle-unavailability
 
-Persisted in PostgreSQL through Flyway migration `V10__admin_portal.sql`.
+These endpoints operate on rental_vendors, rental_cars, review history and vehicle-availability records.
 
-Client-facing catalog for future Android service quick actions:
+The old generic admin_vendors catalogue is no longer part of the live Admin Portal API. Its Flyway migration remains immutable for deployed-database upgrade safety.
 
-`GET /api/v1/services/vendors?category=CAR_RENT&city=Patna`
+## Rental operations
 
-Only active vendors are returned.
+Operational rental endpoints use the dedicated MANAGE_RENTAL_OPERATIONS permission:
+
+- GET /api/v1/car-rental/admin/dashboard
+- GET /api/v1/car-rental/admin/bookings
+- POST /api/v1/car-rental/admin/bookings/{bookingId}/complete
+
+Completing an eligible booking invokes the existing rental settlement workflow and vendor payout logic. Arbitrary booking cancellation or manual payout success/failure controls are deliberately not exposed because the existing domain does not define a separate safe administrator override state machine.
+
+## Commission rules
+
+- GET /api/v1/admin/commission-roles
+- PUT /api/v1/admin/commission-roles/{role}
+
+These require MANAGE_COMMISSION_RATES.
+
+## Design rule
+
+Money state is always changed by its domain workflow:
+
+- recharge -> reservation -> provider outcome -> finalize/release
+- withdrawal -> reservation -> provider outcome/webhook -> settle/release
+- rental payment -> wallet ledger -> booking lifecycle -> vendor payout settlement
+
+The Admin Portal can inspect, filter, refresh supported provider state and perform explicitly modeled lifecycle transitions, but it must not bypass those domain workflows.
