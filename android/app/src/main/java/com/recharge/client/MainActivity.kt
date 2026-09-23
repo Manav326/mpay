@@ -79,21 +79,42 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
     private val walletPaymentViewModel: WalletPaymentViewModel by viewModels()
     private val rechargeViewModel: RechargeViewModel by viewModels()
-    private var rechargeGatewayVerifier: ((String, String, String) -> Unit)? = null
+    private enum class RazorpayCheckoutTarget { WALLET, RECHARGE }
+
+    companion object {
+        private const val STATE_RAZORPAY_TARGET = "razorpay_checkout_target"
+        private const val STATE_RAZORPAY_ORDER_ID = "razorpay_checkout_order_id"
+    }
+
+    private var pendingRazorpayTarget: RazorpayCheckoutTarget? = null
+    private var pendingRazorpayOrderId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingRazorpayTarget = savedInstanceState?.getString(STATE_RAZORPAY_TARGET)
+            ?.let { runCatching { RazorpayCheckoutTarget.valueOf(it) }.getOrNull() }
+        pendingRazorpayOrderId = savedInstanceState?.getString(STATE_RAZORPAY_ORDER_ID)
         Checkout.preload(applicationContext)
         setContent { RechargeTheme { AppRoot(::startWalletPaymentCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, rechargeViewModel = rechargeViewModel) } }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(STATE_RAZORPAY_TARGET, pendingRazorpayTarget?.name)
+        outState.putString(STATE_RAZORPAY_ORDER_ID, pendingRazorpayOrderId)
+        super.onSaveInstanceState(outState)
     }
 
     private fun startWalletPaymentCheckout(order: PaymentOrderResponse) {
         try {
             when {
                 order.provider.equals("mock", true) -> {
+                    pendingRazorpayTarget = null
+                    pendingRazorpayOrderId = null
                     walletPaymentViewModel.verifyPayment("mock", null, order.orderId, null)
                 }
                 order.provider.equals("payu", true) -> {
+                    pendingRazorpayTarget = null
+                    pendingRazorpayOrderId = null
                     PayUCheckoutBridge.open(
                         this,
                         order.amount.setScale(2).toPlainString(),
@@ -111,175 +132,53 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
                         order.checkoutParams["paymentHash"].orEmpty(),
                         object : PayUCheckoutBridge.Callback {
-                            override fun onPaymentSuccess(response: Any?) {
-                                val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                                val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
-                                val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
-                                val mihpayid = parsed?.optString("mihpayid").orEmpty()
-                                val hash = parsed?.optString("hash").orEmpty()
-                                walletPaymentViewModel.verifyPayment("payu", mihpayid, txnId, hash)
-                            }
+                            override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
+        val target = pendingRazorpayTarget
+        val expectedOrderId = pendingRazorpayOrderId
+        val returnedOrderId = paymentData?.orderId.orEmpty()
+        pendingRazorpayTarget = null
+        pendingRazorpayOrderId = null
 
-                            override fun onPaymentFailure(response: Any?) {
-                                val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                                val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
-                                    .getOrNull()?.takeIf { it.isNotBlank() }
-                                walletPaymentViewModel.paymentFailed(message ?: "PayU payment failed")
-                            }
-
-                            override fun onPaymentCancel(isTxnInitiated: Boolean) {
-                                if (isTxnInitiated) {
-                                    walletPaymentViewModel.verifyPayment("payu", null, order.orderId, null)
-                                } else {
-                                    walletPaymentViewModel.paymentFailed("PayU payment was cancelled")
-                                }
-                            }
-
-                            override fun onError(message: String?) {
-                                walletPaymentViewModel.paymentFailed(message ?: "PayU checkout error")
-                            }
-
-                            override fun onGenerateHash(
-                                hashName: String,
-                                hashString: String,
-                                postSalt: String?,
-                                hashType: String?,
-                                callback: PayUCheckoutBridge.PayUHashCallback
-                            ) {
-                                walletPaymentViewModel.generatePayUHash(hashName, hashString, postSalt, hashType) { hash ->
-                                    callback.onHashGenerated(hash)
-                                }
-                            }
-                        }
-                    )
-                }
-                else -> {
-                    val checkout = Checkout().apply { setKeyID(order.keyId) }
-                    val options = JSONObject().apply {
-                        put("key", order.keyId)
-                        put("order_id", order.orderId)
-                        put("currency", order.currency)
-                        put("amount", order.amount.movePointRight(2).longValueExact())
-                        put("name", "mPay")
-                        put("description", "Wallet add money")
-                        put("theme.color", "#F59E0B")
-                    }
-                    checkout.open(this, options)
-                }
-            }
-        } catch (e: Exception) {
-            walletPaymentViewModel.paymentFailed(e.message ?: "Unable to open payment checkout")
+        if (target == null) {
+            walletPaymentViewModel.paymentFailed("Payment result received without a known checkout context. Please refresh your wallet or history.")
+            return
         }
-    }
-
-    private fun startGatewayRechargeCheckout(order: PaymentOrderResponse, rechargeViewModel: RechargeViewModel) {
-        try {
-            if (order.provider.equals("payu", true)) {
-                PayUCheckoutBridge.open(
-                    this,
-                    order.amount.setScale(2).toPlainString(),
-                    order.checkoutParams["isProduction"]?.toBooleanStrictOrNull() ?: false,
-                    order.checkoutParams["productInfo"] ?: "Mobile recharge",
-                    order.keyId,
-                    order.checkoutParams["phone"].orEmpty(),
-                    order.orderId,
-                    order.checkoutParams["firstName"] ?: "mPay",
-                    order.checkoutParams["email"] ?: "customer@mpay.local",
-                    order.checkoutParams["surl"].orEmpty(),
-                    order.checkoutParams["furl"].orEmpty(),
-                    order.checkoutParams["userCredential"].orEmpty(),
-                    order.checkoutParams["vasForMobileSdkHash"].orEmpty(),
-                    order.checkoutParams["paymentRelatedDetailsHash"].orEmpty(),
-                    order.checkoutParams["paymentHash"].orEmpty(),
-                    object : PayUCheckoutBridge.Callback {
-                        override fun onPaymentSuccess(response: Any?) {
-                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                            val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
-                            val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
-                            val mihpayid = parsed?.optString("mihpayid").orEmpty()
-                            val hash = parsed?.optString("hash").orEmpty()
-                            rechargeViewModel.verifyGatewayPayment("payu", mihpayid, txnId, hash)
-                        }
-
-                        override fun onPaymentFailure(response: Any?) {
-                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                            val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
-                                .getOrNull()?.takeIf { it.isNotBlank() }
-                            rechargeViewModel.gatewayPaymentFailed(message ?: "PayU payment failed")
-                        }
-
-                        override fun onPaymentCancel(isTxnInitiated: Boolean) {
-                            if (isTxnInitiated) {
-                                rechargeViewModel.verifyGatewayPayment("payu", null, order.orderId, null)
-                            } else {
-                                rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
-                            }
-                        }
-
-                        override fun onError(message: String?) {
-                            rechargeViewModel.gatewayPaymentFailed(message ?: "PayU checkout error")
-                        }
-
-                        override fun onGenerateHash(
-                            hashName: String,
-                            hashString: String,
-                            postSalt: String?,
-                            hashType: String?,
-                            callback: PayUCheckoutBridge.PayUHashCallback
-                        ) {
-                            rechargeViewModel.generatePayUHash(hashName, hashString, postSalt, hashType) { hash ->
-                                callback.onHashGenerated(hash)
-                            }
-                        }
-                    }
-                )
-            } else {
-                val checkout = Checkout().apply { setKeyID(order.keyId) }
-                val options = JSONObject().apply {
-                    put("key", order.keyId)
-                    put("order_id", order.orderId)
-                    put("currency", order.currency)
-                    put("amount", order.amount.movePointRight(2).longValueExact())
-                    put("name", "mPay")
-                    put("description", "Mobile recharge")
-                    put("theme.color", "#F59E0B")
-                }
-                rechargeGatewayVerifier = { paymentId, orderId, signature ->
-                    rechargeViewModel.verifyGatewayPayment("razorpay", paymentId, orderId, signature)
-                }
-                checkout.open(this, options)
+        if (expectedOrderId != null && returnedOrderId.isNotBlank() && expectedOrderId != returnedOrderId) {
+            when (target) {
+                RazorpayCheckoutTarget.WALLET ->
+                    walletPaymentViewModel.paymentFailed("Payment result did not match the active wallet order.")
+                RazorpayCheckoutTarget.RECHARGE ->
+                    rechargeViewModel.gatewayPaymentFailed("Payment result did not match the active recharge order.")
             }
-        } catch (e: Exception) {
-            rechargeViewModel.gatewayPaymentFailed(e.message)
+            return
         }
-    }
 
-    override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
-        val rechargeVerifier = rechargeGatewayVerifier
-        if (rechargeVerifier != null) {
-            rechargeGatewayVerifier = null
-            rechargeVerifier(
-                razorpayPaymentId.orEmpty(),
-                paymentData?.orderId.orEmpty(),
-                paymentData?.signature.orEmpty()
-            )
-        } else {
-            walletPaymentViewModel.verifyPayment(
+        when (target) {
+            RazorpayCheckoutTarget.WALLET -> walletPaymentViewModel.verifyPayment(
                 provider = "razorpay",
                 paymentId = razorpayPaymentId,
-                orderId = paymentData?.orderId.orEmpty(),
+                orderId = returnedOrderId.ifBlank { expectedOrderId.orEmpty() },
+                signature = paymentData?.signature
+            )
+            RazorpayCheckoutTarget.RECHARGE -> rechargeViewModel.verifyGatewayPayment(
+                provider = "razorpay",
+                paymentId = razorpayPaymentId,
+                orderId = returnedOrderId.ifBlank { expectedOrderId },
                 signature = paymentData?.signature
             )
         }
     }
 
     override fun onPaymentError(code: Int, response: String?, paymentData: PaymentData?) {
-        val rechargeVerifier = rechargeGatewayVerifier
-        if (rechargeVerifier != null) {
-            rechargeGatewayVerifier = null
-            rechargeViewModel.gatewayPaymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
-        } else {
-            walletPaymentViewModel.paymentFailed(response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)")
+        val target = pendingRazorpayTarget
+        pendingRazorpayTarget = null
+        pendingRazorpayOrderId = null
+        val message = response?.takeIf { it.isNotBlank() } ?: "Payment failed (code $code)"
+
+        when (target) {
+            RazorpayCheckoutTarget.RECHARGE -> rechargeViewModel.gatewayPaymentFailed(message)
+            RazorpayCheckoutTarget.WALLET -> walletPaymentViewModel.paymentFailed(message)
+            null -> walletPaymentViewModel.paymentFailed("Payment failed, but the checkout context is no longer available.")
         }
     }
 }
@@ -308,6 +207,10 @@ private fun AppRoot(
     val profileState by profileViewModel.state.collectAsState()
     val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
+    val homeUser by homeViewModel.user.collectAsState()
+    val homeWallet by homeViewModel.wallet.collectAsState()
+    val homeLoading by homeViewModel.loading.collectAsState()
+    val homeError by homeViewModel.error.collectAsState()
     var authRoute by rememberSaveable { mutableStateOf("login") }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -420,7 +323,7 @@ private fun AppRoot(
             { showFundingDialog = false; paymentViewModel.reset() },
             paymentViewModel::createOrder,
             paymentViewModel::reset,
-            availableBalance = homeViewModel.wallet.collectAsState().value?.availableBalance ?: BigDecimal.ZERO
+            availableBalance = homeWallet?.availableBalance ?: BigDecimal.ZERO
         )
     }
 
@@ -430,11 +333,59 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.weight(1f))
+            AppNavHost(
+                nav = nav,
+                currentRoute = currentRoute,
+                homeViewModel = homeViewModel,
+                profileViewModel = profileViewModel,
+                rechargeViewModel = rechargeViewModel,
+                rechargeHistoryViewModel = rechargeHistoryViewModel,
+                rentalViewModel = rentalViewModel,
+                walletViewModel = walletViewModel,
+                historyState = historyState,
+                homeUser = homeUser,
+                homeWallet = homeWallet,
+                homeLoading = homeLoading,
+                homeError = homeError,
+                profileState = profileState,
+                rechargeState = rechargeState,
+                rentalState = rentalState,
+                walletUiState = walletUiState,
+                showFundingDialogSetter = { showFundingDialog = it },
+                paymentViewModel = paymentViewModel,
+                highlightTransactionId = highlightTransactionId,
+                authLogout = { authViewModel.logout() },
+                onChooseContact = onChooseContact,
+                modifier = Modifier.weight(1f
+            ))
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, { authViewModel.logout() }, onChooseContact, Modifier.padding(inner))
+            AppNavHost(
+                nav = nav,
+                currentRoute = currentRoute,
+                homeViewModel = homeViewModel,
+                profileViewModel = profileViewModel,
+                rechargeViewModel = rechargeViewModel,
+                rechargeHistoryViewModel = rechargeHistoryViewModel,
+                rentalViewModel = rentalViewModel,
+                walletViewModel = walletViewModel,
+                historyState = historyState,
+                homeUser = homeUser,
+                homeWallet = homeWallet,
+                homeLoading = homeLoading,
+                homeError = homeError,
+                profileState = profileState,
+                rechargeState = rechargeState,
+                rentalState = rentalState,
+                walletUiState = walletUiState,
+                showFundingDialogSetter = { showFundingDialog = it },
+                paymentViewModel = paymentViewModel,
+                highlightTransactionId = highlightTransactionId,
+                authLogout = { authViewModel.logout() },
+                onChooseContact = onChooseContact,
+                modifier = Modifier.padding(inner
+            ))
         }
     }
 }
@@ -452,18 +403,20 @@ private fun ColoredNavigationRailItem(d: TopLevelDestination, currentRoute: Stri
 private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
     rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
+    homeUser: com.recharge.client.core.model.CurrentUserResponse?, homeWallet: com.recharge.client.core.model.WalletResponse?, homeLoading: Boolean, homeError: String?,
+    profileState: ProfileUiState, rechargeState: RechargeUiState, rentalState: RentalUiState, walletUiState: WalletUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
     authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier
 ) {
     NavHost(navController = nav, startDestination = "home", modifier = modifier.fillMaxSize()) {
         composable("home") {
             HomeScreen(
-                user = homeViewModel.user.collectAsState().value,
-                wallet = homeViewModel.wallet.collectAsState().value,
-                loading = homeViewModel.loading.collectAsState().value,
+                user = homeUser,
+                wallet = homeWallet,
+                loading = homeLoading,
                 commission = historyState.commission,
                 latestRecharge = historyState.items.firstOrNull(),
-                error = homeViewModel.error.collectAsState().value,
+                error = homeError,
                 isVisible = currentRoute == "home",
                 onRefresh = { homeViewModel.load(); rechargeHistoryViewModel.loadCommission() },
                 onRefreshBalance = homeViewModel::refreshWallet,
@@ -472,7 +425,7 @@ private fun AppNavHost(
                 onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
                 onWithdraw = walletViewModel::withdraw,
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
-                walletUiState = walletViewModel.state.collectAsState().value,
+                walletUiState = walletUiState,
                 onRechargeHistory = { navigateToTopLevel(nav, "recharge-history") },
                 onRentalBookings = { nav.navigate("rental-bookings") },
                 onCarRental = { nav.navigate("car-rental") }
@@ -498,7 +451,7 @@ private fun AppNavHost(
         }
         composable("wallet") {
             WalletScreen(
-                wallet = homeViewModel.wallet.collectAsState().value,
+                wallet = homeWallet,
                 loading = homeViewModel.loading.collectAsState().value,
                 commission = historyState.commission,
                 commissionLoading = historyState.commissionLoading,
@@ -523,14 +476,14 @@ private fun AppNavHost(
             )
         }
         composable("profile") {
-            ProfileScreen(profileViewModel.state.collectAsState().value, rentalViewModel.state.collectAsState().value.vendor, profileViewModel::load, rentalViewModel::loadVendor, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
+            ProfileScreen(profileState, rentalState.vendor, profileViewModel::load, rentalViewModel::loadVendor, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
         }
         composable("marketplace") {
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
         }
         composable("car-rental") {
             CarRentalMarketplaceScreen(
-                state = rentalViewModel.state.collectAsState().value,
+                state = rentalState,
                 onBack = { nav.popBackStack() },
                 onBook = { car, startDate, endDate ->
                     nav.currentBackStackEntry?.savedStateHandle?.apply {
@@ -565,16 +518,22 @@ private fun AppNavHost(
         }
         composable("rental-booking") {
             val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
-            val car = rentalViewModel.state.collectAsState().value.cars.firstOrNull { it.id == carId }
+            val car = rentalState.cars.firstOrNull { it.id == carId }
             if (car != null) {
                 RentalBookingScreen(
                     car = car,
-                    state = rentalViewModel.state.collectAsState().value,
+                    state = rentalState,
                     wallet = homeViewModel.wallet.collectAsState().value,
                     onQuote = rentalViewModel::quoteBooking,
                     onBack = { nav.popBackStack() },
                     onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
-                    onConfirm = rentalViewModel::createBooking,
+                    onConfirm = { request, onDone ->
+                        rentalViewModel.createBooking(request) {
+                            homeViewModel.refreshWallet()
+                            rentalViewModel.loadBookings()
+                            onDone()
+                        }
+                    },
                     initialStart = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_start_date"),
                     initialEnd = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_end_date")
                 )
@@ -599,7 +558,7 @@ private fun AppNavHost(
                 },
                 onBack = { nav.popBackStack() },
                 editingCar = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_edit_car_id")?.let { id ->
-                    rentalViewModel.state.collectAsState().value.vendorCars.firstOrNull { it.id == id }
+                    rentalState.vendorCars.firstOrNull { it.id == id }
                 },
                 onResubmit = { carId, request, galleryPhotos, driverPhotoUri, onDone ->
                     rentalViewModel.resubmitVehicle(carId, request, galleryPhotos, driverPhotoUri, onDone)
