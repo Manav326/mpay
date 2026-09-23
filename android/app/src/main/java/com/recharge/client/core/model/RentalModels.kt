@@ -17,6 +17,8 @@ data class RentalVendorResponse(
     val payoutUpiId: String? = null,
     val bankAccountNumber: String? = null,
     val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null,
     val rejectionReason: String? = null,
     val submittedAt: String? = null
 )
@@ -32,7 +34,25 @@ data class RentalVendorOnboardingRequest(
     val panNumber: String? = null,
     val payoutUpiId: String? = null,
     val bankAccountNumber: String? = null,
-    val bankIfsc: String? = null
+    val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null
+)
+
+data class RentalVendorUpdateRequest(
+    val vendorType: String,
+    val fullName: String,
+    val businessName: String? = null,
+    val address: String,
+    val city: String,
+    val state: String,
+    val pinCode: String,
+    val panNumber: String? = null,
+    val payoutUpiId: String? = null,
+    val bankAccountNumber: String? = null,
+    val bankIfsc: String? = null,
+    val bankName: String? = null,
+    val payoutPrimaryMethod: String? = null
 )
 
 data class RentalDriverRequest(
