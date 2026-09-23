@@ -33,6 +33,7 @@ import com.recharge.client.core.ui.CopyableValue
 import com.recharge.client.core.ui.ProfileAvatar
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
+import com.recharge.client.core.ui.MpayStatusPill
 import com.recharge.client.core.viewmodel.ProfileUiState
 import java.math.BigDecimal
 
@@ -78,9 +79,9 @@ fun ProfileScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
+            Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .55f)), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Account details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF4C1D95))
+                    Text("Account details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
                     Text("Permanent account information and activity", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                     HorizontalDivider()
                     CopyableValue("Account ID", user?.publicUserId.orEmpty())
@@ -119,20 +120,20 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 onClick = onBecomeVendor,
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                colors = CardDefaults.cardColors(containerColor = if (verified) AppColors.VendorNavy else Color(0xFFFFF7E6)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
             ) {
                 Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFFD1FAE5)) {
-                        Icon(Icons.Default.DirectionsCar, null, tint = Color(0xFF047857), modifier = Modifier.padding(10.dp).size(24.dp))
+                    Surface(shape = RoundedCornerShape(13.dp), color = if (verified) AppColors.VendorGold.copy(alpha = .16f) else AppColors.SurfaceWarm) {
+                        Icon(Icons.Default.DirectionsCar, null, tint = if (verified) AppColors.VendorGold else AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = Color(0xFF065F46), fontWeight = FontWeight.Bold)
-                        Text(vendorSubtitle, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        if (hasVendorProfile) Text("Status: " + (vendor?.status ?: "—"), style = MaterialTheme.typography.labelMedium, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
+                        Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = if (verified) Color.White else AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
+                        Text(vendorSubtitle, color = if (verified) Color.White.copy(alpha = .74f) else AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        if (hasVendorProfile) MpayStatusPill(vendor?.status ?: "—")
                     }
-                    Icon(Icons.Default.ChevronRight, "Open vendor", tint = Color(0xFF047857))
+                    Icon(Icons.Default.ChevronRight, "Open vendor", tint = if (verified) Color.White else AppColors.PrimaryDark)
                 }
             }
         }
