@@ -65,7 +65,8 @@ class PaymentSettlementService(
                         operator = operator,
                         circle = circle,
                         planId = planId,
-                        clientRequestId = order.clientRequestId
+                        clientRequestId = order.clientRequestId,
+                        recipientName = order.rechargeRecipientName
                     )
                 )
 
