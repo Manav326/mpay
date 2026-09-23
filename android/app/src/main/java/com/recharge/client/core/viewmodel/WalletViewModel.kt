@@ -6,7 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
 import com.recharge.client.core.model.WalletHistoryItem
+import com.recharge.client.core.model.WithdrawMoneyResponse
 import com.recharge.client.core.repository.ClientRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -14,7 +18,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneId
 
-enum class WalletHistoryFilter { ALL, RECHARGE, ADD_MONEY, WITHDRAWN }
+enum class WalletHistoryFilter { ALL, RECHARGE, ADD_MONEY, WITHDRAWN, RENTAL }
 enum class WalletDateFilter { TODAY, LAST_7_DAYS, THIS_MONTH, CUSTOM }
 
 data class WalletUiState(
@@ -34,6 +38,7 @@ data class WalletUiState(
     val withdrawError: String? = null,
     val selectedRecharge: RechargeHistoryItem? = null,
     val selectedWalletItem: WalletHistoryItem? = null,
+    val selectedWithdrawal: WithdrawMoneyResponse? = null,
     val detailLoading: Boolean = false,
     val detailError: String? = null
 )
@@ -41,9 +46,25 @@ data class WalletUiState(
 private fun todayIndia(): LocalDate = LocalDate.now(ZoneId.of("Asia/Kolkata"))
 
 class WalletViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
     private val _state = MutableStateFlow(WalletUiState())
     val state = _state.asStateFlow()
+
+    private var historyJob: Job? = null
+    private var detailJob: Job? = null
+    private var historyRequestGeneration = 0L
+    private var detailRequestGeneration = 0L
+
+    fun resetSession() {
+        historyJob?.cancel()
+        detailJob?.cancel()
+        historyJob = null
+        detailJob = null
+        historyRequestGeneration++
+        detailRequestGeneration++
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = WalletUiState()
+    }
 
     fun selectFilter(filter: WalletHistoryFilter) {
         _state.value = _state.value.copy(filter = filter)
@@ -85,57 +106,165 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         WalletHistoryFilter.RECHARGE -> "RECHARGE"
         WalletHistoryFilter.ADD_MONEY -> "ADD_MONEY"
         WalletHistoryFilter.WITHDRAWN -> "WITHDRAWN"
+        WalletHistoryFilter.RENTAL -> "RENTAL"
         WalletHistoryFilter.ALL -> "ALL"
     }
 
     private fun loadHistory(refresh: Boolean) {
-        if (_state.value.loadingHistory || _state.value.refreshing) return
-        viewModelScope.launch {
-            _state.value = _state.value.copy(loadingHistory = !refresh, refreshing = refresh, historyError = null)
-            val page = if (refresh) 0 else _state.value.page + 1
-            val walletResult = repository.walletHistory(
-                page = page, size = 20, kind = selectedKind(),
-                from = _state.value.fromDate.toString(), to = _state.value.toDate.toString()
+        val current = _state.value
+        if (!refresh && (current.loadingHistory || current.refreshing)) return
+
+        if (refresh) historyJob?.cancel()
+
+        val filter = current.filter
+        val fromDate = current.fromDate.toString()
+        val toDate = current.toDate.toString()
+        val page = if (refresh) 0 else current.page + 1
+        val selectedKind = when (filter) {
+            WalletHistoryFilter.RECHARGE -> "RECHARGE"
+            WalletHistoryFilter.ADD_MONEY -> "ADD_MONEY"
+            WalletHistoryFilter.WITHDRAWN -> "WITHDRAWN"
+            WalletHistoryFilter.RENTAL -> "RENTAL"
+            WalletHistoryFilter.ALL -> "ALL"
+        }
+        val generation = ++historyRequestGeneration
+
+        historyJob = viewModelScope.launch {
+            _state.value = _state.value.copy(
+                loadingHistory = !refresh,
+                refreshing = refresh,
+                historyError = null
             )
-            if (refresh) {
-                repository.withdrawalHistory(page = 0, size = 20).onSuccess { response ->
-                    _state.value = _state.value.copy(withdrawals = response.items)
-                }
+
+            val historyRequest = async {
+                repository.walletHistory(
+                    page = page,
+                    size = 20,
+                    kind = selectedKind,
+                    from = fromDate,
+                    to = toDate
+                )
             }
+            val withdrawalsRequest = if (refresh) {
+                async { repository.withdrawalHistory(page = 0, size = 20) }
+            } else null
+
+            val walletResult = historyRequest.await()
+            val withdrawalResult = withdrawalsRequest?.await()
+
+            if (generation != historyRequestGeneration) return@launch
+
+            withdrawalResult?.onSuccess { response ->
+                _state.value = _state.value.copy(withdrawals = response.items)
+            }
+
             walletResult.onSuccess { response ->
                 val items = if (refresh) response.items else _state.value.items + response.items
                 _state.value = _state.value.copy(
-                    items = items.distinctBy { it.id }, page = response.page, hasNext = response.hasNext,
-                    loadingHistory = false, refreshing = false, historyError = null
+                    items = items.distinctBy { it.id },
+                    page = response.page,
+                    hasNext = response.hasNext,
+                    loadingHistory = false,
+                    refreshing = false,
+                    historyError = null
                 )
             }.onFailure { e ->
-                _state.value = _state.value.copy(loadingHistory = false, refreshing = false, historyError = e.message ?: "Unable to load wallet history.")
+                _state.value = _state.value.copy(
+                    loadingHistory = false,
+                    refreshing = false,
+                    historyError = e.message ?: "Unable to load wallet history."
+                )
             }
         }
     }
 
     fun openDetails(item: WalletHistoryItem) {
+        detailJob?.cancel()
+        val generation = ++detailRequestGeneration
         _state.value = _state.value.copy(
-            selectedWalletItem = item, selectedRecharge = null, detailLoading = item.referenceType.equals("RECHARGE", true), detailError = null
+            selectedWalletItem = item,
+            selectedRecharge = null,
+            selectedWithdrawal = null,
+            detailLoading = item.referenceType.equals("RECHARGE", true) || item.referenceType.equals("WITHDRAWAL", true),
+            detailError = null
         )
-        if (!item.referenceType.equals("RECHARGE", true)) return
-        val transactionId = item.referenceId?.takeIf { it.isNotBlank() }
-        if (transactionId == null) {
-            _state.value = _state.value.copy(detailLoading = false, detailError = "Recharge transaction details are unavailable.")
+        if (item.referenceType.equals("WITHDRAWAL", true)) {
+            val withdrawalId = item.referenceId?.takeIf { it.isNotBlank() }
+            if (withdrawalId == null) {
+                _state.value = _state.value.copy(
+                    detailLoading = false,
+                    detailError = "Withdrawal details are unavailable."
+                )
+                return
+            }
+            detailJob = viewModelScope.launch {
+                repository.withdrawal(withdrawalId)
+                    .onSuccess { withdrawal ->
+                        if (generation == detailRequestGeneration && _state.value.selectedWalletItem?.id == item.id) {
+                            _state.value = _state.value.copy(
+                                selectedWithdrawal = withdrawal,
+                                detailLoading = false
+                            )
+                        }
+                    }
+                    .onFailure { e ->
+                        if (generation == detailRequestGeneration && _state.value.selectedWalletItem?.id == item.id) {
+                            _state.value = _state.value.copy(
+                                detailLoading = false,
+                                detailError = e.message ?: "Unable to load withdrawal details."
+                            )
+                        }
+                    }
+            }
             return
         }
-        viewModelScope.launch {
+
+        if (!item.referenceType.equals("RECHARGE", true)) {
+            _state.value = _state.value.copy(detailLoading = false)
+            return
+        }
+
+        val transactionId = item.referenceId?.takeIf { it.isNotBlank() }
+        if (transactionId == null) {
+            _state.value = _state.value.copy(
+                detailLoading = false,
+                detailError = "Recharge transaction details are unavailable."
+            )
+            return
+        }
+
+        detailJob = viewModelScope.launch {
             repository.rechargeStatus(transactionId)
-                .onSuccess { tx -> _state.value = _state.value.copy(selectedRecharge = tx.toHistoryItem(), detailLoading = false) }
-                .onFailure { e -> _state.value = _state.value.copy(detailLoading = false, detailError = e.message ?: "Unable to load recharge details.") }
+                .onSuccess { tx ->
+                    if (generation == detailRequestGeneration && _state.value.selectedWalletItem?.id == item.id) {
+                        _state.value = _state.value.copy(selectedRecharge = tx.toHistoryItem(), detailLoading = false)
+                    }
+                }
+                .onFailure { e ->
+                    if (generation == detailRequestGeneration && _state.value.selectedWalletItem?.id == item.id) {
+                        _state.value = _state.value.copy(
+                            detailLoading = false,
+                            detailError = e.message ?: "Unable to load recharge details."
+                        )
+                    }
+                }
         }
     }
 
     fun closeDetails() {
-        _state.value = _state.value.copy(selectedRecharge = null, selectedWalletItem = null, detailLoading = false, detailError = null)
+        detailJob?.cancel()
+        ++detailRequestGeneration
+        _state.value = _state.value.copy(
+            selectedRecharge = null,
+            selectedWithdrawal = null,
+            selectedWalletItem = null,
+            detailLoading = false,
+            detailError = null
+        )
     }
 
     fun withdraw(amountText: String, upiId: String, provider: String = "razorpay") {
+        if (_state.value.withdrawing) return
         val amount = amountText.toBigDecimalOrNull()
         if (amount == null || amount < BigDecimal("1.00")) {
             _state.value = _state.value.copy(withdrawError = "Enter a valid withdrawal amount of at least ₹1")
@@ -150,9 +279,10 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             _state.value = _state.value.copy(withdrawError = "Enter a valid UPI ID")
             return
         }
+        val normalizedAmount = amount.setScale(2)
+        _state.value = _state.value.copy(withdrawing = true, withdrawError = null, withdrawSuccess = null)
         viewModelScope.launch {
-            _state.value = _state.value.copy(withdrawing = true, withdrawError = null, withdrawSuccess = null)
-            repository.withdraw(amount, upiId, provider)
+            repository.withdraw(normalizedAmount, normalizedUpi, provider)
                 .onSuccess { response ->
                     _state.value = _state.value.copy(
                         withdrawing = false,
