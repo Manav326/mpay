@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/api/v1/car-rental")
 class RentalController(
     private val rentalService: RentalService,
+    private val adminRentalOperationsService: AdminRentalOperationsService,
     private val users: UserRepository,
     private val roleAccessService: RoleAccessService
 ) {
@@ -189,6 +190,15 @@ class RentalController(
         requireRentalOperations(authentication)
         return rentalService.adminDashboard()
     }
+
+    @GetMapping("/admin/payouts")
+    fun adminPayouts(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) status: String?
+    ): RentalAdminPayoutPageResponse =
+        adminRentalOperationsService.payouts(currentUser(authentication), page, size, status)
 
     @GetMapping("/admin/bookings")
     fun adminBookings(
