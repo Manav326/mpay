@@ -15,7 +15,8 @@ export default function RentalVendorReview() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [vehicleRejectReason, setVehicleRejectReason] = useState('');
+  const [vehicleRejectReasons, setVehicleRejectReasons] = useState<Record<string,string>>({});
+  const [notice, setNotice] = useState('');
   const [unavailability, setUnavailability] = useState<RentalAdminVehicleUnavailability[]>([]);
 
   async function refresh() {
@@ -38,30 +39,37 @@ export default function RentalVendorReview() {
 
   async function approveVendor(v: RentalAdminVendor) {
     setBusy('vendor-' + v.vendorId);
-    try { await approveRentalVendor(v.vendorId); await refresh(); if (selected?.vendorId === v.vendorId) setSelected({ ...v, status: 'VERIFIED', rejectionReason: null }); }
+    try { await approveRentalVendor(v.vendorId); await refresh(); if (selected?.vendorId === v.vendorId) setSelected({ ...v, status: 'VERIFIED', rejectionReason: null }); setNotice('Vendor approved.'); }
+    catch (err:any) { setNotice(err.message || 'Unable to approve vendor.'); }
     finally { setBusy(null); }
   }
 
   async function rejectVendor(v: RentalAdminVendor) {
     if (!rejectReason.trim()) return;
     setBusy('vendor-' + v.vendorId);
-    try { await rejectRentalVendor(v.vendorId, rejectReason); setRejectReason(''); await refresh(); if (selected?.vendorId === v.vendorId) setSelected({ ...v, status: 'REJECTED', rejectionReason: rejectReason }); }
+    const reason = rejectReason.trim();
+    try { await rejectRentalVendor(v.vendorId, reason); setRejectReason(''); await refresh(); if (selected?.vendorId === v.vendorId) setSelected({ ...v, status: 'REJECTED', rejectionReason: reason }); setNotice('Vendor rejected with review note.'); }
+    catch (err:any) { setNotice(err.message || 'Unable to reject vendor.'); }
     finally { setBusy(null); }
   }
 
   async function approveVehicle(id: string) {
     setBusy('vehicle-' + id);
-    try { await approveRentalVehicle(id); if (selected) setVehicles(await getRentalAdminVendorVehicles(selected.vendorId)); }
+    try { await approveRentalVehicle(id); if (selected) setVehicles(await getRentalAdminVendorVehicles(selected.vendorId)); setNotice('Vehicle approved.'); }
+    catch (err:any) { setNotice(err.message || 'Unable to approve vehicle.'); }
     finally { setBusy(null); }
   }
   async function rejectVehicle(id: string) {
-    if (!vehicleRejectReason.trim()) return;
+    const reason = (vehicleRejectReasons[id] || '').trim();
+    if (!reason) return;
     setBusy('vehicle-' + id);
-    try { await rejectRentalVehicle(id, vehicleRejectReason); setVehicleRejectReason(''); if (selected) setVehicles(await getRentalAdminVendorVehicles(selected.vendorId)); }
+    try { await rejectRentalVehicle(id, reason); setVehicleRejectReasons(current => ({ ...current, [id]: '' })); if (selected) setVehicles(await getRentalAdminVendorVehicles(selected.vendorId)); setNotice('Vehicle rejected with review note.'); }
+    catch (err:any) { setNotice(err.message || 'Unable to reject vehicle.'); }
     finally { setBusy(null); }
   }
 
-  return <section className="panel" style={{ marginTop: 16 }}>
+  return <section className="panel rental-review-panel">
+    {notice && <div className="review-notice">{notice}<button className="icon-btn" onClick={() => setNotice('')}><X size={14}/></button></div>}
     <div className="panel-head wrap">
       <div><h2>Rental vendor applications</h2><p>Review the vendor data submitted from the customer app. Only approved vehicles enter the marketplace.</p></div>
       <button className="secondary" onClick={() => refresh()}>Refresh</button>
@@ -76,6 +84,7 @@ export default function RentalVendorReview() {
             <span>{v.vendorType} · {v.mobile || 'No mobile'} · {v.email || 'No email'}</span>
             <span>{v.city}, {v.state} · Submitted {dateTime(v.submittedAt)}</span>
             <span>Vehicles: {v.vehicleCount} · PAN: {v.panNumber || 'Not provided'} · Status: {v.status}</span>
+            <span>Payout: {v.payoutPrimaryMethod || 'Auto'} · UPI {v.payoutUpiId || '—'} · Bank {v.bankName || '—'} {v.bankIfsc || ''}</span>
             {v.rejectionReason && <span>Review note: {v.rejectionReason}</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -131,7 +140,9 @@ export default function RentalVendorReview() {
           <div><small>Address</small><b>{selected.address}</b></div>
           <div><small>Location</small><b>{selected.city}, {selected.state} {selected.pinCode}</b></div>
           <div><small>PAN</small><b>{selected.panNumber || '—'}</b></div>
+          <div><small>Payout primary</small><b>{selected.payoutPrimaryMethod || 'Auto'}</b></div>
           <div><small>Payout UPI</small><b>{selected.payoutUpiId || '—'}</b></div>
+          <div><small>Bank name</small><b>{selected.bankName || '—'}</b></div>
           <div><small>Bank account</small><b>{selected.bankAccountNumber || '—'}</b></div>
           <div><small>IFSC</small><b>{selected.bankIfsc || '—'}</b></div>
           <div><small>Submitted</small><b>{dateTime(selected.submittedAt)}</b></div>
@@ -150,8 +161,8 @@ export default function RentalVendorReview() {
                   <span>Status: {c.approvalStatus || 'PENDING_REVIEW'}</span>
                 </div>
                 {c.approvalStatus !== 'APPROVED' && <>
-                  <input value={vehicleRejectReason} onChange={e => setVehicleRejectReason(e.target.value)} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
-                  <button className="secondary" disabled={busy === 'vehicle-' + c.id || !vehicleRejectReason.trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
+                  <input value={vehicleRejectReasons[c.id] || ''} onChange={e => setVehicleRejectReasons(current => ({ ...current, [c.id]: e.target.value }))} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
+                  <button className="secondary" disabled={busy === 'vehicle-' + c.id || !(vehicleRejectReasons[c.id] || '').trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
                   <button className="primary" disabled={busy === 'vehicle-' + c.id} onClick={() => approveVehicle(c.id)}>Approve vehicle</button>
                 </>}
               </div>
