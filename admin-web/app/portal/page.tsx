@@ -89,15 +89,34 @@ async function apiUpload<T = any>(path: string, method: 'PUT' | 'POST', formData
     body: formData,
     headers: token ? { Authorization: 'Bearer ' + token } : {}
   });
-  if (!r.ok) throw new Error((await r.text()) || 'Upload failed');
+  if (r.status === 401) {
+    localStorage.removeItem('mpay_token');
+    localStorage.removeItem('mpay_refresh_token');
+    window.location.href = '/login';
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+  if (!r.ok) {
+    const text = await r.text();
+    let message = text || 'Upload failed';
+    try {
+      const parsed = JSON.parse(text);
+      message = parsed?.message || parsed?.error || message;
+    } catch {}
+    throw new Error(message);
+  }
   return r.json();
 }
 
 const money = (n: any) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
 const dt = (v?: string) => v ? new Date(v).toLocaleString('en-IN') : '—';
 const date = (v?: string) => v ? new Date(v).toLocaleDateString('en-IN') : '—';
-const isoNow = () => new Date().toISOString().slice(0, 16);
-const localDate = () => { const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return y + '-' + m + '-' + day; };
+const pad2 = (value: number) => String(value).padStart(2, '0');
+const localDateTimeInput = (d = new Date()) =>
+  d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+const isoNow = () => localDateTimeInput();
+const localDate = () => localDateTimeTime(new Date());
+const localDateTimeTime = (d: Date) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const localYearMonth = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1);
 
 function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -176,7 +195,7 @@ export default function Portal() {
   const [selectedVendorVehicle, setSelectedVendorVehicle] = useState<RentalCar>();
   const [vehicleUnavailability, setVehicleUnavailability] = useState<VehicleUnavailability[]>([]);
   const [vehicleCalendar, setVehicleCalendar] = useState<CalendarDay[]>([]);
-  const [calendarMonth, setCalendarMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [calendarMonth, setCalendarMonth] = useState(localYearMonth());
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [vehicleEditId, setVehicleEditId] = useState('');
@@ -206,23 +225,37 @@ export default function Portal() {
   const walletAmountLabel = (item: WalletItem) => (walletSigned(item) < 0 ? '-' : '+') + money(Math.abs(Number(item.amount || 0)));
 
   async function loadHistory() {
-    try {
-      const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
-      if (historyFrom) rechargeParams.set('from', historyFrom);
-      if (historyTo) rechargeParams.set('to', historyTo);
-      const walletParams = new URLSearchParams({ page:'0', size:'25' });
-      if (historyKind) walletParams.set('kind', historyKind);
-      if (historyFrom) walletParams.set('from', historyFrom);
-      if (historyTo) walletParams.set('to', historyTo);
-      const [r, w] = await Promise.all([
-        api<any>('/api/v1/recharge/history?' + rechargeParams.toString()),
-        api<any>('/api/v1/wallet/history?' + walletParams.toString())
-      ]);
-      setRecharges(r?.items || r?.content || r || []);
-      setWalletHistory(w?.items || w?.content || w || []);
-    } catch (e:any) {
-      setNotice(e.message || 'Unable to load transaction history.');
+    if (historyFrom && historyTo && historyTo < historyFrom) {
+      setNotice('The history end date must be on or after the start date.');
+      return;
     }
+    const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
+    if (historyFrom) rechargeParams.set('from', historyFrom);
+    if (historyTo) rechargeParams.set('to', historyTo);
+    const walletParams = new URLSearchParams({ page:'0', size:'25' });
+    if (historyKind) walletParams.set('kind', historyKind);
+    if (historyFrom) walletParams.set('from', historyFrom);
+    if (historyTo) walletParams.set('to', historyTo);
+
+    const [rechargeResult, walletResult] = await Promise.allSettled([
+      api<any>('/api/v1/recharge/history?' + rechargeParams.toString()),
+      api<any>('/api/v1/wallet/history?' + walletParams.toString())
+    ]);
+
+    const messages:string[] = [];
+    if (rechargeResult.status === 'fulfilled') {
+      const r = rechargeResult.value;
+      setRecharges(r?.items || r?.content || r || []);
+    } else {
+      messages.push(rechargeResult.reason?.message || 'Recharge history could not be loaded.');
+    }
+    if (walletResult.status === 'fulfilled') {
+      const w = walletResult.value;
+      setWalletHistory(w?.items || w?.content || w || []);
+    } else {
+      messages.push(walletResult.reason?.message || 'Wallet history could not be loaded.');
+    }
+    if (messages.length) setNotice(messages.join(' '));
   }
 
   async function loadCommissionSummary() {
@@ -426,8 +459,8 @@ export default function Portal() {
         amount, provider:addMoneyProvider, clientRequestId:crypto.randomUUID(), purpose:'ADD_MONEY'
       })});
       if(addMoneyProvider==='mock'){
-        const result=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
-        setWallet({balance:result.balance,availableBalance:result.availableBalance,reservedBalance:wallet?.reservedBalance || 0});
+        await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
+        await refreshWallet();
         setAddMoneyAmount('');
         setNotice('Mock wallet top-up completed.');
         await loadHistory();
@@ -724,13 +757,34 @@ export default function Portal() {
 
   useEffect(()=>{
     if(!localStorage.getItem('mpay_token')){window.location.href='/login';return;}
-    Promise.all([api<Me>('/api/v1/me'),api<Wallet>('/api/v1/wallet')])
-      .then(([a,b])=>{setMe(a);setWallet(b);setProfileForm({name:a?.name || '',email:a?.email || ''});})
-      .catch(()=>{localStorage.removeItem('mpay_token');window.location.href='/login';});
-    loadHistory(); loadWithdrawals(); loadCommissionSummary(); loadRentalData(); loadAccountData();
+    Promise.all([api<Me>('/api/v1/me'),api<Wallet>('/api/v1/wallet'),api<any>('/api/v1/recharge/commission-summary')])
+      .then(([a,b,c])=>{
+        setMe(a);
+        setWallet(b);
+        setProfileForm({name:a?.name || '',email:a?.email || ''});
+        setCommissionSummary(c);
+      })
+      .catch(()=>{localStorage.removeItem('mpay_token');localStorage.removeItem('mpay_refresh_token');window.location.href='/login';});
+    void loadProfileImage();
   },[]);
 
-  useEffect(()=>{ if(view==='history'||view==='wallet') { loadHistory(); loadWithdrawals(); loadCommissionSummary(); } },[view,historyKind,historyFrom,historyTo]);
+  useEffect(()=>{
+    if(view==='history'){
+      void loadHistory();
+    } else if(view==='wallet'){
+      void Promise.all([loadHistory(),loadWithdrawals(),loadCommissionSummary()]);
+    } else if(view==='rental' || view==='bookings'){
+      void loadRentalData();
+    } else if(view==='account'){
+      void loadAccountData();
+    }
+  },[view]);
+
+  useEffect(()=>{
+    if((view==='history'||view==='wallet')){
+      void loadHistory();
+    }
+  },[historyKind,historyFrom,historyTo]);
 
   useEffect(()=>{
     if(selectedVendorVehicle){
@@ -776,7 +830,7 @@ export default function Portal() {
     {key:'',label:'All'}, {key:'ADD_MONEY',label:'Add money'}, {key:'WITHDRAWN',label:'Withdrawals'}, {key:'RECHARGE',label:'Recharges'}, {key:'RENTAL',label:'Rental'}
   ];
   const vendorStatus = String(vendor?.status || '').toUpperCase();
-  const vendorVerified = vendorStatus === 'VERIFIED' || vendorStatus === 'APPROVED';
+  const vendorVerified = vendorStatus === 'VERIFIED';
 
   return <div className="portal-shell">
     <aside className={'portal-sidebar ' + (drawer ? 'open ' : '') + (sidebarCollapsed ? 'collapsed' : '')}>
@@ -807,14 +861,14 @@ export default function Portal() {
         <div className="portal-quick-actions">
           <button onClick={()=>setView('recharge')}><Smartphone/><span>Mobile Recharge</span></button>
           <button onClick={()=>setView('wallet')}><WalletCards/><span>Add Money</span></button>
-          <button onClick={()=>{setView('bookings');loadRentalData();}}><Clock3/><span>My Bookings</span></button>
+          <button onClick={()=>setView('bookings')}><Clock3/><span>My Bookings</span></button>
         </div>
         <div className="home-earnings-strip">
           <div><span>Today's earnings</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div>
           <div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>Recharge volume {money(commissionSummary?.monthly?.successfulRechargeAmount)}</small></div>
           <button onClick={()=>setView('wallet')}><CircleDollarSign size={18}/><span>Wallet earnings</span><ArrowRight size={15}/></button>
         </div>
-        <section className="home-marketplace"><div className="home-section-label">Marketplace</div><button className="home-marketplace-card" onClick={()=>{setView('rental');loadRentalData();}}>
+        <section className="home-marketplace"><div className="home-section-label">Marketplace</div><button className="home-marketplace-card" onClick={()=>setView('rental')}>
           <div className="home-marketplace-icon"><Car size={27}/></div><div className="home-marketplace-copy"><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose a chauffeur-driven car, set your trip time and book directly from Home.</p></div><ArrowRight size={19}/>
         </button></section>
         <button className="home-recharge-history" onClick={()=>{setView('history');loadHistory();}}>
@@ -871,7 +925,7 @@ export default function Portal() {
 
       {view==='history' && <section className="portal-content">
         <div className="portal-panel"><div className="panel-head"><div><h2>Recharge history</h2><p>Track submitted, pending, successful and failed recharges.</p></div><button className="landing-secondary" onClick={loadHistory}><RefreshCw size={15}/> Refresh</button></div>
-          <div className="history-date-filters"><label>From<input type="date" value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom('');setHistoryTo('');setHistoryKind('');}}>Clear filters</button></div>
+          <div className="history-date-filters"><label>From<input type="date" max={localDate()} value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" max={localDate()} min={historyFrom || undefined} value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom(localDate());setHistoryTo(localDate());setHistoryKind('');}}>Clear filters</button></div>
           {recharges.length ? <div className="history-list">{recharges.map((x,i)=><div className="history-row" key={String(x.transactionId || i)}>
             <div><ReceiptText size={18}/><b>{x.mobileNumber || 'Recharge'} · {x.operator || '—'}</b><small>{x.planDescription || 'Plan'} · {x.transactionId || 'No reference'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
             <strong className="amount-debit">{money(x.amount)}</strong>
@@ -881,7 +935,7 @@ export default function Portal() {
       </section>}
 
       {view==='marketplace' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>Marketplace</h2><p>Explore mPay service categories.</p></div><Car size={28}/></div>
-        <button className="rental-car selected" onClick={()=>{setView('rental');loadRentalData();}}><div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong></button>
+        <button className="rental-car selected" onClick={()=>setView('rental')}><div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong></button>
       </div></section>}
 
       {view==='rental' && <section className="portal-content">
@@ -991,7 +1045,7 @@ export default function Portal() {
                 <div className="availability-form"><select disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.reasonCode} onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonCode:e.target.value})}><option value="SERVICE_MAINTENANCE">Service / maintenance</option><option value="PRIVATE_USE">Private use</option><option value="DRIVER_UNAVAILABLE">Driver unavailable</option><option value="LEGAL_DOCUMENTATION">Documentation / compliance</option><option value="PERSONAL_REASON">Personal reason</option><option value="OTHER">Other</option></select><input disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.reasonNote} placeholder="Reason note" onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonNote:e.target.value})}/><input type="date" disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.startDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,startDate:e.target.value})}/><input type="date" disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.endDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,endDate:e.target.value})}/><button className="landing-secondary" disabled={busy || String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} onClick={()=>takeVehicleOffMarket(selectedVendorVehicle.id)}>Take off market</button></div>
                 {vehicleUnavailability.length ? <div className="history-list compact-list">{vehicleUnavailability.map(u=><div className="history-row" key={u.id}><div><b>{u.reasonLabel}</b><small>{u.startDate} → {u.endDate}{u.reasonNote?' · '+u.reasonNote:''}</small></div><div className="history-actions"><span className={statusClass(u.status)}>{String(u.status).toUpperCase()}</span>{String(u.status).toUpperCase()==='ACTIVE' && <button className="text-danger-btn" onClick={()=>restoreOffMarket(selectedVendorVehicle.id,u.id)}>Restore</button>}</div></div>)}</div> : <div className="empty-state">No active off-market periods.</div>}
               </div>
-              <div className="calendar-box"><div className="vendor-section-head"><b>Vehicle calendar</b><div className="calendar-nav"><button className="icon-btn" onClick={()=>{const d=new Date(calendarMonth+'-01');d.setMonth(d.getMonth()-1);setCalendarMonth(d.toISOString().slice(0,7));}}><ChevronLeft size={15}/></button><b>{calendarMonth}</b><button className="icon-btn" onClick={()=>{const d=new Date(calendarMonth+'-01');d.setMonth(d.getMonth()+1);setCalendarMonth(d.toISOString().slice(0,7));}}><ChevronRight size={15}/></button></div></div><div className="calendar-grid">{vehicleCalendar.map(d=><div className={'calendar-day calendar-'+String(d.status||'UNKNOWN').toLowerCase()} key={d.date}><b>{new Date(d.date).getDate()}</b><span>{d.reasonLabel || d.status || '—'}</span></div>)}</div></div>
+              <div className="calendar-box"><div className="vendor-section-head"><b>Vehicle calendar</b><div className="calendar-nav"><button className="icon-btn" onClick={()=>{const [y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m-2,1)));}}><ChevronLeft size={15}/></button><b>{calendarMonth}</b><button className="icon-btn" onClick={()=>{const [y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m,1)));}}><ChevronRight size={15}/></button></div></div><div className="calendar-grid">{vehicleCalendar.map(d=><div className={'calendar-day calendar-'+String(d.status||'UNKNOWN').toLowerCase()} key={d.date}><b>{new Date(d.date).getDate()}</b><span>{d.reasonLabel || d.status || '—'}</span></div>)}</div></div>
             </div>}
 
             {showVehicleForm && <div className="vehicle-form"><div className="vendor-section-head"><b>{vehicleEditId?'Resubmit vehicle':'Submit vehicle for review'}</b><button className="icon-btn" onClick={()=>setShowVehicleForm(false)}><X size={16}/></button></div>
