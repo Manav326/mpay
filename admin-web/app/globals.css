@@ -334,3 +334,38 @@
 @media(max-width:1200px){.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-grid{grid-template-columns:1fr}.admin-notice{margin:10px 16px 0}}
 @media(max-width:600px){.metric-grid{grid-template-columns:1fr 1fr}.metric-card{padding:11px}.metric-card>strong{font-size:19px}.inline-number{width:90px}}
+
+
+/* ===== Admin mastery pass: operations + profile ===== */
+.admin-profile-menu{position:relative}
+.admin-user-chip{border:1px solid #eee7dd;background:#fff;border-radius:13px;padding:4px 7px 4px 4px;display:flex;align-items:center;gap:7px;cursor:pointer;color:#514a43}
+.admin-user-chip .avatar{width:30px;height:30px;border-radius:9px;font-size:12px;flex:none}
+.admin-user-avatar-image{width:30px;height:30px;border-radius:9px;object-fit:cover;flex:none}
+.admin-user-name{font-size:10px;font-weight:800;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-profile-popover{position:absolute;right:0;top:48px;width:min(360px,calc(100vw - 28px));background:#fff;border:1px solid var(--border);border-radius:18px;padding:14px;box-shadow:0 24px 60px rgba(42,35,27,.15);z-index:60}
+.admin-profile-head{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.admin-profile-large-image{width:54px;height:54px;border-radius:16px;object-fit:cover;border:1px solid var(--border)}
+.admin-profile-head>b,.admin-profile-head span,.admin-profile-head em{display:block}
+.admin-profile-head>b{font-size:14px}.admin-profile-head span{font-size:11px;color:var(--muted);margin-top:2px}.admin-profile-head em{font-size:10px;color:#9a8d7b;margin-top:3px;font-style:normal}
+.admin-profile-facts{display:grid;gap:7px;margin:12px 0}.admin-profile-facts>div{display:flex;gap:8px;align-items:center;padding:8px 9px;background:#fffaf4;border:1px solid #f0e7db;border-radius:10px;font-size:10px;color:#655d54}
+.admin-profile-facts svg{color:var(--primary-dark);flex:none}
+.admin-profile-notice{margin:8px 0;padding:8px 9px;border-radius:10px;background:#eef9f2;color:#25623d;font-size:10px}
+.profile-action{width:100%;justify-content:center;margin-top:3px}
+.profile-logout{width:100%;border:1px solid #f0d9d9;background:#fff7f7;color:#a52828;border-radius:10px;padding:9px 10px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;margin-top:7px;font-weight:800;font-size:10px}
+
+.financial-hero{display:flex;justify-content:space-between;align-items:center;gap:18px;background:linear-gradient(135deg,#fff,#fff7e8)}
+.financial-hero-copy h2{margin:5px 0 4px;font-size:22px}.financial-hero-copy p{margin:0;color:var(--muted);font-size:11px;line-height:1.55;max-width:800px}
+.financial-hero-actions{display:flex;align-items:center;gap:9px;flex:none}.financial-trust{display:flex;align-items:center;gap:6px;border:1px solid #ece4d8;background:#fff;border-radius:10px;padding:8px 10px;font-size:10px;font-weight:800;color:#675e54}
+.financial-tabs{display:flex;gap:7px;border-bottom:1px solid var(--border);padding-bottom:9px;margin-bottom:13px;overflow:auto}
+.financial-tabs button{border:1px solid transparent;background:#fff;border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:6px;color:#6b625a;font-weight:800;font-size:10px;cursor:pointer;white-space:nowrap}
+.financial-tabs button.active{background:var(--soft);border-color:#f2d9a3;color:#986108}
+.financial-toolbar{margin-bottom:10px}.financial-table{min-width:980px}.financial-table td{font-size:10px}.financial-table th{font-size:9px}.financial-table td>b,.financial-table td>span{display:block}.financial-table td>span{margin-top:3px;color:var(--muted)}
+.table-action{padding:7px 9px;font-size:9px;white-space:nowrap}.financial-pagination{margin-top:10px;margin-bottom:0;padding-top:9px;border-top:1px solid var(--border)}
+.spin{animation:adminSpin .9s linear infinite}@keyframes adminSpin{to{transform:rotate(360deg)}}
+.account-status-controls{margin-top:13px;padding:10px 11px;border:1px solid var(--border);border-radius:12px;background:#fbfaf8;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.account-status-controls b,.account-status-controls span{display:block}.account-status-controls b{font-size:11px}.account-status-controls span{font-size:9px;color:var(--muted);margin-top:3px}
+.status-confirm{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;padding:10px 11px;border:1px solid #f0d9d9;background:#fff7f7;border-radius:12px}
+.status-confirm b,.status-confirm span{display:block}.status-confirm b{font-size:10px;color:#713131}.status-confirm span{font-size:9px;color:#8b6464;margin-top:3px}
+.status-confirm .primary{padding:7px 9px;font-size:9px;white-space:nowrap}
+.text-danger-btn{border:1px solid #f0d9d9;background:#fff7f7;color:#a52828;border-radius:10px;padding:7px 9px;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
+@media(max-width:760px){.financial-hero{align-items:flex-start;flex-direction:column}.financial-hero-actions{width:100%;justify-content:space-between}.admin-user-name{display:none}.account-status-controls,.status-confirm{align-items:flex-start;flex-direction:column}.status-confirm .filters{width:100%;justify-content:flex-end;flex-direction:row}}
