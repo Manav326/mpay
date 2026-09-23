@@ -40,6 +40,13 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
     private var historyJob: Job? = null
     private var historyRequestGeneration = 0L
 
+    fun resetSession() {
+        viewModelScope.coroutineContext.cancelChildren()
+        historyJob = null
+        historyRequestGeneration++
+        _state.value = RechargeHistoryUiState()
+    }
+
     private fun todayIndia(): LocalDate = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDate()
 
     init { load(refresh = true) }
