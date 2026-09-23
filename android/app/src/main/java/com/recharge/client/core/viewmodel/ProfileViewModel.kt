@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.repository.ClientRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -20,9 +21,14 @@ data class ProfileUiState(
 )
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
     private val _state = MutableStateFlow(ProfileUiState())
     val state = _state.asStateFlow()
+
+    fun resetSession() {
+        viewModelScope.coroutineContext.cancelChildren()
+        _state.value = ProfileUiState()
+    }
 
     fun load() {
         if (_state.value.loading) return
