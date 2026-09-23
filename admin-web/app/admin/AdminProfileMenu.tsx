@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Trash2, Upload, UserRound } from 'lucide-react';
+import { Camera, Trash2, UserRound } from 'lucide-react';
 import { deleteAdminProfileImage, getAdminProfile, getAdminProfileImage, uploadAdminProfileImage } from '@/lib/api';
 
 export default function AdminProfileMenu({
