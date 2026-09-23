@@ -807,6 +807,54 @@ class RentalService(
             totalPlatformFees = rentalPayouts.totalPlatformFeeAmount()
         )
 
+    fun adminPayouts(page: Int, size: Int, status: String?): RentalAdminPayoutPageResponse {
+        require(page >= 0)
+        require(size in 1..100)
+        val normalizedStatus = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
+        val result = if (normalizedStatus == null) {
+            rentalPayouts.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+        } else {
+            rentalPayouts.findAllByStatusOrderByCreatedAtDesc(normalizedStatus, PageRequest.of(page, size))
+        }
+        val rows = result.content
+        val bookingMap = bookings.findAllByBookingIdIn(rows.map { it.bookingId }).associateBy { it.bookingId }
+        val carMap = cars.findAllById(bookingMap.values.map { it.carId }.distinct()).associateBy { requireNotNull(it.id) }
+        val vendorMap = vendors.findAllById(rows.map { it.vendorId }.distinct()).associateBy { requireNotNull(it.id) }
+        val userMap = users.findAllById(rows.map { it.vendorUserId }.distinct()).associateBy { requireNotNull(it.id) }
+        return RentalAdminPayoutPageResponse(
+            items = rows.map { payout ->
+                val booking = bookingMap[payout.bookingId]
+                val car = booking?.let { carMap[it.carId] }
+                val vendor = vendorMap[payout.vendorId]
+                val vendorUser = userMap[payout.vendorUserId]
+                RentalAdminPayoutResponse(
+                    payoutId = payout.payoutId,
+                    bookingId = payout.bookingId,
+                    vendorId = payout.vendorId.toString(),
+                    vendorName = vendor?.businessName?.takeIf { it.isNotBlank() } ?: vendor?.fullName,
+                    vendorUserId = payout.vendorUserId.toString(),
+                    vendorUserName = vendorUser?.name,
+                    carName = car?.name,
+                    grossAmount = payout.grossAmount.setScale(2, RoundingMode.HALF_UP),
+                    platformFeePercent = payout.platformFeePercent.setScale(2, RoundingMode.HALF_UP),
+                    platformFeeAmount = payout.platformFeeAmount.setScale(2, RoundingMode.HALF_UP),
+                    vendorNetAmount = payout.vendorNetAmount.setScale(2, RoundingMode.HALF_UP),
+                    status = payout.status,
+                    walletLedgerRef = payout.walletLedgerRef,
+                    failureReason = payout.failureReason,
+                    createdAt = payout.createdAt,
+                    updatedAt = payout.updatedAt,
+                    paidAt = payout.paidAt
+                )
+            },
+            page = result.number,
+            size = result.size,
+            totalItems = result.totalElements,
+            totalPages = result.totalPages,
+            hasNext = result.hasNext()
+        )
+    }
+
     fun adminBookings(page: Int, size: Int, status: String?): RentalAdminBookingPageResponse {
         require(page >= 0)
         require(size in 1..100)

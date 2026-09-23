@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Camera, CarFront, CalendarDays, ChevronRight, CircleDollarSign, History, LayoutDashboard, LogOut, Menu, ReceiptText, RefreshCw, Save, Settings, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
+import { BarChart3, Camera, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, ReceiptText, RefreshCw, Save, Settings, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { completeRentalBooking, deleteCurrentProfileImage, getCommissionRates, getCurrentProfile, getCurrentProfileImage, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, login, requestPasswordReset, resetPassword, updateCommissionRate, uploadCurrentProfileImage, updateUserStatus } from '@/lib/api';
+import { completeRentalBooking, deleteCurrentProfileImage, getAdminFinancialRecharges, getAdminFinancialWalletHistory, getAdminFinancialWithdrawals, getCommissionRates, getCurrentProfile, getCurrentProfileImage, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, login, refreshAdminRecharge, requestPasswordReset, resetPassword, updateCommissionRate, uploadCurrentProfileImage, updateUserStatus } from '@/lib/api';
 import RentalVendorReview from './RentalVendorReview';
-import { CurrentUserProfile, DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, RoleCommissionRate, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem } from '@/lib/types';
+import { AdminFinancialRechargeOperation, AdminFinancialWithdrawalOperation, AdminFinancialWalletOperation, CurrentUserProfile, DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, RentalAdminPayout, Role, RoleCommissionRate, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -20,12 +20,12 @@ export default function Page() {
   const [portalRoles, setPortalRoles] = useState<string[]>(['ADMIN','MANAGER']);
   const [selectedPortalRole, setSelectedPortalRole] = useState('ADMIN');
   const [mobile, setMobile] = useState(''); const [password, setPassword] = useState(''); const [otp, setOtp] = useState(''); const [newPassword, setNewPassword] = useState('');
-  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'vendors'|'rental'>('dashboard');
-  const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']); const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>();
+  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'finance'|'rental'|'settings'>('dashboard');
+  const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']); const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>(); const [profile, setProfile] = useState<CurrentUserProfile>(); const [profileImage, setProfileImage] = useState<string | null>(null); const [commissionRates, setCommissionRates] = useState<RoleCommissionRate[]>([]); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false); const [roleFilter, setRoleFilter] = useState<Role | 'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high');
   const [rentalBookings, setRentalBookings] = useState<RentalAdminBooking[]>([]);
   const [rentalBookingPage, setRentalBookingPage] = useState(0);
   const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
-  const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
+  const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL'); const [rentalPayouts, setRentalPayouts] = useState<RentalAdminPayout[]>([]); const [rentalPayoutPage, setRentalPayoutPage] = useState(0); const [rentalPayoutHasNext, setRentalPayoutHasNext] = useState(false); const [rentalPayoutStatus, setRentalPayoutStatus] = useState('ALL');
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
@@ -35,9 +35,9 @@ export default function Page() {
 
   useEffect(()=>{ if(session) { getDashboard().then(setDashboard).catch(err=>setNotice(err.message||'Unable to load dashboard.')); getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); loadUsers(); getCurrentProfile().then(setProfile).catch(()=>{}); getCurrentProfileImage().then(setProfileImage).catch(()=>{}); if(session.permissions?.includes('MANAGE_COMMISSION_RATES')) getCommissionRates().then(setCommissionRates).catch(()=>{}); } },[session]);
   async function loadUsers(){ setUsers(await getUsers(roleFilter, sort)); }
-  async function loadRental(){ try { const [summary, page] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus)]); setRentalDashboard(summary); setRentalBookings(page.items); setRentalBookingHasNext(page.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
+  async function loadRental(){ try { const [summary, bookingsPage, payoutsPage] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus), getRentalAdminPayouts(rentalPayoutPage,25,rentalPayoutStatus)]); setRentalDashboard(summary); setRentalBookings(bookingsPage.items); setRentalBookingHasNext(bookingsPage.hasNext); setRentalPayouts(payoutsPage.items); setRentalPayoutHasNext(payoutsPage.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
   useEffect(()=>{ if(session) loadUsers(); },[roleFilter, sort]);
-  useEffect(()=>{ if(session && view==='rental' && permissionsForSession(session).includes('MANAGE_VENDORS')) loadRental(); },[session,view,rentalBookingPage,rentalBookingStatus]);
+  useEffect(()=>{ if(session && view==='rental' && (permissionsForSession(session).includes('MANAGE_RENTAL_OPERATIONS') || permissionsForSession(session).includes('MANAGE_VENDORS'))) loadRental(); },[session,view,rentalBookingPage,rentalBookingStatus,rentalPayoutPage,rentalPayoutStatus]);
 
   async function doLogin(e: React.FormEvent){ e.preventDefault(); setBusy(true); setNotice(''); try { const r = await login(mobile, password, selectedPortalRole); const s={token:r.accessToken, refreshToken:r.refreshToken, role:r.role, name:r.name||r.role, permissions:r.permissions||[]}; localStorage.setItem('mpay_admin_session', JSON.stringify(s)); localStorage.setItem('mpay_admin_token', r.accessToken); setSession(s); } catch(err:any){ setNotice(err.message||'Login failed'); } finally { setBusy(false); } }
   async function doReset(e: React.FormEvent){ e.preventDefault(); setBusy(true); try { if(!resetRequested){ await requestPasswordReset(mobile); setResetRequested(true); setNotice('OTP requested. Enter the OTP sent to the registered mobile number.'); } else { await resetPassword(mobile, otp, newPassword); setNotice('Password reset successful. You can now sign in.'); setLoginState('login'); setResetRequested(false); setOtp(''); setNewPassword(''); } } catch(err:any){ setNotice(err.message||'Reset failed'); } finally { setBusy(false); } }
@@ -47,7 +47,7 @@ export default function Page() {
 
   const permissions = session.permissions || [];
   function permissionsForSession(s: typeof session){ return s?.permissions || []; }
-  const canRental = permissions.includes('MANAGE_VENDORS');
+  const canRental = permissions.includes('MANAGE_RENTAL_OPERATIONS') || permissions.includes('MANAGE_VENDORS');
   const canFinance = permissions.includes('VIEW_FINANCIAL_OPERATIONS');
   const canSettings = permissions.includes('MANAGE_COMMISSION_RATES');
   const canManageUserStatus = permissions.includes('MANAGE_USER_STATUS');
@@ -62,11 +62,11 @@ export default function Page() {
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><div className="profile-mini"><div className="avatar">{session.name.charAt(0)}</div><div><b>{session.name}</b><span>{session.role}</span></div></div><button className="nav" onClick={logout}><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Customers':view==='finance'?'Finance & Recharge':view==='rental'?'Rental Operations':'Settings'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><AdminProfileMenu profile={profile} imageSrc={profileImage} onImageChange={async file=>{try{const next=await updateCurrentProfileImage(file); if(profileImage?.startsWith('blob:')) URL.revokeObjectURL(profileImage); setProfileImage(next);}catch(err:any){setNotice(err.message||'Unable to update profile image.')}}} onDelete={async()=>{try{await deleteCurrentProfileImage(); if(profileImage?.startsWith('blob:')) URL.revokeObjectURL(profileImage); setProfileImage(null);}catch(err:any){setNotice(err.message||'Unable to remove profile image.')}}} onLogout={logout}/></div></header>
+    <main className="main"><header className="topbar"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Customers':view==='finance'?'Finance & Recharge':view==='rental'?'Rental Operations':'Settings'}</h1></div><div className="top-actions"><span className="role-pill">{session.role}</span><AdminProfileMenu profile={profile} imageSrc={profileImage} onImageChange={async file=>{try{const next=await uploadCurrentProfileImage(file); if(profileImage?.startsWith('blob:')) URL.revokeObjectURL(profileImage); setProfileImage(next);}catch(err:any){setNotice(err.message||'Unable to update profile image.')}}} onDelete={async()=>{try{await deleteCurrentProfileImage(); if(profileImage?.startsWith('blob:')) URL.revokeObjectURL(profileImage); setProfileImage(null);}catch(err:any){setNotice(err.message||'Unable to remove profile image.')}}} onLogout={logout}/></div></header>
       {view==='dashboard' && <Dashboard data={dashboard} onNavigate={setView} />}
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} onStatusChanged={(id,status)=>{setSelected(current=>current ? {...current,status} : current);setUsers(list=>list.map(item=>item.id===id?{...item,status}:item));}} />} 
-      {view==='finance' && canFinance && <FinanceView dashboard={dashboard} users={users} onOpenUser={async id=>setSelected(await getUserDetailById(id))} />}
-      {view==='rental' && canRental && <RentalWorkspace dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} 
+      {view==='finance' && canFinance && <FinanceView dashboard={dashboard} users={users} onOpenUser={async id=>setSelected(await getUserDetailById(id))} canManageRecharge={permissions.includes('MANAGE_RECHARGE_OPERATIONS')} />}
+      {view==='rental' && canRental && <RentalWorkspace dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} payouts={rentalPayouts} payoutStatus={rentalPayoutStatus} setPayoutStatus={(v)=>{setRentalPayoutStatus(v);setRentalPayoutPage(0)}} payoutPage={rentalPayoutPage} payoutHasNext={rentalPayoutHasNext} payoutPrev={()=>setRentalPayoutPage(p=>Math.max(0,p-1))} payoutNext={()=>setRentalPayoutPage(p=>p+1)} onRefresh={loadRental} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} busy={busy}/>} 
       {view==='settings' && canSettings && <SettingsView rates={commissionRates} onSaved={setCommissionRates} />}
     </main>
   </div>
@@ -261,6 +261,13 @@ function RentalOperations(p:{
   hasNext:boolean;
   onPrev:()=>void;
   onNext:()=>void;
+  payouts: RentalAdminPayout[];
+  payoutStatus: string;
+  setPayoutStatus:(v:string)=>void;
+  payoutPage:number;
+  payoutHasNext:boolean;
+  payoutPrev:()=>void;
+  payoutNext:()=>void;
   onRefresh:()=>void;
   onComplete:(id:string)=>void;
   busy:boolean;
@@ -273,7 +280,8 @@ function RentalOperations(p:{
       <div className="metric-card"><div className="metric-head"><span>Total bookings</span><div className="metric-icon"><CalendarDays size={18}/></div></div><strong>{d?.totalBookings ?? '—'}</strong><small>All persisted rental bookings</small></div>
       <div className="metric-card"><div className="metric-head"><span>Active</span><div className="metric-icon"><Clock3 size={18}/></div></div><strong>{d?.activeBookings ?? '—'}</strong><small>Currently in progress</small></div>
       <div className="metric-card"><div className="metric-head"><span>Booking value</span><div className="metric-icon"><CircleDollarSign size={18}/></div></div><strong>{d ? money(d.totalBookingValue) : '—'}</strong><small>Total rental value</small></div>
-      <div className="metric-card"><div className="metric-head"><span>Platform fees</span><div className="metric-icon"><TrendingUp size={18}/></div></div><strong>{d ? money(d.totalPlatformFees) : '—'}</strong><small>Settled vendor fees</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Vendor payouts</span><div className="metric-icon"><Wallet size={18}/></div></div><strong>{d ? money(d.totalVendorPayouts) : '—'}</strong><small>Paid to vendors</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Platform fees</span><div className="metric-icon"><TrendingUp size={18}/></div></div><strong>{d ? money(d.totalPlatformFees) : '—'}</strong><small>Settled platform fee</small></div>
     </section>
     <section className="panel">
       <div className="panel-head wrap">
@@ -297,30 +305,114 @@ function RentalOperations(p:{
       </tbody></table></div>}
       <div className="panel-head"><span>Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>
     </section>
+    <section className="panel">
+      <div className="panel-head wrap">
+        <div><h2>Vendor settlement ledger</h2><p>Each completed booking produces one auditable vendor payout with gross, platform fee, net amount and wallet ledger reference.</p></div>
+        <select value={p.payoutStatus} onChange={e=>p.setPayoutStatus(e.target.value)}><option>ALL</option><option>PENDING</option><option>PAID</option><option>FAILED</option></select>
+      </div>
+      {p.payouts.length===0?<div className="empty-state">No vendor payout records match the filter.</div>:
+      <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Booking / car</th><th>Vendor</th><th>Gross</th><th>Platform fee</th><th>Vendor net</th><th>Status</th><th>Ledger</th></tr></thead><tbody>
+        {p.payouts.map(x=><tr key={x.payoutId}><td>{dateTime(x.createdAt)}</td><td><b className="mono">{x.bookingId}</b><span>{x.carName||'Car'}</span></td><td><b>{x.vendorName||'Vendor'}</b><span>{x.vendorUserName||x.vendorUserId}</span></td><td>{money(x.grossAmount)}</td><td>{money(x.platformFeeAmount)}<span>{Number(x.platformFeePercent).toFixed(2)}%</span></td><td><b className="green">{money(x.vendorNetAmount)}</b></td><td><span className={'status '+statusClass(x.status)}>{x.status}</span>{x.failureReason&&<span>{x.failureReason}</span>}</td><td><span className="mono">{x.walletLedgerRef||'Not settled'}</span></td></tr>)}
+      </tbody></table></div>}
+      <div className="panel-head"><span>Page {p.payoutPage+1}</span><div className="filters"><button className="secondary" disabled={p.payoutPage===0} onClick={p.payoutPrev}>Previous</button><button className="secondary" disabled={!p.payoutHasNext} onClick={p.payoutNext}>Next</button></div></div>
+    </section>
   </div>;
 }
 
-
-function FinanceView({dashboard,users,onOpenUser}:{dashboard?:DashboardSummary;users:UserSummary[];onOpenUser:(id:string)=>void}) {
+function FinanceView({dashboard,users,onOpenUser,canManageRecharge}:{dashboard?:DashboardSummary;users:UserSummary[];onOpenUser:(id:string)=>void;canManageRecharge:boolean}) {
+  const [tab,setTab]=useState<'overview'|'recharges'|'withdrawals'|'wallet'>('overview');
+  const [recharges,setRecharges]=useState<AdminFinancialRechargeOperation[]>([]);
+  const [withdrawals,setWithdrawals]=useState<AdminFinancialWithdrawalOperation[]>([]);
+  const [walletOps,setWalletOps]=useState<AdminFinancialWalletOperation[]>([]);
+  const [rechargeStatus,setRechargeStatus]=useState('ALL');
+  const [rechargeProvider,setRechargeProvider]=useState('ALL');
+  const [withdrawalStatus,setWithdrawalStatus]=useState('ALL');
+  const [withdrawalProvider,setWithdrawalProvider]=useState('ALL');
+  const [walletReferenceType,setWalletReferenceType]=useState('ALL');
+  const [rechargePage,setRechargePage]=useState(0);
+  const [withdrawalPage,setWithdrawalPage]=useState(0);
+  const [walletPage,setWalletPage]=useState(0);
+  const [rechargeHasNext,setRechargeHasNext]=useState(false);
+  const [withdrawalHasNext,setWithdrawalHasNext]=useState(false);
+  const [walletHasNext,setWalletHasNext]=useState(false);
+  const [loadingOps,setLoadingOps]=useState(false);
+  const [opError,setOpError]=useState('');
   const topWallet=[...users].sort((a,b)=>b.walletBalance-a.walletBalance).slice(0,8);
   const topVolume=[...users].sort((a,b)=>b.todayVolume-a.todayVolume).slice(0,8);
   const totalVisibleWallet=users.reduce((sum,u)=>sum+u.walletBalance,0);
+
+  async function loadOps(){
+    setLoadingOps(true); setOpError('');
+    try {
+      if(tab==='recharges'){
+        const r=await getAdminFinancialRecharges(rechargePage,25,rechargeStatus,rechargeProvider);
+        setRecharges(r.items); setRechargeHasNext(r.hasNext);
+      } else if(tab==='withdrawals'){
+        const r=await getAdminFinancialWithdrawals(withdrawalPage,25,withdrawalStatus,withdrawalProvider);
+        setWithdrawals(r.items); setWithdrawalHasNext(r.hasNext);
+      } else if(tab==='wallet'){
+        const r=await getAdminFinancialWalletHistory(walletPage,25,walletReferenceType);
+        setWalletOps(r.items); setWalletHasNext(r.hasNext);
+      }
+    } catch(err:any){ setOpError(err.message||'Unable to load financial operations.'); }
+    finally { setLoadingOps(false); }
+  }
+  useEffect(()=>{ if(tab!=='overview') loadOps(); },[tab,rechargePage,rechargeStatus,rechargeProvider,withdrawalPage,withdrawalStatus,withdrawalProvider,walletPage,walletReferenceType]);
+
+  async function refreshPending(id:string){
+    try { await refreshAdminRecharge(id); setOpError(''); await loadOps(); }
+    catch(err:any){ setOpError(err.message||'Unable to refresh recharge status.'); }
+  }
+
   return <div className="content">
     <section className="metric-grid">
       <div className="metric-card"><div className="metric-head"><span>Today's recharge volume</span><div className="metric-icon"><ReceiptText size={18}/></div></div><strong>{dashboard?INR.format(dashboard.todayVolume):'—'}</strong><small>Successful recharge value</small></div>
       <div className="metric-card"><div className="metric-head"><span>Today's company commission</span><div className="metric-icon"><TrendingUp size={18}/></div></div><strong>{dashboard?INR.format(dashboard.todayCommission):'—'}</strong><small>Platform commission today</small></div>
       <div className="metric-card"><div className="metric-head"><span>Monthly recharge volume</span><div className="metric-icon"><BarChart3 size={18}/></div></div><strong>{dashboard?INR.format(dashboard.monthlyVolume):'—'}</strong><small>Successful recharge value this month</small></div>
-      <div className="metric-card"><div className="metric-head"><span>Visible wallet balances</span><div className="metric-icon"><Wallet size={18}/></div></div><strong>{INR.format(totalVisibleWallet)}</strong><small>Sum of currently visible customer accounts</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Visible wallet balances</span><div className="metric-icon"><Wallet size={18}/></div></div><strong>{INR.format(totalVisibleWallet)}</strong><small>Current visible account balances</small></div>
     </section>
-    <div className="split">
-      <section className="panel"><div className="panel-head"><div><h2>Wallet watchlist</h2><p>Open any customer to inspect total, available and reserved balance plus full ledger history.</p></div></div>
-        <div className="finance-user-list">{topWallet.map(u=><button className="finance-user" key={u.id} onClick={()=>onOpenUser(u.id)}><div className="finance-user-main"><b>{u.name}</b><span>{u.mobile} · {u.accountType}</span></div><strong>{INR.format(u.walletBalance)}</strong><ChevronRight size={16}/></button>)}</div>
-      </section>
-      <section className="panel"><div className="panel-head"><div><h2>Recharge performance</h2><p>Top visible accounts by successful recharge volume today.</p></div></div>
-        <div className="finance-user-list">{topVolume.map(u=><button className="finance-user" key={u.id} onClick={()=>onOpenUser(u.id)}><div className="finance-user-main"><b>{u.name}</b><span>{u.mobile} · {u.todayEarnings>0?INR.format(u.todayEarnings)+' commission today':'No commission today'}</span></div><strong>{INR.format(u.todayVolume)}</strong><ChevronRight size={16}/></button>)}</div>
-      </section>
-    </div>
-    <div className="finance-note"><ShieldCheck size={16}/><div><b>Financial safety boundary</b><span>Ledger entries are read-only from this portal. Operational mutations remain behind the existing payment, withdrawal, and rental settlement workflows rather than direct balance edits.</span></div></div>
+    <section className="panel">
+      <div className="detail-tabs">
+        <button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}>Overview</button>
+        <button className={tab==='recharges'?'active':''} onClick={()=>setTab('recharges')}>Recharge operations</button>
+        <button className={tab==='withdrawals'?'active':''} onClick={()=>setTab('withdrawals')}>Withdrawal operations</button>
+        <button className={tab==='wallet'?'active':''} onClick={()=>setTab('wallet')}>Wallet ledger</button>
+      </div>
+      {tab==='overview' && <div className="split" style={{marginTop:12}}>
+        <section className="panel"><div className="panel-head"><div><h2>Wallet watchlist</h2><p>Open a customer to inspect total, available and reserved balance plus full ledger history.</p></div></div>
+          <div className="finance-user-list">{topWallet.map(u=><button className="finance-user" key={u.id} onClick={()=>onOpenUser(u.id)}><div className="finance-user-main"><b>{u.name}</b><span>{u.mobile} · {u.accountType}</span></div><strong>{INR.format(u.walletBalance)}</strong><ChevronRight size={16}/></button>)}</div>
+        </section>
+        <section className="panel"><div className="panel-head"><div><h2>Recharge performance</h2><p>Top visible accounts by successful recharge volume today.</p></div></div>
+          <div className="finance-user-list">{topVolume.map(u=><button className="finance-user" key={u.id} onClick={()=>onOpenUser(u.id)}><div className="finance-user-main"><b>{u.name}</b><span>{u.mobile} · {u.todayEarnings>0?INR.format(u.todayEarnings)+' commission today':'No commission today'}</span></div><strong>{INR.format(u.todayVolume)}</strong><ChevronRight size={16}/></button>)}</div>
+        </section>
+      </div>}
+      {tab==='recharges' && <section className="drawer-section">
+        <div className="panel-head wrap"><div><h3>Recharge operations</h3><p>Server-side filtered latest attempts across the platform.</p></div><div className="filters"><select value={rechargeStatus} onChange={e=>{setRechargeStatus(e.target.value);setRechargePage(0)}}><option>ALL</option><option>SUCCESS</option><option>PENDING</option><option>FAILED</option><option>RESERVED</option></select><select value={rechargeProvider} onChange={e=>{setRechargeProvider(e.target.value);setRechargePage(0)}}><option>ALL</option><option>MOCK</option><option>RAZORPAY</option><option>PAYU</option></select></div></div>
+        {loadingOps?<div className="empty-state">Loading recharge operations…</div>:recharges.length===0?<div className="empty-state">No recharge operations match the filters.</div>:
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Customer / mobile</th><th>Operator</th><th>Amount</th><th>Wallet debit</th><th>Status</th><th>Reference</th><th>Action</th></tr></thead><tbody>
+            {recharges.map(r=><tr key={r.transactionId}><td>{dateTime(r.createdAt)}</td><td><b>{r.userName}</b><span>{r.userMobile} · {r.mobileNumber}</span></td><td>{r.operator}<span>{r.circle}</span></td><td><b>{INR.format(r.amount)}</b><span>Commission {INR.format(r.clientCommission)}</span></td><td>{INR.format(r.walletDebitAmount)}</td><td><span className={'status '+(r.status||'UNKNOWN').toLowerCase()}>{r.status}</span>{r.message&&<span>{r.message}</span>}</td><td><span className="mono">{r.transactionId}</span><span>{r.providerReference||r.providerOrderId||r.walletLedgerRef||'—'}</span></td><td>{r.status.toUpperCase()==='PENDING'&&canManageRecharge?<button className="secondary" onClick={()=>refreshPending(r.transactionId)}><RefreshCw size={13}/> Refresh status</button>:<button className="secondary" onClick={()=>onOpenUser(r.userPublicId)}>Open customer</button>}</td></tr>)}
+          </tbody></table></div>}
+        <div className="panel-head"><span>Page {rechargePage+1}</span><div className="filters"><button className="secondary" disabled={rechargePage===0} onClick={()=>setRechargePage(p=>p-1)}>Previous</button><button className="secondary" disabled={!rechargeHasNext} onClick={()=>setRechargePage(p=>p+1)}>Next</button></div></div>
+      </section>}
+      {tab==='withdrawals' && <section className="drawer-section">
+        <div className="panel-head wrap"><div><h3>Withdrawal operations</h3><p>Provider state, UPI destination and failure detail. Status changes remain provider-controlled.</p></div><div className="filters"><select value={withdrawalStatus} onChange={e=>{setWithdrawalStatus(e.target.value);setWithdrawalPage(0)}}><option>ALL</option><option>PENDING</option><option>SUCCESS</option><option>FAILED</option><option>REVERSED</option></select><select value={withdrawalProvider} onChange={e=>{setWithdrawalProvider(e.target.value);setWithdrawalPage(0)}}><option>ALL</option><option>MOCK</option><option>RAZORPAY</option><option>PAYU</option></select></div></div>
+        {loadingOps?<div className="empty-state">Loading withdrawal operations…</div>:withdrawals.length===0?<div className="empty-state">No withdrawal operations match the filters.</div>:
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Customer</th><th>Amount</th><th>UPI</th><th>Provider</th><th>Status</th><th>Reference</th></tr></thead><tbody>
+            {withdrawals.map(w=><tr key={w.withdrawalId}><td>{dateTime(w.createdAt)}</td><td><b>{w.userName}</b><span>{w.userMobile}</span></td><td>{INR.format(w.amount)}</td><td>{w.upiId}</td><td>{w.provider}<span>{w.providerStatus||'—'}</span></td><td><span className={'status '+(w.status||'UNKNOWN').toLowerCase()}>{w.status}</span>{w.failureReason&&<span>{w.failureReason}</span>}</td><td><span className="mono">{w.withdrawalId}</span><span>{w.providerReference||w.walletLedgerRef||'—'}</span></td></tr>)}
+          </tbody></table></div>}
+        <div className="panel-head"><span>Page {withdrawalPage+1}</span><div className="filters"><button className="secondary" disabled={withdrawalPage===0} onClick={()=>setWithdrawalPage(p=>p-1)}>Previous</button><button className="secondary" disabled={!withdrawalHasNext} onClick={()=>setWithdrawalPage(p=>p+1)}>Next</button></div></div>
+      </section>}
+      {tab==='wallet' && <section className="drawer-section">
+        <div className="panel-head wrap"><div><h3>Wallet ledger</h3><p>All posted and non-posted wallet entries with their business reference.</p></div><div className="filters"><select value={walletReferenceType} onChange={e=>{setWalletReferenceType(e.target.value);setWalletPage(0)}}><option>ALL</option><option>ADD_MONEY</option><option>WITHDRAWAL</option><option>RECHARGE</option><option>RENTAL_PAYMENT</option><option>RENTAL_REFUND</option></select></div></div>
+        {loadingOps?<div className="empty-state">Loading wallet ledger…</div>:walletOps.length===0?<div className="empty-state">No wallet entries match the filter.</div>:
+          <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Amount</th><th>Status</th><th>Reference</th><th>Description</th></tr></thead><tbody>
+            {walletOps.map(w=><tr key={w.id}><td>{dateTime(w.createdAt)}</td><td><b>{w.userName}</b><span>{w.userMobile}</span></td><td><b>{w.referenceType||w.type}</b></td><td className={w.type.toUpperCase()==='CREDIT'?'green':''}>{(w.type.toUpperCase()==='CREDIT'?'+':'-')+INR.format(w.amount)}</td><td><span className={'status '+(w.status||'UNKNOWN').toLowerCase()}>{w.status}</span></td><td><span className="mono">{w.referenceId||w.externalRef}</span></td><td>{w.description||'—'}</td></tr>)}
+          </tbody></table></div>}
+        <div className="panel-head"><span>Page {walletPage+1}</span><div className="filters"><button className="secondary" disabled={walletPage===0} onClick={()=>setWalletPage(p=>p-1)}>Previous</button><button className="secondary" disabled={!walletHasNext} onClick={()=>setWalletPage(p=>p+1)}>Next</button></div></div>
+      </section>}
+      {opError&&<div className="alert">{opError}</div>}
+    </section>
+    <div className="finance-note"><ShieldCheck size={16}/><div><b>Financial safety boundary</b><span>Admins can inspect and reconcile provider state through supported workflows. The portal never edits balances or forcibly changes provider-owned payment status.</span></div></div>
   </div>;
 }
 

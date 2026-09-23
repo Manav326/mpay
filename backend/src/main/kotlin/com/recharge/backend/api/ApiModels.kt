@@ -352,6 +352,88 @@ data class AdminUserStatusResponse(
     val status: String
 )
 
+data class AdminFinancialRechargeOperation(
+    val transactionId: String,
+    val userPublicId: String,
+    val userName: String,
+    val userMobile: String,
+    val mobileNumber: String,
+    val operator: String,
+    val circle: String,
+    val amount: BigDecimal,
+    val walletDebitAmount: BigDecimal,
+    val clientCommission: BigDecimal,
+    val companyCommission: BigDecimal,
+    val status: String,
+    val provider: String,
+    val providerReference: String?,
+    val providerOrderId: String?,
+    val walletLedgerRef: String?,
+    val message: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+data class AdminFinancialRechargePageResponse(
+    val items: List<AdminFinancialRechargeOperation>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
+data class AdminFinancialWithdrawalOperation(
+    val withdrawalId: String,
+    val userPublicId: String,
+    val userName: String,
+    val userMobile: String,
+    val amount: BigDecimal,
+    val upiId: String,
+    val provider: String,
+    val status: String,
+    val providerReference: String?,
+    val providerStatus: String?,
+    val failureReason: String?,
+    val walletLedgerRef: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val completedAt: Instant?
+)
+
+data class AdminFinancialWithdrawalPageResponse(
+    val items: List<AdminFinancialWithdrawalOperation>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
+data class AdminFinancialWalletOperation(
+    val id: Long,
+    val userPublicId: String,
+    val userName: String,
+    val userMobile: String,
+    val type: String,
+    val amount: BigDecimal,
+    val status: String,
+    val referenceType: String?,
+    val referenceId: String?,
+    val externalRef: String,
+    val description: String?,
+    val createdAt: Instant
+)
+
+data class AdminFinancialWalletPageResponse(
+    val items: List<AdminFinancialWalletOperation>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
 data class AdminUserSummaryResponse(
     val id: String,
     val publicUserId: String,

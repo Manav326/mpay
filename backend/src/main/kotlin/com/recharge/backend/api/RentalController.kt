@@ -197,6 +197,17 @@ class RentalController(
         return rentalService.adminBookings(page, size, status)
     }
 
+    @GetMapping("/admin/payouts")
+    fun adminPayouts(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) status: String?
+    ): RentalAdminPayoutPageResponse {
+        requireAdmin(authentication)
+        return rentalService.adminPayouts(page, size, status)
+    }
+
     @PostMapping("/admin/bookings/{bookingId}/complete")
     fun completeBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
         requireAdmin(authentication)

@@ -27,6 +27,88 @@ export interface AdminUserStatusResult {
   status: 'ACTIVE' | 'BLOCKED';
 }
 
+export interface AdminFinancialRechargeOperation {
+  transactionId: string;
+  userPublicId: string;
+  userName: string;
+  userMobile: string;
+  mobileNumber: string;
+  operator: string;
+  circle: string;
+  amount: number;
+  walletDebitAmount: number;
+  clientCommission: number;
+  companyCommission: number;
+  status: string;
+  provider: string;
+  providerReference?: string | null;
+  providerOrderId?: string | null;
+  walletLedgerRef?: string | null;
+  message?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminFinancialRechargePageResponse {
+  items: AdminFinancialRechargeOperation[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface AdminFinancialWithdrawalOperation {
+  withdrawalId: string;
+  userPublicId: string;
+  userName: string;
+  userMobile: string;
+  amount: number;
+  upiId: string;
+  provider: string;
+  status: string;
+  providerReference?: string | null;
+  providerStatus?: string | null;
+  failureReason?: string | null;
+  walletLedgerRef?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string | null;
+}
+
+export interface AdminFinancialWithdrawalPageResponse {
+  items: AdminFinancialWithdrawalOperation[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface AdminFinancialWalletOperation {
+  id: number;
+  userPublicId: string;
+  userName: string;
+  userMobile: string;
+  type: string;
+  amount: number;
+  status: string;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  externalRef: string;
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface AdminFinancialWalletPageResponse {
+  items: AdminFinancialWalletOperation[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
 export interface UserSummary {
   id: string;
   publicUserId: string;
@@ -211,6 +293,35 @@ export interface RentalAdminVehicleUnavailability {
   createdAt: string;
 }
 
+
+export interface RentalAdminPayout {
+  payoutId: string;
+  bookingId: string;
+  vendorId: string;
+  vendorName?: string | null;
+  vendorUserId: string;
+  vendorUserName?: string | null;
+  carName?: string | null;
+  grossAmount: number;
+  platformFeePercent: number;
+  platformFeeAmount: number;
+  vendorNetAmount: number;
+  status: string;
+  walletLedgerRef?: string | null;
+  failureReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  paidAt?: string | null;
+}
+
+export interface RentalAdminPayoutResponse {
+  items: RentalAdminPayout[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
 
 export interface RentalAdminBooking {
   bookingId: string;

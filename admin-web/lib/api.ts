@@ -318,6 +318,36 @@ export async function getRentalAdminDashboard(): Promise<RentalAdminDashboard> {
   return api('/api/v1/car-rental/admin/dashboard');
 }
 
+export async function getAdminFinancialRecharges(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialRechargePageResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') query.set('status', status);
+  if (provider && provider !== 'ALL') query.set('provider', provider);
+  return api('/api/v1/admin/financial/recharges?' + query.toString());
+}
+
+export async function refreshAdminRecharge(transactionId: string): Promise<unknown> {
+  return api('/api/v1/admin/financial/recharges/' + encodeURIComponent(transactionId) + '/refresh', { method: 'POST' });
+}
+
+export async function getAdminFinancialWithdrawals(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialWithdrawalPageResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') query.set('status', status);
+  if (provider && provider !== 'ALL') query.set('provider', provider);
+  return api('/api/v1/admin/financial/withdrawals?' + query.toString());
+}
+
+export async function getAdminFinancialWalletHistory(page = 0, size = 25, referenceType = 'ALL'): Promise<AdminFinancialWalletPageResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (referenceType && referenceType !== 'ALL') query.set('referenceType', referenceType);
+  return api('/api/v1/admin/financial/wallet-history?' + query.toString());
+}
+
+export async function getRentalAdminPayouts(page = 0, size = 25, status = 'ALL'): Promise<RentalAdminPayoutResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') query.set('status', status);
+  return api('/api/v1/car-rental/admin/payouts?' + query.toString());
+}
+
 export async function getRentalAdminBookings(page = 0, size = 25, status = 'ALL'): Promise<RentalAdminBookingResponse> {
   const query = new URLSearchParams({ page: String(page), size: String(size) });
   if (status && status !== 'ALL') query.set('status', status);

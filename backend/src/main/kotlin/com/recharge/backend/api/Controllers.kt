@@ -403,3 +403,48 @@ class AdminController(
     fun createVendor(authentication: Authentication, @Valid @RequestBody request: CreateAdminVendorRequest): AdminVendorResponse =
         adminService.createVendor(currentUser(authentication), request)
 }
+
+
+@RestController
+@RequestMapping("/api/v1/admin/financial")
+class AdminFinancialController(
+    private val service: com.recharge.backend.service.AdminFinancialService,
+    private val users: com.recharge.backend.repository.UserRepository
+) {
+    private fun currentUser(authentication: Authentication) =
+        authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
+            ?: throw IllegalStateException("Invalid authenticated user")
+
+    @GetMapping("/recharges")
+    fun recharges(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) status: String?,
+        @RequestParam(required = false) provider: String?
+    ): AdminFinancialRechargePageResponse =
+        service.recharges(currentUser(authentication), page, size, status, provider)
+
+    @PostMapping("/recharges/{transactionId}/refresh")
+    fun refreshRecharge(authentication: Authentication, @PathVariable transactionId: String): RechargeTransactionStatusResponse =
+        service.refreshRecharge(currentUser(authentication), transactionId)
+
+    @GetMapping("/withdrawals")
+    fun withdrawals(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) status: String?,
+        @RequestParam(required = false) provider: String?
+    ): AdminFinancialWithdrawalPageResponse =
+        service.withdrawals(currentUser(authentication), page, size, status, provider)
+
+    @GetMapping("/wallet-history")
+    fun walletHistory(
+        authentication: Authentication,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "25") size: Int,
+        @RequestParam(required = false) referenceType: String?
+    ): AdminFinancialWalletPageResponse =
+        service.walletHistory(currentUser(authentication), page, size, referenceType)
+}
