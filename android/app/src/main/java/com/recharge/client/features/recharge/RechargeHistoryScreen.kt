@@ -21,6 +21,7 @@ import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
+import com.recharge.client.core.ui.MpayEmptyState
 import com.recharge.client.core.viewmodel.HistoryFilter
 import com.recharge.client.core.viewmodel.RechargeHistoryUiState
 import java.time.LocalDate
@@ -67,7 +68,7 @@ fun RechargeHistoryScreen(state: RechargeHistoryUiState, onFilterToday: () -> Un
             return
         }
         if (state.items.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No recharge transactions for this period.", color = AppColors.TextSecondary) }
+            MpayEmptyState(title = "No recharge transactions", message = "There are no recharge records for the selected period.")
             return
         }
 
