@@ -51,11 +51,3 @@ fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss
     )
 }
 
-@Composable
-private fun ProviderButton(label: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean, modifier: Modifier) {
-    if (selected) {
-        Button(onClick = onClick, enabled = enabled, modifier = modifier) { Text(label, maxLines = 1) }
-    } else {
-        OutlinedButton(onClick = onClick, enabled = enabled, modifier = modifier) { Text(label, maxLines = 1) }
-    }
-}
