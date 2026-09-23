@@ -215,7 +215,7 @@ function WithdrawalTable({ items }: { items: AdminFinancialWithdrawalOperation[]
       <td><b>{item.upiId}</b></td>
       <td>{item.provider || '—'}<span>{item.providerStatus || 'No provider status'}</span></td>
       <td><span className={statusClass(item.status)}>{item.status}</span>{item.failureReason && <span>{item.failureReason}</span>}</td>
-      <td><span className="mono">{item.providerReference || item.walletLedgerRef || item.clientRequestId || '—'}</span></td>
+      <td><span className="mono">{item.providerReference || item.walletLedgerRef || '—'}</span></td>
     </tr>)}
   </tbody></table></div>;
 }
