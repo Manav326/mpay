@@ -478,6 +478,7 @@ private fun AppNavHost(
     rechargeViewModel.state.collectAsState().value,
     profileViewModel.state.collectAsState().value.user?.commissionRate,
     rechargeViewModel::setMobile,
+    rechargeViewModel::setRecipientName,
     onChooseContact,
     rechargeViewModel::detectAndLoad,
     rechargeViewModel::refreshPlans,
