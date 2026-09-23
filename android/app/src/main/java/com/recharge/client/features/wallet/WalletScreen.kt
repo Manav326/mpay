@@ -363,7 +363,8 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem, withdrawal: Wit
         appendLine("Status: ${item.status}")
         appendLine("Reference type: ${item.referenceType ?: "—"}")
         appendLine("Reference ID: ${item.referenceId ?: "—"}")
-        appendLine("External reference: ${item.externalRef}")
+        appendLine("External reference: ${item.externalRef ?: "—"}")
+        if (isWithdraw) appendLine("UPI ID: ${withdrawal?.upiId ?: "—"}")
         item.description?.let { appendLine("Description: $it") }
         appendLine("Date & time: ${formatExactTimestamp(item.createdAt)}")
     }
