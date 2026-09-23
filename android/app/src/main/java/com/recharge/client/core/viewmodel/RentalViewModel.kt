@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.*
 import com.recharge.client.core.repository.ClientRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -26,7 +27,7 @@ data class RentalUiState(
 )
 
 class RentalViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
     private val _state = MutableStateFlow(RentalUiState())
     private var carsJob: Job? = null
     private var calendarJob: Job? = null
@@ -128,10 +129,14 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadVendorPayouts() {
         viewModelScope.launch {
-            repository.rentalVendorPayouts()
+            val payoutsRequest = async { repository.rentalVendorPayouts() }
+            val earningsRequest = async { repository.rentalVendorEarnings() }
+
+            payoutsRequest.await()
                 .onSuccess { _state.value = _state.value.copy(payouts = it) }
                 .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vendor payouts") }
-            repository.rentalVendorEarnings()
+
+            earningsRequest.await()
                 .onSuccess { _state.value = _state.value.copy(earnings = it) }
                 .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load rental earnings") }
         }
