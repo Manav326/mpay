@@ -71,6 +71,8 @@ interface RentalBookingRepository : JpaRepository<RentalBookingEntity, Long> {
 
     fun findByBookingIdAndUserId(bookingId: String, userId: Long): Optional<RentalBookingEntity>
     fun findAllByUserIdOrderByCreatedAtDesc(userId: Long, pageable: Pageable): Page<RentalBookingEntity>
+    fun countByCarIdInAndStatusInAndCreatedAtBetween(carIds: Collection<Long>, statuses: Collection<String>, from: java.time.Instant, to: java.time.Instant): Long
+    fun countByCarIdInAndStatusAndStartDateAfter(carIds: Collection<Long>, status: String, startDate: LocalDateTime): Long
     fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RentalBookingEntity>
     fun findAllByStatusOrderByCreatedAtDesc(status: String, pageable: Pageable): Page<RentalBookingEntity>
     fun countByStatus(status: String): Long
