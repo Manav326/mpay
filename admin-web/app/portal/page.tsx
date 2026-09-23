@@ -414,7 +414,7 @@ export default function Portal() {
     document.body.appendChild(form); form.submit(); form.remove();
     setNotice('PayU checkout opened in a new tab. mPay will verify the payment while the checkout is completed.');
     const orderId=order.orderId;
-    void monitorPayUVerification(orderId,purpose);    setNotice('PayU checkout did not complete within the verification window. Refresh Wallet/History after returning.');
+    void monitorPayUVerification(orderId,purpose);
   }
 
   async function addMoney() {
