@@ -18,12 +18,12 @@ WORKDIR /app
 
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:InitialRAMPercentage=25"
 
-COPY --from=build /app/build/libs/*.jar app.jar
-
-RUN mkdir -p /app/config /app/data/profile-images /app/data/rental-images \
-    && addgroup --system --gid 10001 mpay \
+RUN addgroup --system --gid 10001 mpay \
     && adduser --system --uid 10001 --ingroup mpay mpay \
-    && chown -R mpay:mpay /app
+    && mkdir -p /app/config /app/data/profile-images /app/data/rental-images \
+    && chown mpay:mpay /app/config /app/data/profile-images /app/data/rental-images
+
+COPY --from=build --chown=mpay:mpay /app/build/libs/*.jar app.jar
 
 USER mpay
 
