@@ -239,20 +239,23 @@ private fun RentalDateField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    minDate: LocalDate? = null
 ) {
     val context = LocalContext.current
     val display = if (value.isBlank()) "Select date" else formatRentalDate(value)
     OutlinedButton(
         onClick = {
-            val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { LocalDate.now() }
+            val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { minDate ?: LocalDate.now() }
             DatePickerDialog(
                 context,
                 { _, year, month, day -> onValueChange(LocalDate.of(year, month + 1, day).format(rentalDateFormatter)) },
                 initial.year,
                 initial.monthValue - 1,
                 initial.dayOfMonth
-            ).show()
+            ).apply {
+                minDate?.let { datePicker.minDate = it.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+            }.show()
         },
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
@@ -294,8 +297,8 @@ private fun VehicleOffMarketDialog(
                     color = AppColors.TextSecondary
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RentalDateField("From", startDate, onStartDate, Modifier.weight(1f))
-                    RentalDateField("To", endDate, onEndDate, Modifier.weight(1f))
+                    RentalDateField("From", startDate, onStartDate, Modifier.weight(1f), minDate = LocalDate.now())
+                    RentalDateField("To", endDate, onEndDate, Modifier.weight(1f), minDate = LocalDate.now())
                 }
                 Box {
                     OutlinedButton(
@@ -315,11 +318,19 @@ private fun VehicleOffMarketDialog(
                     }
                 }
                 VendorField("Optional note for admin", reasonNote, onValueChange = onNote)
+                val validPeriod = runCatching {
+                    val from = LocalDate.parse(startDate, rentalDateFormatter)
+                    val to = LocalDate.parse(endDate, rentalDateFormatter)
+                    !from.isBefore(LocalDate.now()) && !to.isBefore(from)
+                }.getOrDefault(false)
+                if (startDate.isNotBlank() && endDate.isNotBlank() && !validPeriod) {
+                    Text("Choose a current/future period with the end date on or after the start date.", color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
+                }
                 error?.let { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) }
             }
         },
         confirmButton = {
-            Button(onClick = onSubmit, enabled = !saving && startDate.isNotBlank() && endDate.isNotBlank()) {
+            Button(onClick = onSubmit, enabled = !saving && startDate.isNotBlank() && endDate.isNotBlank() && runCatching { val from = LocalDate.parse(startDate, rentalDateFormatter); val to = LocalDate.parse(endDate, rentalDateFormatter); !from.isBefore(LocalDate.now()) && !to.isBefore(from) }.getOrDefault(false)) {
                 if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Keep off market")
             }
         },
@@ -1602,7 +1613,7 @@ fun RentalVehicleOnboardingScreen(
                     }
                     CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
                     VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
-                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it })
+                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it }, minDate = LocalDate.now())
                     VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                     Card(
                         shape = RoundedCornerShape(14.dp),
