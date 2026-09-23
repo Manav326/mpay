@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SimCard
@@ -197,7 +199,7 @@ fun RechargeScreen(
                 Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), tonalElevation = 2.dp) {
                     Column(Modifier.padding(16.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Your wallet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Available wallet balance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text(balance.let { "₹${formatMoney(it)}" }, fontWeight = FontWeight.Bold)
                         }
                         TextButton(onClick = onRefreshWallet, enabled = !state.refreshingWallet, modifier = Modifier.align(Alignment.End)) { Text("Refresh") }
@@ -309,7 +311,7 @@ private fun RechargePriceBreakdown(amount: BigDecimal, commission: BigDecimal, w
             PriceRow("Recharge amount", "₹${formatMoney(amount)}", false)
             PriceRow("Commission", "₹${formatMoney(commission)}", true)
             HorizontalDivider()
-            PriceRow("Wallet will be debited", "₹${formatMoney(walletDebit)}", false, bold = true)
+            PriceRow("Wallet will be debited", "₹${formatMoney(walletDebit)}", true, bold = true)
         }
     }
 }
@@ -414,7 +416,7 @@ private fun ConfirmRow(label: String, value: String, emphasized: Boolean = false
 private fun RechargeResultDialog(title: String, body: String, detail: String, positive: Boolean, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(if (positive) Icons.Default.CheckCircle else Icons.Default.Refresh, null, tint = if (positive) AppColors.Success else AppColors.Primary) },
+        icon = { Icon(if (positive) Icons.Default.CheckCircle else if (title.contains("processing", true)) Icons.Default.HourglassTop else Icons.Default.Error, null, tint = if (positive) AppColors.Success else if (title.contains("processing", true)) AppColors.Warning else AppColors.Error) },
         title = { Text(title) },
         text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(body); Text(detail, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall) } },
         confirmButton = { Button(onClick = onDismiss) { Text("Done") } }
