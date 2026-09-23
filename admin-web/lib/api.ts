@@ -44,12 +44,17 @@ export async function login(mobile: string, password: string, role: string) {
               'VIEW_USER_DETAIL',
               'MANAGE_VENDORS',
               'MANAGE_COMMISSION_RATES',
+              'MANAGE_USER_STATUS',
+              'MANAGE_RECHARGE_OPERATIONS',
+              'MANAGE_RENTAL_OPERATIONS',
+              'VIEW_FINANCIAL_OPERATIONS',
             ]
           : [
               'PORTAL_LOGIN',
               'VIEW_DASHBOARD',
               'VIEW_USERS',
               'VIEW_USER_DETAIL',
+              'VIEW_FINANCIAL_OPERATIONS',
             ],
     };
   }
