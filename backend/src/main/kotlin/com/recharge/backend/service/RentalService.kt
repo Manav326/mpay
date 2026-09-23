@@ -126,11 +126,16 @@ class RentalService(
         vendor.city = request.city.trim()
         vendor.state = request.state.trim()
         vendor.pinCode = request.pinCode.trim()
-        vendor.panNumber = request.panNumber?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
-        vendor.payoutUpiId = request.payoutUpiId?.trim()?.takeIf { it.isNotBlank() }
-        vendor.bankAccountNumber = request.bankAccountNumber?.trim()?.takeIf { it.isNotBlank() }
-        vendor.bankIfsc = request.bankIfsc?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
-        vendor.bankName = request.bankName?.trim()?.takeIf { it.isNotBlank() }
+        val panInput = request.panNumber?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        val upiInput = request.payoutUpiId?.trim()?.takeIf { it.isNotBlank() }
+        val accountInput = request.bankAccountNumber?.trim()?.takeIf { it.isNotBlank() }
+        val ifscInput = request.bankIfsc?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+
+        if (panInput != null && !panInput.contains('*')) vendor.panNumber = panInput
+        if (upiInput != null && !upiInput.contains('*')) vendor.payoutUpiId = upiInput
+        if (accountInput != null && !accountInput.contains('*')) vendor.bankAccountNumber = accountInput
+        if (ifscInput != null && !ifscInput.contains('*')) vendor.bankIfsc = ifscInput
+        request.bankName?.trim()?.takeIf { it.isNotBlank() }?.let { vendor.bankName = it }
         vendor.payoutPrimaryMethod = normalizePrimaryPayoutMethod(
             request.payoutPrimaryMethod,
             vendor.payoutUpiId,
