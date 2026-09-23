@@ -147,18 +147,6 @@ export interface WalletHistoryResponse {
   toDate: string;
 }
 
-export interface Vendor {
-  id: string;
-  name: string;
-  category: 'CAR_RENT' | 'TRAVEL' | 'SERVICES';
-  city: string;
-  phone: string;
-  commissionRate: number;
-  active: boolean;
-  createdAt: string;
-}
-
-
 export interface WithdrawalHistoryItem {
   withdrawalId: string;
   clientRequestId: string;
