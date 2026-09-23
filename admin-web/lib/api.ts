@@ -1,5 +1,5 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -236,6 +236,81 @@ export async function getUserProfileImage(id: string): Promise<string | null> {
 
 export async function getUserWithdrawalHistory(id: string, page = 0, size = 25): Promise<WithdrawalHistoryResponse> {
   return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/withdrawals?page=' + page + '&size=' + size);
+}
+
+
+export async function updateUserStatus(id: string, active: boolean): Promise<{ publicUserId: string; active: boolean; status: 'ACTIVE' | 'BLOCKED' }> {
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/status', {
+    method: 'POST',
+    body: JSON.stringify({ active }),
+  });
+}
+
+export async function getAdminRecharges(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialRechargePageResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status !== 'ALL') query.set('status', status);
+  if (provider !== 'ALL') query.set('provider', provider);
+  return api('/api/v1/admin/financial/recharges?' + query.toString());
+}
+
+export async function refreshAdminRecharge(transactionId: string): Promise<unknown> {
+  return api('/api/v1/admin/financial/recharges/' + encodeURIComponent(transactionId) + '/refresh', { method: 'POST' });
+}
+
+export async function getAdminWithdrawals(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialWithdrawalPageResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status !== 'ALL') query.set('status', status);
+  if (provider !== 'ALL') query.set('provider', provider);
+  return api('/api/v1/admin/financial/withdrawals?' + query.toString());
+}
+
+export async function getAdminWalletLedger(page = 0, size = 25, referenceType = 'ALL'): Promise<AdminFinancialWalletPageResponse> {
+  const query = new URLSearchParams({ page: String(page), size: String(size) });
+  if (referenceType !== 'ALL') query.set('referenceType', referenceType);
+  return api('/api/v1/admin/financial/wallet-history?' + query.toString());
+}
+
+export async function getAdminProfile(): Promise<AdminProfile> {
+  if (demo) {
+    return { userId: 'demo-admin', publicUserId: 'DEMO-ADMIN', name: 'mPay Admin', email: 'admin@mpay.local', mobile: '9999999999', role: 'ADMIN' };
+  }
+  return api('/api/v1/profile');
+}
+
+export async function getAdminProfileImage(): Promise<string | null> {
+  if (demo) return null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const response = await fetch(baseUrl + '/api/v1/profile/image', {
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+  if (response.status === 404) return null;
+  if (response.status === 401 && typeof window !== 'undefined') {
+    localStorage.removeItem('mpay_admin_token');
+    localStorage.removeItem('mpay_admin_session');
+    window.location.href = '/admin';
+    throw new Error('Your admin session has expired. Please sign in again.');
+  }
+  if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
+  return URL.createObjectURL(await response.blob());
+}
+
+export async function uploadAdminProfileImage(file: File): Promise<unknown> {
+  if (demo) return { ok: true };
+  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  const form = new FormData();
+  form.append('image', file, file.name);
+  const response = await fetch(baseUrl + '/api/v1/profile/image', {
+    method: 'PUT',
+    body: form,
+    headers: token ? { Authorization: 'Bearer ' + token } : {},
+  });
+  if (!response.ok) throw new Error((await response.text()) || 'Unable to upload profile image.');
+  return response.json();
+}
+
+export async function deleteAdminProfileImage(): Promise<unknown> {
+  if (demo) return { ok: true };
+  return api('/api/v1/profile/image', { method: 'DELETE' });
 }
 
 export async function getRentalAdminVehicleUnavailability(): Promise<RentalAdminVehicleUnavailability[]> {
