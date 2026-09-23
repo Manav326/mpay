@@ -217,6 +217,12 @@ class RentalController(
         return rentalService.completeBooking(bookingId, userId(authentication))
     }
 
+    @PostMapping("/admin/bookings/{bookingId}/cancel")
+    fun cancelAdminBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
+        requireRentalOperations(authentication)
+        return rentalService.adminCancelBooking(bookingId, userId(authentication))
+    }
+
     @PostMapping("/admin/vehicles/{carId}/approve")
     fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
         requireVendorManagement(authentication)
