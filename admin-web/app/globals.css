@@ -88,3 +88,87 @@
   .history-actions{justify-content:flex-start}
   .copy-btn{padding:7px 9px}
 }
+
+
+/* Android parity portal additions */
+.account-profile-image{width:76px;height:76px;border-radius:22px;object-fit:cover;box-shadow:0 10px 25px rgba(31,43,51,.08);margin-bottom:10px}
+.account-actions,.vendor-actions,.form-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:16px}
+.upload-label{cursor:pointer}
+.profile-edit-form,.vendor-form,.vehicle-form{margin-top:16px;padding:16px;border:1px solid #e7e0d7;border-radius:16px;background:#fffdfa}
+.profile-edit-form{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.profile-edit-form input,.vendor-form input,.vehicle-form input,.vendor-form select,.vehicle-form select,.money-action-row input,.money-action-grid input,.availability-form input,.availability-form select{border:1px solid #ddd5ca;border-radius:10px;background:#fff;padding:10px 11px;box-sizing:border-box;min-width:0}
+.vendor-form-grid,.vehicle-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.vendor-form-grid label,.vehicle-form-grid label,.money-action-grid label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#6f675e;font-weight:800}
+.vendor-cta{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;border:1px solid #e6ddd2;border-radius:15px;background:#fbf7f0}
+.vendor-cta div{display:flex;flex-direction:column;gap:4px}
+.vendor-cta span{font-size:11px;color:#81796e}
+.vendor-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.vendor-summary-grid>div{padding:12px;border:1px solid #e9e1d7;border-radius:13px;background:#fff}
+.vendor-summary-grid span{display:block;color:#857c71;font-size:10px;margin-bottom:4px}
+.vendor-summary-grid b{font-size:13px;color:#3e3932}
+.vendor-rejection{grid-column:1/-1;padding:10px 12px;border-radius:10px;background:#fff3f2;color:#b42318}
+.vendor-rejection span{margin-bottom:3px}
+.vendor-dashboard{margin-top:18px}
+.vendor-section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:18px 0 10px}
+.vendor-section-head b{font-size:13px;color:#3f3a34}
+.vendor-vehicle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vendor-vehicle-card{display:grid;grid-template-columns:72px 1fr auto;gap:10px;align-items:center;border:1px solid #e8e0d7;border-radius:14px;background:#fff;padding:10px}
+.vendor-vehicle-image{width:72px;height:62px;border-radius:12px;background:#f1ece5;display:grid;place-items:center;overflow:hidden;color:#8e8478}
+.vendor-vehicle-image img{width:100%;height:100%;object-fit:cover}
+.vendor-vehicle-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.vendor-vehicle-main b{font-size:12px;color:#3a3834;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vendor-vehicle-main span,.vendor-vehicle-main small{font-size:10px;color:#81786e}
+.vendor-card-status{margin-top:3px}
+.vendor-card-actions{display:flex;gap:4px}
+.vehicle-detail-panel,.unavailability-box,.calendar-box{margin-top:14px;padding:14px;border:1px solid #e7ded3;border-radius:15px;background:#fffdf9}
+.detail-grid-web{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.detail-grid-web span{padding:10px;border-radius:11px;background:#f8f5f0;color:#7b7268;font-size:10px}
+.detail-grid-web b{display:block;color:#3e3a35;margin-top:3px;font-size:11px}
+.vehicle-gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.vehicle-gallery-slot{min-height:100px;border-radius:13px;border:1px dashed #d9cfc3;background:#f8f4ee;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;color:#8d8377;font-size:10px}
+.vehicle-gallery-slot img{width:100%;height:100%;min-height:100px;object-fit:cover}
+.upload-photo-btn{position:absolute;right:6px;bottom:6px;padding:5px 7px;border-radius:8px;background:rgba(255,255,255,.95);border:1px solid #ddd5ca;color:#514a42;font-size:9px;font-weight:800;display:flex;align-items:center;gap:4px;cursor:pointer}
+.availability-form{display:grid;grid-template-columns:1fr 1.4fr .9fr .9fr auto;gap:8px;align-items:end}
+.calendar-nav{display:flex;align-items:center;gap:6px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:10px}
+.calendar-day{min-height:54px;padding:7px;border-radius:10px;background:#f5f2ec;display:flex;flex-direction:column;gap:3px}
+.calendar-day b{font-size:12px;color:#4a433a}
+.calendar-day span{font-size:8px;color:#7f7569;line-height:1.25}
+.calendar-available{background:#eef8f0}.calendar-booked,.calendar-confirmed{background:#fff3e8}.calendar-unavailable{background:#fdeeee}.calendar-off_market{background:#f0edff}
+.funding-picker{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.funding-picker span{font-size:10px;font-weight:800;color:#7d756c;margin-right:4px}
+.funding-picker button{border:1px solid #ddd5cb;background:#fff;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer}
+.funding-picker button.selected{background:#fff4dd;border-color:#f1c76c;color:#8a5a08}
+.money-action-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+.money-action-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin:10px 0}
+.history-filter-picker{border-bottom:1px solid #eee8df;padding-bottom:8px}
+.history-date-filters{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:10px}
+.history-date-filters label{font-size:10px;color:#6f675e;font-weight:800;display:flex;flex-direction:column;gap:5px}
+.editable-operator{align-items:flex-start}
+.operator-fields{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.operator-fields label{display:flex;flex-direction:column;gap:4px;font-size:9px;color:#736a61;font-weight:800}
+.operator-fields input{border:1px solid #ddd5ca;border-radius:9px;padding:7px 9px;width:145px}
+.operator-fields>span{font-size:10px;color:#7d756d;padding-bottom:7px}
+.recharge-web-form{display:grid;grid-template-columns:1fr auto auto;gap:8px}
+.recharge-web-form input{border:1px solid #ddd5ca;border-radius:10px;padding:10px 11px}
+.rental-car-main{display:flex;flex-direction:column;gap:4px;align-items:flex-start;background:transparent;border:0;padding:0;text-align:left;cursor:pointer}
+.rental-car-main .rental-car-icon{margin-bottom:3px}
+.rental-car .copy-btn{margin-top:8px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(34,31,27,.38);display:grid;place-items:center;padding:20px;z-index:50}
+.portal-modal{width:min(860px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:20px;padding:18px;box-shadow:0 25px 70px rgba(0,0,0,.18)}
+@media(max-width:900px){
+  .vendor-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vendor-vehicle-grid{grid-template-columns:1fr}
+  .vendor-form-grid,.vehicle-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .detail-grid-web{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .availability-form{grid-template-columns:1fr 1fr}
+  .recharge-web-form{grid-template-columns:1fr 1fr}.recharge-web-form input{grid-column:1/-1}
+  .history-date-filters{grid-template-columns:1fr 1fr}.history-date-filters button{grid-column:1/-1}
+}
+@media(max-width:600px){
+  .profile-edit-form,.money-action-row,.money-action-grid,.vendor-form-grid,.vehicle-form-grid{grid-template-columns:1fr}
+  .vendor-summary-grid,.detail-grid-web{grid-template-columns:1fr 1fr}
+  .vehicle-gallery{grid-template-columns:repeat(2,1fr)}
+  .availability-form{grid-template-columns:1fr}
+  .calendar-grid{gap:4px}.calendar-day{min-height:46px;padding:5px}.calendar-day span{font-size:7px}
+}
