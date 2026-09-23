@@ -1,4 +1,4 @@
-import { DashboardSummary, UserDetail, UserSummary } from './types';
+import { DashboardSummary, UserDetail, UserSummary, Vendor } from './types';
 
 export const dashboardMock: DashboardSummary = {
   todayVolume: 142890,
@@ -68,3 +68,7 @@ export function getUserDetail(id: string): UserDetail {
     ],
   };
 }
+
+
+// Kept for demo-mode API compatibility; the production admin portal uses the real rental review workflow.
+export const vendorsMock: Vendor[] = [];
