@@ -7,6 +7,7 @@ import { cancelRentalBooking, completeRentalBooking, getDashboard, getPortalRole
 import RentalVendorReview from './RentalVendorReview';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
+import AccountStatusControl from './AccountStatusControl';
 import RentalPayouts from './RentalPayouts';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 
@@ -116,9 +117,6 @@ function UserDrawer({user,onClose,canManageStatus,onStatusChanged}:{user:UserDet
   const [loadingRecharges,setLoadingRecharges] = useState(true);
   const [loadingWallet,setLoadingWallet] = useState(true);
   const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
-  const [statusBusy,setStatusBusy] = useState(false);
-  const [statusConfirmation,setStatusConfirmation] = useState<boolean | null>(null);
-
   useEffect(()=>{
     let active = true;
     getUserProfileImage(user.id).then(src=>{ if(active) setImageSrc(src); }).catch(()=>{});
@@ -214,14 +212,8 @@ function UserDrawer({user,onClose,canManageStatus,onStatusChanged}:{user:UserDet
           <div><small><CalendarDays size={14}/> Joined</small><b>{dateTime(user.joinedAt)}</b></div>
           <div><small><History size={14}/> Profile updated</small><b>{user.profileUpdatedAt ? dateTime(user.profileUpdatedAt) : 'Not available'}</b></div>
         </div>
-        {canManageStatus && user.role.toUpperCase() !== 'ADMIN' && <div className="account-status-controls">
-          <div><b>Account access</b><span>{user.status === 'ACTIVE' ? 'The account can sign in and use enabled services.' : 'The account is blocked from normal platform use.'}</span></div>
-          <button className={user.status === 'ACTIVE' ? 'status-toggle off' : 'status-toggle on'} onClick={()=>setStatusConfirmation(user.status !== 'ACTIVE')} disabled={statusBusy}>{user.status === 'ACTIVE' ? 'Block account' : 'Activate account'}</button>
-        </div>}
-        {statusConfirmation !== null && <div className="status-confirm">
-          <div><b>{statusConfirmation ? 'Activate this account?' : 'Block this account?'}</b><span>{statusConfirmation ? 'The user will regain access to the platform.' : 'The user will no longer be able to use the platform. Existing ledger history remains unchanged.'}</span></div>
-          <div className="filters"><button className="secondary" disabled={statusBusy} onClick={()=>setStatusConfirmation(null)}>Cancel</button><button className={statusConfirmation ? 'primary' : 'text-danger-btn'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{await updateUserStatus(user.id,statusConfirmation);await onStatusChanged(user.id);setStatusConfirmation(null);}catch(err:any){setStatusConfirmation(null);}finally{setStatusBusy(false);}}}>{statusBusy?'Saving…':statusConfirmation?'Confirm activation':'Confirm block'}</button></div>
-        </div>
+        {canManageStatus && <AccountStatusControl user={user} onChanged={() => onStatusChanged(user.id)} />}
+      </section>
       </section>
 
       <div className="detail-tabs">
