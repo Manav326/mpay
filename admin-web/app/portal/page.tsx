@@ -751,6 +751,8 @@ export default function Portal() {
   const walletFilters=[
     {key:'',label:'All'}, {key:'ADD_MONEY',label:'Add money'}, {key:'WITHDRAWN',label:'Withdrawals'}, {key:'RECHARGE',label:'Recharges'}, {key:'RENTAL',label:'Rental'}
   ];
+  const vendorStatus = String(vendor?.status || '').toUpperCase();
+  const vendorVerified = vendorStatus === 'VERIFIED' || vendorStatus === 'APPROVED';
 
   return <div className="portal-shell">
     <aside className={'portal-sidebar ' + (drawer ? 'open ' : '') + (sidebarCollapsed ? 'collapsed' : '')}>
@@ -899,19 +901,53 @@ export default function Portal() {
           {editingProfile && <div className="profile-edit-form"><input value={profileForm.name} placeholder="Full name" onChange={e=>setProfileForm({...profileForm,name:e.target.value})}/><input value={profileForm.email} placeholder="Email" onChange={e=>setProfileForm({...profileForm,email:e.target.value})}/><button className="landing-primary" disabled={busy} onClick={saveProfile}><Save size={15}/> Save profile</button></div>}
         </div>
 
-        <div className="portal-panel"><div className="panel-head"><div><h2>Rental Vendor</h2><p>Onboarding, submitted status, fleet management, photos, availability, calendar and payout history.</p></div><CarFront size={24}/></div>
-          {vendor && !vendor.vendorId && <div className="vendor-cta"><div><b>Become a rental partner</b><span>Submit your profile for admin review.</span></div><button className="landing-primary" onClick={()=>setShowVendorForm(true)}><Plus size={16}/> Become a Vendor</button></div>}
-          {vendor?.vendorId && <><div className="vendor-summary-grid"><div><span>Status</span><b className={statusClass(vendor.status)}>{String(vendor.status).toUpperCase()}</b></div><div><span>Vehicles</span><b>{vendor.vehicleCount ?? vendorVehicles.length}</b></div><div><span>City</span><b>{vendor.city || '—'}</b></div><div><span>Vendor type</span><b>{vendor.vendorType || '—'}</b></div>{vendor.rejectionReason && <div className="vendor-rejection"><span>Review note</span><b>{vendor.rejectionReason}</b></div>}</div>
-            <div className="vendor-actions">{(String(vendor.status||'').toUpperCase()==='REJECTED'||String(vendor.status||'').toUpperCase()==='PENDING') && <button className="landing-secondary" onClick={()=>{setVendorForm({
-              vendorType:vendor.vendorType||'INDIVIDUAL',fullName:vendor.fullName||'',businessName:vendor.businessName||'',address:vendor.address||'',
-              city:vendor.city||'',state:vendor.state||'',pinCode:vendor.pinCode||'',panNumber:vendor.panNumber||'',payoutUpiId:vendor.payoutUpiId||'',
-              bankAccountNumber:vendor.bankAccountNumber||'',bankIfsc:vendor.bankIfsc||''});setShowVendorForm(true);}}><Edit3 size={15}/> {String(vendor.status).toUpperCase()==='REJECTED'?'Resubmit':'Edit application'}</button>}
-              <button className="landing-secondary" onClick={loadAccountData}><RefreshCw size={15}/> Refresh vendor</button>
+        <div className="portal-panel vendor-hub">
+          <div className="vendor-hub-hero">
+            <div className="vendor-hub-icon"><CarFront size={25}/></div>
+            <div className="vendor-hub-title"><span>mPAY MOBILITY PARTNER</span><h2>Vendor Studio</h2><p>Your chauffeur-driven fleet, availability, payouts and marketplace identity in one workspace.</p></div>
+            {vendor?.vendorId ? <span className={statusClass(vendor.status) + ' vendor-hub-status'}>{vendorStatus}</span> : <span className="vendor-hub-status vendor-status-neutral">NOT ONBOARDED</span>}
+          </div>
+
+          {vendor && !vendor.vendorId && <div className="vendor-cta"><div><b>Become a rental partner</b><span>Submit your profile for admin review. Your vendor workspace unlocks after verification.</span></div><button className="landing-primary" onClick={()=>{resetVendorForm(vendor);setShowVendorForm(true);}}><Plus size={16}/> Become a Vendor</button></div>}
+
+          {vendor?.vendorId && <>
+            <div className="vendor-summary-grid">
+              <div><span>Partner status</span><b className={statusClass(vendor.status)}>{vendorStatus}</b></div>
+              <div><span>Fleet</span><b>{vendor.vehicleCount ?? vendorVehicles.length}</b></div>
+              <div><span>Base location</span><b>{vendor.city || '—'}</b></div>
+              <div><span>Primary payout</span><b>{vendor.payoutPrimaryMethod || '—'}</b></div>
+              {vendor.rejectionReason && <div className="vendor-rejection"><span>Admin review note</span><b>{vendor.rejectionReason}</b></div>}
+            </div>
+            {vendorVerified && vendorEarnings && <div className="vendor-earnings-grid">
+              <div><span>Today · net</span><b className="amount-credit">{money(vendorEarnings.today.vendorNetAmount)}</b><small>{vendorEarnings.today.completedBookingCount} completed</small></div>
+              <div><span>Today · bookings</span><b>{vendorEarnings.today.bookingCount}</b><small>confirmed / completed</small></div>
+              <div><span>This month · net</span><b className="amount-credit">{money(vendorEarnings.monthly.vendorNetAmount)}</b><small>{vendorEarnings.monthly.completedBookingCount} completed</small></div>
+              <div><span>Upcoming bookings</span><b>{vendorEarnings.upcomingBookingCount}</b><small>currently confirmed</small></div>
+            </div>}
+            <div className="vendor-actions">
+              <button className="landing-secondary" onClick={()=>resetVendorForm(vendor)}><Edit3 size={15}/> {vendorStatus==='REJECTED'?'Resubmit profile':'Edit profile'}</button>
+              <button className="landing-secondary" onClick={loadAccountData}><RefreshCw size={15}/> Refresh workspace</button>
             </div>
           </>}
-          {showVendorForm && <div className="vendor-form"><div className="vendor-section-head"><b>Vendor application</b><button className="icon-btn" onClick={()=>setShowVendorForm(false)}><X size={16}/></button></div>
-            <div className="vendor-form-grid">{Object.keys(vendorForm).map(k=><label key={k}>{k.replace(/([A-Z])/g,' $1').replace(/^./,m=>m.toUpperCase())}<input value={(vendorForm as any)[k]} onChange={e=>setVendorForm({...vendorForm,[k]:e.target.value})}/></label>)}</div>
-            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVendorForm(false)}>Cancel</button><button className="landing-primary" disabled={busy} onClick={saveVendor}>Submit for review</button></div>
+
+          {showVendorForm && <div className="vendor-form">
+            <div className="vendor-section-head"><div><b>{vendor?.vendorId ? 'Edit vendor profile' : 'Vendor application'}</b><span className="vendor-form-subtitle">{vendor?.vendorId ? 'Update identity and payout preferences without leaving the workspace.' : 'Tell us about the business and preferred payout method.'}</span></div><button className="icon-btn" onClick={()=>setShowVendorForm(false)}><X size={16}/></button></div>
+            <div className="vendor-form-grid">
+              <label>Vendor type<select value={vendorForm.vendorType} onChange={e=>setVendorForm({...vendorForm,vendorType:e.target.value})}><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label>
+              <label>Full name<input value={vendorForm.fullName} onChange={e=>setVendorForm({...vendorForm,fullName:e.target.value})}/></label>
+              <label>Business / fleet name<input value={vendorForm.businessName} onChange={e=>setVendorForm({...vendorForm,businessName:e.target.value})}/></label>
+              <label className="vendor-field-wide">Address<input value={vendorForm.address} onChange={e=>setVendorForm({...vendorForm,address:e.target.value})}/></label>
+              <label>City<input value={vendorForm.city} onChange={e=>setVendorForm({...vendorForm,city:e.target.value})}/></label>
+              <label>State<input value={vendorForm.state} onChange={e=>setVendorForm({...vendorForm,state:e.target.value})}/></label>
+              <label>PIN code<input value={vendorForm.pinCode} onChange={e=>setVendorForm({...vendorForm,pinCode:e.target.value})}/></label>
+              <label>PAN<input value={vendorForm.panNumber} onChange={e=>setVendorForm({...vendorForm,panNumber:e.target.value})}/></label>
+              <label>UPI ID<input value={vendorForm.payoutUpiId} onChange={e=>setVendorForm({...vendorForm,payoutUpiId:e.target.value})}/></label>
+              <label>Bank name<input value={vendorForm.bankName} onChange={e=>setVendorForm({...vendorForm,bankName:e.target.value})}/></label>
+              <label>Bank account<input value={vendorForm.bankAccountNumber} onChange={e=>setVendorForm({...vendorForm,bankAccountNumber:e.target.value})}/></label>
+              <label>IFSC<input value={vendorForm.bankIfsc} onChange={e=>setVendorForm({...vendorForm,bankIfsc:e.target.value})}/></label>
+              <label>Primary payout<select value={vendorForm.payoutPrimaryMethod} onChange={e=>setVendorForm({...vendorForm,payoutPrimaryMethod:e.target.value})}><option value="">Auto select</option><option value="UPI">UPI</option><option value="BANK">Bank</option></select></label>
+            </div>
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVendorForm(false)}>Cancel</button><button className="landing-primary" disabled={busy} onClick={saveVendor}>{vendor?.vendorId ? 'Save profile' : 'Submit for review'}</button></div>
           </div>}
 
           {vendor?.vendorId && <div className="vendor-dashboard">
