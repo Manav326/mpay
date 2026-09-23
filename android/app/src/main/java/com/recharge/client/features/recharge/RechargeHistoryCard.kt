@@ -18,6 +18,7 @@ import com.recharge.client.core.model.RechargeHistoryItem
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
+import com.recharge.client.core.ui.MpayStatusPill
 import kotlinx.coroutines.delay
 
 @Composable
@@ -61,7 +62,7 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
                     item.planValidity?.takeIf { it.isNotBlank() }?.let { Text(it, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium) }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(status, color = statusColor, fontWeight = FontWeight.Bold)
+                    MpayStatusPill(status)
                     IconButton(onClick = { clipboard.setText(AnnotatedString(text.trimEnd())); copied = true }) {
                         Icon(if (copied) Icons.Default.Check else Icons.Default.ContentCopy, if (copied) "Copied" else "Copy all recharge data", tint = if (copied) AppColors.Success else MaterialTheme.colorScheme.primary)
                     }
