@@ -556,11 +556,20 @@ fun RentalVendorOnboardingScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
-                    Column(Modifier.weight(1f)) {
-                        Text("Vendor dashboard", style = MaterialTheme.typography.headlineSmall)
-                        Text("Manage your fleet, earnings and availability", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppColors.VendorNavy),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 7.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = Color.White) }
+                        Column(Modifier.weight(1f)) {
+                            Text("Vendor Studio", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Fleet, payouts, earnings and availability", color = Color.White.copy(alpha = .76f), style = MaterialTheme.typography.bodySmall)
+                        }
+                        Surface(shape = RoundedCornerShape(50), color = AppColors.VendorGold) {
+                            Text("VERIFIED", color = Color(0xFF3B2500), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
+                        }
                     }
                 }
             }
@@ -667,7 +676,7 @@ fun RentalVendorOnboardingScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Text("Rental earnings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Same earnings view as Home, using your rental payout data.", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
+                    Text("Rental payout overview — separate from your recharge commission earnings.", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                 }
             }
             item { RentalEarningsSummaryCard(state.earnings) }
