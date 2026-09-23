@@ -279,7 +279,7 @@ class RentalService(
         startDate: LocalDateTime? = null,
         endDate: LocalDateTime? = null,
         location: String? = null
-    ): List<RentalCarResponse> {
+    ): List<RentalPublicCarResponse> {
         if ((startDate == null) != (endDate == null)) {
             throw IllegalArgumentException("Both rental start and end dates are required")
         }
@@ -325,7 +325,7 @@ class RentalService(
                     car.pickupAddress?.contains(normalizedLocation, ignoreCase = true) == true
                 !isOwnVehicle && hasUsableDriver && isDateAvailable && matchesLocation
             }
-            .map(::toCarResponse)
+            .map(::toPublicCarResponse)
     }
 
     private fun requireNotOwnVehicle(userId: Long, car: RentalCarEntity) {
@@ -947,6 +947,31 @@ class RentalService(
             .take(4)
             .map { it.trim() }
         return MutableList(4) { index -> values.getOrNull(index).orEmpty() }
+    }
+
+    private fun toPublicCarResponse(car: RentalCarEntity): RentalPublicCarResponse {
+        val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
+        return RentalPublicCarResponse(
+            id = requireNotNull(car.id).toString(),
+            name = car.name,
+            category = car.category,
+            seats = car.seats,
+            transmission = car.transmission,
+            fuelType = car.fuelType,
+            registrationYear = car.registrationYear,
+            city = car.city,
+            pickupAddress = car.pickupAddress,
+            imageUrl = car.imageUrl,
+            pricePerDay = car.pricePerDay.setScale(2),
+            driverName = driver?.fullName ?: "Driver assigned",
+            driverPhotoUrl = rentalPhotoDisplayUrl(driver?.photoUrl),
+            driverRating = null,
+            make = car.make,
+            model = car.model,
+            variant = car.variant,
+            manufacturingYear = car.manufacturingYear,
+            state = car.state
+        )
     }
 
     private fun toCarResponse(car: RentalCarEntity): RentalCarResponse {
