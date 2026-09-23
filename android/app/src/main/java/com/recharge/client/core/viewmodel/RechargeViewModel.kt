@@ -44,7 +44,7 @@ data class RechargeUiState(
 )
 
 class RechargeViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClientRepository(application)
+    private val repository = ClientRepository.getInstance(application)
 
     private val _state = MutableStateFlow(RechargeUiState())
     val state = _state.asStateFlow()
@@ -209,6 +209,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     fun startGatewayRechargePayment() {
         val current = _state.value
+        if (current.executing) return
         val plan = current.selectedPlan ?: run {
             _state.value = current.copy(error = "Select a recharge plan first.")
             return
@@ -218,8 +219,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
+        _state.value = current.copy(executing = true, error = null, gatewayOrder = null)
         viewModelScope.launch {
-            _state.value = _state.value.copy(executing = true, error = null, gatewayOrder = null)
             repository.createRechargePaymentOrder(
                 com.recharge.client.core.model.RechargeRequest(
                     mobileNumber = current.mobile,
@@ -267,6 +268,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     fun verifyGatewayPayment(provider: String, paymentId: String?, orderId: String?, signature: String?) {
         val current = _state.value
+        if (current.executing) return
         if (orderId.isNullOrBlank()) {
             _state.value = current.copy(
                 executing = false,
@@ -276,8 +278,8 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
+        _state.value = current.copy(executing = true, gatewayOrder = null, error = null)
         viewModelScope.launch {
-            _state.value = _state.value.copy(executing = true, gatewayOrder = null, error = null)
             repository.verifyPayment(
                 com.recharge.client.core.model.VerifyPaymentRequest(
                     provider = provider,
@@ -324,6 +326,7 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
     fun executeSelectedPlan() {
         val state = _state.value
+        if (state.executing) return
         val plan = state.selectedPlan ?: run {
             _state.value = state.copy(error = "Select a recharge plan first.")
             return
@@ -338,12 +341,12 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
+        _state.value = state.copy(
+            executing = true,
+            error = null,
+            action = RechargeActionState.Submitting
+        )
         viewModelScope.launch {
-            _state.value = _state.value.copy(
-                executing = true,
-                error = null,
-                action = RechargeActionState.Submitting
-            )
 
             repository.recharge(
                 mobileNumber = state.mobile,
