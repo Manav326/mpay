@@ -17,6 +17,7 @@ class PaymentOrderEntity(
     @Column(name = "recharge_operator", length = 30) var rechargeOperator: String? = null,
     @Column(name = "recharge_circle", length = 100) var rechargeCircle: String? = null,
     @Column(name = "recharge_plan_id", length = 150) var rechargePlanId: String? = null,
+    @Column(name = "recharge_recipient_name", length = 120) var rechargeRecipientName: String? = null,
     @Column(nullable = false, precision = 19, scale = 2) var amount: BigDecimal = BigDecimal.ZERO,
     @Column(nullable = false, length = 3) var currency: String = "INR",
     @Column(nullable = false, length = 30) var status: String = "CREATED",
