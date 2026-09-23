@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.*
@@ -47,6 +49,10 @@ import coil.compose.AsyncImage
 import com.recharge.client.core.model.*
 import com.recharge.client.core.network.ApiConfig
 import com.recharge.client.core.theme.AppColors
+import com.recharge.client.core.ui.MpayEmptyState
+import com.recharge.client.core.ui.MpayFinancialAmount
+import com.recharge.client.core.ui.MpayStatusPill
+import com.recharge.client.core.ui.statusColor
 import com.recharge.client.core.viewmodel.RentalUiState
 
 
@@ -983,6 +989,87 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+        }
+    }
+}
+
+@Composable
+private fun RentalPublicCarDetailsDialog(
+    car: RentalCarResponse,
+    onDismiss: () -> Unit,
+    onBook: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            Modifier.fillMaxWidth().padding(12.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+        ) {
+            LazyColumn(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    Box {
+                        RentalCarImageTile(rentalPhotoSlots(car.imageUrl)[0], Modifier.fillMaxWidth().aspectRatio(1.65f))
+                        Surface(
+                            Modifier.align(Alignment.TopEnd).padding(8.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.Black.copy(alpha = .60f)
+                        ) {
+                            Text(car.category, color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
+                        }
+                    }
+                }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(car.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary)
+                        }
+                        Text("₹" + car.pricePerDay.setScale(0) + "/day", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppColors.Success)
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        RentalDetailSection("Vehicle", AppColors.Rental, listOf(
+                            "Seats" to car.seats.toString(),
+                            "Transmission" to car.transmission,
+                            "Fuel" to (car.fuelType ?: "—"),
+                            "Location" to listOfNotBlank(car.city, car.state).joinToString(", ").ifBlank { "—" }
+                        ))
+                    }
+                }
+                item {
+                    Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .70f))) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RentalCarImageTile(car.driverPhotoUrl, Modifier.size(68.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("Chauffeur", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
+                                Text(car.driverName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                car.driverRating?.let {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Star, null, tint = AppColors.PrimaryDark, modifier = Modifier.size(15.dp))
+                                        Text(" " + it.setScale(1).toPlainString(), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    Button(onClick = onBook, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                        Text("Book with driver", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Default.ChevronRight, null, modifier = Modifier.size(18.dp))
+                    }
+                }
+                item {
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) { Text("Close") }
+                }
+            }
         }
     }
 }
