@@ -77,7 +77,8 @@ async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers || {})
     }
   });
-  if (!r.ok) throw new Error((await r.text()) || 'Request failed');
+  if (r.status === 401) { localStorage.removeItem('mpay_token'); localStorage.removeItem('mpay_refresh_token'); window.location.href = '/login'; throw new Error('Your session has expired. Please sign in again.'); }
+  if (!r.ok) { const text = await r.text(); let message = text || ('Request failed (' + r.status + ')'); try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {} throw new Error(message); }
   return r.status === 204 ? (undefined as T) : r.json();
 }
 
