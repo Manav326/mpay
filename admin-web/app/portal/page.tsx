@@ -261,16 +261,25 @@ export default function Portal() {
     try {
       const v = await api<RentalVendor>('/api/v1/car-rental/vendor');
       setVendor(v);
-      const [carsData, payouts] = await Promise.all([
+      if (!v?.vendorId) {
+        setVendorVehicles([]); setVendorPayouts([]); setVendorEarnings(undefined);
+        return;
+      }
+      const results = await Promise.allSettled([
         api<any>('/api/v1/car-rental/vendor/vehicles'),
-        api<any>('/api/v1/car-rental/vendor/payouts')
+        api<any>('/api/v1/car-rental/vendor/payouts'),
+        String(v.status || '').toUpperCase() === 'VERIFIED'
+          ? api<RentalVendorEarnings>('/api/v1/car-rental/vendor/earnings')
+          : Promise.resolve(undefined)
       ]);
-      setVendorVehicles(carsData?.items || carsData || []);
-      setVendorPayouts(payouts?.items || payouts || []);
+      if (results[0].status === 'fulfilled') setVendorVehicles(results[0].value?.items || results[0].value || []);
+      if (results[1].status === 'fulfilled') setVendorPayouts(results[1].value?.items || results[1].value || []);
+      if (results[2].status === 'fulfilled') setVendorEarnings(results[2].value as RentalVendorEarnings | undefined);
     } catch {
       setVendor(undefined);
       setVendorVehicles([]);
       setVendorPayouts([]);
+      setVendorEarnings(undefined);
     }
   }
 
@@ -578,10 +587,23 @@ export default function Portal() {
   async function saveVendor() {
     setBusy(true);
     try {
-      const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method:'POST',body:JSON.stringify(vendorForm)});
-      setVendor(v); setShowVendorForm(false); setNotice('Vendor application submitted for admin verification.');
-    } catch(e:any){setNotice(e.message || 'Unable to submit vendor application.');}
+      const method = vendor?.vendorId ? 'PUT' : 'POST';
+      const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method,body:JSON.stringify(vendorForm)});
+      setVendor(v); setShowVendorForm(false);
+      setNotice(vendor?.vendorId ? 'Vendor profile updated.' : 'Vendor application submitted for admin verification.');
+      await loadAccountData();
+    } catch(e:any){setNotice(e.message || 'Unable to save vendor profile.');}
     finally{setBusy(false);}
+  }
+
+  function resetVendorForm(v: RentalVendor) {
+    setVendorForm({
+      vendorType: v.vendorType || 'INDIVIDUAL', fullName: v.fullName || '', businessName: v.businessName || '', address: v.address || '',
+      city: v.city || '', state: v.state || '', pinCode: v.pinCode || '', panNumber: v.panNumber || '',
+      payoutUpiId: v.payoutUpiId || '', bankAccountNumber: v.bankAccountNumber || '', bankIfsc: v.bankIfsc || '',
+      bankName: v.bankName || '', payoutPrimaryMethod: v.payoutPrimaryMethod || ''
+    });
+    setShowVendorForm(true);
   }
 
   function resetVehicleForm(car?:RentalCar) {
