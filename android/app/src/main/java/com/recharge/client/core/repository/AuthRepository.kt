@@ -9,6 +9,15 @@ import com.recharge.client.core.security.TokenStore
 import kotlinx.coroutines.CancellationException
 
 class AuthRepository(context: Context) {
+    companion object {
+        @Volatile
+        private var INSTANCE: AuthRepository? = null
+
+        fun getInstance(context: Context): AuthRepository =
+            INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AuthRepository(context.applicationContext).also { INSTANCE = it }
+            }
+    }
     private suspend fun <T> apiCall(block: suspend () -> T): Result<T> =
         try {
             Result.success(block())
