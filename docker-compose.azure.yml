@@ -10,7 +10,6 @@ services:
     mem_limit: 96m
 
   backend:
-    ports: []
     environment:
       JAVA_TOOL_OPTIONS: "-Xms256m -Xmx1100m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC"
     volumes:
@@ -21,7 +20,6 @@ services:
 
   admin-web:
     image: ${MPAY_ADMIN_WEB_IMAGE:-ghcr.io/manav326/mpay-admin-web}:${MPAY_ADMIN_WEB_TAG:?MPAY_ADMIN_WEB_TAG must be set for Azure}
-    ports: []
     mem_limit: 320m
 
   caddy:
