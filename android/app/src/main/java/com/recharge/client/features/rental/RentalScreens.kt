@@ -2360,13 +2360,18 @@ fun RentalBookingScreen(
         }
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
-                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RentalCarImageTile(car.imageUrl?.split("|")?.firstOrNull(), Modifier.size(76.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        Text("Chauffeur: " + car.driverName, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                Column(
+                    Modifier.fillMaxWidth().padding(9.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text("Chauffeur: " + car.driverName, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text("₹" + car.pricePerDay.setScale(0) + "/day", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
                 }
             }
