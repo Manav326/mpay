@@ -1,5 +1,5 @@
 # Secrets
-#backend/config/application-secrets.yml
+backend/config/application-secrets.yml
 
 # Build/runtime artifacts
 backend/build/
@@ -16,7 +16,7 @@ android/local.properties
 admin-web/node_modules/
 admin-web/.next/
 *.log
-#.env
+.env
 
 # OS / IDE
 .DS_Store
