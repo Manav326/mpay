@@ -268,3 +268,21 @@ The local deployment rehearsal uses a dedicated checkout and isolated PostgreSQL
 ```
 
 The script refreshes the selected branch in a separate checkout, copies the existing local `backend/config`, builds that exact checkout, and starts it as project `mpay-azure-dev-local`. It uses ports 3000/8080 expected by the current Admin Web image and refuses to start if those ports are already in use.
+
+### Portable test-data backup and restore
+
+The database backup contains PostgreSQL data plus the backend's profile/rental media. Redis is intentionally excluded because it is cache/state and can be rebuilt.
+
+Back up the current local/stable stack before migrating hosting:
+
+```powershell
+.\scripts\mpay-db-backup.ps1 -ComposeProject mpay
+```
+
+Restore that backup into the isolated deployment environment:
+
+```powershell
+.\scripts\mpay-local-deploy.ps1 -Branch perf/azure-deployment-optimization -RestoreBackup D:\path\to\backups\mpay-YYYYMMDD-HHmmss
+```
+
+Backups are ignored by Git and should be copied to separate storage before changing hosting providers.
