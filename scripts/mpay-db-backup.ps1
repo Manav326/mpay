@@ -1,5 +1,5 @@
 param(
-    [string]$ComposeProject = "mpay",
+    [string]$ComposeProject = "mpay-github",
     [string]$BackupDirectory = ""
 )
 
