@@ -116,6 +116,20 @@ private fun rentalStatusColor(status: String): Color = when (status.uppercase())
     else -> AppColors.TextSecondary
 }
 
+private fun rentalBookingDisplayStatus(booking: RentalBookingResponse): Pair<String, Boolean> {
+    val raw = booking.status.uppercase()
+    val completed = raw == "CONFIRMED" &&
+        runCatching {
+            LocalDateTime.parse(booking.endDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        }.getOrNull()?.isBefore(LocalDateTime.now()) == true
+    return if (completed) {
+        "Ride completed" to true
+    } else {
+        raw.replace("_", " ").lowercase(Locale.ENGLISH)
+            .replaceFirstChar { it.uppercase() } to false
+    }
+}
+
 private fun rentalBookingShareText(booking: RentalBookingResponse): String = listOf(
     "mPay Car Rental Booking",
     "Booking ID: " + booking.bookingId,
@@ -2533,20 +2547,34 @@ fun RentalMyBookingsScreen(
 
         items(filteredBookings, key = { it.bookingId }) { booking ->
             val status = booking.status.uppercase()
+            val (statusLabel, rideCompleted) = rentalBookingDisplayStatus(booking)
+            val displayStatusCode = if (rideCompleted) "COMPLETED" else status
             val credit = status == "CANCELLED" || status == "REFUNDED"
-            Card(shape = RoundedCornerShape(20.dp)) {
+            Card(shape = RoundedCornerShape(17.dp)) {
                 Column(
-                    Modifier.fillMaxWidth().padding(12.dp),
+                    Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(Modifier.fillMaxWidth().height(172.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RentalCarImageTile(rentalPhotoSlots(booking.carImageUrl)[0], Modifier.fillMaxSize().clip(RoundedCornerShape(13.dp)))
-                    }
+                    RentalVehicleGallery(
+                        booking.carImageUrl,
+                        Modifier.fillMaxWidth()
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Rental, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(booking.carName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
-                        MpayStatusPill(status)
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = rentalStatusColor(displayStatusCode).copy(alpha = .12f)
+                        ) {
+                            Text(
+                                statusLabel,
+                                color = rentalStatusColor(displayStatusCode),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                            )
+                        }
                         IconButton(
                             onClick = {
                                 clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
