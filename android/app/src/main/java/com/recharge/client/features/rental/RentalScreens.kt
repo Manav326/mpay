@@ -604,9 +604,7 @@ fun RentalVendorOnboardingScreen(
                             Text("Vendor Studio", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
                             Text("Fleet, payouts, earnings and availability", color = Color.White.copy(alpha = .76f), style = MaterialTheme.typography.bodySmall)
                         }
-                        Surface(shape = RoundedCornerShape(50), color = AppColors.VendorGold) {
-                            Text("VERIFIED", color = Color(0xFF3B2500), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
-                        }
+
                     }
                 }
             }
@@ -629,7 +627,10 @@ fun RentalVendorOnboardingScreen(
                                     Text("Business identity & marketplace status", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                                        TextButton(
+                                                                        Surface(shape = RoundedCornerShape(16.dp), color = AppColors.Success.copy(alpha = .12f)) {
+                                    Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp))
+                                }
+                                TextButton(
                                         onClick = {
                                             vendorType = v.vendorType ?: "INDIVIDUAL"
                                             fullName = v.fullName.orEmpty()
