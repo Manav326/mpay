@@ -275,7 +275,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
             _state.value = _state.value.copy(withdrawError = "UPI ID is required")
             return
         }
-        if (!Regex("^[^\\s@]+@[^\\s@]+$").matches(normalizedUpi)) {
+        if (!Regex("^[A-Za-z0-9]+@[A-Za-z]+$").matches(normalizedUpi)) {
             _state.value = _state.value.copy(withdrawError = "Enter a valid UPI ID")
             return
         }
