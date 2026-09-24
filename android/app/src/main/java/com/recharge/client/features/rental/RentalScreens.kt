@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
@@ -62,6 +63,16 @@ private val rentalDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 private val rentalDateDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 private val rentalBookingDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, h:mma", Locale.ENGLISH)
 private val rentalDateTimeDisplayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
+
+private val indianStatesAndUt = listOf(
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+    "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+    "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+)
 
 private val rentalOffMarketReasons = listOf(
     "SERVICE_MAINTENANCE" to "Service / maintenance",
@@ -600,14 +611,11 @@ fun RentalVendorOnboardingScreen(
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("Vendor Studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
+                                    Text("Business profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF163B63))
                                     Text("Business identity & marketplace status", style = MaterialTheme.typography.bodySmall, color = AppColors.TextSecondary)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Surface(shape = RoundedCornerShape(16.dp), color = AppColors.Success.copy(alpha = .12f)) {
-                                        Text("VERIFIED", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp))
-                                    }
-                                    TextButton(
+                                                                        TextButton(
                                         onClick = {
                                             vendorType = v.vendorType ?: "INDIVIDUAL"
                                             fullName = v.fullName.orEmpty()
@@ -759,14 +767,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        RentalCarImageTile(images[0], Modifier.weight(1f).aspectRatio(1.05f))
-                                        RentalCarImageTile(images[1], Modifier.weight(1f).aspectRatio(1.05f))
-                                    }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        RentalCarImageTile(images[2], Modifier.weight(1f).aspectRatio(1.05f))
-                                        RentalCarImageTile(images[3], Modifier.weight(1f).aspectRatio(1.05f))
-                                    }
+                                    RentalVehicleGallery(car.imageUrl)
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
@@ -814,6 +815,11 @@ fun RentalVendorOnboardingScreen(
                                         }
                                     }
                                     Text("₹" + car.pricePerDay.setScale(0) + "/day", fontWeight = FontWeight.Bold, color = Color(0xFF176B4D))
+                                     Text(
+                                         "Fuel expense paid by client",
+                                         color = AppColors.TextSecondary,
+                                         style = MaterialTheme.typography.labelSmall
+                                     )
                                     Text(
                                         car.transmission + " • " + (car.fuelType ?: "Fuel"),
                                         color = AppColors.TextSecondary,
@@ -1084,6 +1090,40 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+        }
+    }
+}
+
+@Composable
+private fun RentalVehicleGallery(
+    imageUrl: String?,
+    modifier: Modifier = Modifier
+) {
+    val urls = rentalPhotoSlots(imageUrl)
+    var focusedIndex by remember(urls.joinToString("|")) { mutableIntStateOf(0) }
+    val orderedSmall = (0..3).filter { it != focusedIndex }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        RentalCarImageTile(
+            urls[focusedIndex],
+            Modifier.fillMaxWidth().aspectRatio(1.75f)
+        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            orderedSmall.take(3).forEach { index ->
+                RentalCarImageTile(
+                    urls[index],
+                    Modifier
+                        .weight(1f)
+                        .aspectRatio(1.55f)
+                        .clickable { focusedIndex = index }
+                )
+            }
         }
     }
 }
