@@ -19,7 +19,9 @@ enum class HistoryFilter { TODAY, LAST_7_DAYS, THIS_MONTH, CUSTOM }
 data class RechargeHistoryUiState(
     val items: List<RechargeHistoryItem> = emptyList(),
     val page: Int = 0,
+    val pageSize: Int = 20,
     val totalItems: Long = 0,
+    val totalPages: Int = 0,
     val hasNext: Boolean = false,
     val loading: Boolean = false,
     val loadingMore: Boolean = false,
@@ -29,6 +31,7 @@ data class RechargeHistoryUiState(
     val commissionLoading: Boolean = false,
     val commissionError: String? = null,
     val filter: HistoryFilter = HistoryFilter.TODAY,
+    val statusFilter: String = "ALL",
     val fromDate: LocalDate = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDate(),
     val toDate: LocalDate = java.time.ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDate()
 )
@@ -57,34 +60,71 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
 
     private fun setRange(filter: HistoryFilter, from: LocalDate, to: LocalDate) {
         _state.value = _state.value.copy(filter = filter, fromDate = from, toDate = to)
-        load(refresh = true)
+        loadPage(0)
+    }
+
+    fun setStatus(status: String) {
+        val normalized = status.trim().uppercase().ifBlank { "ALL" }
+        if (_state.value.statusFilter == normalized) return
+        _state.value = _state.value.copy(statusFilter = normalized)
+        loadPage(0)
+    }
+
+    fun setPageSize(size: Int) {
+        val normalized = when (size) {
+            10, 20, 50 -> size
+            else -> 20
+        }
+        if (_state.value.pageSize == normalized) return
+        _state.value = _state.value.copy(pageSize = normalized)
+        loadPage(0)
+    }
+
+    fun goToPage(page: Int) {
+        val target = page.coerceAtLeast(0)
+        if (target == _state.value.page || _state.value.loading || _state.value.refreshing) return
+        loadPage(target)
     }
 
     fun load(refresh: Boolean = true) {
-        val current = _state.value
-        if (!refresh && (current.loading || current.refreshing)) return
-        if (refresh) historyJob?.cancel()
+        loadPage(if (refresh) 0 else _state.value.page)
+    }
 
+    fun loadMore() {
+        if (_state.value.hasNext) goToPage(_state.value.page + 1)
+    }
+
+    private fun loadPage(targetPage: Int) {
+        historyJob?.cancel()
+        val current = _state.value
         val fromDate = current.fromDate.toString()
         val toDate = current.toDate.toString()
-        val page = if (refresh) 0 else current.page + 1
+        val requestedPage = targetPage.coerceAtLeast(0)
+        val status = current.statusFilter.takeIf { it != "ALL" }
         val generation = ++historyRequestGeneration
 
         historyJob = viewModelScope.launch {
             _state.value = _state.value.copy(
-                loading = !refresh && _state.value.items.isEmpty(),
-                refreshing = refresh,
+                loading = requestedPage != 0,
+                loadingMore = false,
+                refreshing = requestedPage == 0,
                 error = null
             )
 
-            repository.rechargeHistory(page, 20, fromDate, toDate)
+            repository.rechargeHistory(
+                page = requestedPage,
+                size = current.pageSize,
+                from = fromDate,
+                to = toDate,
+                status = status
+            )
                 .onSuccess { response ->
                     if (generation != historyRequestGeneration) return@onSuccess
-                    val items = if (refresh) response.items else _state.value.items + response.items
                     _state.value = _state.value.copy(
-                        items = items.distinctBy { it.transactionId },
+                        items = response.items,
                         page = response.page,
                         totalItems = response.totalItems,
+                        totalPages = response.totalPages,
                         hasNext = response.hasNext,
                         loading = false,
                         loadingMore = false,
@@ -104,39 +144,7 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun loadMore() {
-        val current = _state.value
-        if (!current.hasNext || current.loadingMore || current.loading || current.refreshing) return
-
-        val page = current.page + 1
-        val fromDate = current.fromDate.toString()
-        val toDate = current.toDate.toString()
-        val generation = historyRequestGeneration
-
-        historyJob = viewModelScope.launch {
-            _state.value = _state.value.copy(loadingMore = true, error = null)
-            repository.rechargeHistory(page, 20, fromDate, toDate)
-                .onSuccess { response ->
-                    if (generation != historyRequestGeneration) return@onSuccess
-                    _state.value = _state.value.copy(
-                        items = (_state.value.items + response.items).distinctBy { it.transactionId },
-                        page = response.page,
-                        totalItems = response.totalItems,
-                        hasNext = response.hasNext,
-                        loadingMore = false
-                    )
-                }
-                .onFailure { e ->
-                    if (generation != historyRequestGeneration) return@onFailure
-                    _state.value = _state.value.copy(
-                        loadingMore = false,
-                        error = e.message ?: "Unable to load more history."
-                    )
-                }
-        }
-    }
-
-    fun refreshHistory() { load(refresh = true) }
+    fun refreshHistory() { loadPage(0) }
     fun refreshAll() { refreshHistory(); loadCommission() }
 
     fun loadCommission() {
