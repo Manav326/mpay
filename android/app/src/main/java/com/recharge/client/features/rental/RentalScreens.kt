@@ -1471,17 +1471,23 @@ private fun VehiclePhotoField(
     galleryUri: String?,
     onValueChange: (String) -> Unit,
     onPickGallery: () -> Unit,
+    onClearGallery: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val gallerySelected = galleryUri != null
     val preview = galleryUri ?: value.takeIf { it.isNotBlank() }
+
     Card(modifier = modifier, shape = RoundedCornerShape(14.dp)) {
-        Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            Modifier.fillMaxWidth().padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(82.dp)
+                    .height(86.dp)
                     .clip(RoundedCornerShape(9.dp))
-                    .clickable(onClick = onPickGallery)
+                    .clickable(enabled = !gallerySelected, onClick = onPickGallery)
             ) {
                 RentalCarImageTile(preview, Modifier.fillMaxSize())
                 Surface(
@@ -1490,14 +1496,48 @@ private fun VehiclePhotoField(
                     color = Color.Black.copy(alpha = .62f)
                 ) {
                     Text(
-                        if (galleryUri != null) "Gallery selected" else "Tap for gallery",
+                        if (gallerySelected) "Device photo" else "Choose photo",
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
                     )
                 }
             }
-            VendorField(title, value, onValueChange = onValueChange)
+            if (gallerySelected) {
+                Text(
+                    "Photo selected from device",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppColors.TextSecondary
+                )
+                OutlinedButton(
+                    onClick = onClearGallery,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 7.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Use image URL instead", style = MaterialTheme.typography.labelSmall)
+                }
+            } else {
+                VendorField(
+                    "$title image URL",
+                    value,
+                    modifier = Modifier.fillMaxWidth(),
+                    onValueChange = onValueChange
+                )
+                Text(
+                    "Or choose a photo from your device.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppColors.TextSecondary
+                )
+                OutlinedButton(
+                    onClick = onPickGallery,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 7.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Choose from device", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
     }
 }
@@ -1541,6 +1581,25 @@ fun RentalVehicleOnboardingScreen(
     var licenseExpiry by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseExpiry.orEmpty()) }
     var driverAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.driverAddress.orEmpty()) }
     var driverPhotoUri by remember(editingCar?.id) { mutableStateOf<String?>(null) }
+
+    val currentVehicleYear = LocalDate.now().year
+    val earliestVehicleYear = currentVehicleYear - 20
+    val manufacturingYearOptions = (earliestVehicleYear..currentVehicleYear).map(Int::toString)
+    val selectedManufacturingYear = manufacturingYear.toIntOrNull()
+    val registrationYearOptions = (
+        maxOf(
+            earliestVehicleYear,
+            selectedManufacturingYear ?: earliestVehicleYear
+        )..currentVehicleYear
+    ).map(Int::toString)
+
+    LaunchedEffect(manufacturingYear) {
+        val manufacturing = manufacturingYear.toIntOrNull()
+        val registration = registrationYear.toIntOrNull()
+        if (manufacturing != null && registration != null && registration < manufacturing) {
+            registrationYear = manufacturing.toString()
+        }
+    }
 
     val combinedPhotos = listOf(photoFront, photoSide, photoRear, photoInterior)
         .map { it.trim() }
@@ -1624,31 +1683,58 @@ fun RentalVehicleOnboardingScreen(
 
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Vehicle photos (optional)", style = MaterialTheme.typography.titleMedium)
+                Column(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Vehicle photos", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "For each slot, either enter an image URL or tap the preview to choose one from your gallery. Up to 4 photos are supported: front 3/4, side, rear 3/4 and interior.",
+                        "Use either an image URL or a photo from your device for each slot.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
-                            "Front 3/4 URL", photoFront, galleryFront, { photoFront = it },
-                            { frontGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                            "Front photo", photoFront, galleryFront,
+                            { photoFront = it },
+                            {
+                                photoFront = ""
+                                frontGalleryLauncher.launch("image/*")
+                            },
+                            { galleryFront = null },
+                            Modifier.weight(1f)
                         )
                         VehiclePhotoField(
-                            "Side URL", photoSide, gallerySide, { photoSide = it },
-                            { sideGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                            "Side photo", photoSide, gallerySide,
+                            { photoSide = it },
+                            {
+                                photoSide = ""
+                                sideGalleryLauncher.launch("image/*")
+                            },
+                            { gallerySide = null },
+                            Modifier.weight(1f)
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
-                            "Rear 3/4 URL", photoRear, galleryRear, { photoRear = it },
-                            { rearGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                            "Rear photo", photoRear, galleryRear,
+                            { photoRear = it },
+                            {
+                                photoRear = ""
+                                rearGalleryLauncher.launch("image/*")
+                            },
+                            { galleryRear = null },
+                            Modifier.weight(1f)
                         )
                         VehiclePhotoField(
-                            "Interior URL", photoInterior, galleryInterior, { photoInterior = it },
-                            { interiorGalleryLauncher.launch("image/*") }, Modifier.weight(1f)
+                            "Interior photo", photoInterior, galleryInterior,
+                            { photoInterior = it },
+                            {
+                                photoInterior = ""
+                                interiorGalleryLauncher.launch("image/*")
+                            },
+                            { galleryInterior = null },
+                            Modifier.weight(1f)
                         )
                     }
                 }
@@ -1657,10 +1743,13 @@ fun RentalVehicleOnboardingScreen(
 
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
-                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = RoundedCornerShape(9.dp), color = AppColors.Success.copy(alpha = .10f)) {
-                            Icon(Icons.Default.Person, null, tint = AppColors.Success, modifier = Modifier.padding(7.dp).size(20.dp))
+                            Icon(Icons.Default.Badge, null, tint = AppColors.Success, modifier = Modifier.padding(7.dp).size(20.dp))
                         }
                         Spacer(Modifier.width(8.dp))
                         Column {
@@ -1668,12 +1757,8 @@ fun RentalVehicleOnboardingScreen(
                             Text("The chauffeur assigned to this vehicle", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                    CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
-                    VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
-                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it }, minDate = LocalDate.now())
-                    VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                     Card(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(topStart = 10.dp, topEnd = 18.dp, bottomEnd = 10.dp, bottomStart = 10.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
                     ) {
                         Row(
@@ -1683,21 +1768,27 @@ fun RentalVehicleOnboardingScreen(
                         ) {
                             RentalCarImageTile(
                                 driverPhotoUri ?: editingCar?.driverPhotoUrl,
-                                Modifier.size(72.dp)
+                                Modifier
+                                    .size(82.dp)
+                                    .clip(RoundedCornerShape(topEnd = 17.dp, topStart = 7.dp, bottomEnd = 7.dp, bottomStart = 7.dp))
                             )
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text("Driver photo (optional)", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-                                Text("Shown in vehicle driver details.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            }
-                            OutlinedButton(
-                                onClick = { driverPhotoLauncher.launch("image/*") },
-                                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text(if (driverPhotoUri != null) "Change" else "Add", style = MaterialTheme.typography.labelSmall)
+                                Text("Driver photo", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                Text("Passport-style square photo", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                OutlinedButton(
+                                    onClick = { driverPhotoLauncher.launch("image/*") },
+                                    contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(if (driverPhotoUri != null) "Change" else "Add", style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                         }
                     }
+                    CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
+                    VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
+                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it }, minDate = LocalDate.now())
+                    VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                 }
             }
         }
@@ -1712,6 +1803,8 @@ fun RentalVehicleOnboardingScreen(
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
 
         item {
+            val manufacturing = manufacturingYear.toIntOrNull()
+            val registration = registrationYear.toIntOrNull()
             val valid = name.isNotBlank() &&
                 make.isNotBlank() &&
                 model.isNotBlank() &&
@@ -1720,13 +1813,15 @@ fun RentalVehicleOnboardingScreen(
                 city.isNotBlank() &&
                 stateName.isNotBlank() &&
                 driverName.isNotBlank() &&
-                driverMobile.isNotBlank() &&
+                driverMobile.matches(Regex("[6-9][0-9]{9}")) &&
                 licenseNumber.isNotBlank() &&
                 licenseExpiry.isNotBlank() &&
-                pricePerDay.toBigDecimalOrNull() != null &&
-                seats.toIntOrNull() != null &&
-                manufacturingYear.toIntOrNull() != null &&
-                registrationYear.toIntOrNull() != null
+                pricePerDay.toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
+                seats.toIntOrNull() in 2..8 &&
+                manufacturing != null &&
+                registration != null &&
+                manufacturing in earliestVehicleYear..currentVehicleYear &&
+                registration in manufacturing..currentVehicleYear
 
             Button(
                 onClick = {
