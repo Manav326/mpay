@@ -33,7 +33,7 @@ class WithdrawalService(
         val requestedProvider = providerName.trim().lowercase()
         val normalizedUpi = upiId.trim()
         require(normalizedUpi.isNotBlank()) { "UPI ID is required" }
-        val upiPattern = Regex("^[^\\s@]+@[^\\s@]+$")
+        val upiPattern = Regex("^[A-Za-z0-9]+@[A-Za-z]+$")
         require(upiPattern.matches(normalizedUpi)) { "Enter a valid UPI ID" }
 
         val normalizedRequestId = clientRequestId.trim()
