@@ -25,10 +25,16 @@ class RechargeHistoryService(
         val toExclusive = to.plusDays(1).atStartOfDay(zoneId).toInstant()
         val normalizedStatus = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
         val pageable = PageRequest.of(page, size)
-        val result = if (normalizedStatus == null) {
-            repository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId, fromInstant, toExclusive.minusNanos(1), pageable)
-        } else {
-            repository.findByUserIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(userId, normalizedStatus, fromInstant, toExclusive.minusNanos(1), pageable)
+        val result = when (normalizedStatus) {
+            null -> repository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                userId, fromInstant, toExclusive.minusNanos(1), pageable
+            )
+            "PENDING" -> repository.findByUserIdAndStatusInAndCreatedAtBetweenOrderByCreatedAtDesc(
+                userId, listOf("PENDING", "RESERVED"), fromInstant, toExclusive.minusNanos(1), pageable
+            )
+            else -> repository.findByUserIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(
+                userId, normalizedStatus, fromInstant, toExclusive.minusNanos(1), pageable
+            )
         }
         return RechargeHistoryResponse(
             items = result.content.map(::toItem),
