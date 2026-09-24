@@ -1,0 +1,63 @@
+name: Azure Admin Web Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref or commit SHA to build"
+        required: true
+        default: "main"
+      api_base_url:
+        description: "Browser-visible backend API base URL"
+        required: true
+        default: "https://api.mpay.thinkwithsujeet.in"
+
+concurrency:
+  group: mpay-azure-admin-web-${{ inputs.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout requested source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Resolve source commit
+        shell: bash
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          echo "COMMIT_SHA=${commit_sha}" >> "${GITHUB_ENV}"
+          echo "AZURE_TAG=azure-sha-${commit_sha}" >> "${GITHUB_ENV}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Azure Admin Web image
+        run: |
+          docker buildx build             --file admin-web/Dockerfile             --build-arg "NEXT_PUBLIC_API_BASE_URL=${{ inputs.api_base_url }}"             --tag "${MPAY_ADMIN_WEB_IMAGE}:${AZURE_TAG}"             --cache-from "type=gha,scope=mpay-admin-web-azure"             --cache-to "type=gha,mode=max,scope=mpay-admin-web-azure"             --push             admin-web
+
+      - name: Verify image
+        run: |
+          docker pull "${MPAY_ADMIN_WEB_IMAGE}:${AZURE_TAG}"
+          echo "Built: ${MPAY_ADMIN_WEB_IMAGE}:${AZURE_TAG}"
+          echo "Source commit: ${COMMIT_SHA}"
