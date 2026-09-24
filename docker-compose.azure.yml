@@ -1,0 +1,42 @@
+services:
+  postgres:
+    volumes:
+      - mpay_azure_postgres_data:/var/lib/postgresql/data
+    mem_limit: 768m
+
+  redis:
+    volumes:
+      - mpay_azure_redis_data:/data
+    mem_limit: 128m
+
+  backend:
+    ports: []
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx1100m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC"
+    volumes:
+      - ./backend/config:/app/config:ro
+      - mpay_azure_profile_images:/app/data/profile-images
+      - mpay_azure_rental_images:/app/data/rental-images
+    mem_limit: 1500m
+
+  admin-web:
+    image: ${MPAY_ADMIN_WEB_IMAGE:-ghcr.io/manav326/mpay-admin-web}:${MPAY_ADMIN_WEB_TAG:?MPAY_ADMIN_WEB_TAG must be set for Azure}
+    ports: []
+    mem_limit: 400m
+
+  caddy:
+    environment:
+      MPAY_PUBLIC_DOMAIN: ${MPAY_PUBLIC_DOMAIN:?MPAY_PUBLIC_DOMAIN must be set}
+      MPAY_API_DOMAIN: ${MPAY_API_DOMAIN:?MPAY_API_DOMAIN must be set}
+    volumes:
+      - ./infra/caddy/Caddyfile.azure:/etc/caddy/Caddyfile:ro
+      - mpay_azure_caddy_data:/data
+      - mpay_azure_caddy_config:/config
+
+volumes:
+  mpay_azure_postgres_data:
+  mpay_azure_redis_data:
+  mpay_azure_profile_images:
+  mpay_azure_rental_images:
+  mpay_azure_caddy_data:
+  mpay_azure_caddy_config:
