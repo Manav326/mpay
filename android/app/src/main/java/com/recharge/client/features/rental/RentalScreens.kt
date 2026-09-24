@@ -795,7 +795,7 @@ fun RentalVendorOnboardingScreen(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Default.Person, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
+                                        Icon(Icons.Default.Badge, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
                                         Text(
                                             car.driverName + (car.driverMobile?.let { " • " + it } ?: ""),
                                             style = MaterialTheme.typography.labelSmall,
