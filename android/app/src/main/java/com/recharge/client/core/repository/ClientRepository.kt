@@ -179,8 +179,14 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun rechargeHistory(page: Int = 0, size: Int = 20, from: String? = null, to: String? = null): Result<RechargeHistoryResponse> = apiCall {
-        val response = api.rechargeHistory(page, size, from, to)
+    suspend fun rechargeHistory(
+        page: Int = 0,
+        size: Int = 20,
+        from: String? = null,
+        to: String? = null,
+        status: String? = null
+    ): Result<RechargeHistoryResponse> = apiCall {
+        val response = api.rechargeHistory(page, size, from, to, status)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
