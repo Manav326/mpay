@@ -30,8 +30,15 @@ data class WalletUiState(
     val toDate: LocalDate = todayIndia(),
     val loadingHistory: Boolean = false,
     val refreshing: Boolean = false,
-    val hasNext: Boolean = false,
     val page: Int = 0,
+    val pageSize: Int = 20,
+    val totalItems: Long = 0,
+    val totalPages: Int = 0,
+    val hasNext: Boolean = false,
+    val loadingWithdrawals: Boolean = false,
+    val withdrawalPage: Int = 0,
+    val withdrawalTotalItems: Long = 0,
+    val withdrawalTotalPages: Int = 0,
     val historyError: String? = null,
     val withdrawing: Boolean = false,
     val withdrawSuccess: String? = null,
@@ -51,14 +58,17 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     val state = _state.asStateFlow()
 
     private var historyJob: Job? = null
+    private var withdrawalJob: Job? = null
     private var detailJob: Job? = null
     private var historyRequestGeneration = 0L
     private var detailRequestGeneration = 0L
 
     fun resetSession() {
         historyJob?.cancel()
+        withdrawalJob?.cancel()
         detailJob?.cancel()
         historyJob = null
+        withdrawalJob = null
         detailJob = null
         historyRequestGeneration++
         detailRequestGeneration++
@@ -95,11 +105,37 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
         loadHistory(refresh = true)
     }
 
-    fun refreshHistory() = loadHistory(true)
+    fun refreshHistory() {
+        loadHistoryPage(0)
+        loadWithdrawalPage(0)
+    }
+
+    fun setHistoryPageSize(size: Int) {
+        val normalized = when (size) {
+            10, 20, 50 -> size
+            else -> 20
+        }
+        if (_state.value.pageSize == normalized) return
+        _state.value = _state.value.copy(pageSize = normalized, page = 0, withdrawalPage = 0)
+        refreshHistory()
+    }
+
+    fun goToPage(page: Int) {
+        val current = _state.value
+        val target = page.coerceIn(0, (current.totalPages - 1).coerceAtLeast(0))
+        if (target == current.page || current.loadingHistory || current.refreshing) return
+        loadHistoryPage(target)
+    }
+
+    fun goToWithdrawalPage(page: Int) {
+        val current = _state.value
+        val target = page.coerceIn(0, (current.withdrawalTotalPages - 1).coerceAtLeast(0))
+        if (target == current.withdrawalPage || current.loadingWithdrawals) return
+        loadWithdrawalPage(target)
+    }
 
     fun loadMore() {
-        if (!_state.value.hasNext || _state.value.loadingHistory || _state.value.refreshing) return
-        loadHistory(false)
+        if (_state.value.hasNext) goToPage(_state.value.page + 1)
     }
 
     private fun selectedKind(): String = when (_state.value.filter) {
@@ -111,70 +147,83 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun loadHistory(refresh: Boolean) {
+        loadHistoryPage(if (refresh) 0 else _state.value.page + 1)
+    }
+
+    private fun loadHistoryPage(targetPage: Int) {
+        historyJob?.cancel()
+
         val current = _state.value
-        if (!refresh && (current.loadingHistory || current.refreshing)) return
-
-        if (refresh) historyJob?.cancel()
-
-        val filter = current.filter
+        val requestedPage = targetPage.coerceAtLeast(0)
         val fromDate = current.fromDate.toString()
         val toDate = current.toDate.toString()
-        val page = if (refresh) 0 else current.page + 1
-        val selectedKind = when (filter) {
-            WalletHistoryFilter.RECHARGE -> "RECHARGE"
-            WalletHistoryFilter.ADD_MONEY -> "ADD_MONEY"
-            WalletHistoryFilter.WITHDRAWN -> "WITHDRAWN"
-            WalletHistoryFilter.RENTAL -> "RENTAL"
-            WalletHistoryFilter.ALL -> "ALL"
-        }
+        val selectedKind = selectedKind()
         val generation = ++historyRequestGeneration
 
         historyJob = viewModelScope.launch {
             _state.value = _state.value.copy(
-                loadingHistory = !refresh,
-                refreshing = refresh,
+                loadingHistory = requestedPage != 0,
+                refreshing = requestedPage == 0,
                 historyError = null
             )
 
-            val historyRequest = async {
-                repository.walletHistory(
-                    page = page,
-                    size = 20,
-                    kind = selectedKind,
-                    from = fromDate,
-                    to = toDate
-                )
-            }
-            val withdrawalsRequest = if (refresh) {
-                async { repository.withdrawalHistory(page = 0, size = 20) }
-            } else null
+            repository.walletHistory(
+                page = requestedPage,
+                size = current.pageSize,
+                kind = selectedKind,
+                from = fromDate,
+                to = toDate
+            )
+                .onSuccess { response ->
+                    if (generation != historyRequestGeneration) return@onSuccess
+                    _state.value = _state.value.copy(
+                        items = response.items,
+                        page = response.page,
+                        totalItems = response.totalItems,
+                        totalPages = response.totalPages,
+                        hasNext = response.hasNext,
+                        loadingHistory = false,
+                        refreshing = false,
+                        historyError = null
+                    )
+                }
+                .onFailure { e ->
+                    if (generation != historyRequestGeneration) return@onFailure
+                    _state.value = _state.value.copy(
+                        loadingHistory = false,
+                        refreshing = false,
+                        historyError = e.message ?: "Unable to load wallet history."
+                    )
+                }
+        }
+    }
 
-            val walletResult = historyRequest.await()
-            val withdrawalResult = withdrawalsRequest?.await()
+    private fun loadWithdrawalPage(targetPage: Int) {
+        withdrawalJob?.cancel()
+        val current = _state.value
+        val requestedPage = targetPage.coerceAtLeast(0)
+        val generation = historyRequestGeneration
 
-            if (generation != historyRequestGeneration) return@launch
-
-            withdrawalResult?.onSuccess { response ->
-                _state.value = _state.value.copy(withdrawals = response.items)
-            }
-
-            walletResult.onSuccess { response ->
-                val items = if (refresh) response.items else _state.value.items + response.items
-                _state.value = _state.value.copy(
-                    items = items.distinctBy { it.id },
-                    page = response.page,
-                    hasNext = response.hasNext,
-                    loadingHistory = false,
-                    refreshing = false,
-                    historyError = null
-                )
-            }.onFailure { e ->
-                _state.value = _state.value.copy(
-                    loadingHistory = false,
-                    refreshing = false,
-                    historyError = e.message ?: "Unable to load wallet history."
-                )
-            }
+        withdrawalJob = viewModelScope.launch {
+            _state.value = _state.value.copy(loadingWithdrawals = true, historyError = null)
+            repository.withdrawalHistory(page = requestedPage, size = current.pageSize)
+                .onSuccess { response ->
+                    if (generation != historyRequestGeneration) return@onSuccess
+                    _state.value = _state.value.copy(
+                        withdrawals = response.items,
+                        withdrawalPage = response.page,
+                        withdrawalTotalItems = response.totalItems,
+                        withdrawalTotalPages = response.totalPages,
+                        loadingWithdrawals = false
+                    )
+                }
+                .onFailure { e ->
+                    if (generation != historyRequestGeneration) return@onFailure
+                    _state.value = _state.value.copy(
+                        loadingWithdrawals = false,
+                        historyError = e.message ?: "Unable to load withdrawal history."
+                    )
+                }
         }
     }
 
