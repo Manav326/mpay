@@ -1,7 +1,9 @@
 param(
     [string]$Branch = "perf/azure-deployment-optimization",
     [string]$DeployDirectory = "",
-    [string]$RestoreBackup = ""
+    [string]$RestoreBackup = "",
+    [string]$ApiBaseUrl = "http://192.168.31.47:8080",
+    [string]$CorsAllowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://192.168.31.47:3000"
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,8 +43,8 @@ Set-Location $DeployDirectory
 $commitSha = (git rev-parse HEAD).Trim()
 if ($commitSha -notmatch "^[0-9a-f]{40}$") { throw "Could not determine deployment commit SHA." }
 
-$sourceConfig = Join-Path $sourceRoot "backend\config"
-$targetConfig = Join-Path $DeployDirectory "backend\config"
+$sourceConfig = Join-Path (Join-Path $sourceRoot "backend") "config"
+$targetConfig = Join-Path (Join-Path $DeployDirectory "backend") "config"
 
 if (Test-Path $sourceConfig) {
     if (Test-Path $targetConfig) { Remove-Item -Recurse -Force $targetConfig }
@@ -50,8 +52,27 @@ if (Test-Path $sourceConfig) {
 }
 elseif (-not (Test-Path $targetConfig)) { throw "backend/config is missing." }
 
+function Test-PortAvailable {
+    param([int]$Port)
+
+    $listener = $null
+    try {
+        $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, $Port)
+        $listener.Start()
+        return $true
+    }
+    catch {
+        return $false
+    }
+    finally {
+        if ($null -ne $listener) {
+            $listener.Stop()
+        }
+    }
+}
+
 foreach ($port in @(3000, 8080)) {
-    if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+    if (-not (Test-PortAvailable -Port $port)) {
         throw "Port $port is already in use. Stop the existing mPay stack first; this script will not stop or alter it."
     }
 }
@@ -59,8 +80,8 @@ foreach ($port in @(3000, 8080)) {
 $env:MPAY_BACKEND_IMAGE = "ghcr.io/manav326/mpay-backend"
 $env:MPAY_ADMIN_WEB_IMAGE = "ghcr.io/manav326/mpay-admin-web"
 $env:MPAY_IMAGE_TAG = "sha-$commitSha"
-$env:MPAY_WEB_API_BASE_URL = "http://192.168.31.47:8080"
-$env:MPAY_CORS_ALLOWED_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000,http://192.168.31.47:3000"
+$env:MPAY_WEB_API_BASE_URL = $ApiBaseUrl
+$env:MPAY_CORS_ALLOWED_ORIGINS = $CorsAllowedOrigins
 
 $composeFiles = @("-f", "docker-compose.yml", "-f", "docker-compose.local-deploy.yml")
 $project = "mpay-azure-dev-local"
@@ -71,7 +92,7 @@ Invoke-Compose ($composeFiles + @("-p", $project, "pull", "backend", "admin-web"
 Invoke-Compose ($composeFiles + @("-p", $project, "up", "-d", "postgres", "redis"))
 
 if (-not [string]::IsNullOrWhiteSpace($RestoreBackup)) {
-    & (Join-Path $sourceRoot "scripts\mpay-db-restore.ps1") -BackupDirectory $RestoreBackup -ComposeProject $project -ComposeOverlay (Join-Path $DeployDirectory "docker-compose.local-deploy.yml")
+    & (Join-Path (Join-Path $sourceRoot "scripts") "mpay-db-restore.ps1") -BackupDirectory $RestoreBackup -ComposeProject $project -ComposeOverlay (Join-Path $DeployDirectory "docker-compose.local-deploy.yml")
     if ($LASTEXITCODE -ne 0) { throw "Database/media restore failed." }
 }
 else {
