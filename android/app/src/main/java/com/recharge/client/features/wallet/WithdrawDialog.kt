@@ -20,7 +20,7 @@ fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss
     val busy = state.withdrawing
     val parsedAmount = amount.toBigDecimalOrNull()
     val validAmount = parsedAmount != null && parsedAmount >= BigDecimal("1.00") && parsedAmount <= availableBalance
-    val validUpi = Regex("^[^\\s@]+@[^\\s@]+$").matches(upiId.trim())
+    val validUpi = Regex("^[A-Za-z0-9]+@[A-Za-z]+$").matches(upiId.trim())
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Withdraw to UPI") },
@@ -36,7 +36,7 @@ fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("UPI ID (required)") },
                     placeholder = { Text("name@upi") },
-                    supportingText = { Text("Required for every withdrawal and shown in withdrawal history.") },
+                    supportingText = { Text("Letters/numbers before @; letters only after @.") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     enabled = !busy
