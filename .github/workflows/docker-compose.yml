@@ -49,6 +49,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Calculate image tags
         shell: bash
         run: |
@@ -107,26 +110,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build backend and admin web images
-        run: |
-          docker compose -f docker-compose.yml build backend admin-web
-
-      - name: Push branch/main image
+      - name: Build and push backend and admin web images
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
-          docker compose -f docker-compose.yml push backend admin-web
+          docker buildx build \
+            --file backend/Dockerfile \
+            --tag "${MPAY_BACKEND_IMAGE}:${MPAY_IMAGE_TAG}" \
+            --tag "${MPAY_BACKEND_IMAGE}:${MPAY_SHA_TAG}" \
+            --cache-from "type=gha,scope=mpay-backend" \
+            --cache-to "type=gha,mode=max,scope=mpay-backend" \
+            --push \
+            backend
 
-      - name: Tag images with commit SHA
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-        run: |
-          docker tag "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
-          docker tag "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          docker buildx build \
+            --file admin-web/Dockerfile \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=${MPAY_WEB_API_BASE_URL}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_IMAGE_TAG}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_SHA_TAG}" \
+            --cache-from "type=gha,scope=mpay-admin-web" \
+            --cache-to "type=gha,mode=max,scope=mpay-admin-web" \
+            --push \
+            admin-web
 
-      - name: Push commit-tagged images
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Build images for external pull requests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: |
-          docker push "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
-          docker push "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          docker buildx build \
+            --file backend/Dockerfile \
+            --tag "${MPAY_BACKEND_IMAGE}:${MPAY_SHA_TAG}" \
+            --load \
+            backend
+
+          docker buildx build \
+            --file admin-web/Dockerfile \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=${MPAY_WEB_API_BASE_URL}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_SHA_TAG}" \
+            --load \
+            admin-web
 
       - name: Verify pushed images
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
