@@ -35,15 +35,43 @@ try {
     }
     else {
         Set-Location $DeployDirectory
+
+        $preserveRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mpay-azure-preserve-" + [Guid]::NewGuid().ToString("N"))
+        $preserveEnv = Join-Path $preserveRoot ".env"
+        $preserveConfig = Join-Path $preserveRoot "backend-config"
+
+        New-Item -ItemType Directory -Force -Path $preserveRoot | Out-Null
+
+        if (Test-Path ".env") {
+            Copy-Item ".env" $preserveEnv -Force
+        }
+        if (Test-Path "backend/config") {
+            Copy-Item "backend/config" $preserveConfig -Recurse -Force
+        }
+
         Invoke-CommandChecked "git" @("fetch", "--prune", "origin", $Branch)
         Invoke-CommandChecked "git" @("checkout", $Branch)
         Invoke-CommandChecked "git" @("reset", "--hard", "origin/$Branch")
+
+        if (Test-Path $preserveEnv) {
+            Copy-Item $preserveEnv ".env" -Force
+        }
+        if (Test-Path $preserveConfig) {
+            New-Item -ItemType Directory -Force -Path "backend/config" | Out-Null
+            Copy-Item $preserveConfig "." -Recurse -Force
+        }
+
+        Remove-Item $preserveRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     Set-Location $DeployDirectory
 
     if (-not (Test-Path ".env")) {
         throw "Missing .env. Copy .env.azure.example to .env and fill in the database password and image tags first."
+    }
+
+    if (-not (Test-Path "backend/config/application-secrets.yml")) {
+        throw "Missing backend/config/application-secrets.yml. Provide the external secret configuration before deployment."
     }
 
     if ([string]::IsNullOrWhiteSpace($CommitSha)) {
