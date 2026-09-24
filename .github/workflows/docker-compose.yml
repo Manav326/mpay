@@ -75,6 +75,9 @@ jobs:
         run: |
           docker compose -f docker-compose.yml config
 
+      - name: Validate local deployment overlay
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.local-deploy.yml config
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: docker/login-action@v3
