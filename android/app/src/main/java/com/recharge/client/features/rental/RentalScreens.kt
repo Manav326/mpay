@@ -2691,7 +2691,11 @@ fun RentalMyBookingsScreen(
                             Text("Cancel booking", fontWeight = FontWeight.Bold)
                         }
                     }
+                        }
+                    }
                 }
+                }
+                if (rowBookings.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
