@@ -276,7 +276,7 @@ The database backup contains PostgreSQL data plus the backend's profile/rental m
 Back up the current local/stable stack before migrating hosting:
 
 ```powershell
-.\scripts\mpay-db-backup.ps1 -ComposeProject mpay
+.\scripts\mpay-db-backup.ps1 -ComposeProject mpay-github
 ```
 
 Restore that backup into the isolated deployment environment:
