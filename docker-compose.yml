@@ -28,21 +28,6 @@ services:
       retries: 20
     networks: [mpay]
 
-  pgadmin:
-    image: dpage/pgadmin4:9
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${MPAY_PGADMIN_EMAIL:-admin@mpay.com}
-      PGADMIN_DEFAULT_PASSWORD: ${MPAY_PGADMIN_PASSWORD:-Admin@123}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "5050:80"
-    volumes:
-      - mpay_pgadmin_data:/var/lib/pgadmin
-    networks: [mpay]
 
   backend:
     image: ${MPAY_BACKEND_IMAGE:-ghcr.io/manav326/mpay-backend}:${MPAY_IMAGE_TAG:-latest}
