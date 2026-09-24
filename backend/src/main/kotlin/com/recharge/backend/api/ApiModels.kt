@@ -291,7 +291,7 @@ data class WithdrawMoneyRequest(
     @field:NotBlank @field:Size(max = 100) val clientRequestId: String,
     @field:NotBlank
     @field:Size(max = 254)
-    @field:Pattern(regexp = "^[^\\s@]+@[^\\s@]+$", message = "Enter a valid UPI ID")
+    @field:Pattern(regexp = "^[A-Za-z0-9]+@[A-Za-z]+$", message = "Enter a valid UPI ID")
     val upiId: String
 )
 
