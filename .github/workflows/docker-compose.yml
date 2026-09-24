@@ -10,6 +10,8 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/docker-compose.yml'
       - 'scripts/mpay-github-update.ps1'
+      - 'scripts/mpay-*.ps1'
+      - '.gitignore'
   pull_request:
     branches:
       - main
