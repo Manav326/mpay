@@ -277,7 +277,15 @@ private fun RentalDateField(
     minDate: LocalDate? = null
 ) {
     val context = LocalContext.current
-    val display = if (value.isBlank()) "Select date" else formatRentalDate(value)
+    val display = if (value.isBlank()) {
+        "Select date"
+    } else {
+        runCatching { LocalDate.parse(value, rentalDateFormatter).format(rentalDateDisplayFormatter) }
+            .getOrElse {
+                runCatching { LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).toLocalDate().format(rentalDateDisplayFormatter) }
+                    .getOrElse { value }
+            }
+    }
     OutlinedButton(
         onClick = {
             val initial = runCatching { LocalDate.parse(value, rentalDateFormatter) }.getOrElse { minDate ?: LocalDate.now() }
