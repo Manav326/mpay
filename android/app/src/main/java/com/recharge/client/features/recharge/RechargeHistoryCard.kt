@@ -26,7 +26,8 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1500); copied = false } }
-    val status = item.status.uppercase()
+    val rawStatus = item.status.uppercase()
+    val status = if (rawStatus == "RESERVED") "PENDING" else rawStatus
     val statusColor = when (status) { "SUCCESS" -> AppColors.Success; "FAILED", "CANCELLED" -> AppColors.Error; "PENDING", "PROCESSING" -> Color(0xFFD97706); else -> MaterialTheme.colorScheme.primary }
     val text = buildString {
         appendLine("Recharge history")
