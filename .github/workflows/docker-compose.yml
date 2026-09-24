@@ -23,8 +23,12 @@ on:
       - 'backend/**'
       - 'admin-web/**'
       - 'docker-compose.yml'
+      - 'docker-compose.azure.yml'
+      - 'infra/caddy/Caddyfile.azure'
       - '.github/workflows/docker-compose.yml'
+      - '.github/workflows/azure-admin-web.yml'
       - 'scripts/mpay-github-update.ps1'
+      - '.env.azure.example'
       - 'scripts/mpay-*.ps1'
       - 'scripts/mpay-azure-deploy.ps1'
 
