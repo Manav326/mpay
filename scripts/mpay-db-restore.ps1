@@ -47,9 +47,19 @@ $dbName = (($envLines | Where-Object { $_ -like "POSTGRES_DB=*" } | Select-Objec
 $dbUser = (($envLines | Where-Object { $_ -like "POSTGRES_USER=*" } | Select-Object -First 1) -split "=", 2)[1]
 
 Write-Host "Restoring PostgreSQL database '$dbName'..." -ForegroundColor Yellow
-Get-Content (Join-Path $BackupDirectory "postgres.dump") -AsByteStream -ReadCount 0 |
-    & docker exec -i $postgresContainer pg_restore -U $dbUser -d $dbName --clean --if-exists --no-owner --no-acl
-if ($LASTEXITCODE -ne 0) { throw "pg_restore failed." }
+$hostDumpPath = Join-Path $BackupDirectory "postgres.dump"
+$containerDumpPath = "/tmp/mpay-postgres.dump"
+
+& docker cp $hostDumpPath "$($postgresContainer):$containerDumpPath"
+if ($LASTEXITCODE -ne 0) { throw "Could not copy PostgreSQL dump into the container." }
+
+try {
+    & docker exec $postgresContainer pg_restore -U $dbUser -d $dbName --clean --if-exists --no-owner --no-acl $containerDumpPath
+    if ($LASTEXITCODE -ne 0) { throw "pg_restore failed." }
+}
+finally {
+    & docker exec $postgresContainer rm -f $containerDumpPath *> $null
+}
 
 Write-Host "Starting backend and Admin Web..." -ForegroundColor Yellow
 Invoke-Compose @("up", "-d", "backend", "admin-web")
