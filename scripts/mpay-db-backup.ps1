@@ -35,8 +35,27 @@ $dbUser = (($envLines | Where-Object { $_ -like "POSTGRES_USER=*" } | Select-Obj
 if ([string]::IsNullOrWhiteSpace($dbName) -or [string]::IsNullOrWhiteSpace($dbUser)) { throw "Could not determine PostgreSQL database/user." }
 
 Write-Host "Backing up PostgreSQL database '$dbName'..." -ForegroundColor Yellow
-& docker exec $postgresContainer pg_dump -U $dbUser -d $dbName -Fc --no-owner --no-acl > (Join-Path $backupRoot "postgres.dump")
+$containerDumpPath = "/tmp/mpay-postgres.dump"
+$hostDumpPath = Join-Path $backupRoot "postgres.dump"
+
+& docker exec $postgresContainer sh -c "pg_dump -U '$dbUser' -d '$dbName' -Fc --no-owner --no-acl > '$containerDumpPath'"
 if ($LASTEXITCODE -ne 0) { throw "pg_dump failed." }
+
+& docker exec $postgresContainer pg_restore --list $containerDumpPath *> $null
+if ($LASTEXITCODE -ne 0) {
+    & docker exec $postgresContainer rm -f $containerDumpPath *> $null
+    throw "The PostgreSQL dump failed validation."
+}
+
+if (Test-Path $hostDumpPath) { Remove-Item -Force $hostDumpPath }
+& docker cp "$($postgresContainer):$containerDumpPath" $hostDumpPath
+if ($LASTEXITCODE -ne 0) {
+    & docker exec $postgresContainer rm -f $containerDumpPath *> $null
+    throw "Could not copy PostgreSQL dump from the container."
+}
+
+& docker exec $postgresContainer rm -f $containerDumpPath
+if ($LASTEXITCODE -ne 0) { throw "Could not clean up temporary PostgreSQL dump." }
 
 Write-Host "Backing up profile/rental media..." -ForegroundColor Yellow
 Invoke-Docker @("cp", "$($backendContainer):/app/data/profile-images", (Join-Path $backupRoot "profile-images"))
