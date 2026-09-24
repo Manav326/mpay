@@ -24,14 +24,12 @@ The Windows development machine keeps two independent Compose projects:
 mpay
 ├── postgres
 ├── redis
-├── pgadmin
 ├── backend
 └── admin-web
 
 mpay-github
 ├── postgres
 ├── redis
-├── pgadmin
 ├── backend
 └── admin-web
 ```
@@ -40,7 +38,6 @@ Both use the same host ports:
 
 - Admin Web: `3000`
 - Backend API: `8080`
-- pgAdmin: `5050`
 
 Only one stack should be running at a time.
 
@@ -113,7 +110,7 @@ Use a GitHub token with package read access. Never commit the token.
 
 ### Switch away from the stable stack
 
-Because both stacks use ports 3000, 8080 and 5050, stop the stable stack without deleting it:
+Because both stacks use ports 3000 and 8080, stop the stable stack without deleting it:
 
 ```powershell
 docker compose -p mpay stop
@@ -148,7 +145,7 @@ It then:
 
 ```text
 1. docker compose pull backend admin-web
-2. start/reuse postgres, redis and pgadmin
+2. start/reuse postgres and redis
 3. start backend/admin-web with --no-build --no-deps
 ```
 
@@ -200,7 +197,6 @@ From the development PC:
 
 - Admin Web: `http://localhost:3000`
 - Backend API: `http://localhost:8080`
-- pgAdmin: `http://localhost:5050`
 
 From another device on the same Wi-Fi:
 
@@ -262,3 +258,31 @@ backend/config/application-secrets.yml
 ```
 
 The Docker image excludes this file and mounts it read-only at runtime.
+
+### Local Azure deployment rehearsal
+
+The local deployment rehearsal uses a dedicated checkout and isolated PostgreSQL/Redis volumes so it does not reuse or delete the existing mPay test data. Run:
+
+```powershell
+.\scripts\mpay-local-deploy.ps1 -Branch perf/azure-deployment-optimization
+```
+
+The script refreshes the selected branch in a separate checkout, copies the existing local `backend/config`, builds that exact checkout, and starts it as project `mpay-azure-dev-local`. It uses ports 3000/8080 expected by the current Admin Web image and refuses to start if those ports are already in use.
+
+### Portable test-data backup and restore
+
+The database backup contains PostgreSQL data plus the backend's profile/rental media. Redis is intentionally excluded because it is cache/state and can be rebuilt.
+
+Back up the current local/stable stack before migrating hosting:
+
+```powershell
+.\scripts\mpay-db-backup.ps1 -ComposeProject mpay-github
+```
+
+Restore that backup into the isolated deployment environment:
+
+```powershell
+.\scripts\mpay-local-deploy.ps1 -Branch perf/azure-deployment-optimization -RestoreBackup D:\path\to\backups\mpay-YYYYMMDD-HHmmss
+```
+
+Backups are ignored by Git and should be copied to separate storage before changing hosting providers.

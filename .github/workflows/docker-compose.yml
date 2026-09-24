@@ -10,6 +10,8 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/docker-compose.yml'
       - 'scripts/mpay-github-update.ps1'
+      - 'scripts/mpay-*.ps1'
+      - '.gitignore'
   pull_request:
     branches:
       - main
@@ -19,6 +21,7 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/docker-compose.yml'
       - 'scripts/mpay-github-update.ps1'
+      - 'scripts/mpay-*.ps1'
 
 concurrency:
   group: mpay-docker-ci-${{ github.head_ref || github.ref_name }}
@@ -45,6 +48,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Calculate image tags
         shell: bash
@@ -75,6 +81,27 @@ jobs:
         run: |
           docker compose -f docker-compose.yml config
 
+      - name: Validate local deployment overlay
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.local-deploy.yml config
+      - name: Validate PowerShell deployment scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'scripts/mpay-local-deploy.ps1',
+            'scripts/mpay-db-backup.ps1',
+            'scripts/mpay-db-restore.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              exit 1
+            }
+          }
+          Write-Host 'PowerShell deployment scripts parsed successfully.'
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: docker/login-action@v3
@@ -83,26 +110,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build backend and admin web images
-        run: |
-          docker compose -f docker-compose.yml build backend admin-web
-
-      - name: Push branch/main image
+      - name: Build and push backend and admin web images
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
-          docker compose -f docker-compose.yml push backend admin-web
+          docker buildx build \
+            --file backend/Dockerfile \
+            --tag "${MPAY_BACKEND_IMAGE}:${MPAY_IMAGE_TAG}" \
+            --tag "${MPAY_BACKEND_IMAGE}:${MPAY_SHA_TAG}" \
+            --cache-from "type=gha,scope=mpay-backend" \
+            --cache-to "type=gha,mode=max,scope=mpay-backend" \
+            --push \
+            backend
 
-      - name: Tag images with commit SHA
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-        run: |
-          docker tag "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
-          docker tag "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}" "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          docker buildx build \
+            --file admin-web/Dockerfile \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=${MPAY_WEB_API_BASE_URL}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_IMAGE_TAG}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_SHA_TAG}" \
+            --cache-from "type=gha,scope=mpay-admin-web" \
+            --cache-to "type=gha,mode=max,scope=mpay-admin-web" \
+            --push \
+            admin-web
 
-      - name: Push commit-tagged images
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Build images for external pull requests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: |
-          docker push "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
-          docker push "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          docker buildx build \
+            --file backend/Dockerfile \
+            --tag "${MPAY_BACKEND_IMAGE}:${MPAY_SHA_TAG}" \
+            --load \
+            backend
+
+          docker buildx build \
+            --file admin-web/Dockerfile \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=${MPAY_WEB_API_BASE_URL}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_SHA_TAG}" \
+            --load \
+            admin-web
 
       - name: Verify pushed images
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
