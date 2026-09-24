@@ -130,6 +130,14 @@ private fun rentalBookingDisplayStatus(booking: RentalBookingResponse): Pair<Str
     }
 }
 
+private fun normalizeIndianMobile(value: String): String =
+    value.filter(Char::isDigit).let { digits -> if (digits.length > 10) digits.takeLast(10) else digits }
+
+private fun normalizeLicenseExpiry(value: String): String =
+    runCatching {
+        LocalDate.parse(value, rentalDateFormatter).atStartOfDay().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }.getOrElse { value }
+
 private fun rentalBookingShareText(booking: RentalBookingResponse): String = listOf(
     "mPay Car Rental Booking",
     "Booking ID: " + booking.bookingId,
