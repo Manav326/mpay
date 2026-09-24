@@ -35,6 +35,8 @@ import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
 import okhttp3.MultipartBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class ClientRepository(context: Context) {
     private suspend fun <T> apiCall(block: suspend () -> T): Result<T> =
