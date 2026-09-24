@@ -3,3 +3,9 @@ node_modules
 .git
 *.log
 .env*
+README.md
+Dockerfile
+docker-compose*.yml
+.github
+*.tgz
+coverage
