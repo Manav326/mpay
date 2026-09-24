@@ -4,13 +4,13 @@ FROM gradle:9.6.0-jdk21-ubi10 AS build
 
 WORKDIR /app
 
-COPY gradlew gradlew.bat ./
+COPY gradlew ./gradlew
 COPY gradle ./gradle
 COPY settings.gradle.kts build.gradle.kts ./
 COPY src ./src
 
 RUN chmod +x gradlew
-RUN gradle clean test bootJar --no-daemon
+RUN --mount=type=cache,target=/home/gradle/.gradle ./gradlew test bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine-3.24 AS runtime
 
