@@ -1870,18 +1870,19 @@ fun RentalVehicleOnboardingScreen(
         item {
             val manufacturing = manufacturingYear.toIntOrNull()
             val registration = registrationYear.toIntOrNull()
-            val valid = name.isNotBlank() &&
-                make.isNotBlank() &&
-                model.isNotBlank() &&
-                registrationNumber.isNotBlank() &&
-                pickupAddress.isNotBlank() &&
-                city.isNotBlank() &&
-                stateName.isNotBlank() &&
-                driverName.isNotBlank() &&
-                driverMobile.matches(Regex("[6-9][0-9]{9}")) &&
-                licenseNumber.isNotBlank() &&
-                licenseExpiry.isNotBlank() &&
-                pricePerDay.toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
+            val normalizedDriverMobile = normalizeIndianMobile(driverMobile)
+            val valid = name.trim().isNotBlank() &&
+                make.trim().isNotBlank() &&
+                model.trim().isNotBlank() &&
+                registrationNumber.trim().isNotBlank() &&
+                pickupAddress.trim().isNotBlank() &&
+                city.trim().isNotBlank() &&
+                stateName.trim().isNotBlank() &&
+                driverName.trim().isNotBlank() &&
+                normalizedDriverMobile.matches(Regex("[6-9][0-9]{9}")) &&
+                licenseNumber.trim().isNotBlank() &&
+                licenseExpiry.trim().isNotBlank() &&
+                pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
                 seats.toIntOrNull()?.let { it in 2..8 } == true &&
                 manufacturing != null &&
                 registration != null &&
