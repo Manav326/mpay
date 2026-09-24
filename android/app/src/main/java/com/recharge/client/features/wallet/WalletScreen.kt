@@ -37,6 +37,7 @@ import com.recharge.client.core.ui.formatMoney
 import com.recharge.client.core.ui.formatPeriod
 import com.recharge.client.core.ui.MpayStatusPill
 import com.recharge.client.core.ui.MpayEmptyState
+import com.recharge.client.core.ui.HistoryPagination
 import com.recharge.client.core.viewmodel.WalletDateFilter
 import com.recharge.client.core.viewmodel.WalletHistoryFilter
 import com.recharge.client.core.viewmodel.WalletUiState
@@ -56,7 +57,12 @@ fun WalletScreen(
     walletUiState: WalletUiState, onRefresh: () -> Unit, onRefreshBalance: () -> Unit, onAddMoney: () -> Unit, onViewRechargeHistory: () -> Unit,
     onRefreshCommission: () -> Unit, onSelectWalletHistoryFilter: (WalletHistoryFilter) -> Unit,
     onSetWalletHistoryToday: () -> Unit, onSetWalletHistoryLast7: () -> Unit, onSetWalletHistoryMonth: () -> Unit, onSetWalletHistoryCustom: (LocalDate, LocalDate) -> Unit,
-    onRefreshWalletHistory: () -> Unit, onLoadMoreWalletHistory: () -> Unit,
+    onRefreshWalletHistory: () -> Unit,
+    onSetHistoryPageSize: (Int) -> Unit,
+    onWalletPreviousPage: () -> Unit,
+    onWalletNextPage: () -> Unit,
+    onWithdrawalPreviousPage: () -> Unit,
+    onWithdrawalNextPage: () -> Unit,
     onWithdraw: (String, String, String) -> Unit, onClearWithdrawMessage: () -> Unit, onOpenWalletDetail: (WalletHistoryItem) -> Unit, onCloseWalletDetail: () -> Unit,
     isVisible: Boolean
 ) {
@@ -151,103 +157,151 @@ fun WalletScreen(
             }
         }
         item { EarningsBlock(commission, commissionLoading, onRefreshCommission) }
-        item { WithdrawalHistoryCard(walletUiState.withdrawals) }
+        item {
+            WithdrawalHistoryCard(
+                state = walletUiState,
+                onPreviousPage = onWithdrawalPreviousPage,
+                onNextPage = onWithdrawalNextPage,
+                onPageSizeChange = onSetHistoryPageSize
+            )
+        }
         item {
             WalletActivityCard(
                 state = walletUiState, onSelectFilter = onSelectWalletHistoryFilter,
-                onSetToday = onSetWalletHistoryToday, onSetLast7 = onSetWalletHistoryLast7, onSetMonth = onSetWalletHistoryMonth, onSetCustom = { showFromPicker = true },
-                onRefresh = onRefreshWalletHistory, onLoadMore = onLoadMoreWalletHistory, onOpenDetail = onOpenWalletDetail
+                onSetToday = onSetWalletHistoryToday, onSetLast7 = onSetWalletHistoryLast7,
+                onSetMonth = onSetWalletHistoryMonth, onSetCustom = { showFromPicker = true },
+                onRefresh = onRefreshWalletHistory,
+                onPageSizeChange = onSetHistoryPageSize,
+                onPreviousPage = onWalletPreviousPage,
+                onNextPage = onWalletNextPage,
+                onOpenDetail = onOpenWalletDetail
             )
         }
     }
 }
 
 @Composable
-private fun WithdrawalHistoryCard(items: List<WithdrawalHistoryItem>) {
+private fun WithdrawalHistoryCard(
+    state: WalletUiState,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
+    onPageSizeChange: (Int) -> Unit
+) {
     Card(shape = RoundedCornerShape(22.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text("Withdrawal history", style = MaterialTheme.typography.titleLarge)
-                    Text("Recent UPI payout requests and their current status.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "UPI payout requests and their current status.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
                 Icon(Icons.Default.Send, "Withdrawals", tint = AppColors.TextSecondary)
             }
-            if (items.isEmpty()) {
+            if (state.loadingWithdrawals && state.withdrawals.isEmpty()) {
+                Box(Modifier.fillMaxWidth().padding(18.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(22.dp))
+                }
+            } else if (state.withdrawals.isEmpty()) {
                 Text("No withdrawal requests yet.", color = AppColors.TextSecondary)
             } else {
-                items.take(10).forEach { item ->
+                state.withdrawals.forEach { item ->
                     val status = item.status.uppercase()
                     val statusColor = when (status) {
                         "SUCCESS" -> AppColors.Success
                         "FAILED", "REVERSED" -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), tonalElevation = 1.dp) {
-                        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        tonalElevation = 1.dp
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(13.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Column(Modifier.weight(1f)) {
                                 Text("₹" + formatMoney(item.amount) + " → " + item.upiId, fontWeight = FontWeight.SemiBold)
-                                Text(item.provider.uppercase() + " • " + formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    item.provider.uppercase() + " • " + formatExactTimestamp(item.createdAt),
+                                    color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                                 Text(item.withdrawalId, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                item.failureReason?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                                item.failureReason?.takeIf { it.isNotBlank() }?.let {
+                                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                }
                             }
                             MpayStatusPill(status)
                         }
                     }
                 }
             }
+            if (state.loadingWithdrawals && state.withdrawals.isNotEmpty()) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(18.dp))
+                }
+            }
+            HistoryPagination(
+                page = state.withdrawalPage,
+                totalItems = state.withdrawalTotalItems,
+                totalPages = state.withdrawalTotalPages,
+                pageSize = state.pageSize,
+                onPageSizeChange = onPageSizeChange,
+                onPrevious = onPreviousPage,
+                onNext = onNextPage
+            )
         }
     }
 }
 
-@Composable
-private fun EarningsBlock(commission: RechargeCommissionSummaryResponse?, loading: Boolean, onRefresh: () -> Unit) {
-    Card(shape = RoundedCornerShape(22.dp)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Earnings", style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = onRefresh, enabled = !loading) { Icon(Icons.Default.Refresh, "Refresh earnings") }
-            }
-            WalletEarningsPeriod("Today", commission?.daily, true)
-            HorizontalDivider()
-            WalletEarningsPeriod("This month", commission?.monthly, false)
-        }
-    }
-}
-
-@Composable
-private fun WalletEarningsPeriod(title: String, period: com.recharge.client.core.model.CommissionPeriodSummary?, isToday: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(if (isToday) formatAsOf(period?.to) else formatPeriod(period?.from, period?.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("Commission earned", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Text("₹${formatMoney(period?.commission ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.headlineSmall, color = AppColors.Success)
-                Text("${period?.successfulRechargeCount ?: 0} successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-            }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                Text("Recharge volume", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Text("₹${formatMoney(period?.successfulRechargeAmount ?: BigDecimal.ZERO)}", style = MaterialTheme.typography.titleLarge)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WalletActivityCard(
-    state: WalletUiState, onSelectFilter: (WalletHistoryFilter) -> Unit, onSetToday: () -> Unit, onSetLast7: () -> Unit,
-    onSetMonth: () -> Unit, onSetCustom: () -> Unit, onRefresh: () -> Unit, onLoadMore: () -> Unit, onOpenDetail: (WalletHistoryItem) -> Unit
+    state: WalletUiState,
+    onSelectFilter: (WalletHistoryFilter) -> Unit,
+    onSetToday: () -> Unit,
+    onSetLast7: () -> Unit,
+    onSetMonth: () -> Unit,
+    onSetCustom: () -> Unit,
+    onRefresh: () -> Unit,
+    onPageSizeChange: (Int) -> Unit,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
+    onOpenDetail: (WalletHistoryItem) -> Unit
 ) {
-    Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFEAF8EE))) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFEAF8EE))
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text("Wallet history", style = MaterialTheme.typography.titleLarge)
-                    Text(state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) + " → " + state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) +
+                            " → " +
+                            state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)),
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-                IconButton(onClick = onRefresh, enabled = !state.refreshing) { Icon(Icons.Default.Refresh, "Refresh wallet history") }
+                IconButton(onClick = onRefresh, enabled = !state.refreshing) {
+                    Icon(Icons.Default.Refresh, "Refresh wallet history")
+                }
             }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -266,36 +320,37 @@ private fun WalletActivityCard(
                 WalletDateButton(WalletDateFilter.CUSTOM, state.dateFilter, "Custom", onSetCustom, 3, 4)
             }
             when {
-                state.loadingHistory && state.items.isEmpty() -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(modifier = Modifier.size(22.dp)) }
-                state.items.isEmpty() -> MpayEmptyState(title = "No wallet activity", message = "There are no wallet transactions for the selected filters.")
+                state.loadingHistory && state.items.isEmpty() -> Box(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator(Modifier.size(22.dp)) }
+                state.items.isEmpty() -> MpayEmptyState(
+                    title = "No wallet activity",
+                    message = "There are no wallet transactions for the selected filters."
+                )
                 else -> {
-                    state.items.take(5).forEach { item -> WalletHistoryRow(item, onOpenDetail) }
-                    if (state.hasNext) TextButton(onClick = onLoadMore, enabled = !state.loadingHistory) { Text("Load more") }
+                    state.items.forEach { item -> WalletHistoryRow(item, onOpenDetail) }
+                    if (state.loadingHistory) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(18.dp))
+                        }
+                    }
                 }
             }
-            state.historyError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            HistoryPagination(
+                page = state.page,
+                totalItems = state.totalItems,
+                totalPages = state.totalPages,
+                pageSize = state.pageSize,
+                onPageSizeChange = onPageSizeChange,
+                onPrevious = onPreviousPage,
+                onNext = onNextPage
+            )
+            state.historyError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
-}
-
-@Composable
-private fun WalletFilterChip(
-    filter: WalletHistoryFilter,
-    selected: WalletHistoryFilter,
-    label: String,
-    onSelect: (WalletHistoryFilter) -> Unit
-) {
-    FilterChip(
-        selected = selected == filter,
-        onClick = { onSelect(filter) },
-        label = { Text(label, maxLines = 1, softWrap = false) }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SingleChoiceSegmentedButtonRowScope.WalletDateButton(filter: WalletDateFilter, selected: WalletDateFilter, label: String, onSelect: () -> Unit, index: Int, count: Int) {
-    SegmentedButton(selected = selected == filter, onClick = onSelect, shape = SegmentedButtonDefaults.itemShape(index, count)) { Text(label, maxLines = 1, softWrap = false) }
 }
 
 @Composable
