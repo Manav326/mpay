@@ -342,7 +342,7 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
                                 else -> "Withdrawal status: ${response.status.lowercase()}."
                             }
                     )
-                    loadHistory(true)
+                    refreshHistory()
                 }
                 .onFailure { e -> _state.value = _state.value.copy(withdrawing = false, withdrawError = e.message ?: "Unable to withdraw money.") }
         }
