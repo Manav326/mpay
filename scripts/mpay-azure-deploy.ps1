@@ -95,14 +95,21 @@ try {
 
             $currentBranch = Get-CurrentBranch
             if ($currentBranch -ne $Branch) {
-                Invoke-Git @("checkout", $Branch)
+                $localBranchExists = git show-ref --verify --quiet "refs/heads/$Branch"
+                if ($LASTEXITCODE -eq 0) {
+                    Invoke-Git @("checkout", $Branch)
+                }
+                else {
+                    Invoke-Git @("checkout", "--track", "-b", $Branch, "origin/$Branch")
+                }
             }
 
             Invoke-Git @("pull", "--ff-only", "origin", $Branch)
 
             $postPullSha = (git rev-parse HEAD).Trim()
-            if ($postPullSha -ne $remoteBranchSha) {
-                throw "Deployment checkout does not match origin/$Branch after pull. Local=$postPullSha Remote=$remoteBranchSha"
+            $remoteHeadShaAfterPull = (git rev-parse "origin/$Branch").Trim()
+            if ($postPullSha -ne $remoteHeadShaAfterPull) {
+                throw "Deployment checkout does not match origin/$Branch after pull. Local=$postPullSha Remote=$remoteHeadShaAfterPull"
             }
         }
         finally {
