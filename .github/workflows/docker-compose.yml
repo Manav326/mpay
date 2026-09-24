@@ -8,9 +8,13 @@ on:
       - 'backend/**'
       - 'admin-web/**'
       - 'docker-compose.yml'
+      - 'docker-compose.azure.yml'
+      - 'infra/caddy/Caddyfile.azure'
       - '.github/workflows/docker-compose.yml'
+      - '.github/workflows/azure-admin-web.yml'
       - 'scripts/mpay-github-update.ps1'
       - 'scripts/mpay-*.ps1'
+      - 'scripts/mpay-azure-deploy.ps1'
       - '.gitignore'
   pull_request:
     branches:
@@ -22,6 +26,7 @@ on:
       - '.github/workflows/docker-compose.yml'
       - 'scripts/mpay-github-update.ps1'
       - 'scripts/mpay-*.ps1'
+      - 'scripts/mpay-azure-deploy.ps1'
 
 concurrency:
   group: mpay-docker-ci-${{ github.head_ref || github.ref_name }}
@@ -84,13 +89,23 @@ jobs:
       - name: Validate local deployment overlay
         run: |
           docker compose -f docker-compose.yml -f docker-compose.local-deploy.yml config
+
+      - name: Validate Azure deployment overlay
+        env:
+          MPAY_IMAGE_TAG: sha-ci
+          MPAY_ADMIN_WEB_TAG: azure-sha-ci
+          MPAY_PUBLIC_DOMAIN: mpay.example.test
+          MPAY_API_DOMAIN: api.mpay.example.test
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.azure.yml config
       - name: Validate PowerShell deployment scripts
         shell: pwsh
         run: |
           $files = @(
             'scripts/mpay-local-deploy.ps1',
             'scripts/mpay-db-backup.ps1',
-            'scripts/mpay-db-restore.ps1'
+            'scripts/mpay-db-restore.ps1',
+            'scripts/mpay-azure-deploy.ps1'
           )
           foreach ($file in $files) {
             $tokens = $null
