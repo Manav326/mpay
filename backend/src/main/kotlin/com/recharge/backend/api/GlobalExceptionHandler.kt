@@ -36,6 +36,10 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(ErrorResponse(ex.message ?: "Way2API request failed"))
     }
 
+    @ExceptionHandler(com.recharge.backend.provider.payu.PayUIntegrationException::class)
+    fun handlePayUIntegration(ex: com.recharge.backend.provider.payu.PayUIntegrationException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(ErrorResponse(ex.message ?: "PayU recharge plans service failed"))
     @ExceptionHandler(com.recharge.backend.service.ProviderNotConfiguredException::class)
     fun handleProviderNotConfigured(ex: com.recharge.backend.service.ProviderNotConfiguredException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
