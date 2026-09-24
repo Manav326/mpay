@@ -50,7 +50,11 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease             -x :app:lintVitalAnalyzeRelease             -x :app:lintVitalReportRelease             -x :app:lintVitalRelease
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease \
+            -PmpayApiBaseUrl=https://api.mpay.thinkwithsujeet.in/ \
+            -x :app:lintVitalAnalyzeRelease \
+            -x :app:lintVitalReportRelease \
+            -x :app:lintVitalRelease
 
       - name: Verify optimized release APK and report size
         shell: bash
