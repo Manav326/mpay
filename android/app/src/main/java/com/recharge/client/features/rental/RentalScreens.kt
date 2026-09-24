@@ -2597,8 +2597,14 @@ fun RentalMyBookingsScreen(
             item { MpayEmptyState(title = "No matching bookings", message = "Try another status filter.") }
         }
 
-        items(filteredBookings, key = { it.bookingId }) { booking ->
-            val status = booking.status.uppercase()
+        items(filteredBookings.chunked(2), key = { row -> row.firstOrNull()?.bookingId ?: row.hashCode() }) { rowBookings ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                rowBookings.forEach { booking ->
+                    val status = booking.status.uppercase()
             val (statusLabel, rideCompleted) = rentalBookingDisplayStatus(booking)
             val displayStatusCode = if (rideCompleted) "COMPLETED" else status
             val credit = status == "CANCELLED" || status == "REFUNDED"
