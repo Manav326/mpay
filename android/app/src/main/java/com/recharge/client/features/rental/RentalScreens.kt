@@ -1627,15 +1627,19 @@ fun RentalVehicleOnboardingScreen(
 
     val frontGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         galleryFront = uri?.toString()
+        if (uri != null) photoFront = ""
     }
     val sideGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         gallerySide = uri?.toString()
+        if (uri != null) photoSide = ""
     }
     val rearGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         galleryRear = uri?.toString()
+        if (uri != null) photoRear = ""
     }
     val interiorGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         galleryInterior = uri?.toString()
+        if (uri != null) photoInterior = ""
     }
     val driverPhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         driverPhotoUri = uri?.toString()
@@ -1747,7 +1751,6 @@ fun RentalVehicleOnboardingScreen(
                             "Front photo", photoFront, galleryFront,
                             { photoFront = it },
                             {
-                                photoFront = ""
                                 frontGalleryLauncher.launch("image/*")
                             },
                             { galleryFront = null },
@@ -1757,7 +1760,6 @@ fun RentalVehicleOnboardingScreen(
                             "Side photo", photoSide, gallerySide,
                             { photoSide = it },
                             {
-                                photoSide = ""
                                 sideGalleryLauncher.launch("image/*")
                             },
                             { gallerySide = null },
@@ -1769,7 +1771,6 @@ fun RentalVehicleOnboardingScreen(
                             "Rear photo", photoRear, galleryRear,
                             { photoRear = it },
                             {
-                                photoRear = ""
                                 rearGalleryLauncher.launch("image/*")
                             },
                             { galleryRear = null },
@@ -1779,7 +1780,6 @@ fun RentalVehicleOnboardingScreen(
                             "Interior photo", photoInterior, galleryInterior,
                             { photoInterior = it },
                             {
-                                photoInterior = ""
                                 interiorGalleryLauncher.launch("image/*")
                             },
                             { galleryInterior = null },
