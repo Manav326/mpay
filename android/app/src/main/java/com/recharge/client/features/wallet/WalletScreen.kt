@@ -354,6 +354,83 @@ private fun WalletActivityCard(
 }
 
 @Composable
+private fun EarningsBlock(
+    commission: RechargeCommissionSummaryResponse?,
+    loading: Boolean,
+    onRefresh: () -> Unit
+) {
+    Card(shape = RoundedCornerShape(22.dp)) {
+        Column(
+            Modifier.fillMaxWidth().padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Earnings", style = MaterialTheme.typography.titleLarge)
+                IconButton(onClick = onRefresh, enabled = !loading) {
+                    Icon(Icons.Default.Refresh, "Refresh earnings")
+                }
+            }
+            WalletEarningsPeriod("Today", commission?.daily, true)
+            HorizontalDivider()
+            WalletEarningsPeriod("This month", commission?.monthly, false)
+        }
+    }
+}
+
+@Composable
+private fun WalletEarningsPeriod(
+    title: String,
+    period: com.recharge.client.core.model.CommissionPeriodSummary?,
+    isToday: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Text(
+            if (isToday) formatAsOf(period?.to) else formatPeriod(period?.from, period?.to),
+            color = AppColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Commission earned",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "₹" + formatMoney(period?.commission ?: BigDecimal.ZERO),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = AppColors.Success
+                )
+                Text(
+                    "${period?.successfulRechargeCount ?: 0} successful recharges",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Text(
+                    "Recharge volume",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "₹" + formatMoney(period?.successfulRechargeAmount ?: BigDecimal.ZERO),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun WalletFilterChip(
     filter: WalletHistoryFilter,
     selected: WalletHistoryFilter,
