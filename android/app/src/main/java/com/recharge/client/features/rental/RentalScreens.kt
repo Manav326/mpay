@@ -1178,8 +1178,8 @@ private fun RentalPublicCarDetailsDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item {
-                    Box {
-                        RentalCarImageTile(rentalPhotoSlots(car.imageUrl)[0], Modifier.fillMaxWidth().aspectRatio(1.65f))
+                    Box(Modifier.fillMaxWidth()) {
+                        RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
                         Surface(
                             Modifier.align(Alignment.TopEnd).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
