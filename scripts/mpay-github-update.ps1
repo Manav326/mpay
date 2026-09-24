@@ -35,8 +35,8 @@ Write-Host "Pulling exact commit images from GHCR via Compose..." -ForegroundCol
 docker compose -p mpay-github pull backend admin-web
 if ($LASTEXITCODE -ne 0) { throw "Docker image pull failed." }
 
-Write-Host "Starting/reusing PostgreSQL, Redis and pgAdmin..." -ForegroundColor Yellow
-docker compose -p mpay-github up -d postgres redis pgadmin
+Write-Host "Starting/reusing PostgreSQL and Redis..." -ForegroundColor Yellow
+docker compose -p mpay-github up -d postgres redis
 if ($LASTEXITCODE -ne 0) { throw "Infrastructure startup failed." }
 
 Write-Host "Starting backend and Admin Web without local build or dependency restart..." -ForegroundColor Yellow
