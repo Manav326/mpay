@@ -7,3 +7,12 @@ data/profile-images/*
 !data/profile-images/.gitkeep
 *.iml
 work_payu
+.git
+.github
+*.md
+Dockerfile
+docker-compose*.yml
+build/libs
+build/reports
+build/test-results
+tmp
