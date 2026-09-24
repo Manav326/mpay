@@ -1678,7 +1678,12 @@ fun RentalVehicleOnboardingScreen(
                     }
 
                     CompactFieldRow("Vehicle name", name, { name = it }, "Make", make, { make = it })
-                    CompactFieldRow("Model", model, { model = it }, "Variant (optional)", variant, { variant = it })
+                    CompactFieldRow("Model", model, { model = it }, "Variant", variant, { variant = it })
+                    Text(
+                        "Model = vehicle series; variant = the specific trim or version.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppColors.TextSecondary
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         VendorSelectField("Category", category, listOf("Sedan", "SUV", "Hatchback", "MUV", "Luxury", "Other"), modifier = Modifier.weight(1f), onValueChange = { category = it })
                         VendorSelectField("Seats", seats, (2..8).map { it.toString() }, modifier = Modifier.weight(1f), onValueChange = { seats = it })
@@ -1687,9 +1692,38 @@ fun RentalVehicleOnboardingScreen(
                         VendorSelectField("Transmission", transmission, listOf("Automatic", "Manual"), modifier = Modifier.weight(1f), onValueChange = { transmission = it })
                         VendorSelectField("Fuel type", fuel, listOf("Petrol", "Diesel", "CNG", "Electric", "Hybrid", "Other"), modifier = Modifier.weight(1f), onValueChange = { fuel = it })
                     }
-                    CompactFieldRow("Manufacturing year", manufacturingYear, { manufacturingYear = it }, "Registration year", registrationYear, { registrationYear = it })
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorSelectField(
+                            "Manufacturing year",
+                            manufacturingYear,
+                            manufacturingYearOptions,
+                            modifier = Modifier.weight(1f),
+                            onValueChange = { manufacturingYear = it }
+                        )
+                        VendorSelectField(
+                            "Registration year",
+                            registrationYear,
+                            registrationYearOptions,
+                            modifier = Modifier.weight(1f),
+                            onValueChange = { registrationYear = it }
+                        )
+                    }
+                    Text(
+                        "Vehicle age is limited to 20 years; registration year cannot be before manufacture year.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppColors.TextSecondary
+                    )
                     VendorField("Registration number", registrationNumber) { registrationNumber = it }
-                    CompactFieldRow("City", city, { city = it }, "State", stateName, { stateName = it })
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorField("City", city, modifier = Modifier.weight(1f)) { city = it }
+                        VendorSelectField(
+                            "State",
+                            stateName,
+                            indianStatesAndUt,
+                            modifier = Modifier.weight(1f),
+                            onValueChange = { stateName = it }
+                        )
+                    }
                     VendorField("Pickup address", pickupAddress) { pickupAddress = it }
                     VendorField("Price per day (₹)", pricePerDay) { pricePerDay = it }
                 }
