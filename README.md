@@ -24,14 +24,12 @@ The Windows development machine keeps two independent Compose projects:
 mpay
 ├── postgres
 ├── redis
-├── pgadmin
 ├── backend
 └── admin-web
 
 mpay-github
 ├── postgres
 ├── redis
-├── pgadmin
 ├── backend
 └── admin-web
 ```
@@ -40,7 +38,6 @@ Both use the same host ports:
 
 - Admin Web: `3000`
 - Backend API: `8080`
-- pgAdmin: `5050`
 
 Only one stack should be running at a time.
 
@@ -113,7 +110,7 @@ Use a GitHub token with package read access. Never commit the token.
 
 ### Switch away from the stable stack
 
-Because both stacks use ports 3000, 8080 and 5050, stop the stable stack without deleting it:
+Because both stacks use ports 3000 and 8080, stop the stable stack without deleting it:
 
 ```powershell
 docker compose -p mpay stop
@@ -148,7 +145,7 @@ It then:
 
 ```text
 1. docker compose pull backend admin-web
-2. start/reuse postgres, redis and pgadmin
+2. start/reuse postgres and redis
 3. start backend/admin-web with --no-build --no-deps
 ```
 
@@ -200,7 +197,6 @@ From the development PC:
 
 - Admin Web: `http://localhost:3000`
 - Backend API: `http://localhost:8080`
-- pgAdmin: `http://localhost:5050`
 
 From another device on the same Wi-Fi:
 
