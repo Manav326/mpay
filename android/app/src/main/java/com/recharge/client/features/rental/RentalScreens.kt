@@ -2602,105 +2602,160 @@ fun RentalMyBookingsScreen(
             item { MpayEmptyState(title = "No matching bookings", message = "Try another status filter.") }
         }
 
-        items(filteredBookings.chunked(2), key = { row -> row.firstOrNull()?.bookingId ?: row.hashCode() }) { rowBookings ->
+        items(
+            filteredBookings.chunked(2),
+            key = { row -> row.firstOrNull()?.bookingId ?: row.hashCode() }
+        ) { rowBookings ->
             Row(
-                Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                 verticalAlignment = Alignment.Top
             ) {
                 rowBookings.forEach { booking ->
                     val status = booking.status.uppercase()
-            val (statusLabel, rideCompleted) = rentalBookingDisplayStatus(booking)
-            val displayStatusCode = if (rideCompleted) "COMPLETED" else status
-            val credit = status == "CANCELLED" || status == "REFUNDED"
+                    val (statusLabel, rideCompleted) = rentalBookingDisplayStatus(booking)
+                    val displayStatusCode = if (rideCompleted) "COMPLETED" else status
+                    val credit = status == "CANCELLED" || status == "REFUNDED"
+
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(17.dp)
                     ) {
                         Column(
-                            Modifier.fillMaxWidth().padding(9.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    RentalVehicleGallery(
-                        booking.carImageUrl,
-                        Modifier.fillMaxWidth()
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DirectionsCar, null, tint = AppColors.Rental, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(booking.carName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = rentalStatusColor(displayStatusCode).copy(alpha = .12f)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(9.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            RentalVehicleGallery(
+                                booking.carImageUrl,
+                                Modifier.fillMaxWidth()
+                            )
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.DirectionsCar,
+                                    null,
+                                    tint = AppColors.Rental,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    booking.carName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = rentalStatusColor(displayStatusCode).copy(alpha = .12f)
+                                ) {
+                                    Text(
+                                        statusLabel,
+                                        color = rentalStatusColor(displayStatusCode),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
+                                        copiedBookingId = booking.bookingId
+                                    },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        if (copiedBookingId == booking.bookingId) Icons.Default.Check else Icons.Default.ContentCopy,
+                                        if (copiedBookingId == booking.bookingId) "Copied" else "Copy booking details",
+                                        tint = if (copiedBookingId == booking.bookingId) AppColors.Success else MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
                             Text(
-                                statusLabel,
-                                color = rentalStatusColor(displayStatusCode),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                "Booking " + booking.bookingId,
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.labelSmall
                             )
-                        }
-                        IconButton(
-                            onClick = {
-                                clipboard.setText(AnnotatedString(rentalBookingShareText(booking)))
-                                copiedBookingId = booking.bookingId
-                            },
-                            modifier = Modifier.size(34.dp)
-                        ) {
-                            Icon(
-                                if (copiedBookingId == booking.bookingId) Icons.Default.Check else Icons.Default.ContentCopy,
-                                if (copiedBookingId == booking.bookingId) "Copied" else "Copy booking details",
-                                tint = if (copiedBookingId == booking.bookingId) AppColors.Success else MaterialTheme.colorScheme.primary
+
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    Text(
+                                        booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""),
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text("Payment", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    Text(
+                                        booking.paymentMethod,
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Trip", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    Text(booking.pickup + " → " + booking.drop, style = MaterialTheme.typography.bodySmall)
+                                }
+                                Column(
+                                    Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.End
+                                ) {
+                                    Text("Total", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    MpayFinancialAmount(booking.total, credit = credit)
+                                }
+                            }
+
+                            Text(
+                                formatRentalBookingDateTime(booking.startDate) + " → " + formatRentalBookingDateTime(booking.endDate),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AppColors.TextSecondary
                             )
-                        }
-                    }
-                    Text("Booking " + booking.bookingId, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                "Booked " + formatRentalBookingDateTime(booking.createdAt),
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            Text(booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text("Payment", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            Text(booking.paymentMethod, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Trip", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            Text(booking.pickup + " → " + booking.drop, style = MaterialTheme.typography.bodySmall)
-                        }
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                            Text("Total", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            MpayFinancialAmount(booking.total, credit = credit)
-                        }
-                    }
-                    Text(
-                        formatRentalBookingDateTime(booking.startDate) + " → " + formatRentalBookingDateTime(booking.endDate),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AppColors.TextSecondary
-                    )
-                    Text("Booked " + formatRentalBookingDateTime(booking.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-
-                    if (status == "CONFIRMED" && runCatching { LocalDateTime.parse(booking.startDate) }.getOrNull()?.isAfter(LocalDateTime.now()) == true) {
-                        OutlinedButton(
-                            onClick = { cancelBookingId = booking.bookingId },
-                            enabled = !state.saving,
-                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
-                            modifier = Modifier.fillMaxWidth().height(42.dp),
-                            shape = RoundedCornerShape(11.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Error)
-                        ) {
-                            Text("Cancel booking", fontWeight = FontWeight.Bold)
-                        }
-                    }
+                            if (
+                                status == "CONFIRMED" &&
+                                runCatching { LocalDateTime.parse(booking.startDate) }
+                                    .getOrNull()
+                                    ?.isAfter(LocalDateTime.now()) == true
+                            ) {
+                                OutlinedButton(
+                                    onClick = { cancelBookingId = booking.bookingId },
+                                    enabled = !state.saving,
+                                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                                    shape = RoundedCornerShape(11.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Error)
+                                ) {
+                                    Text("Cancel booking", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
+
+                if (rowBookings.size == 1) {
+                    Spacer(Modifier.weight(1f))
                 }
-                if (rowBookings.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
