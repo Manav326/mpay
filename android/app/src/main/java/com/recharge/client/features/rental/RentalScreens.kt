@@ -1832,7 +1832,7 @@ fun RentalVehicleOnboardingScreen(
                 licenseNumber.isNotBlank() &&
                 licenseExpiry.isNotBlank() &&
                 pricePerDay.toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
-                seats.toIntOrNull() in 2..8 &&
+                seats.toIntOrNull()?.let { it in 2..8 } == true &&
                 manufacturing != null &&
                 registration != null &&
                 manufacturing in earliestVehicleYear..currentVehicleYear &&
