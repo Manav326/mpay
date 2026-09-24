@@ -80,15 +80,15 @@ fun ProfileScreen(
         }
         item {
             Card(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .55f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text("Account details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
+                    Text("Account details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
                     Text("Permanent account information and activity", style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
                     HorizontalDivider()
                     CopyableValue("Account ID", user?.publicUserId.orEmpty())
