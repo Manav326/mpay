@@ -12,7 +12,7 @@ COPY src ./src
 RUN chmod +x gradlew
 RUN gradle clean test bootJar --no-daemon
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine-3.24 AS runtime
 
 WORKDIR /app
 
