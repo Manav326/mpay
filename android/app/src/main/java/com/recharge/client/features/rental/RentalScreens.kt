@@ -1893,9 +1893,9 @@ fun RentalVehicleOnboardingScreen(
                 onClick = {
                     val driver = RentalDriverRequest(
                         driverName.trim(),
-                        driverMobile.trim(),
+                        normalizeIndianMobile(driverMobile),
                         licenseNumber.trim(),
-                        licenseExpiry.trim(),
+                        normalizeLicenseExpiry(licenseExpiry.trim()),
                         driverAddress.trim().ifBlank { null }
                     )
                     if (editingCar != null && onResubmit != null) {
