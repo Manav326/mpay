@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoUrl = "https://github.com/Manav326/mpay.git"
+$originalLocation = (Get-Location).Path
 $sourceRoot = Split-Path -Parent $PSScriptRoot
 
 if ([string]::IsNullOrWhiteSpace($DeployDirectory)) {
@@ -24,6 +25,7 @@ function Invoke-Compose {
     if ($LASTEXITCODE -ne 0) { throw "docker compose failed: $($Arguments -join ' ')" }
 }
 
+try {
 if (-not (Test-Path (Join-Path $DeployDirectory ".git"))) {
     & git clone --branch $Branch --single-branch $repoUrl $DeployDirectory
     if ($LASTEXITCODE -ne 0) { throw "Could not clone deployment branch." }
@@ -82,3 +84,7 @@ Write-Host ""
 Write-Host "Admin Web : http://localhost:3000" -ForegroundColor Cyan
 Write-Host "Backend   : http://localhost:8080" -ForegroundColor Cyan
 Write-Host "Commit    : $commitSha" -ForegroundColor Cyan
+
+} finally {
+    Set-Location $originalLocation
+}
