@@ -2608,9 +2608,12 @@ fun RentalMyBookingsScreen(
             val (statusLabel, rideCompleted) = rentalBookingDisplayStatus(booking)
             val displayStatusCode = if (rideCompleted) "COMPLETED" else status
             val credit = status == "CANCELLED" || status == "REFUNDED"
-            Card(shape = RoundedCornerShape(17.dp)) {
-                Column(
-                    Modifier.fillMaxWidth().padding(9.dp),
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(17.dp)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     RentalVehicleGallery(
