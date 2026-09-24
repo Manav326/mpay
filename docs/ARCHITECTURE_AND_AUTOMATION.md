@@ -425,7 +425,32 @@ adb-<pairing-id>._adb-tls-connect._tcp    device
 
 That is why the installation helper can select the wireless device exactly as Android Studio does.
 
-## 13. CI artifact and image rules
+## 13. Environment-specific build identity
+
+Backend and Admin Web production deployment is commit-locked:
+
+```text
+Git branch
+   ↓
+git pull --ff-only
+   ↓
+commit SHA
+   ├── backend       sha-<commit>
+   └── Admin Web     azure-sha-<commit>
+```
+
+The production Admin Web image is built separately with the public API URL `https://api.mpay.thinkwithsujeet.in`. The local GitHub test image keeps the local API URL.
+
+Android follows the same commit identity rule. Its Gradle build accepts an API base URL, and the GitHub Actions release build uses the public production API URL. The Android retrieval helper now refuses to download an artifact unless a successful Actions run exists for the exact current commit SHA.
+
+```text
+Git branch
+   ↓
+current commit SHA
+   └── Android release artifact for that exact SHA
+```
+
+## 14. CI artifact and image rules
 
 Do not commit generated APK files.
 
@@ -437,7 +462,7 @@ Use GHCR for backend/Admin Web images and GitHub Actions artifacts for the debug
 
 Feature testing is commit-oriented: the local helper requests the artifact corresponding to the exact local Git commit, which prevents accidentally installing/testing an APK from another revision.
 
-## 14. Secrets and data safety
+## 15. Secrets and data safety
 
 Development configuration may use the local `.env` and locally mounted backend secret configuration.
 
@@ -445,7 +470,7 @@ Production secrets must not be committed, baked into Docker images, placed in An
 
 Never delete the development PostgreSQL/Redis volumes to solve an application problem. Fix the application/container configuration instead.
 
-## 15. Before implementing the next Android feature
+## 16. Before implementing the next Android feature
 
 Use this sequence:
 
@@ -468,7 +493,7 @@ git push -u origin feature/android-<new-feature>
 # then create/merge the PR after verification
 ```
 
-## 16. Current verified baseline
+## 17. Current verified baseline
 
 PR #4 (`chore(android): add automated APK build and retrieval`) has been merged into `main`.
 
@@ -478,7 +503,7 @@ Merge commit:
 
 The Android CI build, artifact retrieval, local cache reuse, wireless ADB device selection, and APK installation flow were all verified on the development machine before the merge.
 
-## 17. Primary automation files
+## 18. Primary automation files
 
 ```text
 .github/workflows/docker-compose.yml
