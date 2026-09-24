@@ -78,6 +78,24 @@ jobs:
       - name: Validate local deployment overlay
         run: |
           docker compose -f docker-compose.yml -f docker-compose.local-deploy.yml config
+      - name: Validate PowerShell deployment scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'scripts/mpay-local-deploy.ps1',
+            'scripts/mpay-db-backup.ps1',
+            'scripts/mpay-db-restore.ps1'
+          )
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              exit 1
+            }
+          }
+          Write-Host 'PowerShell deployment scripts parsed successfully.'
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         uses: docker/login-action@v3
