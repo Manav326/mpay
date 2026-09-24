@@ -57,7 +57,7 @@ function Test-PortAvailable {
 
     $listener = $null
     try {
-        $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, $Port)
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
         $listener.Start()
         return $true
     }
