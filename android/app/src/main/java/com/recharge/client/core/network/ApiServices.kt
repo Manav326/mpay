@@ -177,7 +177,8 @@ interface ClientApi {
         @Query("page") page: Int = 0,
         @Query("size") size: Int = 20,
         @Query("from") from: String? = null,
-        @Query("to") to: String? = null
+        @Query("to") to: String? = null,
+        @Query("status") status: String? = null
     ): Response<RechargeHistoryResponse>
 
     @GET("api/v1/recharge/commission-summary")
