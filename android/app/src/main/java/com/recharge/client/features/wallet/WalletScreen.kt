@@ -354,6 +354,39 @@ private fun WalletActivityCard(
 }
 
 @Composable
+private fun WalletFilterChip(
+    filter: WalletHistoryFilter,
+    selected: WalletHistoryFilter,
+    label: String,
+    onSelect: (WalletHistoryFilter) -> Unit
+) {
+    FilterChip(
+        selected = selected == filter,
+        onClick = { onSelect(filter) },
+        label = { Text(label, maxLines = 1, softWrap = false) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SingleChoiceSegmentedButtonRowScope.WalletDateButton(
+    filter: WalletDateFilter,
+    selected: WalletDateFilter,
+    label: String,
+    onSelect: () -> Unit,
+    index: Int,
+    count: Int
+) {
+    SegmentedButton(
+        selected = selected == filter,
+        onClick = onSelect,
+        shape = SegmentedButtonDefaults.itemShape(index, count)
+    ) {
+        Text(label, maxLines = 1, softWrap = false)
+    }
+}
+
+@Composable
 private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryItem) -> Unit) {
     val isAdd = item.referenceType.equals("ADD_MONEY", true)
     val isRecharge = item.referenceType.equals("RECHARGE", true)
