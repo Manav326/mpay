@@ -258,3 +258,13 @@ backend/config/application-secrets.yml
 ```
 
 The Docker image excludes this file and mounts it read-only at runtime.
+
+### Local Azure deployment rehearsal
+
+The local deployment rehearsal uses a dedicated checkout and isolated PostgreSQL/Redis volumes so it does not reuse or delete the existing mPay test data. Run:
+
+```powershell
+.\scripts\mpay-local-deploy.ps1 -Branch perf/azure-deployment-optimization
+```
+
+The script refreshes the selected branch in a separate checkout, copies the existing local `backend/config`, builds that exact checkout, and starts it as project `mpay-azure-dev-local`. It uses ports 3000/8080 expected by the current Admin Web image and refuses to start if those ports are already in use.
