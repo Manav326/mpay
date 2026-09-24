@@ -120,10 +120,17 @@ try {
 
             $runs = $runJson | ConvertFrom-Json
 
-            $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
+            $run = $runs |
+                Where-Object {
+                    $_.headSha -eq $headSha -and
+                    $_.status -eq "completed" -and
+                    $_.conclusion -eq "success"
+                } |
+                Sort-Object createdAt -Descending |
+                Select-Object -First 1
 
             if (-not $run) {
-                throw "No GitHub Actions run exists yet for branch $Branch."
+                throw "No successful Android Actions run exists for branch $Branch at commit $headSha."
             }
 
             $runId = [string]$run.databaseId
@@ -149,14 +156,21 @@ try {
                 throw "Could not query GitHub Actions through the REST API. Check that the GitHub credential used by Git is still valid and has access to Actions artifacts. $($_.Exception.Message)"
             }
 
-            $run = $runsResponse.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1
+            $run = $runsResponse.workflow_runs |
+                Where-Object {
+                    $_.head_sha -eq $headSha -and
+                    $_.status -eq "completed" -and
+                    $_.conclusion -eq "success"
+                } |
+                Sort-Object created_at -Descending |
+                Select-Object -First 1
 
             if (-not $run) {
-                throw "No GitHub Actions run exists yet for branch $Branch."
+                throw "No successful Android Actions run exists for branch $Branch at commit $headSha."
             }
 
             $runId = [string]$run.id
-            Write-Host "Found latest Actions run $runId for branch $Branch." -ForegroundColor Green
+            Write-Host "Found successful Android Actions run $runId for commit $headSha." -ForegroundColor Green
 
             $artifactsUrl = "https://api.github.com/repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
             try {
@@ -170,7 +184,7 @@ try {
             } | Sort-Object created_at -Descending | Select-Object -First 1
 
             if (-not $artifact) {
-                throw "The successful run $runId does not have a non-expired '$artifactName' artifact."
+                throw "The successful run $runId for commit $headSha does not have a non-expired '$artifactName' artifact."
             }
 
             $artifactZip = Join-Path $tempDir "$artifactName.zip"

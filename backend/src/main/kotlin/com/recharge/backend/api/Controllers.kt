@@ -115,10 +115,11 @@ class ClientController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
         @RequestParam(required = false) from: String?,
-        @RequestParam(required = false) to: String?
+        @RequestParam(required = false) to: String?,
+        @RequestParam(required = false) status: String?
     ): RechargeHistoryResponse = rechargeHistory.history(
         authenticatedUserId(authentication), page, size,
-        from?.let(java.time.LocalDate::parse), to?.let(java.time.LocalDate::parse)
+        from?.let(java.time.LocalDate::parse), to?.let(java.time.LocalDate::parse), status
     )
 
     @GetMapping("/recharge/commission-summary")

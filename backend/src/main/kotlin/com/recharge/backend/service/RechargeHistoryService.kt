@@ -15,7 +15,7 @@ class RechargeHistoryService(
 ) {
     private val zoneId: ZoneId = ZoneId.of("Asia/Kolkata")
 
-    fun history(userId: Long, page: Int, size: Int, fromDate: LocalDate?, toDate: LocalDate?): RechargeHistoryResponse {
+    fun history(userId: Long, page: Int, size: Int, fromDate: LocalDate?, toDate: LocalDate?, status: String? = null): RechargeHistoryResponse {
         require(page >= 0) { "Page must be zero or greater" }
         require(size in 1..100) { "Page size must be between 1 and 100" }
         val now = ZonedDateTime.now(zoneId)
@@ -23,7 +23,19 @@ class RechargeHistoryService(
         val to = (toDate ?: from).takeIf { !it.isBefore(from) } ?: throw IllegalArgumentException("toDate must be on or after fromDate")
         val fromInstant = from.atStartOfDay(zoneId).toInstant()
         val toExclusive = to.plusDays(1).atStartOfDay(zoneId).toInstant()
-        val result = repository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId, fromInstant, toExclusive.minusNanos(1), PageRequest.of(page, size))
+        val normalizedStatus = status?.trim()?.uppercase()?.takeIf { it.isNotBlank() && it != "ALL" }
+        val pageable = PageRequest.of(page, size)
+        val result = when (normalizedStatus) {
+            null -> repository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                userId, fromInstant, toExclusive.minusNanos(1), pageable
+            )
+            "PENDING" -> repository.findByUserIdAndStatusInAndCreatedAtBetweenOrderByCreatedAtDesc(
+                userId, listOf("PENDING", "RESERVED"), fromInstant, toExclusive.minusNanos(1), pageable
+            )
+            else -> repository.findByUserIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(
+                userId, normalizedStatus, fromInstant, toExclusive.minusNanos(1), pageable
+            )
+        }
         return RechargeHistoryResponse(
             items = result.content.map(::toItem),
             page = result.number,

@@ -2,7 +2,6 @@ package com.recharge.client.core.repository
 
 import android.content.Context
 import android.net.Uri
-import com.google.gson.Gson
 import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
@@ -35,8 +34,8 @@ import com.recharge.client.core.cache.ProfileCacheStore
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class ClientRepository(context: Context) {
@@ -60,7 +59,6 @@ class ClientRepository(context: Context) {
     private val appContext = context.applicationContext
     private val api: ClientApi = NetworkModule.clientApi(context.applicationContext)
     private val profileCache = ProfileCacheStore(appContext)
-    private val gson = Gson()
 
     suspend fun currentUser(): Result<CurrentUserResponse> {
         val result = apiCall {
@@ -183,8 +181,14 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
-    suspend fun rechargeHistory(page: Int = 0, size: Int = 20, from: String? = null, to: String? = null): Result<RechargeHistoryResponse> = apiCall {
-        val response = api.rechargeHistory(page, size, from, to)
+    suspend fun rechargeHistory(
+        page: Int = 0,
+        size: Int = 20,
+        from: String? = null,
+        to: String? = null,
+        status: String? = null
+    ): Result<RechargeHistoryResponse> = apiCall {
+        val response = api.rechargeHistory(page, size, from, to, status)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
@@ -208,10 +212,7 @@ class ClientRepository(context: Context) {
             clientRequestId = UUID.randomUUID().toString(),
             upiId = upiId.trim()
         )
-        val json = gson.toJson(request)
-        require(json.isNotBlank() && json != "{}") { "Unable to create withdrawal request body" }
-        val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
-        val response = api.withdraw(requestBody)
+        val response = api.withdraw(request)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }

@@ -191,6 +191,17 @@ backend/config/application-secrets.yml
 
 Keep that file local and never commit it.
 
+## Environment-specific URLs
+
+Local development and production deliberately use different build-time/public API settings:
+
+- Local GitHub feature-test Admin Web uses the local API base URL.
+- Production Admin Web uses `https://api.mpay.thinkwithsujeet.in`.
+- Android release CI uses `https://api.mpay.thinkwithsujeet.in/`.
+- Local Android builds use `MPAY_API_BASE_URL` or `-PmpayApiBaseUrl`.
+
+The commit remains the identity across all three builds; only the environment-specific build configuration differs.
+
 ## Local URLs
 
 From the development PC:
@@ -220,7 +231,23 @@ cd android
 
 The same URL can be supplied through the `MPAY_API_BASE_URL` environment variable.
 
-## Production architecture
+## Production deployment
+
+Production deployment is commit-oriented, like the local GitHub-image test flow. On the VM, keep the checkout at the desired branch, then run:
+
+```powershell
+pwsh ./scripts/mpay-azure-deploy.ps1
+```
+
+The script:
+- determines the current branch when `-Branch` is omitted;
+- fetches and fast-forwards that branch from `origin`;
+- derives the exact commit SHA;
+- pulls the backend image `sha-<commit>`;
+- pulls the Admin Web image `azure-sha-<commit>`, which is built with the public production API URL;
+- refuses to deploy when the checkout or image tags do not match.
+
+The VM `.env` contains runtime configuration and secrets only; commit SHA image tags are not manually maintained.
 
 With DNS pointing `MPAY_PUBLIC_DOMAIN` to the server, enable the production Caddy profile:
 

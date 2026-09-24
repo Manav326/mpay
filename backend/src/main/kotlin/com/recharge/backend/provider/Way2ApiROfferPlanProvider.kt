@@ -95,7 +95,13 @@ class Way2ApiROfferPlanProvider(
         } catch (ex: RestClientResponseException) {
             throw Way2ApiException(
                 upstreamStatusCode = ex.statusCode.value(),
-                message = "Way2API R-Offer lookup failed (${ex.statusCode.value()})"
+                message = "Way2API R-Offer lookup failed (" + ex.statusCode.value() + ")"
+            )
+        } catch (ex: Exception) {
+            throw Way2ApiException(
+                upstreamStatusCode = 502,
+                message = "Way2API R-Offer response could not be processed: " +
+                    (ex.message ?: "unexpected provider error")
             )
         }
 

@@ -599,7 +599,11 @@ private fun AppNavHost(
                 onSetWalletHistoryMonth = walletViewModel::setThisMonth,
                 onSetWalletHistoryCustom = walletViewModel::setCustom,
                 onRefreshWalletHistory = walletViewModel::refreshHistory,
-                onLoadMoreWalletHistory = walletViewModel::loadMore,
+                onSetHistoryPageSize = walletViewModel::setHistoryPageSize,
+                onWalletPreviousPage = { walletViewModel.goToPage(walletViewModel.state.value.page - 1) },
+                onWalletNextPage = { walletViewModel.goToPage(walletViewModel.state.value.page + 1) },
+                onWithdrawalPreviousPage = { walletViewModel.goToWithdrawalPage(walletViewModel.state.value.withdrawalPage - 1) },
+                onWithdrawalNextPage = { walletViewModel.goToWithdrawalPage(walletViewModel.state.value.withdrawalPage + 1) },
                 onWithdraw = walletViewModel::withdraw,
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
                 onOpenWalletDetail = walletViewModel::openDetails,
@@ -705,8 +709,11 @@ private fun AppNavHost(
                 onFilterLast7 = rechargeHistoryViewModel::setLast7Days,
                 onFilterMonth = rechargeHistoryViewModel::setThisMonth,
                 onFilterCustom = rechargeHistoryViewModel::setCustom,
+                onStatusFilter = rechargeHistoryViewModel::setStatus,
+                onPageSizeChange = rechargeHistoryViewModel::setPageSize,
+                onPreviousPage = { rechargeHistoryViewModel.goToPage(historyState.page - 1) },
+                onNextPage = { rechargeHistoryViewModel.goToPage(historyState.page + 1) },
                 onRefresh = rechargeHistoryViewModel::refreshHistory,
-                onLoadMore = rechargeHistoryViewModel::loadMore,
                 onBack = { nav.popBackStack() }
             )
         }

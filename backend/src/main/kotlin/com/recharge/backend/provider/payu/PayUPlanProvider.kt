@@ -8,7 +8,9 @@ import com.recharge.backend.provider.RechargePlan
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
+import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientResponseException
 import java.math.BigDecimal
 import java.security.MessageDigest
 
@@ -58,20 +60,35 @@ class PayUPlanProvider(
             ?: throw PayUIntegrationException("PayU circle ID is missing from operator detection")
 
         val accessToken = authService.getAccessToken("read_plans")
-        val response = client.get()
-            .uri { builder ->
-                builder.path(properties.customPlansPath)
-                    .queryParam("agentId", properties.agentId)
-                    .queryParam("circleId", circleId)
-                    .queryParam("mobileNo", mobileNumber)
-                    .queryParam("operatorId", operatorId)
-                    .build()
-            }
-            .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
-            .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-            .retrieve()
-            .body(String::class.java)
-            ?: throw PayUIntegrationException("PayU plans API returned an empty response")
+        val response = try {
+            client.get()
+                .uri { builder ->
+                    builder.path(properties.customPlansPath)
+                        .queryParam("agentId", properties.agentId)
+                        .queryParam("circleId", circleId)
+                        .queryParam("mobileNo", mobileNumber)
+                        .queryParam("operatorId", operatorId)
+                        .build()
+                }
+                .header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken")
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .retrieve()
+                .body(String::class.java)
+                ?: throw PayUIntegrationException("PayU plans API returned an empty response")
+        } catch (ex: PayUIntegrationException) {
+            throw ex
+        } catch (ex: RestClientResponseException) {
+            val detail = ex.responseBodyAsString.takeIf { it.isNotBlank() }?.take(400)
+            val message = "PayU plans lookup failed (" + ex.statusCode.value() + ")" +
+                (detail?.let { ": " + it } ?: "")
+            throw PayUIntegrationException(message)
+        } catch (ex: ResourceAccessException) {
+            throw PayUIntegrationException("PayU plans service could not be reached. Please try again later.")
+        } catch (ex: Exception) {
+            throw PayUIntegrationException(
+                "PayU plans lookup failed: " + (ex.message ?: "unexpected provider error")
+            )
+        }
 
         return parsePlans(response, operator, circle, operatorId, circleId)
     }

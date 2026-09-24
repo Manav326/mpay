@@ -81,6 +81,7 @@ jobs:
 
           echo "MPAY_IMAGE_TAG=${image_tag}" >> "${GITHUB_ENV}"
           echo "MPAY_SHA_TAG=sha-${commit_sha}" >> "${GITHUB_ENV}"
+          echo "MPAY_ADMIN_WEB_AZURE_TAG=azure-sha-${commit_sha}" >> "${GITHUB_ENV}"
           echo "MPAY_COMMIT_SHA=${commit_sha}" >> "${GITHUB_ENV}"
 
           echo "Selected image tag: ${image_tag}"
@@ -151,6 +152,15 @@ jobs:
             --push \
             admin-web
 
+          docker buildx build \
+            --file admin-web/Dockerfile \
+            --build-arg "NEXT_PUBLIC_API_BASE_URL=https://api.mpay.thinkwithsujeet.in" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_ADMIN_WEB_AZURE_TAG}" \
+            --cache-from "type=gha,scope=mpay-admin-web-azure-runtime" \
+            --cache-to "type=gha,mode=max,scope=mpay-admin-web-azure-runtime" \
+            --push \
+            admin-web
+
       - name: Build images for external pull requests
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: |
@@ -174,6 +184,7 @@ jobs:
           docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"
           docker pull "${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          docker pull "${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_ADMIN_WEB_AZURE_TAG}"
 
       - name: Build summary
         if: always()
@@ -182,3 +193,4 @@ jobs:
           echo "Admin Web image: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_IMAGE_TAG}"
           echo "Commit backend: ${{ env.MPAY_BACKEND_IMAGE }}:${MPAY_SHA_TAG}"
           echo "Commit admin web: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_SHA_TAG}"
+          echo "Azure admin web: ${{ env.MPAY_ADMIN_WEB_IMAGE }}:${MPAY_ADMIN_WEB_AZURE_TAG}"

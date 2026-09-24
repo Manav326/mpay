@@ -173,11 +173,23 @@ class RentalService(
         return cars.findAllByVendorIdOrderByIdDesc(requireNotNull(vendor.id)).map(::toCarResponse)
     }
 
+    private fun validateVehicleYears(manufacturingYear: Int, registrationYear: Int) {
+        val currentYear = LocalDate.now().year
+        val earliestYear = currentYear - 20
+        require(manufacturingYear in earliestYear..currentYear) {
+            "Manufacturing year must be between $earliestYear and $currentYear"
+        }
+        require(registrationYear in manufacturingYear..currentYear) {
+            "Registration year must be between the manufacturing year and $currentYear"
+        }
+    }
+
     @Transactional
     fun onboardVehicle(userId: Long, request: RentalVehicleOnboardingRequest): RentalCarResponse {
         val vendor = verifiedVendor(userId)
         val vendorId = requireNotNull(vendor.id)
         require(request.seats in 1..20) { "Seats must be between 1 and 20" }
+        validateVehicleYears(request.manufacturingYear, request.registrationYear)
         require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
         require(!cars.existsByRegistrationNumberIgnoreCase(request.registrationNumber.trim())) { "A vehicle with this registration number already exists" }
         require(request.driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver licence must be valid" }
@@ -234,6 +246,7 @@ class RentalService(
         val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Vehicle driver not found") }
 
         require(request.seats in 1..20) { "Seats must be between 1 and 20" }
+        validateVehicleYears(request.manufacturingYear, request.registrationYear)
         require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
         require(!cars.existsByRegistrationNumberIgnoreCaseAndIdNot(request.registrationNumber.trim(), carId)) {
             "A vehicle with this registration number already exists"
