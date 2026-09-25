@@ -1936,7 +1936,7 @@ fun RentalVehicleOnboardingScreen(
                             "City",
                             form.city,
                             modifier = Modifier.weight(1f),
-                            filter = { sanitizeVehicleText(it, 100) },
+                            filter = { sanitizeVehicleAlphaNumeric(it, 100) },
                             error = if (form.submitAttempted && form.city.isBlank()) "City is required" else null,
                             onValueChange = { form.city = it }
                         )
@@ -2079,7 +2079,7 @@ fun RentalVehicleOnboardingScreen(
                             "Driver full name",
                             form.driverName,
                             modifier = Modifier.weight(1f),
-                            filter = { sanitizeVehicleText(it, 120) },
+                            filter = { sanitizeVehicleAlphaNumeric(it, 120) },
                             error = if (form.submitAttempted && form.driverName.isBlank()) "Driver name is required" else null,
                             onValueChange = { form.driverName = it }
                         )
