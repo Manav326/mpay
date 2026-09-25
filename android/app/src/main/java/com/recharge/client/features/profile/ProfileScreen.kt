@@ -85,7 +85,7 @@ fun ProfileScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                    Modifier.fillMaxWidth().padding(0.dp),
                     verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Text("Account details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
