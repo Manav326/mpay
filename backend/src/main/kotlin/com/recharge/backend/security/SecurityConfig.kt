@@ -51,7 +51,8 @@ class SecurityConfig {
                     "/api/v1/auth/manager-login",
                     "/api/v1/auth/portal-roles",
                     "/api/v1/webhooks/payu/payout",
-                    "/api/v1/webhooks/razorpay/payout"
+                    "/api/v1/webhooks/razorpay/payout",
+                    "/api/v1/car-rental/photos/**"
                 ).permitAll()
                     .anyRequest().authenticated()
             }
