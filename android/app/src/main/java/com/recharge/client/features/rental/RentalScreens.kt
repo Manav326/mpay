@@ -247,8 +247,8 @@ private fun CompactFieldRow(
     enabled: Boolean = true
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onLeftChange)
-        VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onRightChange)
+        VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onValueChange = onLeftChange)
+        VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onValueChange = onRightChange)
     }
 }
 
@@ -1754,6 +1754,7 @@ private class RentalVehicleFormState(car: RentalCarResponse?) {
     var submitAttempted by mutableStateOf(false)
 }
 
+@Composable
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
     onSubmit: (RentalVehicleOnboardingRequest, Map<Int, String>, String?, () -> Unit) -> Unit,
@@ -2155,22 +2156,22 @@ fun RentalVehicleOnboardingScreen(
                         onResubmit(
                             editingCar.id,
                             RentalVehicleUpdateRequest(
-                                form.name = form.name.trim(),
-                                form.category = form.category.trim(),
-                                form.seats = form.seats.toInt(),
-                                form.transmission = form.transmission.trim(),
+                                name = form.name.trim(),
+                                category = form.category.trim(),
+                                seats = form.seats.toInt(),
+                                transmission = form.transmission.trim(),
                                 fuelType = form.fuel.trim(),
-                                form.manufacturingYear = form.manufacturingYear.toInt(),
-                                form.registrationYear = form.registrationYear.toInt(),
-                                form.registrationNumber = form.registrationNumber.trim(),
-                                form.make = form.make.trim(),
-                                form.model = form.model.trim(),
-                                form.variant = form.variant.trim().ifBlank { null },
-                                form.pickupAddress = form.pickupAddress.trim(),
-                                form.city = form.city.trim(),
+                                manufacturingYear = form.manufacturingYear.toInt(),
+                                registrationYear = form.registrationYear.toInt(),
+                                registrationNumber = form.registrationNumber.trim(),
+                                make = form.make.trim(),
+                                model = form.model.trim(),
+                                variant = form.variant.trim().ifBlank { null },
+                                pickupAddress = form.pickupAddress.trim(),
+                                city = form.city.trim(),
                                 state = form.stateName.trim(),
-                                form.pricePerDay = form.pricePerDay.toBigDecimal(),
-                                form.pickupLocation = form.pickupLocation,
+                                pricePerDay = form.pricePerDay.toBigDecimal(),
+                                pickupLocation = form.pickupLocation,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
@@ -2181,22 +2182,22 @@ fun RentalVehicleOnboardingScreen(
                     } else {
                         onSubmit(
                             RentalVehicleOnboardingRequest(
-                                form.name = form.name.trim(),
-                                form.category = form.category.trim(),
-                                form.seats = form.seats.toInt(),
-                                form.transmission = form.transmission.trim(),
+                                name = form.name.trim(),
+                                category = form.category.trim(),
+                                seats = form.seats.toInt(),
+                                transmission = form.transmission.trim(),
                                 fuelType = form.fuel.trim(),
-                                form.manufacturingYear = form.manufacturingYear.toInt(),
-                                form.registrationYear = form.registrationYear.toInt(),
-                                form.registrationNumber = form.registrationNumber.trim(),
-                                form.make = form.make.trim(),
-                                form.model = form.model.trim(),
-                                form.variant = form.variant.trim().ifBlank { null },
-                                form.pickupAddress = form.pickupAddress.trim(),
-                                form.city = form.city.trim(),
+                                manufacturingYear = form.manufacturingYear.toInt(),
+                                registrationYear = form.registrationYear.toInt(),
+                                registrationNumber = form.registrationNumber.trim(),
+                                make = form.make.trim(),
+                                model = form.model.trim(),
+                                variant = form.variant.trim().ifBlank { null },
+                                pickupAddress = form.pickupAddress.trim(),
+                                city = form.city.trim(),
                                 state = form.stateName.trim(),
-                                form.pricePerDay = form.pricePerDay.toBigDecimal(),
-                                form.pickupLocation = form.pickupLocation,
+                                pricePerDay = form.pricePerDay.toBigDecimal(),
+                                pickupLocation = form.pickupLocation,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
