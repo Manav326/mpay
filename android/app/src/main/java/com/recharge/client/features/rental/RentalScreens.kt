@@ -190,7 +190,7 @@ private fun sanitizeVehicleAlphaNumeric(value: String, maxLength: Int): String =
     rentalVehicleAlphaNumericPattern.replace(value, "").take(maxLength)
 
 private fun sanitizeRentalLocation(value: String, maxLength: Int = 300): String =
-    value.filterNot(Char::isISOControl).take(maxLength)
+    value.filter { !it.isISOControl() }.take(maxLength)
 
 private fun sanitizeRegistration(value: String): String =
     rentalRegistrationPattern.replace(value.uppercase(Locale.ENGLISH), "").take(32)
@@ -2641,18 +2641,8 @@ fun RentalBookingScreen(
     initialEnd: String? = null
 ) {
     var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
-    var pickupCoordinates by remember(car.id, initialStart, initialEnd) {
-        mutableStateOf(
-            if (car.pickupLatitude != null && car.pickupLongitude != null) {
-                RentalLocationInput(
-                    address = car.pickupAddress.orEmpty(),
-                    latitude = car.pickupLatitude,
-                    longitude = car.pickupLongitude,
-                    placeId = car.pickupPlaceId
-                )
-            } else null
-        )
-    }
+    // Temporary mapless booking mode: coordinates stay null until MAPS_API_KEY is enabled again.
+    var pickupCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
     var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf("") }
     var dropCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
     var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
@@ -2689,26 +2679,58 @@ fun RentalBookingScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            Text("Chauffeur: " + car.driverName, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                            car.driverMobile?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category },
+                                    color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
+                            Text(
+                                "₹" + car.pricePerDay.setScale(0) + "/day",
+                                color = AppColors.Success,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                         Row(
+                            Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(7.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Column(
+                                Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(1.dp)
+                            ) {
+                                Text(
+                                    "Chauffeur: " + car.driverName,
+                                    color = AppColors.PrimaryDark,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                    Text(
+                                        it,
+                                        color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
                             RentalCarImageTile(
                                 car.driverPhotoUrl,
                                 Modifier
                                     .size(48.dp)
                                     .clip(RoundedCornerShape(10.dp))
                             )
-                            Text("₹" + car.pricePerDay.setScale(0) + "/day", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
