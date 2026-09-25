@@ -224,7 +224,8 @@ class RentalService(
                 manufacturingYear = request.manufacturingYear,
                 fuelType = request.fuelType.trim(),
                 registrationYear = request.registrationYear,
-                pickupAddress = request.pickupLocation?.address?.trim()?.takeIf { it.isNotBlank() } ?: request.pickupAddress.trim(),
+                pickupAddress = request.pickupLocation?.address?.trim()?.takeIf { it.isNotBlank() }
+                    ?: request.pickupAddress?.trim()?.takeIf { it.isNotBlank() },
                 pickupLatitude = request.pickupLocation?.latitude,
                 pickupLongitude = request.pickupLocation?.longitude,
                 pickupPlaceId = request.pickupLocation?.placeId?.trim()?.takeIf { it.isNotBlank() },
@@ -283,10 +284,14 @@ class RentalService(
         car.manufacturingYear = request.manufacturingYear
         car.fuelType = request.fuelType.trim()
         car.registrationYear = request.registrationYear
-        car.pickupAddress = request.pickupLocation?.address?.trim()?.takeIf { it.isNotBlank() } ?: request.pickupAddress.trim()
-        car.pickupLatitude = request.pickupLocation?.latitude
-        car.pickupLongitude = request.pickupLocation?.longitude
-        car.pickupPlaceId = request.pickupLocation?.placeId?.trim()?.takeIf { it.isNotBlank() }
+        if (request.pickupLocation != null) {
+            car.pickupAddress = request.pickupLocation.address.trim().takeIf { it.isNotBlank() }
+            car.pickupLatitude = request.pickupLocation.latitude
+            car.pickupLongitude = request.pickupLocation.longitude
+            car.pickupPlaceId = request.pickupLocation.placeId?.trim()?.takeIf { it.isNotBlank() }
+        } else {
+            request.pickupAddress?.trim()?.takeIf { it.isNotBlank() }?.let { car.pickupAddress = it }
+        }
         car.city = request.city.trim()
         car.state = request.state.trim()
         car.imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() }
