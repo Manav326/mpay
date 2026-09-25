@@ -1161,33 +1161,46 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
 @Composable
 private fun RentalVehicleGallery(
     imageUrl: String?,
+    driverPhotoUrl: String? = null,
     modifier: Modifier = Modifier
 ) {
     val urls = rentalPhotoSlots(imageUrl)
     var focusedIndex by remember(urls.joinToString("|")) { mutableIntStateOf(0) }
     val orderedSmall = (0..3).filter { it != focusedIndex }
 
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        RentalCarImageTile(
-            urls[focusedIndex],
-            Modifier.fillMaxWidth().aspectRatio(1.75f)
-        )
-        Row(
+    Box(modifier) {
+        Column(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            orderedSmall.take(3).forEach { index ->
-                RentalCarImageTile(
-                    urls[index],
-                    Modifier
-                        .weight(1f)
-                        .aspectRatio(1.55f)
-                        .clickable { focusedIndex = index }
-                )
+            RentalCarImageTile(
+                urls[focusedIndex],
+                Modifier.fillMaxWidth().aspectRatio(1.75f)
+            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                orderedSmall.take(3).forEach { index ->
+                    RentalCarImageTile(
+                        urls[index],
+                        Modifier
+                            .weight(1f)
+                            .aspectRatio(1.55f)
+                            .clickable { focusedIndex = index }
+                    )
+                }
             }
+        }
+        if (!driverPhotoUrl.isNullOrBlank()) {
+            RentalCarImageTile(
+                driverPhotoUrl,
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(10.dp))
+            )
         }
     }
 }
@@ -1212,7 +1225,7 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                        RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                         Surface(
                             Modifier.align(Alignment.TopEnd).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -1497,7 +1510,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -2590,7 +2603,7 @@ fun RentalBookingScreen(
                     Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -2855,6 +2868,7 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
+                                booking.driverPhotoUrl,
                                 Modifier.fillMaxWidth()
                             )
 
