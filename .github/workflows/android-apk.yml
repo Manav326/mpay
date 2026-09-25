@@ -51,7 +51,6 @@ jobs:
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
-        run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace :app:assembleRelease \
             -PmpayApiBaseUrl=https://api.mpay.thinkwithsujeet.in/ \
