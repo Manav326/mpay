@@ -2944,7 +2944,6 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
-                                booking.driverPhotoUrl,
                                 Modifier.fillMaxWidth()
                             )
 
@@ -3001,12 +3000,38 @@ fun RentalMyBookingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.Top
                             ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                    Text(
-                                        booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""),
-                                        fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.bodySmall
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                                    ) {
+                                        Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            booking.driverName,
+                                            fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                        booking.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                            Text(
+                                                it,
+                                                color = AppColors.TextSecondary,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
+                                    RentalCarImageTile(
+                                        booking.driverPhotoUrl,
+                                        Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
                                     )
                                 }
                                 Column(Modifier.weight(1f)) {
