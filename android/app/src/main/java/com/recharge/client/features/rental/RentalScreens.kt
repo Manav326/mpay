@@ -831,7 +831,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    RentalVehicleGallery(car.imageUrl)
+                                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl)
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
