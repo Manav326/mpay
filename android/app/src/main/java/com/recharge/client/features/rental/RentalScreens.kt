@@ -2097,6 +2097,11 @@ fun RentalVehicleOnboardingScreen(
                         onValueChange = { licenseNumber = it }
                     )
                     RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it }, minDate = LocalDate.now())
+                    if (submitAttempted && runCatching { LocalDate.parse(licenseExpiry.take(10), rentalDateFormatter) }.getOrNull()?.isAfter(LocalDate.now()) != true) {
+                        Text("Licence expiry must be a future date.", color = AppColors.Error, style = MaterialTheme.typography.labelSmall)
+                    } else {
+                        Text("Choose the actual licence expiry date. It must remain valid through the rental.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
                     VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
                 }
             }
@@ -2116,10 +2121,7 @@ fun RentalVehicleOnboardingScreen(
             val registration = registrationYear.toIntOrNull()
             val normalizedDriverMobile = normalizeIndianMobile(driverMobile)
             val licenseExpiryDate = runCatching {
-                LocalDate.parse(
-                    licenseExpiry.take(10),
-                    rentalDateFormatter
-                )
+                LocalDate.parse(licenseExpiry.take(10), rentalDateFormatter)
             }.getOrNull()
             val valid = name.trim().isNotBlank() &&
                 make.trim().isNotBlank() &&
@@ -2131,7 +2133,7 @@ fun RentalVehicleOnboardingScreen(
                 driverName.trim().isNotBlank() &&
                 normalizedDriverMobile.matches(Regex("[6-9][0-9]{9}")) &&
                 licenseNumber.trim().isNotBlank() &&
-                licenseExpiry.trim().isNotBlank() &&
+                licenseExpiryDate?.isAfter(LocalDate.now()) == true &&
                 pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
                 seats.toIntOrNull()?.let { it in 2..8 } == true &&
                 manufacturing != null &&
