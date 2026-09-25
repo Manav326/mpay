@@ -46,6 +46,17 @@ jobs:
         run: |
           rm -rf ~/.gradle/caches/*/transforms
 
+      - name: Configure Google Maps API key
+        working-directory: android
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        shell: bash
+        run: |
+          if [ -n "$MAPS_API_KEY" ]; then
+            printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > secrets.properties
+          else
+            echo "MAPS_API_KEY secret not configured; map location features will be unavailable in this build."
+          fi
       - name: Build optimized release APK
         working-directory: android
         run: |
