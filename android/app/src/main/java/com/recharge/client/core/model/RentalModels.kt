@@ -140,6 +140,7 @@ data class RentalVehicleUpdateRequest(
     val city: String,
     val state: String,
     val pricePerDay: BigDecimal,
+    val pickupLocation: RentalLocationInput? = null,
     val imageUrl: String? = null,
     val driver: RentalDriverRequest
 )
