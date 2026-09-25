@@ -932,13 +932,28 @@ fun RentalVendorOnboardingScreen(
                                             ) { Text("Off market", style = MaterialTheme.typography.labelSmall) }
                                         }
                                     }
-                                    if (status == "REJECTED") {
+                                    if (status != "APPROVED" || displayedOffMarket) {
                                         OutlinedButton(
                                             onClick = { onAddVehicleWithCar(car) },
                                             contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
                                             shape = RoundedCornerShape(9.dp),
                                             modifier = Modifier.fillMaxWidth()
-                                        ) { Text("Correct & resubmit", style = MaterialTheme.typography.labelSmall) }
+                                        ) {
+                                            Text(
+                                                when {
+                                                    status == "REJECTED" -> "Correct & resubmit"
+                                                    status == "APPROVED" -> "Edit details (off market)"
+                                                    else -> "Edit details"
+                                                },
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            "Approved and on market — editing is available only while this vehicle is off market.",
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
                                     }
                                     car.rejectionReason?.takeIf { it.isNotBlank() }?.let {
                                         Text("Review: " + it, color = AppColors.Error, style = MaterialTheme.typography.labelSmall, maxLines = 2)
@@ -1227,7 +1242,7 @@ private fun RentalPublicCarDetailsDialog(
                     Box(Modifier.fillMaxWidth()) {
                         RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                         Surface(
-                            Modifier.align(Alignment.TopEnd).padding(8.dp),
+                            Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
                             color = Color.Black.copy(alpha = .60f)
                         ) {
