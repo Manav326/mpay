@@ -1,13 +1,16 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
 val mpayApiBaseUrl = providers.gradleProperty("mpayApiBaseUrl")
     .orElse(providers.environmentVariable("MPAY_API_BASE_URL"))
     .orElse("http://192.168.31.47:8080/")
     .map { value -> if (value.endsWith("/")) value else "$value/" }
+
+val mapsApiKey = providers.gradleProperty("mapsApiKey")
+    .orElse(providers.environmentVariable("MAPS_API_KEY"))
+    .orElse("")
 
 android {
     namespace = "com.recharge.client"
@@ -20,6 +23,8 @@ android {
         versionCode = 11
         versionName = "1.0.2"
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
+        buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey.get()
     }
 
     buildFeatures {
