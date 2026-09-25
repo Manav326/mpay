@@ -248,6 +248,8 @@ data class RentalBookingQuoteRequest(
     @field:NotBlank val carId: String,
     @field:NotBlank val pickupLocation: String,
     @field:NotBlank val dropLocation: String,
+    @field:Valid val pickupCoordinates: RentalLocationRequest? = null,
+    @field:Valid val dropCoordinates: RentalLocationRequest? = null,
     val startDate: LocalDateTime,
     val endDate: LocalDateTime
 )
