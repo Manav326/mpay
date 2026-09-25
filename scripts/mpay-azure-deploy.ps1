@@ -1,3 +1,6 @@
+# Secrets in .env and backend/config are intentionally ignored by Git and therefore
+# are not copied during checkout updates. Git updates tracked files without touching
+# those ignored runtime configuration files, and the required files are validated below.
 param(
     [string]$DeployDirectory = "/opt/mpay",
     [string]$Branch = "",
@@ -72,55 +75,30 @@ try {
 
         Assert-CleanCheckout
 
-        $preserveRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mpay-azure-preserve-" + [Guid]::NewGuid().ToString("N"))
-        $preserveEnv = Join-Path $preserveRoot ".env"
-        $preserveConfig = Join-Path $preserveRoot "backend-config"
+        Invoke-Git @("fetch", "--prune", "origin", $Branch)
 
-        New-Item -ItemType Directory -Force -Path $preserveRoot | Out-Null
+        $remoteBranchSha = (git rev-parse "origin/$Branch").Trim()
+        if ($LASTEXITCODE -ne 0 -or $remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
+            throw "Remote branch origin/$Branch was not found."
+        }
 
-        try {
-            if (Test-Path ".env") {
-                Copy-Item ".env" $preserveEnv -Force
+        $currentBranch = Get-CurrentBranch
+        if ($currentBranch -ne $Branch) {
+            $localBranchExists = git show-ref --verify --quiet "refs/heads/$Branch"
+            if ($LASTEXITCODE -eq 0) {
+                Invoke-Git @("checkout", $Branch)
             }
-            if (Test-Path "backend/config") {
-                Copy-Item "backend/config" $preserveConfig -Recurse -Force
-            }
-
-            Invoke-Git @("fetch", "--prune", "origin", $Branch)
-
-            $remoteBranchSha = (git rev-parse "origin/$Branch").Trim()
-            if ($LASTEXITCODE -ne 0 -or $remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
-                throw "Remote branch origin/$Branch was not found."
-            }
-
-            $currentBranch = Get-CurrentBranch
-            if ($currentBranch -ne $Branch) {
-                $localBranchExists = git show-ref --verify --quiet "refs/heads/$Branch"
-                if ($LASTEXITCODE -eq 0) {
-                    Invoke-Git @("checkout", $Branch)
-                }
-                else {
-                    Invoke-Git @("checkout", "--track", "-b", $Branch, "origin/$Branch")
-                }
-            }
-
-            Invoke-Git @("pull", "--ff-only", "origin", $Branch)
-
-            $postPullSha = (git rev-parse HEAD).Trim()
-            $remoteHeadShaAfterPull = (git rev-parse "origin/$Branch").Trim()
-            if ($postPullSha -ne $remoteHeadShaAfterPull) {
-                throw "Deployment checkout does not match origin/$Branch after pull. Local=$postPullSha Remote=$remoteHeadShaAfterPull"
+            else {
+                Invoke-Git @("checkout", "--track", "-b", $Branch, "origin/$Branch")
             }
         }
-        finally {
-            if (Test-Path $preserveEnv) {
-                Copy-Item $preserveEnv ".env" -Force
-            }
-            if (Test-Path $preserveConfig) {
-                New-Item -ItemType Directory -Force -Path "backend/config" | Out-Null
-                Copy-Item $preserveConfig "." -Recurse -Force
-            }
-            Remove-Item $preserveRoot -Recurse -Force -ErrorAction SilentlyContinue
+
+        Invoke-Git @("pull", "--ff-only", "origin", $Branch)
+
+        $postPullSha = (git rev-parse HEAD).Trim()
+        $remoteHeadShaAfterPull = (git rev-parse "origin/$Branch").Trim()
+        if ($postPullSha -ne $remoteHeadShaAfterPull) {
+            throw "Deployment checkout does not match origin/$Branch after pull. Local=$postPullSha Remote=$remoteHeadShaAfterPull"
         }
     }
 
