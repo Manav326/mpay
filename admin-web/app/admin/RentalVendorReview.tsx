@@ -13,6 +13,7 @@ export default function RentalVendorReview() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<RentalAdminVendor | null>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [vehicleRejectReasons, setVehicleRejectReasons] = useState<Record<string,string>>({});
@@ -138,6 +139,73 @@ export default function RentalVendorReview() {
       )}
     </section>
 
+    {selectedVehicle && <div className="drawer-overlay" onClick={() => setSelectedVehicle(null)}>
+      <aside className="user-drawer user-drawer-wide" onClick={e => e.stopPropagation()}>
+        <div className="drawer-head">
+          <div>
+            <div className="eyebrow">Vehicle inspection</div>
+            <h2>{selectedVehicle.name}</h2>
+            <div className="drawer-subtitle">
+              <span>{selectedVehicle.approvalStatus || 'PENDING_REVIEW'}</span>
+              <span>{selected?.fullName || 'Vendor'}</span>
+            </div>
+          </div>
+          <button className="icon-btn" onClick={() => setSelectedVehicle(null)}><X/></button>
+        </div>
+
+        <section className="drawer-section">
+          <div className="drawer-section-title"><div><h3>Vehicle photos</h3><p>All submitted vehicle photos plus the assigned driver's photo.</p></div></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+            {(selectedVehicle.imageUrl || '').split('|').filter(Boolean).map((src:string, i:number) => (
+              <img key={i} src={src.startsWith('http') ? src : ((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '') + '/' + src.replace(/^\//,''))} alt={'Vehicle photo ' + (i + 1)} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 12, border: '1px solid #e5e7eb' }} />
+            ))}
+            {selectedVehicle.driverPhotoUrl && <div style={{ position:'relative' }}>
+              <img src={selectedVehicle.driverPhotoUrl.startsWith('http') ? selectedVehicle.driverPhotoUrl : ((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '') + '/' + selectedVehicle.driverPhotoUrl.replace(/^\//,''))} alt="Driver" style={{ width:'100%', aspectRatio:'1', objectFit:'cover', borderRadius:12, border:'2px solid #1d4ed8' }} />
+              <span style={{ position:'absolute', top:6, right:6, background:'#fff', borderRadius:7, padding:'3px 6px', fontSize:11, fontWeight:700 }}>DRIVER</span>
+            </div>}
+          </div>
+        </section>
+
+        <section className="detail-grid detail-grid-3">
+          <div><small>Vehicle ID</small><b>{selectedVehicle.id}</b></div>
+          <div><small>Name</small><b>{selectedVehicle.name}</b></div>
+          <div><small>Category</small><b>{selectedVehicle.category}</b></div>
+          <div><small>Make</small><b>{selectedVehicle.make || '—'}</b></div>
+          <div><small>Model</small><b>{selectedVehicle.model || '—'}</b></div>
+          <div><small>Variant</small><b>{selectedVehicle.variant || '—'}</b></div>
+          <div><small>Seats</small><b>{selectedVehicle.seats}</b></div>
+          <div><small>Transmission</small><b>{selectedVehicle.transmission}</b></div>
+          <div><small>Fuel</small><b>{selectedVehicle.fuelType || '—'}</b></div>
+          <div><small>Manufacturing year</small><b>{selectedVehicle.manufacturingYear || '—'}</b></div>
+          <div><small>Registration year</small><b>{selectedVehicle.registrationYear || '—'}</b></div>
+          <div><small>Registration number</small><b>{selectedVehicle.registrationNumber || '—'}</b></div>
+          <div><small>Price / day</small><b>{INR.format(Number(selectedVehicle.pricePerDay))}</b></div>
+          <div><small>Pickup address</small><b>{selectedVehicle.pickupAddress || '—'}</b></div>
+          <div><small>City / state</small><b>{[selectedVehicle.city, selectedVehicle.state].filter(Boolean).join(', ') || '—'}</b></div>
+          <div><small>Pickup latitude</small><b>{selectedVehicle.pickupLatitude ?? '—'}</b></div>
+          <div><small>Pickup longitude</small><b>{selectedVehicle.pickupLongitude ?? '—'}</b></div>
+          <div><small>Pickup Place ID</small><b>{selectedVehicle.pickupPlaceId || '—'}</b></div>
+          <div><small>Status</small><b>{selectedVehicle.approvalStatus || 'PENDING_REVIEW'}</b></div>
+          <div><small>Rejection reason</small><b>{selectedVehicle.rejectionReason || '—'}</b></div>
+          <div><small>Driver name</small><b>{selectedVehicle.driverName || '—'}</b></div>
+          <div><small>Driver mobile</small><b>{selectedVehicle.driverMobile || '—'}</b></div>
+          <div><small>Licence number</small><b>{selectedVehicle.driverLicenseNumber || '—'}</b></div>
+          <div><small>Licence expiry</small><b>{selectedVehicle.driverLicenseExpiry ? dateTime(selectedVehicle.driverLicenseExpiry) : '—'}</b></div>
+          <div><small>Driver address</small><b>{selectedVehicle.driverAddress || '—'}</b></div>
+        </section>
+
+        <div className="drawer-note"><ShieldCheck size={15}/> Approval requires a verified vendor and a valid assigned driver. Review the full submission before changing status.</div>
+
+        {selectedVehicle.approvalStatus !== 'APPROVED' && (
+          <div style={{ display:'flex', gap:8, alignItems:'center', justifyContent:'flex-end', flexWrap:'wrap' }}>
+            <input value={vehicleRejectReasons[selectedVehicle.id] || ''} onChange={e => setVehicleRejectReasons(current=>({...current,[selectedVehicle.id]:e.target.value}))} placeholder="Reason to reject" style={{ minWidth: 240 }} />
+            <button className="secondary" disabled={busy === 'vehicle-' + selectedVehicle.id || !(vehicleRejectReasons[selectedVehicle.id] || '').trim()} onClick={async () => { await rejectVehicle(selectedVehicle.id); setSelectedVehicle(null); }}>Reject</button>
+            <button className="primary" disabled={busy === 'vehicle-' + selectedVehicle.id || selected?.status.toUpperCase() !== 'VERIFIED'} onClick={async () => { await approveVehicle(selectedVehicle.id); setSelectedVehicle(null); }}>Approve vehicle</button>
+          </div>
+        )}
+      </aside>
+    </div>}
+
     {selected && <div className="drawer-overlay" onClick={() => setSelected(null)}>
       <aside className="user-drawer user-drawer-wide" onClick={e => e.stopPropagation()}>
         <div className="drawer-head">
@@ -170,6 +238,7 @@ export default function RentalVendorReview() {
                   <span>{c.city || '—'} · {INR.format(Number(c.pricePerDay))}/day · Driver: {c.driverName}</span>
                   <span>Status: {c.approvalStatus || 'PENDING_REVIEW'}</span>
                 </div>
+                <button className="secondary" onClick={() => setSelectedVehicle(c)}>Inspect all details</button>
                 {c.approvalStatus !== 'APPROVED' && <>
                   <input value={vehicleRejectReasons[c.id] || ''} onChange={e => setVehicleRejectReasons(current=>({...current,[c.id]:e.target.value}))} placeholder="Reason to reject" style={{ maxWidth: 160 }}/>
                   <button className="secondary" disabled={busy === 'vehicle-' + c.id || !(vehicleRejectReasons[c.id] || '').trim()} onClick={() => rejectVehicle(c.id)}>Reject</button>
