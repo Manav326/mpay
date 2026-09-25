@@ -480,7 +480,24 @@ class RentalService(
         val durationMinutes = ChronoUnit.MINUTES.between(request.startDate, request.endDate)
         val days = ((durationMinutes + 1439) / 1440).coerceAtLeast(1)
         val total = car.pricePerDay.multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP)
-        return RentalBookingQuoteResponse(request.carId, car.name, driver.fullName, request.pickupLocation.trim(), request.dropLocation.trim(), request.startDate, request.endDate, days, car.pricePerDay.setScale(2), total)
+        return RentalBookingQuoteResponse(
+            carId = request.carId,
+            carName = car.name,
+            driverName = driver.fullName,
+            pickup = request.pickupLocation.trim(),
+            drop = request.dropLocation.trim(),
+            pickupLatitude = request.pickupCoordinates?.latitude,
+            pickupLongitude = request.pickupCoordinates?.longitude,
+            pickupPlaceId = request.pickupCoordinates?.placeId,
+            dropLatitude = request.dropCoordinates?.latitude,
+            dropLongitude = request.dropCoordinates?.longitude,
+            dropPlaceId = request.dropCoordinates?.placeId,
+            startDate = request.startDate,
+            endDate = request.endDate,
+            days = days,
+            pricePerDay = car.pricePerDay.setScale(2),
+            total = total
+        )
     }
 
     @Transactional
