@@ -14,7 +14,7 @@ val mapsApiKey = providers.gradleProperty("mapsApiKey")
 
 android {
     namespace = "com.recharge.client"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.recharge.client"
@@ -77,7 +77,7 @@ dependencies {
     implementation("com.razorpay:checkout:1.6.41")
     implementation("in.payu:payu-checkout-pro:3.3.14")
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("com.google.maps.android:maps-compose:8.4.0")
+    implementation("com.google.maps.android:maps-compose:7.0.0")
     implementation("com.google.android.libraries.places:places:5.3.0")
 
     testImplementation("junit:junit:4.13.2")
