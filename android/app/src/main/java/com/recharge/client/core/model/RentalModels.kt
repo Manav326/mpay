@@ -55,6 +55,13 @@ data class RentalVendorUpdateRequest(
     val payoutPrimaryMethod: String? = null
 )
 
+data class RentalLocationInput(
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+    val placeId: String? = null
+)
+
 data class RentalDriverRequest(
     val fullName: String,
     val mobile: String,
@@ -79,6 +86,7 @@ data class RentalVehicleOnboardingRequest(
     val city: String,
     val state: String,
     val pricePerDay: BigDecimal,
+    val pickupLocation: RentalLocationInput? = null,
     val imageUrl: String? = null,
     val driver: RentalDriverRequest
 )
@@ -100,6 +108,9 @@ data class RentalCarResponse(
     val driverMobile: String? = null,
     val driverPhotoUrl: String? = null,
     val driverRating: BigDecimal? = null,
+    val pickupLatitude: Double? = null,
+    val pickupLongitude: Double? = null,
+    val pickupPlaceId: String? = null,
     val approvalStatus: String? = null,
     val rejectionReason: String? = null,
     val make: String? = null,
@@ -137,6 +148,8 @@ data class RentalBookingQuoteRequest(
     val carId: String,
     val pickupLocation: String,
     val dropLocation: String,
+    val pickupCoordinates: RentalLocationInput? = null,
+    val dropCoordinates: RentalLocationInput? = null,
     val startDate: String,
     val endDate: String
 )
@@ -159,6 +172,8 @@ data class RentalBookingRequest(
     val carId: String,
     val pickupLocation: String,
     val dropLocation: String,
+    val pickupCoordinates: RentalLocationInput? = null,
+    val dropCoordinates: RentalLocationInput? = null,
     val startDate: String,
     val endDate: String,
     val paymentMethod: String = "WALLET"
@@ -172,6 +187,12 @@ data class RentalBookingResponse(
     val carImageUrl: String? = null,
     val pickup: String,
     val drop: String,
+    val pickupLatitude: Double? = null,
+    val pickupLongitude: Double? = null,
+    val pickupPlaceId: String? = null,
+    val dropLatitude: Double? = null,
+    val dropLongitude: Double? = null,
+    val dropPlaceId: String? = null,
     val startDate: String,
     val endDate: String,
     val total: BigDecimal,
