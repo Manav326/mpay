@@ -2087,11 +2087,17 @@ fun RentalVehicleOnboardingScreen(
             val manufacturing = manufacturingYear.toIntOrNull()
             val registration = registrationYear.toIntOrNull()
             val normalizedDriverMobile = normalizeIndianMobile(driverMobile)
+            val licenseExpiryDate = runCatching {
+                LocalDate.parse(
+                    licenseExpiry.take(10),
+                    rentalDateFormatter
+                )
+            }.getOrNull()
             val valid = name.trim().isNotBlank() &&
                 make.trim().isNotBlank() &&
                 model.trim().isNotBlank() &&
                 registrationNumber.trim().isNotBlank() &&
-                pickupAddress.trim().isNotBlank() &&
+                pickupLocation != null &&
                 city.trim().isNotBlank() &&
                 stateName.trim().isNotBlank() &&
                 driverName.trim().isNotBlank() &&
@@ -2108,6 +2114,7 @@ fun RentalVehicleOnboardingScreen(
             Button(
                 onClick = {
                     submitAttempted = true
+                    if (!valid) return@Button
                     val driver = RentalDriverRequest(
                         driverName.trim(),
                         normalizeIndianMobile(driverMobile),
@@ -2160,6 +2167,7 @@ fun RentalVehicleOnboardingScreen(
                                 city = city.trim(),
                                 state = stateName.trim(),
                                 pricePerDay = pricePerDay.toBigDecimal(),
+                                pickupLocation = pickupLocation,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
