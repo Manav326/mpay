@@ -45,6 +45,7 @@ app:
     base-url: https://app.way2api.com
     operator-check-path: /api/v1/operator-circle/check
     r-offer-path: /api/v1/mobile/r-offer
+    recharge-plans-path: /api/v1/mobile/recharge-plans
     connect-timeout-ms: ${MPAY_WAY2API_CONNECT_TIMEOUT_MS:5000}
     read-timeout-ms: ${MPAY_WAY2API_READ_TIMEOUT_MS:45000}
     r-offer-read-timeout-ms: ${MPAY_WAY2API_R_OFFER_READ_TIMEOUT_MS:50000}
