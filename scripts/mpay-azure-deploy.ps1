@@ -75,7 +75,11 @@ try {
 
         Assert-CleanCheckout
 
-        Invoke-Git @("fetch", "--prune", "origin", $Branch)
+        # Fetch the exact branch ref into origin/<branch> explicitly. This avoids
+        # relying on the repository's remote.fetch configuration, which can leave
+        # origin/<branch> stale even when FETCH_HEAD/local HEAD advance successfully.
+        $remoteRefSpec = "${Branch}:refs/remotes/origin/${Branch}"
+        Invoke-Git @("fetch", "--prune", "origin", $remoteRefSpec)
 
         $remoteBranchSha = (git rev-parse "origin/$Branch").Trim()
         if ($LASTEXITCODE -ne 0 -or $remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
@@ -93,7 +97,7 @@ try {
             }
         }
 
-        Invoke-Git @("pull", "--ff-only", "origin", $Branch)
+        Invoke-Git @("merge", "--ff-only", "origin/$Branch")
 
         $postPullSha = (git rev-parse HEAD).Trim()
         $remoteHeadShaAfterPull = (git rev-parse "origin/$Branch").Trim()
