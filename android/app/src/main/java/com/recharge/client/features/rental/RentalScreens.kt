@@ -133,7 +133,7 @@ private fun rentalBookingDisplayStatus(booking: RentalBookingResponse): Pair<Str
 }
 
 private fun normalizeIndianMobile(value: String): String =
-    value.filter(Char::isDigit).let { digits -> if (digits.length > 10) digits.takeLast(10) else digits }
+    value.filter(Char::isDigit).take(10)
 
 private fun normalizeLicenseExpiry(value: String): String =
     runCatching {
@@ -179,11 +179,15 @@ private fun VendorField(
     )
 }
 private val rentalVehicleTextPattern = Regex("""[^\\p{L}0-9 .&'()\\-]""")
+private val rentalVehicleAlphaNumericPattern = Regex("""[^\p{L}0-9 ]""")
 private val rentalRegistrationPattern = Regex("""[^A-Za-z0-9 -]""")
 private val rentalLicensePattern = Regex("""[^A-Za-z0-9 -]""")
 
 private fun sanitizeVehicleText(value: String, maxLength: Int = 120): String =
     rentalVehicleTextPattern.replace(value, "").take(maxLength)
+
+private fun sanitizeVehicleAlphaNumeric(value: String, maxLength: Int): String =
+    rentalVehicleAlphaNumericPattern.replace(value, "").take(maxLength)
 
 private fun sanitizeRegistration(value: String): String =
     rentalRegistrationPattern.replace(value.uppercase(Locale.ENGLISH), "").take(32)
@@ -1844,7 +1848,7 @@ fun RentalVehicleOnboardingScreen(
                         Spacer(Modifier.width(8.dp))
                         Column {
                             Text("1. Vehicle details", style = MaterialTheme.typography.titleMedium)
-                            Text("Identity, specifications, pickup and daily price", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text("Identity, specifications and daily price", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                     }
 
@@ -1853,16 +1857,16 @@ fun RentalVehicleOnboardingScreen(
                             "Vehicle name",
                             form.name,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
+                            filter = { sanitizeVehicleAlphaNumeric(it, 120) },
                             error = if (form.submitAttempted && form.name.isBlank()) "Vehicle name is required" else null,
-                            helper = "Use letters, numbers, spaces and common separators.",
+                            helper = "Letters, numbers and spaces only.",
                             onValueChange = { form.name = it }
                         )
                         VendorField(
                             "Make",
                             form.make,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
+                            filter = { sanitizeVehicleAlphaNumeric(it, 80) },
                             error = if (form.submitAttempted && form.make.isBlank()) "Make is required" else null,
                             onValueChange = { form.make = it }
                         )
@@ -1872,7 +1876,7 @@ fun RentalVehicleOnboardingScreen(
                             "Model",
                             form.model,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
+                            filter = { sanitizeVehicleAlphaNumeric(it, 80) },
                             error = if (form.submitAttempted && form.model.isBlank()) "Model is required" else null,
                             onValueChange = { form.model = it }
                         )
@@ -1880,8 +1884,8 @@ fun RentalVehicleOnboardingScreen(
                             "Variant (optional)",
                             form.variant,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
-                            helper = "Trim/version; leave blank when not applicable.",
+                            filter = { sanitizeVehicleAlphaNumeric(it, 80) },
+                            helper = "Letters, numbers and spaces only; optional.",
                             onValueChange = { form.variant = it }
                         )
                     }
@@ -1944,17 +1948,6 @@ fun RentalVehicleOnboardingScreen(
                             onValueChange = { form.stateName = it }
                         )
                     }
-                    RentalLocationPickerField(
-                        label = "Pickup location",
-                        value = form.pickupLocation,
-                        required = true,
-                        helper = "Search and choose the exact base location for this vehicle.",
-                        error = if (form.submitAttempted && form.pickupLocation == null) "Pickup location is required" else null,
-                        onSelected = {
-                            form.pickupLocation = it
-                            form.pickupAddress = it.address
-                        }
-                    )
                     VendorField(
                         "Price per day (₹)",
                         form.pricePerDay,
@@ -1976,7 +1969,7 @@ fun RentalVehicleOnboardingScreen(
                 ) {
                     Text("Vehicle photos", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Use either an image URL or a photo from your device for each slot.",
+                        "All four vehicle photos are mandatory. Use an image URL or a photo from your device for each slot.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -2018,6 +2011,19 @@ fun RentalVehicleOnboardingScreen(
                             },
                             { form.galleryInterior = null },
                             Modifier.weight(1f)
+                        )
+                    }
+                    val vehiclePhotosComplete = listOf(
+                        form.photoFront.isNotBlank() || form.galleryFront != null,
+                        form.photoSide.isNotBlank() || form.gallerySide != null,
+                        form.photoRear.isNotBlank() || form.galleryRear != null,
+                        form.photoInterior.isNotBlank() || form.galleryInterior != null
+                    ).all { it }
+                    if (form.submitAttempted && !vehiclePhotosComplete) {
+                        Text(
+                            "Front, side, rear and interior vehicle photos are required.",
+                            color = AppColors.Error,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -2083,8 +2089,8 @@ fun RentalVehicleOnboardingScreen(
                             modifier = Modifier.weight(1f),
                             keyboardType = KeyboardType.Phone,
                             filter = ::normalizeIndianMobile,
-                            error = if (form.submitAttempted && !normalizeIndianMobile(form.driverMobile).matches(Regex("[6-9][0-9]{9}"))) "Enter a valid 10-digit mobile number" else null,
-                            helper = "Only numbers; Indian mobile starting 6–9.",
+                            error = if (form.submitAttempted && !normalizeIndianMobile(form.driverMobile).matches(Regex("[0-9]{10}"))) "Enter exactly 10 digits" else null,
+                            helper = "Enter exactly 10 digits.",
                             onValueChange = { form.driverMobile = it }
                         )
                     }
@@ -2120,6 +2126,12 @@ fun RentalVehicleOnboardingScreen(
             val manufacturing = form.manufacturingYear.toIntOrNull()
             val registration = form.registrationYear.toIntOrNull()
             val normalizedDriverMobile = normalizeIndianMobile(form.driverMobile)
+            val vehiclePhotosComplete = listOf(
+                form.photoFront.isNotBlank() || form.galleryFront != null,
+                form.photoSide.isNotBlank() || form.gallerySide != null,
+                form.photoRear.isNotBlank() || form.galleryRear != null,
+                form.photoInterior.isNotBlank() || form.galleryInterior != null
+            ).all { it }
             val licenseExpiryDate = runCatching {
                 LocalDate.parse(form.licenseExpiry.take(10), rentalDateFormatter)
             }.getOrNull()
@@ -2127,15 +2139,15 @@ fun RentalVehicleOnboardingScreen(
                 form.make.trim().isNotBlank() &&
                 form.model.trim().isNotBlank() &&
                 form.registrationNumber.trim().isNotBlank() &&
-                form.pickupLocation != null &&
                 form.city.trim().isNotBlank() &&
                 form.stateName.trim().isNotBlank() &&
                 form.driverName.trim().isNotBlank() &&
-                normalizedDriverMobile.matches(Regex("[6-9][0-9]{9}")) &&
+                normalizedDriverMobile.matches(Regex("[0-9]{10}")) &&
                 form.licenseNumber.trim().isNotBlank() &&
                 licenseExpiryDate?.isAfter(LocalDate.now()) == true &&
                 form.pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
                 form.seats.toIntOrNull()?.let { it in 2..8 } == true &&
+                vehiclePhotosComplete &&
                 manufacturing != null &&
                 registration != null &&
                 manufacturing in earliestVehicleYear..currentVehicleYear &&
@@ -2171,7 +2183,7 @@ fun RentalVehicleOnboardingScreen(
                                 city = form.city.trim(),
                                 state = form.stateName.trim(),
                                 pricePerDay = form.pricePerDay.toBigDecimal(),
-                                pickupLocation = form.pickupLocation,
+                                pickupLocation = null,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
@@ -2197,7 +2209,7 @@ fun RentalVehicleOnboardingScreen(
                                 city = form.city.trim(),
                                 state = form.stateName.trim(),
                                 pricePerDay = form.pricePerDay.toBigDecimal(),
-                                pickupLocation = form.pickupLocation,
+                                pickupLocation = null,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
