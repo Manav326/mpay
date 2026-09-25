@@ -93,7 +93,7 @@ try {
                 Invoke-Git @("checkout", $Branch)
             }
             else {
-                Invoke-Git @("checkout", "--track", "-b", $Branch, "origin/$Branch")
+                Invoke-Git @("checkout", "-b", $Branch, "refs/remotes/origin/$Branch")
             }
         }
 
