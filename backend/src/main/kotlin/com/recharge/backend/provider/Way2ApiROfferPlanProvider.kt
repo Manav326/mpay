@@ -24,9 +24,9 @@ import java.security.MessageDigest
 class Way2ApiROfferPlanProvider(
     @Value("\${app.way2api.base-url}") private val baseUrl: String,
     @Value("\${app.way2api.api-key}") private val apiKey: String,
-    @Value("\${app.way2api.r-offer-path:/api/v1/mobile/r-offer}") private val rOfferPath: String,
+    @Value("\${app.way2api.recharge-plans-path:/api/v1/mobile/recharge-plans}") private val rechargePlansPath: String,
     @Value("\${app.way2api.connect-timeout-ms:5000}") private val connectTimeoutMs: Long,
-    @Value("\${app.way2api.r-offer-read-timeout-ms:50000}") private val readTimeoutMs: Long,
+    @Value("\${app.way2api.read-timeout-ms:45000}") private val readTimeoutMs: Long,
     private val objectMapper: ObjectMapper
 ) : PlanCatalogProvider {
 
