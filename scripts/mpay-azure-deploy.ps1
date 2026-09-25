@@ -75,16 +75,22 @@ try {
 
         Assert-CleanCheckout
 
-        # Fetch the exact branch ref into origin/<branch> explicitly. This avoids
-        # relying on the repository's remote.fetch configuration, which can leave
-        # origin/<branch> stale even when FETCH_HEAD/local HEAD advance successfully.
-        $remoteRefSpec = "${Branch}:refs/remotes/origin/${Branch}"
-        Invoke-Git @("fetch", "--prune", "origin", $remoteRefSpec)
-
-        $remoteBranchSha = (git rev-parse "origin/$Branch").Trim()
-        if ($LASTEXITCODE -ne 0 -or $remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
-            throw "Remote branch origin/$Branch was not found."
+        # Read the authoritative remote branch SHA directly from the remote. Do not
+        # depend on refs/remotes/origin/<branch>, because this VM may have been created
+        # from a single-branch clone where remote-tracking refs are incomplete.
+        $lsRemoteOutput = @(git ls-remote origin "refs/heads/$Branch")
+        if ($LASTEXITCODE -ne 0 -or $lsRemoteOutput.Count -eq 0) {
+            throw "Remote branch refs/heads/$Branch was not found."
         }
+
+        $remoteBranchSha = (($lsRemoteOutput[0] -split "\s+")[0]).Trim()
+        if ($remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
+            throw "Could not determine the remote SHA for refs/heads/$Branch."
+        }
+
+        # Fetch the exact branch into FETCH_HEAD. This works for both normal and
+        # single-branch clones without relying on remote-tracking branch configuration.
+        Invoke-Git @("fetch", "origin", "refs/heads/$Branch")
 
         $currentBranch = Get-CurrentBranch
         if ($currentBranch -ne $Branch) {
@@ -93,16 +99,15 @@ try {
                 Invoke-Git @("checkout", $Branch)
             }
             else {
-                Invoke-Git @("checkout", "-b", $Branch, "refs/remotes/origin/$Branch")
+                Invoke-Git @("checkout", "-b", $Branch, "FETCH_HEAD")
             }
         }
 
-        Invoke-Git @("merge", "--ff-only", "origin/$Branch")
+        Invoke-Git @("merge", "--ff-only", "FETCH_HEAD")
 
         $postPullSha = (git rev-parse HEAD).Trim()
-        $remoteHeadShaAfterPull = (git rev-parse "origin/$Branch").Trim()
-        if ($postPullSha -ne $remoteHeadShaAfterPull) {
-            throw "Deployment checkout does not match origin/$Branch after pull. Local=$postPullSha Remote=$remoteHeadShaAfterPull"
+        if ($postPullSha -ne $remoteBranchSha) {
+            throw "Deployment checkout does not match remote/$Branch after fetch. Local=$postPullSha Remote=$remoteBranchSha"
         }
     }
 
