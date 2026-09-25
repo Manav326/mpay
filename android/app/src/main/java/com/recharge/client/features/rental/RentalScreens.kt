@@ -1732,9 +1732,7 @@ private class RentalVehicleFormState(car: RentalCarResponse?) {
                 longitude = car.pickupLongitude,
                 placeId = car.pickupPlaceId
             )
-        } else {
-            null
-        }
+        } else null
     )
     var city by mutableStateOf(car?.city.orEmpty())
     var stateName by mutableStateOf(car?.state.orEmpty())
@@ -1765,7 +1763,7 @@ fun RentalVehicleOnboardingScreen(
 ) {
     val form = remember(editingCar?.id) { RentalVehicleFormState(editingCar) }
 
-val currentVehicleYear = LocalDate.now().year
+    val currentVehicleYear = LocalDate.now().year
     val earliestVehicleYear = currentVehicleYear - 20
     val manufacturingYearOptions = (earliestVehicleYear..currentVehicleYear).map(Int::toString)
     val selectedManufacturingYear = form.manufacturingYear.toIntOrNull()
@@ -1851,11 +1849,11 @@ val currentVehicleYear = LocalDate.now().year
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         VendorField(
-                            "Vehicle form.name",
+                            "Vehicle name",
                             form.name,
                             modifier = Modifier.weight(1f),
                             filter = ::sanitizeVehicleText,
-                            error = if (form.submitAttempted && form.name.isBlank()) "Vehicle form.name is required" else null,
+                            error = if (form.submitAttempted && form.name.isBlank()) "Vehicle name is required" else null,
                             helper = "Use letters, numbers, spaces and common separators.",
                             onValueChange = { form.name = it }
                         )
@@ -1887,7 +1885,7 @@ val currentVehicleYear = LocalDate.now().year
                         )
                     }
                     Text(
-                        "Model = vehicle series; form.variant = the specific trim or version.",
+                        "Model = vehicle series; variant = the specific trim or version.",
                         style = MaterialTheme.typography.labelSmall,
                         color = AppColors.TextSecondary
                     )
@@ -2071,11 +2069,11 @@ val currentVehicleYear = LocalDate.now().year
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         VendorField(
-                            "Driver full form.name",
+                            "Driver full name",
                             form.driverName,
                             modifier = Modifier.weight(1f),
                             filter = { sanitizeVehicleText(it, 120) },
-                            error = if (form.submitAttempted && form.driverName.isBlank()) "Driver form.name is required" else null,
+                            error = if (form.submitAttempted && form.driverName.isBlank()) "Driver name is required" else null,
                             onValueChange = { form.driverName = it }
                         )
                         VendorField(
