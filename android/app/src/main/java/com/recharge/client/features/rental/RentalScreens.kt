@@ -1546,7 +1546,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -1582,17 +1582,26 @@ fun CarRentalMarketplaceScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RentalCarImageTile(
-                                    car.driverPhotoUrl,
-                                    Modifier.size(40.dp)
-                                )
-                                Column(Modifier.weight(1f)) {
+                                Column(
+                                    Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                                ) {
                                     Text(
                                         car.driverName,
                                         fontWeight = FontWeight.SemiBold,
                                         style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
+                                    car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            it,
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                     Text(
                                         car.seats.toString() + " seats • " + car.transmission,
                                         color = AppColors.TextSecondary,
@@ -1600,6 +1609,12 @@ fun CarRentalMarketplaceScreen(
                                         maxLines = 1
                                     )
                                 }
+                                RentalCarImageTile(
+                                    car.driverPhotoUrl,
+                                    Modifier
+                                        .size(42.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                )
                             }
 
                             Row(
@@ -1647,6 +1662,9 @@ fun CarRentalMarketplaceScreen(
                                 }
                             }
                         }
+                    }
+                    if (rowCars.size == 1) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
