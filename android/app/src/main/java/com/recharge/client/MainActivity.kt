@@ -96,6 +96,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             ?.let { runCatching { RazorpayCheckoutTarget.valueOf(it) }.getOrNull() }
         pendingRazorpayOrderId = savedInstanceState?.getString(STATE_RAZORPAY_ORDER_ID)
         Checkout.preload(applicationContext)
+        if (BuildConfig.MAPS_API_KEY.isNotBlank() && !com.google.android.libraries.places.api.Places.isInitialized()) {
+            com.google.android.libraries.places.api.Places.initializeWithNewPlacesApiEnabled(
+                applicationContext,
+                BuildConfig.MAPS_API_KEY
+            )
+        }
         setContent { RechargeTheme { AppRoot(::startWalletPaymentCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, rechargeViewModel = rechargeViewModel) } }
     }
 
