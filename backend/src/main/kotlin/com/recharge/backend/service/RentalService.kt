@@ -188,7 +188,7 @@ class RentalService(
     fun onboardVehicle(userId: Long, request: RentalVehicleOnboardingRequest): RentalCarResponse {
         val vendor = verifiedVendor(userId)
         val vendorId = requireNotNull(vendor.id)
-        require(request.seats in 1..20) { "Seats must be between 1 and 20" }
+        require(request.seats in 2..8) { "Seats must be between 2 and 8" }
         validateVehicleYears(request.manufacturingYear, request.registrationYear)
         require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
         require(!cars.existsByRegistrationNumberIgnoreCase(request.registrationNumber.trim())) { "A vehicle with this registration number already exists" }
@@ -224,7 +224,10 @@ class RentalService(
                 manufacturingYear = request.manufacturingYear,
                 fuelType = request.fuelType.trim(),
                 registrationYear = request.registrationYear,
-                pickupAddress = request.pickupAddress.trim(),
+                pickupAddress = request.pickupLocation?.address?.trim()?.takeIf { it.isNotBlank() } ?: request.pickupAddress.trim(),
+                pickupLatitude = request.pickupLocation?.latitude,
+                pickupLongitude = request.pickupLocation?.longitude,
+                pickupPlaceId = request.pickupLocation?.placeId?.trim()?.takeIf { it.isNotBlank() },
                 city = request.city.trim(),
                 state = request.state.trim(),
                 imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() },
@@ -241,11 +244,14 @@ class RentalService(
         val vendorId = requireNotNull(vendor.id)
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
         require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
-        require(car.approvalStatus == "REJECTED") { "Only rejected vehicles can be corrected and resubmitted" }
+        val currentOffMarket = isVehicleCurrentlyOffMarket(requireNotNull(car.id))
+        require(car.approvalStatus != "APPROVED" || currentOffMarket) {
+            "An approved vehicle can only be edited while it is off market"
+        }
         val driverId = requireNotNull(car.driverId) { "Vehicle driver is missing" }
         val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Vehicle driver not found") }
 
-        require(request.seats in 1..20) { "Seats must be between 1 and 20" }
+        require(request.seats in 2..8) { "Seats must be between 2 and 8" }
         validateVehicleYears(request.manufacturingYear, request.registrationYear)
         require(request.pricePerDay > BigDecimal.ZERO) { "Price per day must be greater than zero" }
         require(!cars.existsByRegistrationNumberIgnoreCaseAndIdNot(request.registrationNumber.trim(), carId)) {
@@ -275,15 +281,26 @@ class RentalService(
         car.manufacturingYear = request.manufacturingYear
         car.fuelType = request.fuelType.trim()
         car.registrationYear = request.registrationYear
-        car.pickupAddress = request.pickupAddress.trim()
+        car.pickupAddress = request.pickupLocation?.address?.trim()?.takeIf { it.isNotBlank() } ?: request.pickupAddress.trim()
+        car.pickupLatitude = request.pickupLocation?.latitude
+        car.pickupLongitude = request.pickupLocation?.longitude
+        car.pickupPlaceId = request.pickupLocation?.placeId?.trim()?.takeIf { it.isNotBlank() }
         car.city = request.city.trim()
         car.state = request.state.trim()
         car.imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() }
+        val wasApprovedOffMarket = car.approvalStatus == "APPROVED"
         car.approvalStatus = "PENDING_REVIEW"
         car.rejectionReason = null
         car.active = false
         cars.save(car)
-        carReviews.save(RentalCarReviewEntity(carId = carId, action = "RESUBMITTED", actorUserId = userId, createdAt = now))
+        carReviews.save(
+            RentalCarReviewEntity(
+                carId = carId,
+                action = if (wasApprovedOffMarket) "UPDATED_OFF_MARKET" else if (car.approvalStatus == "REJECTED") "RESUBMITTED" else "UPDATED_SUBMISSION",
+                actorUserId = userId,
+                createdAt = now
+            )
+        )
         return toCarResponse(car)
     }
 
@@ -323,7 +340,10 @@ class RentalService(
                 windowEnd.toLocalDate()
             )
             blockedByBookings + blockedByOffMarket
-        } ?: emptySet()
+        } ?: vehicleUnavailability.findCurrentlyOffMarketCarIds(
+            available.mapNotNull { it.id },
+            LocalDate.now()
+        )
         val now = LocalDateTime.now()
         return available
             .filter { car ->
@@ -449,6 +469,8 @@ class RentalService(
         check(car.active && car.approvalStatus == "APPROVED" && car.vendorId != null && car.driverId != null) { "Rental car is not available" }
         requireNotOwnVehicle(userId, car)
         require(request.pickupLocation.isNotBlank() && request.dropLocation.isNotBlank()) { "Pickup and drop locations are required" }
+        validateStructuredLocation(request.pickupCoordinates, "Pickup")
+        validateStructuredLocation(request.dropCoordinates, "Drop")
         require(request.endDate.isAfter(request.startDate)) { "End date must be after start date" }
         require(!request.startDate.isBefore(LocalDateTime.now())) { "Start date cannot be in the past" }
         check(!bookings.existsOverlapping(carId, listOf("PENDING", "CONFIRMED"), request.startDate, request.endDate)) { "This car is already booked for the selected dates" }
@@ -515,7 +537,14 @@ class RentalService(
         val saved = bookings.save(
             RentalBookingEntity(
                 bookingId = bookingId, userId = userId, carId = carId,
-                pickupLocation = request.pickupLocation.trim(), dropLocation = request.dropLocation.trim(),
+                pickupLocation = request.pickupLocation.trim(),
+                pickupLatitude = request.pickupCoordinates?.latitude,
+                pickupLongitude = request.pickupCoordinates?.longitude,
+                pickupPlaceId = request.pickupCoordinates?.placeId?.trim()?.takeIf { it.isNotBlank() },
+                dropLocation = request.dropLocation.trim(),
+                dropLatitude = request.dropCoordinates?.latitude,
+                dropLongitude = request.dropCoordinates?.longitude,
+                dropPlaceId = request.dropCoordinates?.placeId?.trim()?.takeIf { it.isNotBlank() },
                 startDate = request.startDate, endDate = request.endDate, totalAmount = total,
                 status = "CONFIRMED", walletLedgerRef = payment.walletLedgerRef,
                 paymentMethod = payment.method, paymentId = payment.id,
@@ -539,6 +568,7 @@ class RentalService(
         val car = cars.findByIdForUpdate(carId)
             .orElseThrow { IllegalArgumentException("Vehicle not found") }
         require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        prepareVehicleForEdit(car, "PHOTO_UPDATED", userId)
 
         val slots = rentalPhotoSlots(car.imageUrl)
         val oldValue = slots[slot]
@@ -574,6 +604,9 @@ class RentalService(
         val vendorId = requireNotNull(vendor.id)
         val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Driver not found") }
         require(driver.vendorId == vendorId) { "Driver does not belong to this vendor" }
+        val car = cars.findAllByVendorIdOrderByIdDesc(vendorId).firstOrNull { it.driverId == driverId }
+            ?: throw IllegalArgumentException("Vehicle for driver not found")
+        prepareVehicleForEdit(car, "DRIVER_PHOTO_UPDATED", userId)
 
         val oldValue = driver.photoUrl.orEmpty()
         val oldStoredKey = oldValue.removePrefix(RENTAL_PHOTO_URL_PREFIX)
@@ -589,8 +622,6 @@ class RentalService(
         }
         if (oldStoredKey != null) rentalImageStorage.delete(oldStoredKey)
 
-        val car = cars.findAllByVendorIdOrderByIdDesc(vendorId).firstOrNull { it.driverId == driverId }
-            ?: throw IllegalArgumentException("Vehicle for driver not found")
         return toCarResponse(car)
     }
 
@@ -971,6 +1002,37 @@ class RentalService(
         return toCarResponse(car)
     }
 
+    private fun isVehicleCurrentlyOffMarket(carId: Long): Boolean =
+        vehicleUnavailability.existsOverlapping(carId, LocalDate.now(), LocalDate.now())
+
+    private fun prepareVehicleForEdit(car: RentalCarEntity, action: String, actorUserId: Long) {
+        val offMarket = isVehicleCurrentlyOffMarket(requireNotNull(car.id))
+        require(car.approvalStatus != "APPROVED" || offMarket) {
+            "An approved vehicle can only be edited while it is off market"
+        }
+        if (car.approvalStatus == "APPROVED") {
+            car.approvalStatus = "PENDING_REVIEW"
+            car.active = false
+            car.rejectionReason = null
+            cars.save(car)
+            carReviews.save(
+                RentalCarReviewEntity(
+                    carId = requireNotNull(car.id),
+                    action = action,
+                    actorUserId = actorUserId,
+                    createdAt = Instant.now()
+                )
+            )
+        }
+    }
+
+    private fun validateStructuredLocation(location: RentalLocationRequest?, label: String) {
+        if (location == null) return
+        require(location.address.isNotBlank()) { "$label location address is required" }
+        require(location.latitude in -90.0..90.0) { "$label latitude is invalid" }
+        require(location.longitude in -180.0..180.0) { "$label longitude is invalid" }
+    }
+
     private fun verifiedVendor(userId: Long): RentalVendorEntity {
         val vendor = vendors.findByUserId(userId).orElseThrow { IllegalArgumentException("Complete vendor onboarding first") }
         check(vendor.status == "VERIFIED") { "Vendor onboarding is pending approval" }
@@ -998,6 +1060,9 @@ class RentalService(
             registrationYear = car.registrationYear,
             city = car.city,
             pickupAddress = car.pickupAddress,
+            pickupLatitude = car.pickupLatitude,
+            pickupLongitude = car.pickupLongitude,
+            pickupPlaceId = car.pickupPlaceId,
             imageUrl = car.imageUrl,
             pricePerDay = car.pricePerDay.setScale(2),
             driverName = driver?.fullName ?: "Driver assigned",
@@ -1017,6 +1082,7 @@ class RentalService(
             id = requireNotNull(car.id).toString(), name = car.name, category = car.category,
             seats = car.seats, transmission = car.transmission, fuelType = car.fuelType,
             registrationYear = car.registrationYear, city = car.city, pickupAddress = car.pickupAddress,
+            pickupLatitude = car.pickupLatitude, pickupLongitude = car.pickupLongitude, pickupPlaceId = car.pickupPlaceId,
             imageUrl = car.imageUrl, pricePerDay = car.pricePerDay.setScale(2),
             driverId = driver?.id?.toString(),
             driverName = driver?.fullName ?: "Driver assigned",
@@ -1071,6 +1137,8 @@ class RentalService(
             bookingId = b.bookingId, carName = car?.name ?: "Car", driverName = driver?.fullName ?: "Driver",
             driverMobile = driver?.mobile, carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
             pickup = b.pickupLocation, drop = b.dropLocation,
+            pickupLatitude = b.pickupLatitude, pickupLongitude = b.pickupLongitude, pickupPlaceId = b.pickupPlaceId,
+            dropLatitude = b.dropLatitude, dropLongitude = b.dropLongitude, dropPlaceId = b.dropPlaceId,
             startDate = b.startDate, endDate = b.endDate, total = b.totalAmount.setScale(2),
             paymentMethod = b.paymentMethod, status = b.status, createdAt = b.createdAt
         )
