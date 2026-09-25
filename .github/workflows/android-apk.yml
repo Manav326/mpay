@@ -52,18 +52,24 @@ jobs:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease \
+          ./gradlew --no-daemon --stacktrace \
+            :app:assembleRelease \
+            :app:bundleRelease \
             -PmpayApiBaseUrl=https://api.mpay.thinkwithsujeet.in/ \
             -x :app:lintVitalAnalyzeRelease \
             -x :app:lintVitalReportRelease \
             -x :app:lintVitalRelease
 
-      - name: Verify optimized release APK and report size
+      - name: Verify optimized release APK and AAB and report sizes
         shell: bash
         run: |
           test -f android/app/build/outputs/apk/release/app-release.apk
+          test -f android/app/build/outputs/bundle/release/app-release.aab
           ls -lh android/app/build/outputs/apk/release/app-release.apk
+          ls -lh android/app/build/outputs/bundle/release/app-release.aab
           stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/release/app-release.apk
+          stat -c "AAB_SIZE_BYTES=%s" android/app/build/outputs/bundle/release/app-release.aab
+          test -f android/app/build/outputs/mapping/release/mapping.txt
 
       - name: Set APK artifact name
         shell: bash
@@ -72,6 +78,16 @@ jobs:
           safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
           echo "MPAY_APK_ARTIFACT_NAME=mpay-android-release-${safe_branch}" >> "${GITHUB_ENV}"
           echo "APK artifact: mpay-android-release-${safe_branch}"
+
+      - name: Upload optimized Play Store AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpay-android-playstore-aab
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload optimized release APK
         uses: actions/upload-artifact@v4
