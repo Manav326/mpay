@@ -1709,7 +1709,6 @@ private fun VehiclePhotoField(
     }
 }
 
-@Composable
 private class RentalVehicleFormState(car: RentalCarResponse?) {
     private val existingPhotos = rentalPhotoSlots(car?.imageUrl)
 
