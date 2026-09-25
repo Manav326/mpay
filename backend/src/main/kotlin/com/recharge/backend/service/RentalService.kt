@@ -259,6 +259,8 @@ class RentalService(
         }
         require(request.driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver licence must be valid" }
 
+        val wasRejected = car.approvalStatus == "REJECTED"
+        val wasApprovedOffMarket = car.approvalStatus == "APPROVED"
         val now = Instant.now()
         driver.fullName = request.driver.fullName.trim()
         driver.mobile = request.driver.mobile.trim()
@@ -288,7 +290,6 @@ class RentalService(
         car.city = request.city.trim()
         car.state = request.state.trim()
         car.imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() }
-        val wasApprovedOffMarket = car.approvalStatus == "APPROVED"
         car.approvalStatus = "PENDING_REVIEW"
         car.rejectionReason = null
         car.active = false
@@ -296,7 +297,7 @@ class RentalService(
         carReviews.save(
             RentalCarReviewEntity(
                 carId = carId,
-                action = if (wasApprovedOffMarket) "UPDATED_OFF_MARKET" else if (car.approvalStatus == "REJECTED") "RESUBMITTED" else "UPDATED_SUBMISSION",
+                action = if (wasApprovedOffMarket) "UPDATED_OFF_MARKET" else if (wasRejected) "RESUBMITTED" else "UPDATED_SUBMISSION",
                 actorUserId = userId,
                 createdAt = now
             )
