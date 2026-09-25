@@ -44,6 +44,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -156,16 +158,47 @@ private fun VendorField(
     value: String,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    error: String? = null,
+    helper: String? = null,
+    filter: (String) -> String = { it },
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = { onValueChange(filter(it)) },
         enabled = enabled,
         label = { Text(label) },
         modifier = modifier.fillMaxWidth(),
-        singleLine = true
+        singleLine = true,
+        isError = !error.isNullOrBlank(),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        supportingText = {
+            (error ?: helper)?.let { Text(it, color = if (error != null) AppColors.Error else AppColors.TextSecondary) }
+        }
     )
+}
+private val rentalVehicleTextPattern = Regex("""[^\\p{L}0-9 .&'()\\-]""")
+private val rentalRegistrationPattern = Regex("""[^A-Za-z0-9 -]""")
+private val rentalLicensePattern = Regex("""[^A-Za-z0-9 -]""")
+
+private fun sanitizeVehicleText(value: String, maxLength: Int = 120): String =
+    rentalVehicleTextPattern.replace(value, "").take(maxLength)
+
+private fun sanitizeRegistration(value: String): String =
+    rentalRegistrationPattern.replace(value.uppercase(Locale.ENGLISH), "").take(32)
+
+private fun sanitizeLicense(value: String): String =
+    rentalLicensePattern.replace(value.uppercase(Locale.ENGLISH), "").take(64)
+
+private fun sanitizeDecimal(value: String): String {
+    val cleaned = value.filter { it.isDigit() || it == '.' }
+    val dot = cleaned.indexOf('.')
+    return when {
+        dot < 0 -> cleaned.take(9)
+        else -> cleaned.substring(0, dot + 1) +
+            cleaned.substring(dot + 1).filter(Char::isDigit).take(2)
+    }
 }
 
 @Composable
