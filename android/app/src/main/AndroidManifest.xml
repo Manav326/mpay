@@ -11,6 +11,9 @@
         android:icon="@drawable/mpay_logo"
         android:roundIcon="@drawable/mpay_logo"
         tools:replace="android:theme,android:label">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
         <!-- PayU Checkout Pro test environment endpoints. Remove/disable these for production. -->
         <meta-data android:name="payu_debug_mode_enabled" android:value="true" />
         <meta-data android:name="payu_web_service_url" android:value="https://test.payu.in" />

@@ -147,6 +147,18 @@ interface RentalVehicleUnavailabilityRepository : JpaRepository<RentalVehicleUna
 
     fun findAllByCarIdOrderByStartDateAsc(carId: Long): List<RentalVehicleUnavailabilityEntity>
 
+    @Query("""
+        select distinct u.carId from RentalVehicleUnavailabilityEntity u
+        where u.carId in :carIds
+          and u.status = 'ACTIVE'
+          and u.startDate <= :date
+          and u.endDate >= :date
+    """)
+    fun findCurrentlyOffMarketCarIds(
+        @Param("carIds") carIds: Collection<Long>,
+        @Param("date") date: java.time.LocalDate
+    ): Set<Long>
+
     fun findAllByVendorIdOrderByStartDateAsc(vendorId: Long): List<RentalVehicleUnavailabilityEntity>
 }
 

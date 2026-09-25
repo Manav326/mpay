@@ -70,7 +70,14 @@ class RentalServiceTest {
 
         val result = service.createBooking(
             42L,
-            RentalBookingRequest("client-1", "7", "Darbhanga", "Patna", start, end)
+            RentalBookingRequest(
+                clientRequestId = "client-1",
+                carId = "7",
+                pickupLocation = "Darbhanga",
+                dropLocation = "Patna",
+                startDate = start,
+                endDate = end
+            )
         )
 
         assertEquals(BigDecimal("6000.00"), result.total)
@@ -275,7 +282,14 @@ class RentalServiceTest {
 
         val result = service.createBooking(
             42L,
-            RentalBookingRequest("client-race", "30", "Patna", "Gaya", start, end)
+            RentalBookingRequest(
+                clientRequestId = "client-race",
+                carId = "30",
+                pickupLocation = "Patna",
+                dropLocation = "Gaya",
+                startDate = start,
+                endDate = end
+            )
         )
 
         assertEquals("RNT-EXISTING", result.bookingId)
@@ -302,7 +316,14 @@ class RentalServiceTest {
         assertThrows(IllegalArgumentException::class.java) {
             service.createBooking(
                 42L,
-                RentalBookingRequest("client-self", "8", "Darbhanga", "Patna", start, end)
+                RentalBookingRequest(
+                    clientRequestId = "client-self",
+                    carId = "8",
+                    pickupLocation = "Darbhanga",
+                    dropLocation = "Patna",
+                    startDate = start,
+                    endDate = end
+                )
             )
         }
         Mockito.verifyNoInteractions(rentalPayments)
@@ -334,7 +355,14 @@ class RentalServiceTest {
         assertThrows(IllegalStateException::class.java) {
             service.createBooking(
                 42L,
-                RentalBookingRequest("expired-driver", "44", "Patna", "Gaya", start, end)
+                RentalBookingRequest(
+                    clientRequestId = "expired-driver",
+                    carId = "44",
+                    pickupLocation = "Patna",
+                    dropLocation = "Gaya",
+                    startDate = start,
+                    endDate = end
+                )
             )
         }
         Mockito.verifyNoInteractions(rentalPayments)
@@ -470,7 +498,13 @@ class RentalServiceTest {
         Mockito.doReturn(Optional.of(com.recharge.backend.domain.RentalDriverEntity(id = 32L, vendorId = 31L, fullName = "Driver", mobile = "9999999999", licenseNumber = "DL", licenseExpiry = end.plusDays(100)))).`when`(drivers).findById(32L)
         Mockito.doReturn(false).`when`(bookings).existsOverlapping(21L, listOf("PENDING", "CONFIRMED"), start, end)
 
-        val result = service.quoteBooking(42L, com.recharge.backend.api.RentalBookingQuoteRequest("21", "Patna", "Gaya", start, end))
+        val result = service.quoteBooking(42L, com.recharge.backend.api.RentalBookingQuoteRequest(
+                carId = "21",
+                pickupLocation = "Patna",
+                dropLocation = "Gaya",
+                startDate = start,
+                endDate = end
+            ))
 
         assertEquals(2L, result.days)
         assertEquals(BigDecimal("3000.00"), result.total)

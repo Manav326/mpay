@@ -8,6 +8,10 @@ val mpayApiBaseUrl = providers.gradleProperty("mpayApiBaseUrl")
     .orElse("http://192.168.31.47:8080/")
     .map { value -> if (value.endsWith("/")) value else "$value/" }
 
+val mapsApiKey = providers.gradleProperty("mapsApiKey")
+    .orElse(providers.environmentVariable("MAPS_API_KEY"))
+    .orElse("")
+
 android {
     namespace = "com.recharge.client"
     compileSdk = 36
@@ -19,6 +23,8 @@ android {
         versionCode = 11
         versionName = "1.0.2"
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
+        buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey.get()
     }
 
     buildFeatures {
@@ -71,6 +77,8 @@ dependencies {
     implementation("com.razorpay:checkout:1.6.41")
     implementation("in.payu:payu-checkout-pro:3.3.14")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.google.maps.android:maps-compose:7.0.0")
+    implementation("com.google.android.libraries.places:places:5.3.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

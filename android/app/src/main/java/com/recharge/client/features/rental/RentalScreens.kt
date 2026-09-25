@@ -44,6 +44,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -156,16 +158,47 @@ private fun VendorField(
     value: String,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    error: String? = null,
+    helper: String? = null,
+    filter: (String) -> String = { it },
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = { onValueChange(filter(it)) },
         enabled = enabled,
         label = { Text(label) },
         modifier = modifier.fillMaxWidth(),
-        singleLine = true
+        singleLine = true,
+        isError = !error.isNullOrBlank(),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        supportingText = {
+            (error ?: helper)?.let { Text(it, color = if (error != null) AppColors.Error else AppColors.TextSecondary) }
+        }
     )
+}
+private val rentalVehicleTextPattern = Regex("""[^\\p{L}0-9 .&'()\\-]""")
+private val rentalRegistrationPattern = Regex("""[^A-Za-z0-9 -]""")
+private val rentalLicensePattern = Regex("""[^A-Za-z0-9 -]""")
+
+private fun sanitizeVehicleText(value: String, maxLength: Int = 120): String =
+    rentalVehicleTextPattern.replace(value, "").take(maxLength)
+
+private fun sanitizeRegistration(value: String): String =
+    rentalRegistrationPattern.replace(value.uppercase(Locale.ENGLISH), "").take(32)
+
+private fun sanitizeLicense(value: String): String =
+    rentalLicensePattern.replace(value.uppercase(Locale.ENGLISH), "").take(64)
+
+private fun sanitizeDecimal(value: String): String {
+    val cleaned = value.filter { it.isDigit() || it == '.' }
+    val dot = cleaned.indexOf('.')
+    return when {
+        dot < 0 -> cleaned.take(9)
+        else -> cleaned.substring(0, dot + 1) +
+            cleaned.substring(dot + 1).filter(Char::isDigit).take(2)
+    }
 }
 
 @Composable
@@ -214,8 +247,8 @@ private fun CompactFieldRow(
     enabled: Boolean = true
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onLeftChange)
-        VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onRightChange)
+        VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onValueChange = onLeftChange)
+        VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onValueChange = onRightChange)
     }
 }
 
@@ -798,7 +831,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    RentalVehicleGallery(car.imageUrl)
+                                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl)
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
@@ -899,13 +932,28 @@ fun RentalVendorOnboardingScreen(
                                             ) { Text("Off market", style = MaterialTheme.typography.labelSmall) }
                                         }
                                     }
-                                    if (status == "REJECTED") {
+                                    if (status != "APPROVED" || displayedOffMarket) {
                                         OutlinedButton(
                                             onClick = { onAddVehicleWithCar(car) },
                                             contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
                                             shape = RoundedCornerShape(9.dp),
                                             modifier = Modifier.fillMaxWidth()
-                                        ) { Text("Correct & resubmit", style = MaterialTheme.typography.labelSmall) }
+                                        ) {
+                                            Text(
+                                                when {
+                                                    status == "REJECTED" -> "Correct & resubmit"
+                                                    status == "APPROVED" -> "Edit details (off market)"
+                                                    else -> "Edit details"
+                                                },
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            "Approved and on market — editing is available only while this vehicle is off market.",
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
                                     }
                                     car.rejectionReason?.takeIf { it.isNotBlank() }?.let {
                                         Text("Review: " + it, color = AppColors.Error, style = MaterialTheme.typography.labelSmall, maxLines = 2)
@@ -1128,33 +1176,46 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
 @Composable
 private fun RentalVehicleGallery(
     imageUrl: String?,
+    driverPhotoUrl: String? = null,
     modifier: Modifier = Modifier
 ) {
     val urls = rentalPhotoSlots(imageUrl)
     var focusedIndex by remember(urls.joinToString("|")) { mutableIntStateOf(0) }
     val orderedSmall = (0..3).filter { it != focusedIndex }
 
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        RentalCarImageTile(
-            urls[focusedIndex],
-            Modifier.fillMaxWidth().aspectRatio(1.75f)
-        )
-        Row(
+    Box(modifier) {
+        Column(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            orderedSmall.take(3).forEach { index ->
-                RentalCarImageTile(
-                    urls[index],
-                    Modifier
-                        .weight(1f)
-                        .aspectRatio(1.55f)
-                        .clickable { focusedIndex = index }
-                )
+            RentalCarImageTile(
+                urls[focusedIndex],
+                Modifier.fillMaxWidth().aspectRatio(1.75f)
+            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                orderedSmall.take(3).forEach { index ->
+                    RentalCarImageTile(
+                        urls[index],
+                        Modifier
+                            .weight(1f)
+                            .aspectRatio(1.55f)
+                            .clickable { focusedIndex = index }
+                    )
+                }
             }
+        }
+        if (!driverPhotoUrl.isNullOrBlank()) {
+            RentalCarImageTile(
+                driverPhotoUrl,
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(10.dp))
+            )
         }
     }
 }
@@ -1179,9 +1240,9 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                        RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                         Surface(
-                            Modifier.align(Alignment.TopEnd).padding(8.dp),
+                            Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
                             color = Color.Black.copy(alpha = .60f)
                         ) {
@@ -1209,8 +1270,6 @@ private fun RentalPublicCarDetailsDialog(
                 item {
                     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .70f))) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RentalCarImageTile(car.driverPhotoUrl, Modifier.size(68.dp))
-                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text("Chauffeur", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
                                 Text(car.driverName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -1464,7 +1523,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -1650,6 +1709,51 @@ private fun VehiclePhotoField(
     }
 }
 
+private class RentalVehicleFormState(car: RentalCarResponse?) {
+    private val existingPhotos = rentalPhotoSlots(car?.imageUrl)
+
+    var name by mutableStateOf(car?.name.orEmpty())
+    var make by mutableStateOf(car?.make.orEmpty())
+    var model by mutableStateOf(car?.model.orEmpty())
+    var variant by mutableStateOf(car?.variant.orEmpty())
+    var category by mutableStateOf(car?.category ?: "Sedan")
+    var seats by mutableStateOf(car?.seats?.toString() ?: "5")
+    var transmission by mutableStateOf(car?.transmission ?: "Automatic")
+    var fuel by mutableStateOf(car?.fuelType ?: "Petrol")
+    var manufacturingYear by mutableStateOf(car?.manufacturingYear?.toString().orEmpty())
+    var registrationYear by mutableStateOf(car?.registrationYear?.toString().orEmpty())
+    var registrationNumber by mutableStateOf(car?.registrationNumber.orEmpty())
+    var pickupAddress by mutableStateOf(car?.pickupAddress.orEmpty())
+    var pickupLocation by mutableStateOf(
+        if (car?.pickupLatitude != null && car.pickupLongitude != null) {
+            RentalLocationInput(
+                address = car.pickupAddress.orEmpty(),
+                latitude = car.pickupLatitude,
+                longitude = car.pickupLongitude,
+                placeId = car.pickupPlaceId
+            )
+        } else null
+    )
+    var city by mutableStateOf(car?.city.orEmpty())
+    var stateName by mutableStateOf(car?.state.orEmpty())
+    var pricePerDay by mutableStateOf(car?.pricePerDay?.toPlainString().orEmpty())
+    var photoFront by mutableStateOf(existingPhotos.getOrNull(0).orEmpty())
+    var photoSide by mutableStateOf(existingPhotos.getOrNull(1).orEmpty())
+    var photoRear by mutableStateOf(existingPhotos.getOrNull(2).orEmpty())
+    var photoInterior by mutableStateOf(existingPhotos.getOrNull(3).orEmpty())
+    var galleryFront by mutableStateOf<String?>(null)
+    var gallerySide by mutableStateOf<String?>(null)
+    var galleryRear by mutableStateOf<String?>(null)
+    var galleryInterior by mutableStateOf<String?>(null)
+    var driverName by mutableStateOf(car?.driverName.orEmpty())
+    var driverMobile by mutableStateOf(car?.driverMobile.orEmpty())
+    var licenseNumber by mutableStateOf(car?.driverLicenseNumber.orEmpty())
+    var licenseExpiry by mutableStateOf(car?.driverLicenseExpiry.orEmpty())
+    var driverAddress by mutableStateOf(car?.driverAddress.orEmpty())
+    var driverPhotoUri by mutableStateOf<String?>(null)
+    var submitAttempted by mutableStateOf(false)
+}
+
 @Composable
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
@@ -1658,42 +1762,12 @@ fun RentalVehicleOnboardingScreen(
     editingCar: RentalCarResponse? = null,
     onResubmit: ((String, RentalVehicleUpdateRequest, Map<Int, String>, String?, () -> Unit) -> Unit)? = null
 ) {
-    var name by remember(editingCar?.id) { mutableStateOf(editingCar?.name.orEmpty()) }
-    var make by remember(editingCar?.id) { mutableStateOf(editingCar?.make.orEmpty()) }
-    var model by remember(editingCar?.id) { mutableStateOf(editingCar?.model.orEmpty()) }
-    var variant by remember(editingCar?.id) { mutableStateOf(editingCar?.variant.orEmpty()) }
-    var category by remember(editingCar?.id) { mutableStateOf(editingCar?.category ?: "Sedan") }
-    var seats by remember(editingCar?.id) { mutableStateOf(editingCar?.seats?.toString() ?: "5") }
-    var transmission by remember(editingCar?.id) { mutableStateOf(editingCar?.transmission ?: "Automatic") }
-    var fuel by remember(editingCar?.id) { mutableStateOf(editingCar?.fuelType ?: "Petrol") }
-    var manufacturingYear by remember(editingCar?.id) { mutableStateOf(editingCar?.manufacturingYear?.toString().orEmpty()) }
-    var registrationYear by remember(editingCar?.id) { mutableStateOf(editingCar?.registrationYear?.toString().orEmpty()) }
-    var registrationNumber by remember(editingCar?.id) { mutableStateOf(editingCar?.registrationNumber.orEmpty()) }
-    var pickupAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.pickupAddress.orEmpty()) }
-    var city by remember(editingCar?.id) { mutableStateOf(editingCar?.city.orEmpty()) }
-    var stateName by remember(editingCar?.id) { mutableStateOf(editingCar?.state.orEmpty()) }
-    var pricePerDay by remember(editingCar?.id) { mutableStateOf(editingCar?.pricePerDay?.toPlainString().orEmpty()) }
-    val existingPhotos = remember(editingCar?.id) { rentalPhotoSlots(editingCar?.imageUrl) }
-    var photoFront by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(0).orEmpty()) }
-    var photoSide by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(1).orEmpty()) }
-    var photoRear by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(2).orEmpty()) }
-    var photoInterior by remember(editingCar?.id) { mutableStateOf(existingPhotos.getOrNull(3).orEmpty()) }
-    var galleryFront by remember(editingCar?.id) { mutableStateOf<String?>(null) }
-    var gallerySide by remember(editingCar?.id) { mutableStateOf<String?>(null) }
-    var galleryRear by remember(editingCar?.id) { mutableStateOf<String?>(null) }
-    var galleryInterior by remember(editingCar?.id) { mutableStateOf<String?>(null) }
-
-    var driverName by remember(editingCar?.id) { mutableStateOf(editingCar?.driverName.orEmpty()) }
-    var driverMobile by remember(editingCar?.id) { mutableStateOf(editingCar?.driverMobile.orEmpty()) }
-    var licenseNumber by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseNumber.orEmpty()) }
-    var licenseExpiry by remember(editingCar?.id) { mutableStateOf(editingCar?.driverLicenseExpiry.orEmpty()) }
-    var driverAddress by remember(editingCar?.id) { mutableStateOf(editingCar?.driverAddress.orEmpty()) }
-    var driverPhotoUri by remember(editingCar?.id) { mutableStateOf<String?>(null) }
+    val form = remember(editingCar?.id) { RentalVehicleFormState(editingCar) }
 
     val currentVehicleYear = LocalDate.now().year
     val earliestVehicleYear = currentVehicleYear - 20
     val manufacturingYearOptions = (earliestVehicleYear..currentVehicleYear).map(Int::toString)
-    val selectedManufacturingYear = manufacturingYear.toIntOrNull()
+    val selectedManufacturingYear = form.manufacturingYear.toIntOrNull()
     val registrationYearOptions = (
         maxOf(
             earliestVehicleYear,
@@ -1701,41 +1775,41 @@ fun RentalVehicleOnboardingScreen(
         )..currentVehicleYear
     ).map(Int::toString)
 
-    LaunchedEffect(manufacturingYear) {
-        val manufacturing = manufacturingYear.toIntOrNull()
-        val registration = registrationYear.toIntOrNull()
+    LaunchedEffect(form.manufacturingYear) {
+        val manufacturing = form.manufacturingYear.toIntOrNull()
+        val registration = form.registrationYear.toIntOrNull()
         if (manufacturing != null && registration != null && registration < manufacturing) {
-            registrationYear = manufacturing.toString()
+            form.registrationYear = manufacturing.toString()
         }
     }
 
-    val combinedPhotos = listOf(photoFront, photoSide, photoRear, photoInterior)
+    val combinedPhotos = listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)
         .map { it.trim() }
         .joinToString("|")
-        .takeIf { listOf(photoFront, photoSide, photoRear, photoInterior).any { it.isNotBlank() } }
+        .takeIf { listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior).any { it.isNotBlank() } }
 
-    val galleryPhotos = listOf(galleryFront, gallerySide, galleryRear, galleryInterior)
+    val galleryPhotos = listOf(form.galleryFront, form.gallerySide, form.galleryRear, form.galleryInterior)
         .mapIndexedNotNull { index, uri -> uri?.let { index to it } }
         .toMap()
 
     val frontGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        galleryFront = uri?.toString()
-        if (uri != null) photoFront = ""
+        form.galleryFront = uri?.toString()
+        if (uri != null) form.photoFront = ""
     }
     val sideGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        gallerySide = uri?.toString()
-        if (uri != null) photoSide = ""
+        form.gallerySide = uri?.toString()
+        if (uri != null) form.photoSide = ""
     }
     val rearGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        galleryRear = uri?.toString()
-        if (uri != null) photoRear = ""
+        form.galleryRear = uri?.toString()
+        if (uri != null) form.photoRear = ""
     }
     val interiorGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        galleryInterior = uri?.toString()
-        if (uri != null) photoInterior = ""
+        form.galleryInterior = uri?.toString()
+        if (uri != null) form.photoInterior = ""
     }
     val driverPhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        driverPhotoUri = uri?.toString()
+        form.driverPhotoUri = uri?.toString()
     }
 
     LazyColumn(
@@ -1774,35 +1848,70 @@ fun RentalVehicleOnboardingScreen(
                         }
                     }
 
-                    CompactFieldRow("Vehicle name", name, { name = it }, "Make", make, { make = it })
-                    CompactFieldRow("Model", model, { model = it }, "Variant", variant, { variant = it })
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorField(
+                            "Vehicle name",
+                            form.name,
+                            modifier = Modifier.weight(1f),
+                            filter = ::sanitizeVehicleText,
+                            error = if (form.submitAttempted && form.name.isBlank()) "Vehicle name is required" else null,
+                            helper = "Use letters, numbers, spaces and common separators.",
+                            onValueChange = { form.name = it }
+                        )
+                        VendorField(
+                            "Make",
+                            form.make,
+                            modifier = Modifier.weight(1f),
+                            filter = ::sanitizeVehicleText,
+                            error = if (form.submitAttempted && form.make.isBlank()) "Make is required" else null,
+                            onValueChange = { form.make = it }
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorField(
+                            "Model",
+                            form.model,
+                            modifier = Modifier.weight(1f),
+                            filter = ::sanitizeVehicleText,
+                            error = if (form.submitAttempted && form.model.isBlank()) "Model is required" else null,
+                            onValueChange = { form.model = it }
+                        )
+                        VendorField(
+                            "Variant (optional)",
+                            form.variant,
+                            modifier = Modifier.weight(1f),
+                            filter = ::sanitizeVehicleText,
+                            helper = "Trim/version; leave blank when not applicable.",
+                            onValueChange = { form.variant = it }
+                        )
+                    }
                     Text(
                         "Model = vehicle series; variant = the specific trim or version.",
                         style = MaterialTheme.typography.labelSmall,
                         color = AppColors.TextSecondary
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        VendorSelectField("Category", category, listOf("Sedan", "SUV", "Hatchback", "MUV", "Luxury", "Other"), modifier = Modifier.weight(1f), onValueChange = { category = it })
-                        VendorSelectField("Seats", seats, (2..8).map { it.toString() }, modifier = Modifier.weight(1f), onValueChange = { seats = it })
+                        VendorSelectField("Category", form.category, listOf("Sedan", "SUV", "Hatchback", "MUV", "Luxury", "Other"), modifier = Modifier.weight(1f), onValueChange = { form.category = it })
+                        VendorSelectField("Seats", form.seats, (2..8).map { it.toString() }, modifier = Modifier.weight(1f), onValueChange = { form.seats = it })
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        VendorSelectField("Transmission", transmission, listOf("Automatic", "Manual"), modifier = Modifier.weight(1f), onValueChange = { transmission = it })
-                        VendorSelectField("Fuel type", fuel, listOf("Petrol", "Diesel", "CNG", "Electric", "Hybrid", "Other"), modifier = Modifier.weight(1f), onValueChange = { fuel = it })
+                        VendorSelectField("Transmission", form.transmission, listOf("Automatic", "Manual"), modifier = Modifier.weight(1f), onValueChange = { form.transmission = it })
+                        VendorSelectField("Fuel type", form.fuel, listOf("Petrol", "Diesel", "CNG", "Electric", "Hybrid", "Other"), modifier = Modifier.weight(1f), onValueChange = { form.fuel = it })
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         VendorSelectField(
                             "Manufacturing year",
-                            manufacturingYear,
+                            form.manufacturingYear,
                             manufacturingYearOptions,
                             modifier = Modifier.weight(1f),
-                            onValueChange = { manufacturingYear = it }
+                            onValueChange = { form.manufacturingYear = it }
                         )
                         VendorSelectField(
                             "Registration year",
-                            registrationYear,
+                            form.registrationYear,
                             registrationYearOptions,
                             modifier = Modifier.weight(1f),
-                            onValueChange = { registrationYear = it }
+                            onValueChange = { form.registrationYear = it }
                         )
                     }
                     Text(
@@ -1810,19 +1919,51 @@ fun RentalVehicleOnboardingScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = AppColors.TextSecondary
                     )
-                    VendorField("Registration number", registrationNumber) { registrationNumber = it }
+                    VendorField(
+                        "Registration number",
+                        form.registrationNumber,
+                        filter = ::sanitizeRegistration,
+                        error = if (form.submitAttempted && form.registrationNumber.isBlank()) "Registration number is required" else null,
+                        helper = "Enter it exactly as printed on the RC.",
+                        onValueChange = { form.registrationNumber = it }
+                    )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        VendorField("City", city, modifier = Modifier.weight(1f)) { city = it }
+                        VendorField(
+                            "City",
+                            form.city,
+                            modifier = Modifier.weight(1f),
+                            filter = { sanitizeVehicleText(it, 100) },
+                            error = if (form.submitAttempted && form.city.isBlank()) "City is required" else null,
+                            onValueChange = { form.city = it }
+                        )
                         VendorSelectField(
                             "State",
-                            stateName,
+                            form.stateName,
                             indianStatesAndUt,
                             modifier = Modifier.weight(1f),
-                            onValueChange = { stateName = it }
+                            onValueChange = { form.stateName = it }
                         )
                     }
-                    VendorField("Pickup address", pickupAddress) { pickupAddress = it }
-                    VendorField("Price per day (₹)", pricePerDay) { pricePerDay = it }
+                    RentalLocationPickerField(
+                        label = "Pickup location",
+                        value = form.pickupLocation,
+                        required = true,
+                        helper = "Search and choose the exact base location for this vehicle.",
+                        error = if (form.submitAttempted && form.pickupLocation == null) "Pickup location is required" else null,
+                        onSelected = {
+                            form.pickupLocation = it
+                            form.pickupAddress = it.address
+                        }
+                    )
+                    VendorField(
+                        "Price per day (₹)",
+                        form.pricePerDay,
+                        keyboardType = KeyboardType.Decimal,
+                        filter = ::sanitizeDecimal,
+                        error = if (form.submitAttempted && form.pricePerDay.toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } != true) "Enter a valid positive price with up to 2 decimals" else null,
+                        helper = "Price charged per 24-hour rental day.",
+                        onValueChange = { form.pricePerDay = it }
+                    )
                 }
             }
         }
@@ -1841,41 +1982,41 @@ fun RentalVehicleOnboardingScreen(
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
-                            "Front photo", photoFront, galleryFront,
-                            { photoFront = it },
+                            "Front photo", form.photoFront, form.galleryFront,
+                            { form.photoFront = it },
                             {
                                 frontGalleryLauncher.launch("image/*")
                             },
-                            { galleryFront = null },
+                            { form.galleryFront = null },
                             Modifier.weight(1f)
                         )
                         VehiclePhotoField(
-                            "Side photo", photoSide, gallerySide,
-                            { photoSide = it },
+                            "Side photo", form.photoSide, form.gallerySide,
+                            { form.photoSide = it },
                             {
                                 sideGalleryLauncher.launch("image/*")
                             },
-                            { gallerySide = null },
+                            { form.gallerySide = null },
                             Modifier.weight(1f)
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
-                            "Rear photo", photoRear, galleryRear,
-                            { photoRear = it },
+                            "Rear photo", form.photoRear, form.galleryRear,
+                            { form.photoRear = it },
                             {
                                 rearGalleryLauncher.launch("image/*")
                             },
-                            { galleryRear = null },
+                            { form.galleryRear = null },
                             Modifier.weight(1f)
                         )
                         VehiclePhotoField(
-                            "Interior photo", photoInterior, galleryInterior,
-                            { photoInterior = it },
+                            "Interior photo", form.photoInterior, form.galleryInterior,
+                            { form.photoInterior = it },
                             {
                                 interiorGalleryLauncher.launch("image/*")
                             },
-                            { galleryInterior = null },
+                            { form.galleryInterior = null },
                             Modifier.weight(1f)
                         )
                     }
@@ -1909,7 +2050,7 @@ fun RentalVehicleOnboardingScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             RentalCarImageTile(
-                                driverPhotoUri ?: editingCar?.driverPhotoUrl,
+                                form.driverPhotoUri ?: editingCar?.driverPhotoUrl,
                                 Modifier
                                     .size(82.dp)
                                     .clip(RoundedCornerShape(topEnd = 17.dp, topStart = 7.dp, bottomEnd = 7.dp, bottomStart = 7.dp))
@@ -1922,15 +2063,46 @@ fun RentalVehicleOnboardingScreen(
                                     contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
-                                    Text(if (driverPhotoUri != null) "Change" else "Add", style = MaterialTheme.typography.labelSmall)
+                                    Text(if (form.driverPhotoUri != null) "Change" else "Add", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
                     }
-                    CompactFieldRow("Driver full name", driverName, { driverName = it }, "Driver mobile", driverMobile, { driverMobile = it })
-                    VendorField("Driving licence no.", licenseNumber) { licenseNumber = it }
-                    RentalDateField("Licence expiry", licenseExpiry, onValueChange = { licenseExpiry = it }, minDate = LocalDate.now())
-                    VendorField("Driver address (optional)", driverAddress) { driverAddress = it }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VendorField(
+                            "Driver full name",
+                            form.driverName,
+                            modifier = Modifier.weight(1f),
+                            filter = { sanitizeVehicleText(it, 120) },
+                            error = if (form.submitAttempted && form.driverName.isBlank()) "Driver name is required" else null,
+                            onValueChange = { form.driverName = it }
+                        )
+                        VendorField(
+                            "Driver mobile",
+                            form.driverMobile,
+                            modifier = Modifier.weight(1f),
+                            keyboardType = KeyboardType.Phone,
+                            filter = ::normalizeIndianMobile,
+                            error = if (form.submitAttempted && !normalizeIndianMobile(form.driverMobile).matches(Regex("[6-9][0-9]{9}"))) "Enter a valid 10-digit mobile number" else null,
+                            helper = "Only numbers; Indian mobile starting 6–9.",
+                            onValueChange = { form.driverMobile = it }
+                        )
+                    }
+                    VendorField(
+                        "Driving licence no.",
+                        form.licenseNumber,
+                        filter = ::sanitizeLicense,
+                        error = if (form.submitAttempted && form.licenseNumber.isBlank()) "Driving licence number is required" else null,
+                        helper = "Use the licence number exactly as printed.",
+                        onValueChange = { form.licenseNumber = it }
+                    )
+                    RentalDateField("Licence expiry", form.licenseExpiry, onValueChange = { form.licenseExpiry = it }, minDate = LocalDate.now())
+                    if (form.submitAttempted && runCatching { LocalDate.parse(form.licenseExpiry.take(10), rentalDateFormatter) }.getOrNull()?.isAfter(LocalDate.now()) != true) {
+                        Text("Licence expiry must be a future date.", color = AppColors.Error, style = MaterialTheme.typography.labelSmall)
+                    } else {
+                        Text("Choose the actual licence expiry date. It must remain valid through the rental.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
+                    VendorField("Driver address (optional)", form.driverAddress) { form.driverAddress = it }
                 }
             }
         }
@@ -1945,22 +2117,25 @@ fun RentalVehicleOnboardingScreen(
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
 
         item {
-            val manufacturing = manufacturingYear.toIntOrNull()
-            val registration = registrationYear.toIntOrNull()
-            val normalizedDriverMobile = normalizeIndianMobile(driverMobile)
-            val valid = name.trim().isNotBlank() &&
-                make.trim().isNotBlank() &&
-                model.trim().isNotBlank() &&
-                registrationNumber.trim().isNotBlank() &&
-                pickupAddress.trim().isNotBlank() &&
-                city.trim().isNotBlank() &&
-                stateName.trim().isNotBlank() &&
-                driverName.trim().isNotBlank() &&
+            val manufacturing = form.manufacturingYear.toIntOrNull()
+            val registration = form.registrationYear.toIntOrNull()
+            val normalizedDriverMobile = normalizeIndianMobile(form.driverMobile)
+            val licenseExpiryDate = runCatching {
+                LocalDate.parse(form.licenseExpiry.take(10), rentalDateFormatter)
+            }.getOrNull()
+            val valid = form.name.trim().isNotBlank() &&
+                form.make.trim().isNotBlank() &&
+                form.model.trim().isNotBlank() &&
+                form.registrationNumber.trim().isNotBlank() &&
+                form.pickupLocation != null &&
+                form.city.trim().isNotBlank() &&
+                form.stateName.trim().isNotBlank() &&
+                form.driverName.trim().isNotBlank() &&
                 normalizedDriverMobile.matches(Regex("[6-9][0-9]{9}")) &&
-                licenseNumber.trim().isNotBlank() &&
-                licenseExpiry.trim().isNotBlank() &&
-                pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
-                seats.toIntOrNull()?.let { it in 2..8 } == true &&
+                form.licenseNumber.trim().isNotBlank() &&
+                licenseExpiryDate?.isAfter(LocalDate.now()) == true &&
+                form.pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
+                form.seats.toIntOrNull()?.let { it in 2..8 } == true &&
                 manufacturing != null &&
                 registration != null &&
                 manufacturing in earliestVehicleYear..currentVehicleYear &&
@@ -1968,67 +2143,71 @@ fun RentalVehicleOnboardingScreen(
 
             Button(
                 onClick = {
+                    form.submitAttempted = true
+                    if (!valid) return@Button
                     val driver = RentalDriverRequest(
-                        driverName.trim(),
-                        normalizeIndianMobile(driverMobile),
-                        licenseNumber.trim(),
-                        normalizeLicenseExpiry(licenseExpiry.trim()),
-                        driverAddress.trim().ifBlank { null }
+                        form.driverName.trim(),
+                        normalizeIndianMobile(form.driverMobile),
+                        form.licenseNumber.trim(),
+                        normalizeLicenseExpiry(form.licenseExpiry.trim()),
+                        form.driverAddress.trim().ifBlank { null }
                     )
                     if (editingCar != null && onResubmit != null) {
                         onResubmit(
                             editingCar.id,
                             RentalVehicleUpdateRequest(
-                                name = name.trim(),
-                                category = category.trim(),
-                                seats = seats.toInt(),
-                                transmission = transmission.trim(),
-                                fuelType = fuel.trim(),
-                                manufacturingYear = manufacturingYear.toInt(),
-                                registrationYear = registrationYear.toInt(),
-                                registrationNumber = registrationNumber.trim(),
-                                make = make.trim(),
-                                model = model.trim(),
-                                variant = variant.trim().ifBlank { null },
-                                pickupAddress = pickupAddress.trim(),
-                                city = city.trim(),
-                                state = stateName.trim(),
-                                pricePerDay = pricePerDay.toBigDecimal(),
+                                name = form.name.trim(),
+                                category = form.category.trim(),
+                                seats = form.seats.toInt(),
+                                transmission = form.transmission.trim(),
+                                fuelType = form.fuel.trim(),
+                                manufacturingYear = form.manufacturingYear.toInt(),
+                                registrationYear = form.registrationYear.toInt(),
+                                registrationNumber = form.registrationNumber.trim(),
+                                make = form.make.trim(),
+                                model = form.model.trim(),
+                                variant = form.variant.trim().ifBlank { null },
+                                pickupAddress = form.pickupAddress.trim(),
+                                city = form.city.trim(),
+                                state = form.stateName.trim(),
+                                pricePerDay = form.pricePerDay.toBigDecimal(),
+                                pickupLocation = form.pickupLocation,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
                             galleryPhotos,
-                            driverPhotoUri,
+                            form.driverPhotoUri,
                             onBack
                         )
                     } else {
                         onSubmit(
                             RentalVehicleOnboardingRequest(
-                                name = name.trim(),
-                                category = category.trim(),
-                                seats = seats.toInt(),
-                                transmission = transmission.trim(),
-                                fuelType = fuel.trim(),
-                                manufacturingYear = manufacturingYear.toInt(),
-                                registrationYear = registrationYear.toInt(),
-                                registrationNumber = registrationNumber.trim(),
-                                make = make.trim(),
-                                model = model.trim(),
-                                variant = variant.trim().ifBlank { null },
-                                pickupAddress = pickupAddress.trim(),
-                                city = city.trim(),
-                                state = stateName.trim(),
-                                pricePerDay = pricePerDay.toBigDecimal(),
+                                name = form.name.trim(),
+                                category = form.category.trim(),
+                                seats = form.seats.toInt(),
+                                transmission = form.transmission.trim(),
+                                fuelType = form.fuel.trim(),
+                                manufacturingYear = form.manufacturingYear.toInt(),
+                                registrationYear = form.registrationYear.toInt(),
+                                registrationNumber = form.registrationNumber.trim(),
+                                make = form.make.trim(),
+                                model = form.model.trim(),
+                                variant = form.variant.trim().ifBlank { null },
+                                pickupAddress = form.pickupAddress.trim(),
+                                city = form.city.trim(),
+                                state = form.stateName.trim(),
+                                pricePerDay = form.pricePerDay.toBigDecimal(),
+                                pickupLocation = form.pickupLocation,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
                             galleryPhotos,
-                            driverPhotoUri,
+                            form.driverPhotoUri,
                             onBack
                         )
                     }
                 },
-                enabled = valid && !state.saving,
+                enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(13.dp)
             ) {
@@ -2120,19 +2299,6 @@ private fun RentalVehicleDetailsDialog(
                             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("Review note", style = MaterialTheme.typography.labelLarge, color = AppColors.Error, fontWeight = FontWeight.Bold)
                                 Text(reason, color = Color(0xFF7F1D1D), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                }
-                if (!car.driverPhotoUrl.isNullOrBlank()) {
-                    item {
-                        Card(
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
-                        ) {
-                            Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Driver photo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                RentalCarImageTile(car.driverPhotoUrl, Modifier.fillMaxWidth().height(180.dp))
                             }
                         }
                     }
@@ -2407,7 +2573,20 @@ fun RentalBookingScreen(
     initialEnd: String? = null
 ) {
     var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
-    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.city.orEmpty()) }
+    var pickupCoordinates by remember(car.id, initialStart, initialEnd) {
+        mutableStateOf(
+            if (car.pickupLatitude != null && car.pickupLongitude != null) {
+                RentalLocationInput(
+                    address = car.pickupAddress.orEmpty(),
+                    latitude = car.pickupLatitude,
+                    longitude = car.pickupLongitude,
+                    placeId = car.pickupPlaceId
+                )
+            } else null
+        )
+    }
+    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf("") }
+    var dropCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
     var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
     var end by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialEnd.orEmpty()) }
     var quote by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalBookingQuoteResponse?>(null) }
@@ -2441,7 +2620,7 @@ fun RentalBookingScreen(
                     Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -2453,8 +2632,32 @@ fun RentalBookingScreen(
                 }
             }
         }
-        item { VendorField("Pickup location", pickup, onValueChange = { pickup = it; clearQuote() }) }
-        item { VendorField("Drop location", drop, onValueChange = { drop = it; clearQuote() }) }
+        item {
+            RentalLocationPickerField(
+                label = "Pickup location",
+                value = pickupCoordinates,
+                helper = "Choose where the chauffeur should pick you up.",
+                error = if (pickupCoordinates == null) "Pickup location is required" else null,
+                onSelected = {
+                    pickupCoordinates = it
+                    pickup = it.address
+                    clearQuote()
+                }
+            )
+        }
+        item {
+            RentalLocationPickerField(
+                label = "Drop location",
+                value = dropCoordinates,
+                helper = "Choose the exact destination on the map.",
+                error = if (quote == null && drop.isNotBlank() && dropCoordinates == null) "Choose the drop point from the map" else null,
+                onSelected = {
+                    dropCoordinates = it
+                    drop = it.address
+                    clearQuote()
+                }
+            )
+        }
         item { RentalDateTimeField("Start date & time", start, { start = it; clearQuote() }) }
         item { RentalDateTimeField("End date & time", end, { end = it; clearQuote() }) }
         item {
@@ -2475,12 +2678,14 @@ fun RentalBookingScreen(
         item {
             if (quote == null) {
                 Button(
-                    enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && validWindow,
+                    enabled = !state.saving && pickupCoordinates != null && dropCoordinates != null && validWindow,
                     onClick = {
                         val request = RentalBookingQuoteRequest(
                             car.id,
                             pickup.trim(),
                             drop.trim(),
+                            pickupCoordinates,
+                            dropCoordinates,
                             start,
                             end
                         )
@@ -2569,6 +2774,8 @@ fun RentalBookingScreen(
                                                 car.id,
                                                 pickup.trim(),
                                                 drop.trim(),
+                                                pickupCoordinates,
+                                                dropCoordinates,
                                                 start,
                                                 end,
                                                 "WALLET"
@@ -2706,6 +2913,7 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
+                                booking.driverPhotoUrl,
                                 Modifier.fillMaxWidth()
                             )
 
