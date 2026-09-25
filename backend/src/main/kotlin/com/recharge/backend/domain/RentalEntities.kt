@@ -66,8 +66,8 @@ class RentalCarEntity(
     @Column(name="fuel_type", length=30) var fuelType: String? = null,
     @Column(name="registration_year") var registrationYear: Int? = null,
     @Column(name="pickup_address", length=300) var pickupAddress: String? = null,
-    @Column(name="pickup_latitude", precision=10, scale=7) var pickupLatitude: Double? = null,
-    @Column(name="pickup_longitude", precision=10, scale=7) var pickupLongitude: Double? = null,
+    @Column(name="pickup_latitude") var pickupLatitude: Double? = null,
+    @Column(name="pickup_longitude") var pickupLongitude: Double? = null,
     @Column(name="pickup_place_id", length=255) var pickupPlaceId: String? = null,
     @Column(length=100) var city: String? = null,
     @Column(length=100) var state: String? = null,
@@ -84,12 +84,12 @@ class RentalBookingEntity(
     @Column(name = "user_id", nullable = false) var userId: Long = 0,
     @Column(name = "car_id", nullable = false) var carId: Long = 0,
     @Column(name = "pickup_location", nullable = false, length = 300) var pickupLocation: String = "",
-    @Column(name = "pickup_latitude", precision=10, scale=7) var pickupLatitude: Double? = null,
-    @Column(name = "pickup_longitude", precision=10, scale=7) var pickupLongitude: Double? = null,
+    @Column(name = "pickup_latitude") var pickupLatitude: Double? = null,
+    @Column(name = "pickup_longitude") var pickupLongitude: Double? = null,
     @Column(name = "pickup_place_id", length=255) var pickupPlaceId: String? = null,
     @Column(name = "drop_location", nullable = false, length = 300) var dropLocation: String = "",
-    @Column(name = "drop_latitude", precision=10, scale=7) var dropLatitude: Double? = null,
-    @Column(name = "drop_longitude", precision=10, scale=7) var dropLongitude: Double? = null,
+    @Column(name = "drop_latitude") var dropLatitude: Double? = null,
+    @Column(name = "drop_longitude") var dropLongitude: Double? = null,
     @Column(name = "drop_place_id", length=255) var dropPlaceId: String? = null,
     @Column(name = "start_date", nullable = false) var startDate: LocalDateTime = LocalDateTime.now(),
     @Column(name = "end_date", nullable = false) var endDate: LocalDateTime = LocalDateTime.now().plusDays(1),
@@ -101,7 +101,6 @@ class RentalBookingEntity(
     @Column(nullable = false) var createdAt: Instant = Instant.now(),
     @Column(nullable = false) var updatedAt: Instant = Instant.now()
 )
-
 
 @Entity
 @Table(name = "rental_vendor_review_history")
@@ -124,7 +123,6 @@ class RentalCarReviewEntity(
     @Column(name = "actor_user_id", nullable = false) var actorUserId: Long = 0,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
 )
-
 
 @Entity
 @Table(
@@ -174,7 +172,6 @@ class RentalPaymentEntity(
     @Column(nullable = false) var createdAt: Instant = Instant.now(),
     @Column(nullable = false) var updatedAt: Instant = Instant.now()
 )
-
 
 @Entity
 @Table(
