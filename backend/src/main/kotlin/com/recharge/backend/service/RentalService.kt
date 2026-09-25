@@ -1135,7 +1135,8 @@ class RentalService(
     private fun toBookingResponse(b: RentalBookingEntity, car: RentalCarEntity?, driver: RentalDriverEntity?) =
         RentalBookingResponse(
             bookingId = b.bookingId, carName = car?.name ?: "Car", driverName = driver?.fullName ?: "Driver",
-            driverMobile = driver?.mobile, carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
+            driverMobile = driver?.mobile, driverPhotoUrl = driver?.photoUrl,
+            carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
             pickup = b.pickupLocation, drop = b.dropLocation,
             pickupLatitude = b.pickupLatitude, pickupLongitude = b.pickupLongitude, pickupPlaceId = b.pickupPlaceId,
             dropLatitude = b.dropLatitude, dropLongitude = b.dropLongitude, dropPlaceId = b.dropPlaceId,
