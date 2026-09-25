@@ -14,7 +14,7 @@ val mapsApiKey = providers.gradleProperty("mapsApiKey")
 
 android {
     namespace = "com.recharge.client"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.recharge.client"
