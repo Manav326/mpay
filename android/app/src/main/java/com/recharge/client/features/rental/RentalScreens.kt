@@ -133,7 +133,7 @@ private fun rentalBookingDisplayStatus(booking: RentalBookingResponse): Pair<Str
 }
 
 private fun normalizeIndianMobile(value: String): String =
-    value.filter(Char::isDigit).let { digits -> if (digits.length > 10) digits.takeLast(10) else digits }
+    value.filter(Char::isDigit).take(10)
 
 private fun normalizeLicenseExpiry(value: String): String =
     runCatching {
@@ -179,11 +179,18 @@ private fun VendorField(
     )
 }
 private val rentalVehicleTextPattern = Regex("""[^\\p{L}0-9 .&'()\\-]""")
+private val rentalVehicleAlphaNumericPattern = Regex("""[^\p{L}0-9 ]""")
 private val rentalRegistrationPattern = Regex("""[^A-Za-z0-9 -]""")
 private val rentalLicensePattern = Regex("""[^A-Za-z0-9 -]""")
 
 private fun sanitizeVehicleText(value: String, maxLength: Int = 120): String =
     rentalVehicleTextPattern.replace(value, "").take(maxLength)
+
+private fun sanitizeVehicleAlphaNumeric(value: String, maxLength: Int): String =
+    rentalVehicleAlphaNumericPattern.replace(value, "").take(maxLength)
+
+private fun sanitizeRentalLocation(value: String, maxLength: Int = 300): String =
+    value.filter { !it.isISOControl() }.take(maxLength)
 
 private fun sanitizeRegistration(value: String): String =
     rentalRegistrationPattern.replace(value.uppercase(Locale.ENGLISH), "").take(32)
@@ -831,7 +838,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl)
+                                    RentalVehicleGallery(car.imageUrl)
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
@@ -841,17 +848,36 @@ fun RentalVendorOnboardingScreen(
                                     )
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(Icons.Default.Badge, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
-                                        Text(
-                                            car.driverName + (car.driverMobile?.let { " • " + it } ?: ""),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            modifier = Modifier.weight(1f)
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                                        ) {
+                                            Text(
+                                                car.driverName,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                            car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                                Text(
+                                                    it,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = AppColors.TextSecondary,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                        RentalCarImageTile(
+                                            car.driverPhotoUrl,
+                                            Modifier
+                                                .size(42.dp)
+                                                .clip(RoundedCornerShape(10.dp))
                                         )
                                     }
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1240,7 +1266,7 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
+                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
                         Surface(
                             Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -1269,10 +1295,20 @@ private fun RentalPublicCarDetailsDialog(
                 }
                 item {
                     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .70f))) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text("Chauffeur", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
                                 Text(car.driverName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                    Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                }
                                 car.driverRating?.let {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.Star, null, tint = AppColors.PrimaryDark, modifier = Modifier.size(15.dp))
@@ -1280,6 +1316,12 @@ private fun RentalPublicCarDetailsDialog(
                                     }
                                 }
                             }
+                            RentalCarImageTile(
+                                car.driverPhotoUrl,
+                                Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(11.dp))
+                            )
                         }
                     }
                 }
@@ -1425,11 +1467,11 @@ fun CarRentalMarketplaceScreen(
         }
         item {
             Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .62f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = location,
                         onValueChange = { location = it },
@@ -1523,7 +1565,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -1559,17 +1601,26 @@ fun CarRentalMarketplaceScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RentalCarImageTile(
-                                    car.driverPhotoUrl,
-                                    Modifier.size(40.dp)
-                                )
-                                Column(Modifier.weight(1f)) {
+                                Column(
+                                    Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                                ) {
                                     Text(
                                         car.driverName,
                                         fontWeight = FontWeight.SemiBold,
                                         style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
+                                    car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                        Text(
+                                            it,
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                     Text(
                                         car.seats.toString() + " seats • " + car.transmission,
                                         color = AppColors.TextSecondary,
@@ -1577,6 +1628,12 @@ fun CarRentalMarketplaceScreen(
                                         maxLines = 1
                                     )
                                 }
+                                RentalCarImageTile(
+                                    car.driverPhotoUrl,
+                                    Modifier
+                                        .size(42.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                )
                             }
 
                             Row(
@@ -1624,6 +1681,9 @@ fun CarRentalMarketplaceScreen(
                                 }
                             }
                         }
+                    }
+                    if (rowCars.size == 1) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
@@ -1844,7 +1904,7 @@ fun RentalVehicleOnboardingScreen(
                         Spacer(Modifier.width(8.dp))
                         Column {
                             Text("1. Vehicle details", style = MaterialTheme.typography.titleMedium)
-                            Text("Identity, specifications, pickup and daily price", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text("Identity, specifications and daily price", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                     }
 
@@ -1853,16 +1913,16 @@ fun RentalVehicleOnboardingScreen(
                             "Vehicle name",
                             form.name,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
+                            filter = { sanitizeVehicleAlphaNumeric(it, 120) },
                             error = if (form.submitAttempted && form.name.isBlank()) "Vehicle name is required" else null,
-                            helper = "Use letters, numbers, spaces and common separators.",
+                            helper = "Letters, numbers and spaces only.",
                             onValueChange = { form.name = it }
                         )
                         VendorField(
                             "Make",
                             form.make,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
+                            filter = { sanitizeVehicleAlphaNumeric(it, 80) },
                             error = if (form.submitAttempted && form.make.isBlank()) "Make is required" else null,
                             onValueChange = { form.make = it }
                         )
@@ -1872,7 +1932,7 @@ fun RentalVehicleOnboardingScreen(
                             "Model",
                             form.model,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
+                            filter = { sanitizeVehicleAlphaNumeric(it, 80) },
                             error = if (form.submitAttempted && form.model.isBlank()) "Model is required" else null,
                             onValueChange = { form.model = it }
                         )
@@ -1880,8 +1940,8 @@ fun RentalVehicleOnboardingScreen(
                             "Variant (optional)",
                             form.variant,
                             modifier = Modifier.weight(1f),
-                            filter = ::sanitizeVehicleText,
-                            helper = "Trim/version; leave blank when not applicable.",
+                            filter = { sanitizeVehicleAlphaNumeric(it, 80) },
+                            helper = "Letters, numbers and spaces only; optional.",
                             onValueChange = { form.variant = it }
                         )
                     }
@@ -1932,7 +1992,7 @@ fun RentalVehicleOnboardingScreen(
                             "City",
                             form.city,
                             modifier = Modifier.weight(1f),
-                            filter = { sanitizeVehicleText(it, 100) },
+                            filter = { sanitizeVehicleAlphaNumeric(it, 100) },
                             error = if (form.submitAttempted && form.city.isBlank()) "City is required" else null,
                             onValueChange = { form.city = it }
                         )
@@ -1944,17 +2004,6 @@ fun RentalVehicleOnboardingScreen(
                             onValueChange = { form.stateName = it }
                         )
                     }
-                    RentalLocationPickerField(
-                        label = "Pickup location",
-                        value = form.pickupLocation,
-                        required = true,
-                        helper = "Search and choose the exact base location for this vehicle.",
-                        error = if (form.submitAttempted && form.pickupLocation == null) "Pickup location is required" else null,
-                        onSelected = {
-                            form.pickupLocation = it
-                            form.pickupAddress = it.address
-                        }
-                    )
                     VendorField(
                         "Price per day (₹)",
                         form.pricePerDay,
@@ -1976,7 +2025,7 @@ fun RentalVehicleOnboardingScreen(
                 ) {
                     Text("Vehicle photos", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Use either an image URL or a photo from your device for each slot.",
+                        "All four vehicle photos are mandatory. Use an image URL or a photo from your device for each slot.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -2018,6 +2067,19 @@ fun RentalVehicleOnboardingScreen(
                             },
                             { form.galleryInterior = null },
                             Modifier.weight(1f)
+                        )
+                    }
+                    val vehiclePhotosComplete = listOf(
+                        form.photoFront.isNotBlank() || form.galleryFront != null,
+                        form.photoSide.isNotBlank() || form.gallerySide != null,
+                        form.photoRear.isNotBlank() || form.galleryRear != null,
+                        form.photoInterior.isNotBlank() || form.galleryInterior != null
+                    ).all { it }
+                    if (form.submitAttempted && !vehiclePhotosComplete) {
+                        Text(
+                            "Front, side, rear and interior vehicle photos are required.",
+                            color = AppColors.Error,
+                            style = MaterialTheme.typography.labelSmall
                         )
                     }
                 }
@@ -2073,7 +2135,7 @@ fun RentalVehicleOnboardingScreen(
                             "Driver full name",
                             form.driverName,
                             modifier = Modifier.weight(1f),
-                            filter = { sanitizeVehicleText(it, 120) },
+                            filter = { sanitizeVehicleAlphaNumeric(it, 120) },
                             error = if (form.submitAttempted && form.driverName.isBlank()) "Driver name is required" else null,
                             onValueChange = { form.driverName = it }
                         )
@@ -2083,8 +2145,8 @@ fun RentalVehicleOnboardingScreen(
                             modifier = Modifier.weight(1f),
                             keyboardType = KeyboardType.Phone,
                             filter = ::normalizeIndianMobile,
-                            error = if (form.submitAttempted && !normalizeIndianMobile(form.driverMobile).matches(Regex("[6-9][0-9]{9}"))) "Enter a valid 10-digit mobile number" else null,
-                            helper = "Only numbers; Indian mobile starting 6–9.",
+                            error = if (form.submitAttempted && !normalizeIndianMobile(form.driverMobile).matches(Regex("[0-9]{10}"))) "Enter exactly 10 digits" else null,
+                            helper = "Enter exactly 10 digits.",
                             onValueChange = { form.driverMobile = it }
                         )
                     }
@@ -2120,6 +2182,12 @@ fun RentalVehicleOnboardingScreen(
             val manufacturing = form.manufacturingYear.toIntOrNull()
             val registration = form.registrationYear.toIntOrNull()
             val normalizedDriverMobile = normalizeIndianMobile(form.driverMobile)
+            val vehiclePhotosComplete = listOf(
+                form.photoFront.isNotBlank() || form.galleryFront != null,
+                form.photoSide.isNotBlank() || form.gallerySide != null,
+                form.photoRear.isNotBlank() || form.galleryRear != null,
+                form.photoInterior.isNotBlank() || form.galleryInterior != null
+            ).all { it }
             val licenseExpiryDate = runCatching {
                 LocalDate.parse(form.licenseExpiry.take(10), rentalDateFormatter)
             }.getOrNull()
@@ -2127,15 +2195,15 @@ fun RentalVehicleOnboardingScreen(
                 form.make.trim().isNotBlank() &&
                 form.model.trim().isNotBlank() &&
                 form.registrationNumber.trim().isNotBlank() &&
-                form.pickupLocation != null &&
                 form.city.trim().isNotBlank() &&
                 form.stateName.trim().isNotBlank() &&
                 form.driverName.trim().isNotBlank() &&
-                normalizedDriverMobile.matches(Regex("[6-9][0-9]{9}")) &&
+                normalizedDriverMobile.matches(Regex("[0-9]{10}")) &&
                 form.licenseNumber.trim().isNotBlank() &&
                 licenseExpiryDate?.isAfter(LocalDate.now()) == true &&
                 form.pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
                 form.seats.toIntOrNull()?.let { it in 2..8 } == true &&
+                vehiclePhotosComplete &&
                 manufacturing != null &&
                 registration != null &&
                 manufacturing in earliestVehicleYear..currentVehicleYear &&
@@ -2171,7 +2239,7 @@ fun RentalVehicleOnboardingScreen(
                                 city = form.city.trim(),
                                 state = form.stateName.trim(),
                                 pricePerDay = form.pricePerDay.toBigDecimal(),
-                                pickupLocation = form.pickupLocation,
+                                pickupLocation = null,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
@@ -2197,7 +2265,7 @@ fun RentalVehicleOnboardingScreen(
                                 city = form.city.trim(),
                                 state = form.stateName.trim(),
                                 pricePerDay = form.pricePerDay.toBigDecimal(),
-                                pickupLocation = form.pickupLocation,
+                                pickupLocation = null,
                                 imageUrl = combinedPhotos,
                                 driver = driver
                             ),
@@ -2573,18 +2641,8 @@ fun RentalBookingScreen(
     initialEnd: String? = null
 ) {
     var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
-    var pickupCoordinates by remember(car.id, initialStart, initialEnd) {
-        mutableStateOf(
-            if (car.pickupLatitude != null && car.pickupLongitude != null) {
-                RentalLocationInput(
-                    address = car.pickupAddress.orEmpty(),
-                    latitude = car.pickupLatitude,
-                    longitude = car.pickupLongitude,
-                    placeId = car.pickupPlaceId
-                )
-            } else null
-        )
-    }
+    // Temporary mapless booking mode: coordinates stay null until MAPS_API_KEY is enabled again.
+    var pickupCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
     var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf("") }
     var dropCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
     var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
@@ -2620,40 +2678,93 @@ fun RentalBookingScreen(
                     Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl, Modifier.fillMaxWidth())
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category }, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            Text("Chauffeur: " + car.driverName, color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(car.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    listOfNotBlank(car.make, car.model, car.variant).joinToString(" ").ifBlank { car.category },
+                                    color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Text(
+                                "₹" + car.pricePerDay.setScale(0) + "/day",
+                                color = AppColors.Success,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        Text("₹" + car.pricePerDay.setScale(0) + "/day", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(1.dp)
+                            ) {
+                                Text(
+                                    "Chauffeur: " + car.driverName,
+                                    color = AppColors.PrimaryDark,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                    Text(
+                                        it,
+                                        color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                            RentalCarImageTile(
+                                car.driverPhotoUrl,
+                                Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                            )
+                        }
                     }
                 }
             }
         }
+        /*
+         * Temporarily disabled map/Places UI because MAPS_API_KEY is not configured
+         * in this build. The booking API continues to use the same payload fields;
+         * coordinates remain null until map support is enabled again.
+         */
         item {
-            RentalLocationPickerField(
+            VendorField(
                 label = "Pickup location",
-                value = pickupCoordinates,
-                helper = "Choose where the chauffeur should pick you up.",
-                error = if (pickupCoordinates == null) "Pickup location is required" else null,
-                onSelected = {
-                    pickupCoordinates = it
-                    pickup = it.address
+                value = pickup,
+                filter = { sanitizeRentalLocation(it) },
+                error = if (pickup.trim().isBlank()) "Pickup location is required" else null,
+                helper = "Enter pickup location manually for now.",
+                onValueChange = {
+                    pickup = it
+                    pickupCoordinates = null
                     clearQuote()
                 }
             )
         }
         item {
-            RentalLocationPickerField(
+            VendorField(
                 label = "Drop location",
-                value = dropCoordinates,
-                helper = "Choose the exact destination on the map.",
-                error = if (quote == null && drop.isNotBlank() && dropCoordinates == null) "Choose the drop point from the map" else null,
-                onSelected = {
-                    dropCoordinates = it
-                    drop = it.address
+                value = drop,
+                filter = { sanitizeRentalLocation(it) },
+                error = if (quote == null && drop.trim().isBlank()) "Drop location is required" else null,
+                helper = "Enter drop location manually for now.",
+                onValueChange = {
+                    drop = it
+                    dropCoordinates = null
                     clearQuote()
                 }
             )
@@ -2678,7 +2789,7 @@ fun RentalBookingScreen(
         item {
             if (quote == null) {
                 Button(
-                    enabled = !state.saving && pickupCoordinates != null && dropCoordinates != null && validWindow,
+                    enabled = !state.saving && pickup.trim().isNotBlank() && drop.trim().isNotBlank() && validWindow,
                     onClick = {
                         val request = RentalBookingQuoteRequest(
                             car.id,
@@ -2913,8 +3024,7 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
-                                booking.driverPhotoUrl,
-                                Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth()
                             )
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2970,12 +3080,38 @@ fun RentalMyBookingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.Top
                             ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                    Text(
-                                        booking.driverName + (booking.driverMobile?.let { " • " + it } ?: ""),
-                                        fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.bodySmall
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                                    ) {
+                                        Text("Driver", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            booking.driverName,
+                                            fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                        booking.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                            Text(
+                                                it,
+                                                color = AppColors.TextSecondary,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
+                                    }
+                                    RentalCarImageTile(
+                                        booking.driverPhotoUrl,
+                                        Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
                                     )
                                 }
                                 Column(Modifier.weight(1f)) {

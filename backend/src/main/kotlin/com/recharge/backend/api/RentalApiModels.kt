@@ -167,7 +167,7 @@ data class RentalDriverRequest(
         regexp = "^[\\p{L}][\\p{L} .&'()\\-]{1,119}$",
         message = "Driver name may contain letters, spaces and common punctuation"
     ) val fullName: String,
-    @field:Pattern(regexp = "[6-9][0-9]{9}", message = "Driver mobile must be a valid 10 digit Indian mobile number")
+    @field:Pattern(regexp = "[0-9]{10}", message = "Driver mobile must contain exactly 10 digits")
     val mobile: String,
     @field:NotBlank @field:Pattern(
         regexp = "^[A-Za-z0-9][A-Za-z0-9 -]{0,63}$",
@@ -180,8 +180,8 @@ data class RentalDriverRequest(
 
 data class RentalVehicleOnboardingRequest(
     @field:NotBlank @field:Pattern(
-        regexp = "^[\\p{L}0-9][\\p{L}0-9 .&'()\\-]{1,119}$",
-        message = "Vehicle name may contain letters, numbers, spaces and common punctuation"
+        regexp = "^[\\p{L}0-9][\\p{L}0-9 ]{1,119}$",
+        message = "Vehicle name may contain letters, numbers and spaces only"
     ) val name: String,
     @field:NotBlank @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 .&'()\\-]{1,49}$", message = "Category contains unsupported characters")
     val category: String,
@@ -194,13 +194,13 @@ data class RentalVehicleOnboardingRequest(
     @field:Min(1900) @field:Max(2100) val registrationYear: Int,
     @field:NotBlank @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 -]{0,31}$", message = "Registration number may contain letters, numbers, spaces and hyphens")
     val registrationNumber: String,
-    @field:NotBlank @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 .&'()\\-]{1,79}$", message = "Make contains unsupported characters")
+    @field:NotBlank @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 ]{1,79}$", message = "Make must contain letters, numbers and spaces only")
     val make: String,
-    @field:NotBlank @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 .&'()\\-]{1,79}$", message = "Model contains unsupported characters")
+    @field:NotBlank @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 ]{1,79}$", message = "Model must contain letters, numbers and spaces only")
     val model: String,
-    @field:Size(max = 80) @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 .&'()\\-]{0,79}$", message = "Variant contains unsupported characters")
+    @field:Size(max = 80) @field:Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 ]{0,79}$", message = "Variant must contain letters, numbers and spaces only")
     val variant: String? = null,
-    @field:NotBlank @field:Size(max = 300) val pickupAddress: String,
+    @field:Size(max = 300) val pickupAddress: String? = null,
     @field:NotBlank @field:Pattern(regexp = "^[\\p{L}][\\p{L} .'\\-]{1,99}$", message = "City contains unsupported characters")
     val city: String,
     @field:NotBlank @field:Size(max = 100) val state: String,
