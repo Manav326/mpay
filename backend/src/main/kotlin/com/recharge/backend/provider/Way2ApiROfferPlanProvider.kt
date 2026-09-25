@@ -51,6 +51,18 @@ class Way2ApiROfferPlanProvider(
     override fun getPlans(
         mobileNumber: String,
         operator: String,
+        circle: String
+    ): List<RechargePlan> = getPlans(
+        mobileNumber = mobileNumber,
+        operator = operator,
+        circle = circle,
+        providerOperator = null,
+        providerCircle = null
+    )
+
+    override fun getPlans(
+        mobileNumber: String,
+        operator: String,
         circle: String,
         providerOperator: String?,
         providerCircle: String?
