@@ -290,6 +290,7 @@ data class RentalBookingResponse(
     val carName: String,
     val driverName: String,
     val driverMobile: String? = null,
+    val driverPhotoUrl: String? = null,
     val carImageUrl: String? = null,
     val pickup: String,
     val drop: String,
