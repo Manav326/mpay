@@ -242,6 +242,173 @@ class Way2ApiROfferPlanProvider(
     private data class Way2ROfferResult(
         val mobile_number: String,
         val operator: String,
+        val circle: String? = null,
+        val offers: List<Way2ROffer> = emptyList()
+    )
+
+    private data class Way2ROffer(
+        val price: String,
+        val description: String = "",
+        val log_description: String = ""
+    )
+}    private fun getROffers(mobileNumber: String, operator: String): List<RechargePlan> {
+        require(mobileNumber.matches(Regex("[6-9][0-9]{9}"))) {
+            "Mobile number must be a valid 10 digit Indian mobile number"
+        }
+
+        val way2Operator = operator.trim().lowercase()
+        val request = Way2ROfferRequest(mobile_number = mobileNumber, operator = way2Operator)
+        val response = try {
+            http.post()
+                .uri(rOfferPath)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer $apiKey")
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .onStatus({ status -> status.isError }) { _, upstream ->
+                    val body = runCatching { upstream.body.readBytes() }
+                        .getOrDefault(ByteArray(0))
+                    val root = runCatching {
+                        objectMapper.readValue(body, Way2ROfferResponse::class.java)
+                    }.getOrNull()
+                    throw Way2ApiException(
+                        upstreamStatusCode = upstream.statusCode.value(),
+                        providerMessageCode = root?.message_code,
+                        charged = root?.charged,
+                        providerOrderId = root?.order_id ?: root?.data?.order_id,
+                        message = root?.message?.takeIf { it.isNotBlank() }
+                            ?: "Way2API R-Offer lookup failed (${upstream.statusCode.value()})"
+                    )
+                }
+                .toEntity(Way2ROfferResponse::class.java)
+        } catch (ex: Way2ApiException) {
+            throw ex
+        } catch (ex: ResourceAccessException) {
+            throw Way2ApiException(
+                upstreamStatusCode = null,
+                message = "Way2API R-Offer lookup timed out or could not be reached. The request was not retried automatically because the provider billing state may be unknown."
+            )
+        } catch (ex: RestClientResponseException) {
+            throw Way2ApiException(
+                upstreamStatusCode = ex.statusCode.value(),
+                message = "Way2API R-Offer lookup failed (" + ex.statusCode.value() + ")"
+            )
+        } catch (ex: Exception) {
+            throw Way2ApiException(
+                upstreamStatusCode = 502,
+                message = "Way2API R-Offer response could not be processed: " +
+                    (ex.message ?: "unexpected provider error")
+            )
+        }
+
+        val root = response.body ?: throw Way2ApiException(
+            upstreamStatusCode = response.statusCode.value(),
+            message = "Way2API R-Offer returned an empty response"
+        )
+        val rootStatus = root.status.trim().uppercase()
+        val rootMessageCode = root.message_code?.trim()?.uppercase()
+        val rootMessage = root.message?.trim()?.takeIf { it.isNotBlank() }
+
+        if (response.statusCode.value() == 202 ||
+            rootStatus == "PENDING" ||
+            rootMessageCode == "ACCEPTED" ||
+            rootMessageCode == "PROVIDER_NO_RESPONSE"
+        ) {
+            throw Way2ApiException(
+                upstreamStatusCode = 202,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = rootMessage
+                    ?: "Way2API accepted the R-Offer lookup but it is still processing. Please try again later; no automatic retry was performed."
+            )
+        }
+        if (!root.success || rootStatus != "SUCCESS") {
+            val code = rootMessageCode
+            val message = rootMessage ?: "No recharge offers are available"
+            throw Way2ApiException(
+                upstreamStatusCode = root.status_code,
+                providerMessageCode = code,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = buildString {
+                    append("Recharge offers lookup failed")
+                    if (code != null) append(" [$code]")
+                    append(": ")
+                    append(message)
+                }
+            )
+        }
+
+        val result = root.data?.result
+            ?: throw Way2ApiException(
+                upstreamStatusCode = root.status_code,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data?.order_id,
+                message = "Way2API R-Offer returned success without offer data"
+            )
+
+        if (!result.operator.equals(way2Operator, ignoreCase = true)) {
+            throw Way2ApiException(
+                upstreamStatusCode = 502,
+                providerMessageCode = rootMessageCode,
+                charged = root.charged,
+                providerOrderId = root.order_id ?: root.data.order_id,
+                message = "Way2API returned a different operator than requested"
+            )
+        }
+
+        return result.offers.mapIndexed { index, offer ->
+            val amount = offer.price.toBigDecimalOrNull()
+                ?: throw IllegalStateException("Way2API returned an invalid offer price at index $index")
+
+            val id = stableOfferId(
+                mobileNumber = mobileNumber,
+                operator = operator,
+                amount = amount,
+                description = offer.description,
+                logDescription = offer.log_description
+            )
+
+            RechargePlan(
+                id = id,
+                amount = amount,
+                validity = extractValidity(offer.description, offer.log_description),
+                description = offer.description.ifBlank { offer.log_description },
+                providerReference = id,
+                providerOrderId = root.order_id ?: root.data.order_id,
+                providerLogDescription = offer.log_description
+            )
+        }.filter { it.amount.signum() > 0 }
+            .distinctBy { it.id }
+    }
+
+    private data class Way2ROfferRequest(
+        @JsonProperty("mobile_number") val mobile_number: String,
+        val operator: String
+    )
+
+    private data class Way2ROfferResponse(
+        val status: String,
+        val status_code: Int,
+        val charged: Boolean,
+        val success: Boolean,
+        val message: String?,
+        val message_code: String?,
+        val order_id: String?,
+        val data: Way2ROfferData?
+    )
+
+    private data class Way2ROfferData(
+        val order_id: String?,
+        val result: Way2ROfferResult?
+    )
+
+    private data class Way2ROfferResult(
+        val mobile_number: String,
+        val operator: String,
         val offers: List<Way2ROffer> = emptyList()
     )
 
@@ -251,3 +418,5 @@ class Way2ApiROfferPlanProvider(
         val log_description: String = ""
     )
 }
+
+
