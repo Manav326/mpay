@@ -2584,7 +2584,20 @@ fun RentalBookingScreen(
     initialEnd: String? = null
 ) {
     var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
-    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.city.orEmpty()) }
+    var pickupCoordinates by remember(car.id, initialStart, initialEnd) {
+        mutableStateOf(
+            if (car.pickupLatitude != null && car.pickupLongitude != null) {
+                RentalLocationInput(
+                    address = car.pickupAddress.orEmpty(),
+                    latitude = car.pickupLatitude,
+                    longitude = car.pickupLongitude,
+                    placeId = car.pickupPlaceId
+                )
+            } else null
+        )
+    }
+    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf("") }
+    var dropCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
     var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
     var end by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialEnd.orEmpty()) }
     var quote by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalBookingQuoteResponse?>(null) }
@@ -2630,8 +2643,32 @@ fun RentalBookingScreen(
                 }
             }
         }
-        item { VendorField("Pickup location", pickup, onValueChange = { pickup = it; clearQuote() }) }
-        item { VendorField("Drop location", drop, onValueChange = { drop = it; clearQuote() }) }
+        item {
+            RentalLocationPickerField(
+                label = "Pickup location",
+                value = pickupCoordinates,
+                helper = "Choose where the chauffeur should pick you up.",
+                error = if (pickupCoordinates == null) "Pickup location is required" else null,
+                onSelected = {
+                    pickupCoordinates = it
+                    pickup = it.address
+                    clearQuote()
+                }
+            )
+        }
+        item {
+            RentalLocationPickerField(
+                label = "Drop location",
+                value = dropCoordinates,
+                helper = "Choose the exact destination on the map.",
+                error = if (quote == null && drop.isNotBlank() && dropCoordinates == null) "Choose the drop point from the map" else null,
+                onSelected = {
+                    dropCoordinates = it
+                    drop = it.address
+                    clearQuote()
+                }
+            )
+        }
         item { RentalDateTimeField("Start date & time", start, { start = it; clearQuote() }) }
         item { RentalDateTimeField("End date & time", end, { end = it; clearQuote() }) }
         item {
@@ -2652,12 +2689,14 @@ fun RentalBookingScreen(
         item {
             if (quote == null) {
                 Button(
-                    enabled = !state.saving && pickup.isNotBlank() && drop.isNotBlank() && validWindow,
+                    enabled = !state.saving && pickupCoordinates != null && dropCoordinates != null && validWindow,
                     onClick = {
                         val request = RentalBookingQuoteRequest(
                             car.id,
                             pickup.trim(),
                             drop.trim(),
+                            pickupCoordinates,
+                            dropCoordinates,
                             start,
                             end
                         )
@@ -2746,6 +2785,8 @@ fun RentalBookingScreen(
                                                 car.id,
                                                 pickup.trim(),
                                                 drop.trim(),
+                                                pickupCoordinates,
+                                                dropCoordinates,
                                                 start,
                                                 end,
                                                 "WALLET"
