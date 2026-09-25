@@ -1,5 +1,6 @@
 package com.recharge.backend.provider
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -36,7 +37,7 @@ class Way2ApiROfferPlanProvider(
 
     override fun supportsOperator(operator: String): Boolean =
         when (operator.trim().uppercase()) {
-            "AIRTEL", "JIO", "VI", "BSNL" -> true
+            "AIRTEL", "VI", "JIO", "BSNL" -> true
             else -> false
         }
 
@@ -64,23 +65,28 @@ class Way2ApiROfferPlanProvider(
             "Mobile number must be a valid 10 digit Indian mobile number"
         }
 
-        val way2Operator = when (operator.trim().uppercase()) {
-            "AIRTEL" -> "airtel"
-            "JIO" -> "jio"
-            "VI" -> "vi"
-            "BSNL" -> "bsnl"
+        val normalizedOperator = operator.trim().uppercase()
+        return when (normalizedOperator) {
+            "AIRTEL", "VI" -> getROffers(mobileNumber, normalizedOperator)
+            "JIO", "BSNL" -> getGenericPlans(
+                mobileNumber = mobileNumber,
+                operator = normalizedOperator.lowercase(),
+                circle = normalizeCircle(providerCircle ?: circle)
+            )
             else -> throw IllegalArgumentException(
                 "Way2API prepaid recharge plans currently support Airtel, Jio, VI and BSNL"
             )
         }
+    }
 
-        val way2Circle = (providerCircle ?: circle).trim()
-        require(way2Circle.isNotBlank()) { "Recharge circle is required to fetch prepaid plans" }
+    private fun getGenericPlans(
+        mobileNumber: String,
+        operator: String,
+        circle: String
+    ): List<RechargePlan> {
+        require(circle.isNotBlank()) { "Recharge circle is required to fetch prepaid plans" }
 
-        val request = Way2RechargePlansRequest(
-            operator = way2Operator,
-            circle = way2Circle
-        )
+        val request = Way2RechargePlansRequest(operator = operator, circle = circle)
         val response = try {
             http.post()
                 .uri(rechargePlansPath)
@@ -90,8 +96,7 @@ class Way2ApiROfferPlanProvider(
                 .body(request)
                 .retrieve()
                 .onStatus({ status -> status.isError }) { _, upstream ->
-                    val body = runCatching { upstream.body.readBytes() }
-                        .getOrDefault(ByteArray(0))
+                    val body = runCatching { upstream.body.readBytes() }.getOrDefault(ByteArray(0))
                     val root = runCatching {
                         objectMapper.readValue(body, Way2RechargePlansResponse::class.java)
                     }.getOrNull()
@@ -110,7 +115,7 @@ class Way2ApiROfferPlanProvider(
         } catch (ex: ResourceAccessException) {
             throw Way2ApiException(
                 upstreamStatusCode = null,
-                message = "Way2API recharge plan lookup timed out or could not be reached. The request was not retried automatically because the provider billing state may be unknown."
+                message = "Way2API recharge plan lookup timed out or could not be reached. The request was not retried automatically."
             )
         } catch (ex: RestClientResponseException) {
             throw Way2ApiException(
@@ -149,32 +154,28 @@ class Way2ApiROfferPlanProvider(
         }
 
         if (!root.success || rootStatus != "SUCCESS") {
-            val code = rootMessageCode
-            val message = rootMessage ?: "No recharge plans are available"
             throw Way2ApiException(
-                upstreamStatusCode = root.status_code,
-                providerMessageCode = code,
-                charged = root.charged,
-                providerOrderId = root.order_id ?: root.data?.order_id,
-                message = buildString {
-                    append("Recharge plans lookup failed")
-                    if (code != null) append(" [$code]")
-                    append(": ")
-                    append(message)
-                }
-            )
-        }
-
-        val result = root.data?.result
-            ?: throw Way2ApiException(
                 upstreamStatusCode = root.status_code,
                 providerMessageCode = rootMessageCode,
                 charged = root.charged,
                 providerOrderId = root.order_id ?: root.data?.order_id,
-                message = "Way2API recharge plan API returned success without plan data"
+                message = buildString {
+                    append("Recharge plans lookup failed")
+                    if (rootMessageCode != null) append(" [").append(rootMessageCode).append("]")
+                    if (rootMessage != null) append(": ").append(rootMessage)
+                }
             )
+        }
 
-        if (!result.operator.equals(way2Operator, ignoreCase = true)) {
+        val result = root.data?.result ?: throw Way2ApiException(
+            upstreamStatusCode = root.status_code,
+            providerMessageCode = rootMessageCode,
+            charged = root.charged,
+            providerOrderId = root.order_id ?: root.data?.order_id,
+            message = "Way2API recharge plan API returned success without plan data"
+        )
+
+        if (!result.operator.equals(operator, ignoreCase = true)) {
             throw Way2ApiException(
                 upstreamStatusCode = 502,
                 providerMessageCode = rootMessageCode,
@@ -185,32 +186,41 @@ class Way2ApiROfferPlanProvider(
         }
 
         return result.plans.mapIndexedNotNull { index, plan ->
-            if (!plan.status.equals("active", ignoreCase = true)) return@mapIndexedNotNull null
+            if (plan.status.isNotBlank() && !plan.status.equals("active", ignoreCase = true)) {
+                return@mapIndexedNotNull null
+            }
             val amount = plan.amount
-                ?: throw IllegalStateException("Way2API returned an invalid plan amount at index $index")
+                ?: throw IllegalStateException("Way2API returned an invalid plan amount at index " + index)
             if (amount.signum() <= 0) return@mapIndexedNotNull null
 
             val description = plan.description.trim().takeIf { it.isNotBlank() }
                 ?: plan.categoryLabel.trim().takeIf { it.isNotBlank() }
-                ?: plan.category
+                ?: plan.category.trim().takeIf { it.isNotBlank() }
+                ?: "Recharge plan"
+            val validity = plan.validity.trim().takeIf { it.isNotBlank() }
+                ?: plan.validityDays?.let { it.toString() + " days" }
 
-            val stableId = stablePlanId(
-                mobileNumber = mobileNumber,
-                operator = way2Operator,
-                circle = result.circle,
-                amount = amount,
-                validity = plan.validity,
-                description = description,
-                category = plan.category
-            )
+            val idSource = listOf(
+                mobileNumber,
+                operator.uppercase(),
+                result.circle.trim().uppercase(),
+                amount.setScale(2).toPlainString(),
+                validity.orEmpty(),
+                description.trim(),
+                plan.category.trim().lowercase()
+            ).joinToString("|")
+            val digest = MessageDigest.getInstance("SHA-256")
+                .digest(idSource.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+                .take(24)
 
             RechargePlan(
-                id = stableId,
+                id = "WAY2-PLAN-" + digest,
                 amount = amount,
-                validity = plan.validity.trim().takeIf { it.isNotBlank() },
+                validity = validity,
                 description = description,
-                providerReference = stableId,
-                providerOrderId = root.order_id ?: root.data.order_id,
+                providerReference = "WAY2-PLAN-" + digest,
+                providerOrderId = root.order_id ?: root.data?.order_id,
                 providerMetadata = mapOf(
                     "category" to plan.category,
                     "categoryLabel" to plan.categoryLabel,
@@ -220,6 +230,7 @@ class Way2ApiROfferPlanProvider(
             )
         }.distinctBy { it.id }
     }
+
     private fun getROffers(mobileNumber: String, operator: String): List<RechargePlan> {
         require(mobileNumber.matches(Regex("[6-9][0-9]{9}"))) {
             "Mobile number must be a valid 10 digit Indian mobile number"
@@ -354,6 +365,21 @@ class Way2ApiROfferPlanProvider(
             .distinctBy { it.id }
     }
 
+    private fun normalizeCircle(value: String): String {
+        val normalized = value.trim()
+            .lowercase()
+            .replace("&", "and")
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
+
+        return when (normalized) {
+            "bihar and jharkhand", "bihar jharkhand", "bihar" -> "bihar"
+            else -> normalized.replace(' ', '-')
+        }
+    }
+
+
     private fun stableOfferId(
         mobileNumber: String,
         operator: String,
@@ -408,7 +434,6 @@ class Way2ApiROfferPlanProvider(
     private data class Way2ROfferResult(
         val mobile_number: String,
         val operator: String,
-        val circle: String? = null,
         val offers: List<Way2ROffer> = emptyList()
     )
 
@@ -417,46 +442,6 @@ class Way2ApiROfferPlanProvider(
         val description: String = "",
         val log_description: String = ""
     )
-}
-
-    private fun normalizeCircle(value: String): String {
-        val normalized = value.trim()
-            .lowercase()
-            .replace("&", "and")
-            .replace(Regex("[^a-z0-9]+"), " ")
-            .trim()
-            .replace(Regex("\\s+"), " ")
-
-        return when (normalized) {
-            "bihar and jharkhand", "bihar jharkhand", "bihar" -> "bihar"
-            else -> normalized.replace(' ', '-')
-        }
-    }
-
-    private fun stablePlanId(
-        mobileNumber: String,
-        operator: String,
-        circle: String,
-        amount: BigDecimal,
-        validity: String,
-        description: String,
-        category: String
-    ): String {
-        val source = listOf(
-            mobileNumber,
-            operator.uppercase(),
-            circle.trim().uppercase(),
-            amount.setScale(2).toPlainString(),
-            validity.trim(),
-            description.trim(),
-            category.trim().lowercase()
-        ).joinToString("|")
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(source.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-            .take(24)
-        return "WAY2-PLAN-$digest"
-    }
 
     private data class Way2RechargePlansRequest(
         val operator: String,
