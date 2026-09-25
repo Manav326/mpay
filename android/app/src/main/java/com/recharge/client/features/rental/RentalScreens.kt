@@ -835,7 +835,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    RentalVehicleGallery(car.imageUrl, car.driverPhotoUrl)
+                                    RentalVehicleGallery(car.imageUrl)
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
@@ -845,17 +845,36 @@ fun RentalVendorOnboardingScreen(
                                     )
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(Icons.Default.Badge, null, tint = AppColors.Primary, modifier = Modifier.size(15.dp))
-                                        Text(
-                                            car.driverName + (car.driverMobile?.let { " • " + it } ?: ""),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            modifier = Modifier.weight(1f)
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                                        ) {
+                                            Text(
+                                                car.driverName,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                            car.driverMobile?.takeIf { it.isNotBlank() }?.let {
+                                                Text(
+                                                    it,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = AppColors.TextSecondary,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+                                        RentalCarImageTile(
+                                            car.driverPhotoUrl,
+                                            Modifier
+                                                .size(42.dp)
+                                                .clip(RoundedCornerShape(10.dp))
                                         )
                                     }
                                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
