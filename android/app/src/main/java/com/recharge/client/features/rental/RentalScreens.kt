@@ -1270,8 +1270,6 @@ private fun RentalPublicCarDetailsDialog(
                 item {
                     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .70f))) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RentalCarImageTile(car.driverPhotoUrl, Modifier.size(68.dp))
-                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text("Chauffeur", style = MaterialTheme.typography.labelMedium, color = AppColors.TextSecondary)
                                 Text(car.driverName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -2299,19 +2297,6 @@ private fun RentalVehicleDetailsDialog(
                             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("Review note", style = MaterialTheme.typography.labelLarge, color = AppColors.Error, fontWeight = FontWeight.Bold)
                                 Text(reason, color = Color(0xFF7F1D1D), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                }
-                if (!car.driverPhotoUrl.isNullOrBlank()) {
-                    item {
-                        Card(
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
-                        ) {
-                            Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Driver photo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                RentalCarImageTile(car.driverPhotoUrl, Modifier.fillMaxWidth().height(180.dp))
                             }
                         }
                     }
