@@ -1,6 +1,5 @@
 package com.recharge.backend.provider
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -216,36 +215,6 @@ class Way2ApiROfferPlanProvider(
             )
         }.distinctBy { it.id }
     }
-    private fun stableOfferId(
-        mobileNumber: String,
-        operator: String,
-        amount: BigDecimal,
-        description: String,
-        logDescription: String
-    ): String {
-        val source = listOf(
-            mobileNumber,
-            operator.uppercase(),
-            amount.setScale(2).toPlainString(),
-            description.trim(),
-            logDescription.trim()
-        ).joinToString("|")
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(source.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-            .take(24)
-        return "WAY2-ROFFER-$digest"
-    }
-
-    private fun extractValidity(description: String, logDescription: String): String? {
-        val text = "$description $logDescription"
-        val days = Regex("""(?i)\b(\d+)\s*D(?:AYS?)?\b""").find(text)?.groupValues?.getOrNull(1)
-        if (days != null) return "$days days"
-        val months = Regex("""(?i)\b(\d+)\s*M(?:ONTHS?|)\b""").find(text)?.groupValues?.getOrNull(1)
-        if (months != null) return if (months == "1") "1 month" else "$months months"
-        return null
-    }
-
     private fun stablePlanId(
         mobileNumber: String,
         operator: String,
