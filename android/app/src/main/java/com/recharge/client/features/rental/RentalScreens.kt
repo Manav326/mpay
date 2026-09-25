@@ -1266,7 +1266,7 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
                         Surface(
                             Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -1565,7 +1565,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -2678,7 +2678,7 @@ fun RentalBookingScreen(
                     Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RentalVehicleGallery(car.imageUrl, Modifier.fillMaxWidth())
+                    RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
                     Column(
                         Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -3024,7 +3024,7 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
-                                Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth()
                             )
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
