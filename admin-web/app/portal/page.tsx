@@ -1299,7 +1299,7 @@ export default function Portal() {
     });
     setVehiclePhotoUrls(photos);
     setVehiclePhotoFiles([null,null,null,null]);
-    setVehiclePhotoPreviews(photos.map(x=>x ? (x.startsWith('http') ? x : base + '/api/v1/car-rental/photos/' + x.replace(/^\\/+/,'')) : ''));
+    setVehiclePhotoPreviews(photos.map(x=>x ? (x.startsWith('http') ? x : base + '/api/v1/car-rental/photos/' + x.replace(/^\/+/,'')) : ''));
     setDriverPhotoFile(null);
     setDriverPhotoPreview(car?.driverPhotoUrl ? (car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl) : '');
     setShowVehicleForm(true);
