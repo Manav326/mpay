@@ -437,6 +437,8 @@ export default function Portal() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [pendingProfileImageFile, setPendingProfileImageFile] = useState<File|null>(null);
+  const [pendingProfileImagePreview, setPendingProfileImagePreview] = useState('');
   const [commissionSummary, setCommissionSummary] = useState<any>();
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
@@ -788,15 +790,30 @@ export default function Portal() {
   async function saveProfile() {
     setBusy(true);
     try {
-      const p = await api<Me>('/api/v1/profile', {
+      let p = await api<Me>('/api/v1/profile', {
         method:'PATCH',
         body:JSON.stringify({ name:profileForm.name.trim() || null, email:profileForm.email.trim() || null })
       });
+      let photoError = '';
+      if (pendingProfileImageFile) {
+        try {
+          const fd = new FormData();
+          fd.append('image', pendingProfileImageFile);
+          p = await apiUpload<Me>('/api/v1/profile/image', 'PUT', fd);
+          await loadProfileImage();
+        } catch (e:any) {
+          photoError = e.message || 'Profile photo could not be uploaded.';
+        }
+      }
       setMe(p);
+      setPendingProfileImageFile(null);
+      if (pendingProfileImagePreview.startsWith('blob:')) URL.revokeObjectURL(pendingProfileImagePreview);
+      setPendingProfileImagePreview('');
       setEditingProfile(false);
-      setNotice('Profile updated.');
-    } catch(e:any) { setNotice(e.message || 'Unable to update profile.'); }
-    finally { setBusy(false); }
+      setNotice(photoError ? 'Profile updated, but the profile photo could not be uploaded.' : 'Profile updated.');
+    } catch(e:any) {
+      setNotice(e.message || 'Unable to update profile.');
+    } finally { setBusy(false); }
   }
 
   async function uploadProfileImage(file: File) {
@@ -818,9 +835,27 @@ export default function Portal() {
       const p = await api<Me>('/api/v1/profile/image', { method:'DELETE' });
       setMe(p);
       setProfileImage('');
+      setPendingProfileImageFile(null);
+      if (pendingProfileImagePreview.startsWith('blob:')) URL.revokeObjectURL(pendingProfileImagePreview);
+      setPendingProfileImagePreview('');
       setNotice('Profile photo removed.');
     } catch(e:any) { setNotice(e.message || 'Unable to remove profile photo.'); }
     finally { setBusy(false); }
+  }
+
+  function chooseProfileImage(file: File|null) {
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      setNotice('Please select a JPG, PNG or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice('Profile photo must be 5 MB or smaller.');
+      return;
+    }
+    if (pendingProfileImagePreview.startsWith('blob:')) URL.revokeObjectURL(pendingProfileImagePreview);
+    setPendingProfileImageFile(file);
+    setPendingProfileImagePreview(URL.createObjectURL(file));
   }
   async function deleteAccount() {
     if (deletePassword.trim().length === 0 || deleteConfirmation.trim().toUpperCase() !== 'DELETE') return;
@@ -1598,6 +1633,12 @@ export default function Portal() {
     if(selectedVendorVehicle) loadVehicleCalendar(selectedVendorVehicle.id,calendarMonth);
   },[calendarMonth]);
 
+  useEffect(()=>{
+    if(view==='account' && accountSection==='vendor' && vendorVerified && vendorVehicles.length){
+      vendorVehicles.forEach(car => { void loadVehicleUnavailability(car.id); });
+    }
+  },[view, accountSection, vendorVerified, vendorVehicles.map(car=>car.id).join('|')]);
+
   async function copyText(value:string,message='Copied to clipboard.') {
     try { await navigator.clipboard.writeText(value); setNotice(message); }
     catch { setNotice('Unable to copy. Please copy the reference manually.'); }
@@ -1661,7 +1702,7 @@ export default function Portal() {
           view==='history'?'Transaction history':view==='marketplace'?'Marketplace':view==='rental'?'Marketplace · Car Rental':
           view==='rental-booking'?'Book with driver':view==='bookings'?'My Bookings':'Your account'
         }</h1></div>
-        <div className="portal-avatar">{profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
+        <div className="portal-avatar">{pendingProfileImagePreview ? <img src={pendingProfileImagePreview} alt="Profile"/> : profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
 
       {notice && <div className="portal-notice">{notice}<button onClick={()=>setNotice('')}><X size={14}/></button></div>}
@@ -2796,7 +2837,7 @@ export default function Portal() {
               <div className="account-profile-avatar">
                 {profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}
               </div>
-              <div><label className="photo-file-button landing-secondary compact"><Camera size={13}/> Change photo<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0]&&uploadProfileImage(e.target.files[0])}/></label>{profileImage&&<button className="text-danger-btn" onClick={removeProfileImage} disabled={busy}>Remove</button>}</div>
+              <div><label className="photo-file-button landing-secondary compact"><Camera size={13}/> {pendingProfileImageFile?'Change':'Change photo'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>chooseProfileImage(e.target.files?.[0]||null)}/></label>{profileImage&&<button className="text-danger-btn" onClick={removeProfileImage} disabled={busy}>Remove</button>}</div>
             </div>
             <label className="account-modal-field">Full name<input value={profileForm.name} onChange={e=>setProfileForm({...profileForm,name:e.target.value.slice(0,120)})}/></label>
             <label className="account-modal-field">Email<input type="email" value={profileForm.email} onChange={e=>setProfileForm({...profileForm,email:e.target.value.slice(0,254)})}/></label>
