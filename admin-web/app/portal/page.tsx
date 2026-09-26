@@ -2408,123 +2408,390 @@ export default function Portal() {
         </div>
       </section>}
 
-      {view==='account' && <section className="portal-content">
-        <div className="portal-panel account-panel">
-          {profileImage ? <img className="account-profile-image" src={profileImage} alt="Profile"/> : <div className="account-large-avatar">{(me?.name || 'U').charAt(0).toUpperCase()}</div>}
-          <h2>{me?.name || 'mPay user'}</h2><p>{me?.publicUserId}</p>
-          <div className="account-facts">
-            <div><span>Mobile</span><b>{me?.mobile}</b></div><div><span>Email</span><b>{me?.email || 'Not provided'}</b></div>
-            <div><span>Account type</span><b>{me?.role || 'CLIENT'}</b></div><div><span>Joined</span><b>{date(me?.createdAt)}</b></div>
-            <div><span>Last profile update</span><b>{dt(me?.profileUpdatedAt || undefined)}</b></div><div><span>Commission</span><b>{me?.commissionRate != null ? Number(me.commissionRate).toFixed(2)+'%' : '—'}</b></div>
-          </div>
-          <div className="account-actions"><button className="landing-secondary" onClick={()=>setEditingProfile(v=>!v)}><Edit3 size={15}/> {editingProfile?'Close':'Edit profile'}</button>
-            <label className="landing-secondary upload-label"><Upload size={15}/> Photo<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0] && uploadProfileImage(e.target.files[0])}/></label>
-            {profileImage && <button className="text-danger-btn" onClick={removeProfileImage}><Trash2 size={14}/> Remove photo</button>}
-          </div>
-          {editingProfile && <div className="profile-edit-form"><input value={profileForm.name} placeholder="Full name" onChange={e=>setProfileForm({...profileForm,name:e.target.value})}/><input value={profileForm.email} placeholder="Email" onChange={e=>setProfileForm({...profileForm,email:e.target.value})}/><button className="landing-primary" disabled={busy} onClick={saveProfile}><Save size={15}/> Save profile</button></div>}
-        </div>
-
-        <div className="portal-panel account-security-panel">
-          <div className="panel-head">
-            <div><h2>Account & privacy</h2><p>Manage your account lifecycle and account deletion.</p></div>
-            <ShieldCheck size={22}/>
-          </div>
-          <div className="account-security-links">
-            <a className="landing-secondary" href="/privacy-policy" target="_blank" rel="noreferrer">Privacy policy <ArrowRight size={14}/></a>
-            <a className="landing-secondary" href="/delete-account" target="_blank" rel="noreferrer">Account deletion information <ArrowRight size={14}/></a>
-          </div>
-          <div className="danger-panel">
-            <div><b>Delete your mPay account</b><span>This permanently disables the account and removes or redacts personal data. Financial records required for reconciliation are retained in redacted form.</span></div>
-            <div className="danger-panel-form">
-              <label>Password<input type="password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)} placeholder="Enter your password"/></label>
-              <label>Type DELETE to confirm<input value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE" autoCapitalize="characters"/></label>
-              <button className="text-danger-btn" disabled={deletingAccount || !deletePassword.trim() || deleteConfirmation.trim().toUpperCase()!=='DELETE'} onClick={deleteAccount}>{deletingAccount?'Deleting account…':'Delete account'}</button>
+      {view==='account' && <section className="portal-content account-android-parity">
+        {accountSection==='profile' && <div className="account-android-stack">
+          <section className="portal-panel account-profile-hero">
+            <div className="account-profile-avatar-wrap">
+              <div className="account-profile-avatar">
+                {profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <span className="account-profile-camera"><Camera size={13}/></span>
             </div>
-          </div>
-        </div>
-
-        <div className="portal-panel vendor-hub">
-          <div className="vendor-hub-hero">
-            <div className="vendor-hub-icon"><CarFront size={25}/></div>
-            <div className="vendor-hub-title"><span>mPAY MOBILITY PARTNER</span><h2>Vendor Studio</h2><p>Your chauffeur-driven fleet, availability, payouts and marketplace identity in one workspace.</p></div>
-            {vendor?.vendorId ? <span className={statusClass(vendor.status) + ' vendor-hub-status'}>{vendorStatus}</span> : <span className="vendor-hub-status vendor-status-neutral">NOT ONBOARDED</span>}
-          </div>
-
-          {vendor && !vendor.vendorId && <div className="vendor-cta"><div><b>Become a rental partner</b><span>Submit your profile for admin review. Your vendor workspace unlocks after verification.</span></div><button className="landing-primary" onClick={()=>{resetVendorForm(vendor);setShowVendorForm(true);}}><Plus size={16}/> Become a Vendor</button></div>}
-
-          {vendor?.vendorId && <>
-            <div className="vendor-summary-grid">
-              <div><span>Partner status</span><b className={statusClass(vendor.status)}>{vendorStatus}</b></div>
-              <div><span>Fleet</span><b>{vendor.vehicleCount ?? vendorVehicles.length}</b></div>
-              <div><span>Base location</span><b>{vendor.city || '—'}</b></div>
-              <div><span>Primary payout</span><b>{vendor.payoutPrimaryMethod || '—'}</b></div>
-              {vendor.rejectionReason && <div className="vendor-rejection"><span>Admin review note</span><b>{vendor.rejectionReason}</b></div>}
+            <div className="account-profile-copy">
+              <span className="account-eyebrow">PROFILE</span>
+              <h2>{me?.name || 'Your name'}</h2>
+              <p>{me?.email || 'Add an email address'}</p>
+              <b>{me?.mobile || '—'}</b>
             </div>
-            {vendorVerified && vendorEarnings && <div className="vendor-earnings-grid">
-              <div><span>Today · net</span><b className="amount-credit">{money(vendorEarnings.today.vendorNetAmount)}</b><small>{vendorEarnings.today.completedBookingCount} completed</small></div>
-              <div><span>Today · bookings</span><b>{vendorEarnings.today.bookingCount}</b><small>confirmed / completed</small></div>
-              <div><span>This month · net</span><b className="amount-credit">{money(vendorEarnings.monthly.vendorNetAmount)}</b><small>{vendorEarnings.monthly.completedBookingCount} completed</small></div>
-              <div><span>Upcoming bookings</span><b>{vendorEarnings.upcomingBookingCount}</b><small>currently confirmed</small></div>
-            </div>}
-            <div className="vendor-actions">
-              <button className="landing-secondary" onClick={()=>resetVendorForm(vendor)}><Edit3 size={15}/> {vendorStatus==='REJECTED'?'Resubmit profile':'Edit profile'}</button>
-              <button className="landing-secondary" onClick={loadAccountData}><RefreshCw size={15}/> Refresh workspace</button>
+            <button className="landing-secondary" onClick={()=>setEditingProfile(true)}><Edit3 size={15}/> Edit</button>
+          </section>
+
+          <section className="portal-panel account-details-card">
+            <div className="account-section-heading">
+              <div><h3>Account details</h3><p>Permanent account information and activity</p></div>
+              <FileText size={18}/>
+            </div>
+            <div className="account-detail-grid">
+              <div><span>Account ID</span><b>{me?.publicUserId || '—'}</b></div>
+              <div><span>Account type</span><b>{me?.role === 'CLIENT' ? 'Client' : (me?.role || '—')}</b></div>
+              <div><span>Commission rate</span><b>{me?.commissionRate != null ? Number(me.commissionRate).toFixed(2)+'%' : '—'}</b></div>
+              <div><span>Joined</span><b>{dt(me?.createdAt)}</b></div>
+              <div><span>Last profile update</span><b>{dt(me?.profileUpdatedAt || me?.createdAt)}</b></div>
+            </div>
+          </section>
+
+          <section className={'account-vendor-entry-card '+(vendorVerified?'verified':'')}>
+            <div className="account-vendor-entry-icon"><CarFront size={24}/></div>
+            <div className="account-vendor-entry-copy">
+              <span className="account-eyebrow">RENTAL</span>
+              <h3>{
+                vendorVerified ? 'Rental Vendor Dashboard' :
+                vendorStatus==='REJECTED' ? 'Rental Vendor Application' :
+                vendorStatus==='PENDING' ? 'Vendor Application · Pending Verification' :
+                'Become a Vendor'
+              }</h3>
+              <p>{
+                vendorVerified ? 'Business workspace: manage cars, availability, payouts and rental operations.' :
+                vendorStatus==='REJECTED' ? 'Review the rejection note and resubmit your vendor details.' :
+                vendorStatus==='PENDING' ? 'Your application is submitted and awaiting admin verification.' :
+                'List your chauffeur-driven car and manage it through the mPay marketplace.'
+              }</p>
+              {vendor?.vendorId && <span className={statusClass(vendor.status)+' account-vendor-status'}>{vendorStatus || '—'}</span>}
+            </div>
+            <button className={vendorVerified?'account-vendor-open':'landing-primary'} onClick={()=>{
+              if(vendorVerified) setAccountSection('vendor');
+              else openVendorOnboarding();
+            }}>
+              {vendorVerified ? 'Open Vendor Studio' : vendorStatus==='PENDING' ? 'View application' : vendorStatus==='REJECTED' ? 'Review & resubmit' : 'Become a Vendor'}
+              <ChevronRight size={16}/>
+            </button>
+          </section>
+
+          {vendorStatus==='REJECTED' && vendor?.rejectionReason && <div className="account-review-note"><b>Admin note</b><span>{vendor.rejectionReason}</span></div>}
+
+          <section className="portal-panel account-settings-card">
+            <div className="account-section-heading"><div><h3>Settings & policies</h3><p>Manage your account, privacy and session</p></div><Settings size={18}/></div>
+            <button className="account-action-row" onClick={()=>setEditingProfile(true)}>
+              <span><Settings size={17}/></span><div><b>Account settings</b><small>Update your name, email and profile photo</small></div><ChevronRight size={16}/>
+            </button>
+            <button className="account-action-row" onClick={()=>window.open('/privacy-policy','_blank','noopener,noreferrer')}>
+              <span><FileText size={17}/></span><div><b>Privacy Policy</b><small>How mPay collects and uses your information</small></div><ChevronRight size={16}/>
+            </button>
+            <button className="account-action-row danger" onClick={()=>{setDeletePassword('');setDeleteConfirmation('');setShowDeleteDialog(true);}}>
+              <span><Trash2 size={17}/></span><div><b>Delete account</b><small>Permanently delete your account and associated personal data</small></div><ChevronRight size={16}/>
+            </button>
+          </section>
+
+          <button className="account-logout-button" onClick={logout}><LogOut size={17}/> Logout</button>
+        </div>}
+
+        {accountSection==='vendor' && !vendorVerified && <section className="portal-panel vendor-onboarding-page">
+          <div className="vendor-page-header">
+            <button className="icon-btn" onClick={()=>setAccountSection('profile')}><ChevronLeft size={18}/></button>
+            <div><span className="account-eyebrow">RENTAL PARTNER</span><h2>Become a rental partner</h2><p>{vendorStatus==='REJECTED' ? 'Let’s fix the reviewed details and resubmit.' : 'A simple profile is all we need to get your fleet reviewed.'}</p></div>
+          </div>
+
+          {vendorStatus==='PENDING' ? (
+            <div className="vendor-pending-card">
+              <span><CheckCircle2 size={24}/></span>
+              <div><h3>You’re almost there</h3><p>Your vendor profile is with admin for verification.</p><small>Once verified, you can add vehicles and manage their availability.</small></div>
+            </div>
+          ) : <>
+            <div className="vendor-onboarding-intro">
+              <div><b>Start earning from your car</b><span>List chauffeur-driven vehicles, choose when they are available, and track bookings from one place.</span></div>
+              <div className="vendor-step-chips"><span>Profile</span><span>Admin review</span><span>Add vehicles</span></div>
+            </div>
+
+            {vendorStatus==='REJECTED' && vendor?.rejectionReason && <div className="vendor-rejection-card"><b>Admin note</b><span>{vendor.rejectionReason}</span></div>}
+
+            <section className="vendor-form-card vendor-dark-type">
+              <div className="vendor-form-section-head"><div><b>Partner type</b><span>Choose the identity used for your vendor application.</span></div></div>
+              <div className="vendor-type-pills">
+                {(['INDIVIDUAL','BUSINESS'] as const).map(type=><button key={type} className={vendorForm.vendorType===type?'selected':''} onClick={()=>setVendorForm({...vendorForm,vendorType:type})}><b>{type==='INDIVIDUAL'?'Individual':'Business'}</b></button>)}
+              </div>
+            </section>
+
+            <section className="vendor-form-card">
+              <div className="vendor-form-section-head"><div><b>Your profile</b><span>Identity and base marketplace location</span></div><UserRound size={18}/></div>
+              <div className="vendor-form-grid">
+                <label>Full name<input value={vendorForm.fullName} onChange={e=>setVendorForm({...vendorForm,fullName:e.target.value.slice(0,120)})}/>{vendorSubmitAttempted&&!vendorForm.fullName.trim()&&<small className="field-error">Full name is required</small>}</label>
+                <label>Fleet / business name <em>(optional)</em><input value={vendorForm.businessName} onChange={e=>setVendorForm({...vendorForm,businessName:e.target.value.slice(0,120)})}/></label>
+                <label className="vendor-field-wide">Address<input value={vendorForm.address} onChange={e=>setVendorForm({...vendorForm,address:e.target.value.slice(0,300)})}/>{vendorSubmitAttempted&&!vendorForm.address.trim()&&<small className="field-error">Address is required</small>}</label>
+                <label>City<input value={vendorForm.city} onChange={e=>setVendorForm({...vendorForm,city:e.target.value.slice(0,100)})}/>{vendorSubmitAttempted&&!vendorForm.city.trim()&&<small className="field-error">City is required</small>}</label>
+                <label>State<input value={vendorForm.state} onChange={e=>setVendorForm({...vendorForm,state:e.target.value.slice(0,100)})}/>{vendorSubmitAttempted&&!vendorForm.state.trim()&&<small className="field-error">State is required</small>}</label>
+                <label>PIN code<input inputMode="numeric" value={vendorForm.pinCode} onChange={e=>setVendorForm({...vendorForm,pinCode:e.target.value.replace(/\D/g,'').slice(0,10)})}/>{vendorSubmitAttempted&&!vendorForm.pinCode.trim()&&<small className="field-error">PIN code is required</small>}</label>
+                <label>PAN <em>(optional)</em><input value={vendorForm.panNumber} onChange={e=>setVendorForm({...vendorForm,panNumber:e.target.value.toUpperCase().slice(0,20)})}/></label>
+              </div>
+            </section>
+
+            <section className="vendor-form-card">
+              <div className="vendor-form-section-head"><div><b>Payout details</b><span>Add UPI or bank details and choose which one is primary for payouts.</span></div><Banknote size={18}/></div>
+              <div className="vendor-form-grid">
+                <label>Payout UPI <em>(optional)</em><input value={vendorForm.payoutUpiId} onChange={e=>setVendorForm({...vendorForm,payoutUpiId:e.target.value.slice(0,120)})}/></label>
+                <label>Bank name<input value={vendorForm.bankName} onChange={e=>setVendorForm({...vendorForm,bankName:e.target.value.slice(0,120)})}/></label>
+                <label>Bank account<input value={vendorForm.bankAccountNumber} onChange={e=>setVendorForm({...vendorForm,bankAccountNumber:e.target.value.replace(/\D/g,'').slice(0,30)})}/></label>
+                <label>Bank IFSC<input value={vendorForm.bankIfsc} onChange={e=>setVendorForm({...vendorForm,bankIfsc:e.target.value.toUpperCase().slice(0,20)})}/></label>
+              </div>
+              <div className="vendor-primary-payout">
+                <span>Primary payout method</span>
+                <button disabled={!vendorForm.payoutUpiId.trim()} className={vendorForm.payoutPrimaryMethod==='UPI'?'selected':''} onClick={()=>setVendorForm({...vendorForm,payoutPrimaryMethod:'UPI'})}>UPI</button>
+                <button disabled={!vendorForm.bankAccountNumber.trim()||!vendorForm.bankIfsc.trim()} className={vendorForm.payoutPrimaryMethod==='BANK'?'selected':''} onClick={()=>setVendorForm({...vendorForm,payoutPrimaryMethod:'BANK'})}>Bank</button>
+              </div>
+              {vendorSubmitAttempted && validateVendorForm() && <div className="vendor-form-error">{validateVendorForm()}</div>}
+            </section>
+
+            <div className="vendor-form-actions">
+              <button className="landing-secondary" onClick={()=>setAccountSection('profile')} disabled={busy}>Cancel</button>
+              <button className="landing-primary" disabled={busy} onClick={saveVendor}>
+                {busy ? 'Submitting…' : vendorStatus==='REJECTED' ? 'Resubmit for verification' : 'Start vendor verification'}
+              </button>
             </div>
           </>}
+        </section>}
 
-          {showVendorForm && <div className="vendor-form">
-            <div className="vendor-section-head"><div><b>{vendor?.vendorId ? 'Edit vendor profile' : 'Vendor application'}</b><span className="vendor-form-subtitle">{vendor?.vendorId ? 'Update identity and payout preferences without leaving the workspace.' : 'Tell us about the business and preferred payout method.'}</span></div><button className="icon-btn" onClick={()=>setShowVendorForm(false)}><X size={16}/></button></div>
-            <div className="vendor-form-grid">
-              <label>Vendor type<select value={vendorForm.vendorType} onChange={e=>setVendorForm({...vendorForm,vendorType:e.target.value})}><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label>
-              <label>Full name<input value={vendorForm.fullName} onChange={e=>setVendorForm({...vendorForm,fullName:e.target.value})}/></label>
-              <label>Business / fleet name<input value={vendorForm.businessName} onChange={e=>setVendorForm({...vendorForm,businessName:e.target.value})}/></label>
-              <label className="vendor-field-wide">Address<input value={vendorForm.address} onChange={e=>setVendorForm({...vendorForm,address:e.target.value})}/></label>
-              <label>City<input value={vendorForm.city} onChange={e=>setVendorForm({...vendorForm,city:e.target.value})}/></label>
-              <label>State<input value={vendorForm.state} onChange={e=>setVendorForm({...vendorForm,state:e.target.value})}/></label>
-              <label>PIN code<input value={vendorForm.pinCode} onChange={e=>setVendorForm({...vendorForm,pinCode:e.target.value})}/></label>
-              <label>PAN<input value={vendorForm.panNumber} onChange={e=>setVendorForm({...vendorForm,panNumber:e.target.value})}/></label>
-              <label>UPI ID<input value={vendorForm.payoutUpiId} onChange={e=>setVendorForm({...vendorForm,payoutUpiId:e.target.value})}/></label>
-              <label>Bank name<input value={vendorForm.bankName} onChange={e=>setVendorForm({...vendorForm,bankName:e.target.value})}/></label>
-              <label>Bank account<input value={vendorForm.bankAccountNumber} onChange={e=>setVendorForm({...vendorForm,bankAccountNumber:e.target.value})}/></label>
-              <label>IFSC<input value={vendorForm.bankIfsc} onChange={e=>setVendorForm({...vendorForm,bankIfsc:e.target.value})}/></label>
-              <label>Primary payout<select value={vendorForm.payoutPrimaryMethod} onChange={e=>setVendorForm({...vendorForm,payoutPrimaryMethod:e.target.value})}><option value="">Auto select</option><option value="UPI">UPI</option><option value="BANK">Bank</option></select></label>
+        {accountSection==='vendor' && vendorVerified && <section className="portal-panel vendor-studio-page">
+          <div className="vendor-studio-hero">
+            <button className="icon-btn vendor-back-dark" onClick={()=>setAccountSection('profile')}><ChevronLeft size={18}/></button>
+            <div className="vendor-studio-hero-copy"><span>MOBILITY PARTNER</span><h2>Vendor Studio</h2><p>Fleet, payouts, earnings and availability</p></div>
+          </div>
+
+          <section className="vendor-business-card">
+            <div className="vendor-business-head">
+              <div className="vendor-business-icon"><UserRound size={20}/></div>
+              <div><h3>Business profile</h3><p>Business identity & marketplace status</p></div>
+              <span className="status-pill status-success">VERIFIED</span>
+              <button className="landing-secondary compact" onClick={()=>resetVendorForm(vendor!)}><Edit3 size={14}/> Edit</button>
             </div>
-            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVendorForm(false)}>Cancel</button><button className="landing-primary" disabled={busy} onClick={saveVendor}>{vendor?.vendorId ? 'Save profile' : 'Submit for review'}</button></div>
-          </div>}
+            <div className="vendor-business-body">
+              <div><span>Owner</span><b>{vendor?.fullName || '—'}</b>{vendor?.businessName&&<small>{vendor.businessName}</small>}</div>
+              <div className="vendor-vehicle-count"><b>{vendor?.vehicleCount ?? vendorVehicles.length}</b><span>Vehicles</span></div>
+              <div className="vendor-location-line"><MapPin size={15}/>{[vendor?.city,vendor?.state].filter(Boolean).join(', ')||'Location unavailable'}</div>
+            </div>
+            <div className="vendor-payout-summary">
+              <b>Payout details</b>
+              <div><span>Bank</span><strong>{vendor?.bankName||'—'}</strong><span>Account</span><strong>{vendor?.bankAccountNumber||'—'}</strong><span>IFSC</span><strong>{vendor?.bankIfsc||'—'}</strong><span>UPI</span><strong>{vendor?.payoutUpiId||'—'}</strong><span>Primary</span><strong>{vendor?.payoutPrimaryMethod||'—'}</strong></div>
+            </div>
+          </section>
 
-          {vendor?.vendorId && <div className="vendor-dashboard">
-            <div className="vendor-section-head"><b>Fleet</b><button className="landing-secondary" onClick={()=>{setSelectedVendorVehicle(undefined);resetVehicleForm();}}><Plus size={14}/> Add vehicle</button></div>
-            {vendorVehicles.length ? <div className="vendor-vehicle-grid">{vendorVehicles.map(car=><div className="vendor-vehicle-card" key={car.id}>
-              <div className="vendor-vehicle-image">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={26}/>}</div>
-              <div className="vendor-vehicle-main"><b>{car.name}</b><span>{car.make || ''} {car.model || ''} · {car.category} · {car.seats} seats</span><small>{money(car.pricePerDay)} / day · Driver {car.driverName || '—'}</small><div className="vendor-card-status"><span className={statusClass(car.approvalStatus)}>{String(car.approvalStatus || 'PENDING').toUpperCase()}</span></div></div>
-              <div className="vendor-card-actions"><button className="icon-btn" title="Details" onClick={()=>setSelectedVendorVehicle(car)}><Eye size={16}/></button>{String(car.approvalStatus || '').toUpperCase()==='REJECTED' && <button className="icon-btn" title="Edit/resubmit" onClick={()=>resetVehicleForm(car)}><Edit3 size={16}/></button>}</div>
-            </div>)}</div> : <div className="empty-state">No vehicles submitted yet.</div>}
-
-            {selectedVendorVehicle && <div className="vehicle-detail-panel">
-              <div className="panel-head"><div><h3>{selectedVendorVehicle.name}</h3><p>{selectedVendorVehicle.make || '—'} {selectedVendorVehicle.model || ''} · Driver {selectedVendorVehicle.driverName || '—'}</p></div><button className="icon-btn" onClick={()=>setSelectedVendorVehicle(undefined)}><X size={17}/></button></div>
-              <div className="driver-profile-card"><div className="driver-profile-photo">{selectedVendorVehicle.driverPhotoUrl ? <img src={(selectedVendorVehicle.driverPhotoUrl.startsWith('http') ? selectedVendorVehicle.driverPhotoUrl : base + selectedVendorVehicle.driverPhotoUrl)} alt="Driver"/> : <UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName || 'Driver'}</b><span>{selectedVendorVehicle.driverMobile || 'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber || 'Licence not provided'}</small></div><label className="landing-secondary upload-label"><Camera size={14}/> Driver photo<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0] && selectedVendorVehicle.driverId && uploadDriverPhoto(selectedVendorVehicle.driverId,e.target.files[0])}/></label></div><div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}<label className="upload-photo-btn"><Camera size={14}/> Upload<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0] && uploadVehicleSlot(selectedVendorVehicle.id,slot,e.target.files[0])}/></label></div>;})}</div>
-              <div className="detail-grid-web"><span>Approval <b>{selectedVendorVehicle.approvalStatus || '—'}</b></span><span>Registration <b>{selectedVendorVehicle.registrationNumber || '—'}</b></span><span>Fuel <b>{selectedVendorVehicle.fuelType || '—'}</b></span><span>Price/day <b>{money(selectedVendorVehicle.pricePerDay)}</b></span><span>Pickup <b>{selectedVendorVehicle.pickupAddress || '—'}</b></span><span>City/State <b>{selectedVendorVehicle.city || '—'} / {selectedVendorVehicle.state || '—'}</b></span><span>Driver licence <b>{selectedVendorVehicle.driverLicenseNumber || '—'}</b></span><span>Licence expiry <b>{date(selectedVendorVehicle.driverLicenseExpiry)}</b></span></div>
-              {selectedVendorVehicle.rejectionReason && <div className="vendor-rejection">{selectedVendorVehicle.rejectionReason}</div>}
-              <div className="unavailability-box"><div className="vendor-section-head"><div><b>Availability controls</b><span className="vendor-form-subtitle">{String(selectedVendorVehicle.approvalStatus || '').toUpperCase()==='APPROVED' ? 'Temporarily remove this approved vehicle from customer search.' : 'Available after the vehicle is approved.'}</span></div><CalendarDays size={18}/></div>
-                <div className="availability-form"><select disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.reasonCode} onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonCode:e.target.value})}><option value="SERVICE_MAINTENANCE">Service / maintenance</option><option value="PRIVATE_USE">Private use</option><option value="DRIVER_UNAVAILABLE">Driver unavailable</option><option value="LEGAL_DOCUMENTATION">Documentation / compliance</option><option value="PERSONAL_REASON">Personal reason</option><option value="OTHER">Other</option></select><input disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.reasonNote} placeholder="Reason note" onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonNote:e.target.value})}/><input type="date" disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.startDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,startDate:e.target.value})}/><input type="date" disabled={String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} value={unavailabilityForm.endDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,endDate:e.target.value})}/><button className="landing-secondary" disabled={busy || String(selectedVendorVehicle.approvalStatus || '').toUpperCase()!=='APPROVED'} onClick={()=>takeVehicleOffMarket(selectedVendorVehicle.id)}>Take off market</button></div>
-                {vehicleUnavailability.length ? <div className="history-list compact-list">{vehicleUnavailability.map(u=><div className="history-row" key={u.id}><div><b>{u.reasonLabel}</b><small>{u.startDate} → {u.endDate}{u.reasonNote?' · '+u.reasonNote:''}</small></div><div className="history-actions"><span className={statusClass(u.status)}>{String(u.status).toUpperCase()}</span>{String(u.status).toUpperCase()==='ACTIVE' && <button className="text-danger-btn" onClick={()=>restoreOffMarket(selectedVendorVehicle.id,u.id)}>Restore</button>}</div></div>)}</div> : <div className="empty-state">No active off-market periods.</div>}
+          <section className="vendor-earnings-section">
+            <div className="vendor-section-title"><div><h3>Rental earnings</h3><p>Rental payout overview — separate from recharge commission earnings.</p></div></div>
+            {!vendorEarnings ? <div className="vendor-loading-card">Loading payout summary…<div className="home-earnings-progress"><i/></div></div> : <>
+              <div className="vendor-earnings-periods">
+                {[
+                  ['Today',vendorEarnings.today,true],
+                  ['This month',vendorEarnings.monthly,false]
+                ].map(([label,period])=>{
+                  const p=period as RentalVendorEarningsPeriod;
+                  return <article className="vendor-earnings-period" key={String(label)}>
+                    <h4>{String(label)}</h4>
+                    <div className="vendor-earnings-metrics"><div><span>Gross</span><b>{money(p.grossAmount)}</b></div><div><span>Platform fee</span><b className="amount-debit">{money(p.platformFeeAmount)}</b></div><div><span>Net earning</span><b className="amount-credit">{money(p.vendorNetAmount)}</b></div></div>
+                    <div className="vendor-earnings-foot"><span>{label==='This month' ? 'Bookings this month' : 'Completed today'}</span><b>{label==='This month' ? p.bookingCount : p.completedBookingCount}</b></div>
+                    {label==='Today' && <div className="vendor-earnings-foot"><span>Upcoming confirmed bookings</span><b>{vendorEarnings.upcomingBookingCount}</b></div>}
+                  </article>
+                })}
               </div>
-              <div className="calendar-box"><div className="vendor-section-head"><b>Vehicle calendar</b><div className="calendar-nav"><button className="icon-btn" onClick={()=>{const [y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m-2,1)));}}><ChevronLeft size={15}/></button><b>{calendarMonth}</b><button className="icon-btn" onClick={()=>{const [y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m,1)));}}><ChevronRight size={15}/></button></div></div><div className="calendar-grid">{vehicleCalendar.map(d=><div className={'calendar-day calendar-'+String(d.status||'UNKNOWN').toLowerCase()} key={d.date}><b>{new Date(d.date).getDate()}</b><span>{d.reasonLabel || d.status || '—'}</span></div>)}</div></div>
-            </div>}
+            </>}
+          </section>
 
-            {showVehicleForm && <div className="vehicle-form"><div className="vendor-section-head"><b>{vehicleEditId?'Resubmit vehicle':'Submit vehicle for review'}</b><button className="icon-btn" onClick={()=>setShowVehicleForm(false)}><X size={16}/></button></div>
-              <div className="vehicle-form-grid">{Object.keys(vehicleForm).filter(k=>k!=='driver').map(k=><label key={k}>{k.replace(/([A-Z])/g,' $1').replace(/^./,m=>m.toUpperCase())}<input value={(vehicleForm as any)[k]} onChange={e=>setVehicleForm({...vehicleForm,[k]:e.target.value})}/></label>)}
-                {Object.keys(vehicleForm.driver).map(k=><label key={k}>Driver {k.replace(/([A-Z])/g,' $1')}<input type={k==='licenseExpiry'?'datetime-local':'text'} value={vehicleForm.driver[k]} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,[k]:e.target.value}})}/></label>)}
-              </div><div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVehicleForm(false)}>Cancel</button><button className="landing-primary" disabled={busy} onClick={saveVehicle}>Save vehicle</button></div>
-            </div>}
+          <section className="vendor-vehicles-section">
+            <div className="vendor-section-title"><div><h3>My vehicles</h3><p>See exactly when each vehicle is booked, off market or available.</p></div><button className="landing-secondary compact" onClick={()=>loadAccountData()} disabled={busy}><RefreshCw size={14}/> Refresh</button></div>
+            {vendorVehicles.length===0 ? <div className="vendor-no-vehicle"><Car size={25}/><b>No vehicle added yet</b><span>Add your first chauffeur-driven car to begin the admin review process.</span><button className="landing-primary" onClick={()=>resetVehicleForm()}><Plus size={15}/> Add vehicle</button></div> :
+              <div className="vendor-vehicle-grid-android">{vendorVehicles.map(car=>{
+                const status=String(car.approvalStatus||'PENDING_REVIEW').toUpperCase();
+                const blackouts=vehicleUnavailability.filter(u=>u.carId===car.id);
+                const today=localDate();
+                const activeBlackout=blackouts.find(u=>u.startDate<=today && u.endDate>=today);
+                const scheduledBlackout=blackouts.find(u=>u.startDate>today);
+                const displayedBlackout=activeBlackout||scheduledBlackout;
+                const statusTone=status==='APPROVED'?'success':status==='REJECTED'?'failed':'pending';
+                const secondaryLabel=activeBlackout?'OFF MARKET':scheduledBlackout?'SCHEDULED':'';
+                return <article className="vendor-vehicle-android-card" key={car.id} onClick={()=>setSelectedVendorVehicle(car)}>
+                  <div className="vendor-vehicle-gallery-main">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={30}/>}<span className="vendor-vehicle-category">{car.category}</span></div>
+                  <div className="vendor-vehicle-card-content">
+                    <h4>{car.name}</h4>
+                    <p>{car.category} • {car.seats} seats</p>
+                    <div className="vendor-driver-inline"><span>{car.driverName}</span><small>{car.driverMobile||'—'}</small>{car.driverPhotoUrl&&<img src={car.driverPhotoUrl.startsWith('http')?car.driverPhotoUrl:base+car.driverPhotoUrl} alt=""/></div>
+                    <div className="vendor-vehicle-badges"><span className={'status-pill status-'+statusTone}>{status.replace(/_/g,' ')}</span>{secondaryLabel&&<span className="vendor-secondary-badge">{secondaryLabel}</span>}</div>
+                    <b className="vendor-price">{money(car.pricePerDay)}/day</b>
+                    <small className="vendor-fuel-note">Fuel expense paid by client</small>
+                    <small className="vendor-spec-line">{car.transmission} • {car.fuelType||'Fuel'}</small>
+                    {displayedBlackout&&<span className="vendor-blackout-period">{displayedBlackout.startDate} → {displayedBlackout.endDate}</span>}
+                    <div className="vendor-vehicle-actions" onClick={e=>e.stopPropagation()}>
+                      <button className="landing-secondary compact" onClick={()=>{setSelectedVendorVehicle(car);setCalendarMonth(localYearMonth());}}>Calendar</button>
+                      {displayedBlackout ? <button className="landing-secondary compact success" disabled={busy} onClick={()=>restoreOffMarket(car.id,displayedBlackout.id)}>Restore</button> :
+                        status==='APPROVED' ? <button className="landing-primary compact" disabled={busy} onClick={()=>{setUnavailabilityForm({reasonCode:'SERVICE_MAINTENANCE',reasonNote:'',startDate:localDate(new Date(Date.now()+86400000)),endDate:localDate(new Date(Date.now()+86400000))});setSelectedVendorVehicle(car);setOffMarketOpenId(car.id);}}>Off market</button> :
+                        <button className="landing-secondary compact" onClick={()=>resetVehicleForm(car)}>{status==='REJECTED'?'Correct & resubmit':'Edit details'}</button>}
+                    </div>
+                    {(status!=='APPROVED'||activeBlackout) ? <button className="landing-secondary vendor-edit-full" onClick={(e)=>{e.stopPropagation();resetVehicleForm(car)}}>{status==='REJECTED'?'Correct & resubmit':status==='APPROVED'?'Edit details (off market)':'Edit details'}</button> :
+                      <small className="vendor-edit-lock">Approved and on market — editing is available only while this vehicle is off market.</small>}
+                    {car.rejectionReason&&<small className="vendor-review-note">Review: {car.rejectionReason}</small>}
+                  </div>
+                </article>
+              })}</div>}
+            {vendorVehicles.length>0 && <button className="landing-secondary vendor-add-another" onClick={()=>resetVehicleForm()}><Plus size={15}/> Add another vehicle</button>}
+          </section>
 
-            <div className="vendor-section-head payouts-head"><b>Payout history</b><Banknote size={18}/></div>
-            {vendorPayouts.length ? <div className="history-list compact-list">{vendorPayouts.map(p=><div className="history-row" key={p.payoutId}><div><b>{p.carName}</b><small>{p.bookingId} · {dt(p.createdAt)} · Platform fee {Number(p.platformFeePercent).toFixed(2)}%</small></div><strong className="amount-credit">{money(p.vendorNetAmount)}</strong><span className={statusClass(p.status)}>{String(p.status).toUpperCase()}</span></div>)}</div> : <div className="empty-state">No vendor payouts yet.</div>}
-          </div>}
-        </div>
-      </section>}
+          <section className="vendor-payouts-section">
+            <div className="vendor-section-title"><div><h3>Payout history</h3></div><Banknote size={18}/></div>
+            {vendorPayouts.length ? <div className="vendor-payout-list">{vendorPayouts.map(p=><div className="vendor-payout-row" key={p.payoutId}><div><b>{p.carName}</b><span>{p.bookingId} · {dt(p.createdAt)} · Platform fee {Number(p.platformFeePercent).toFixed(2)}%</span></div><strong className="amount-credit">{money(p.vendorNetAmount)}</strong><span className={statusClass(p.status)}>{String(p.status).toUpperCase()}</span></div>)}</div> : <div className="vendor-no-payouts">No vendor payouts yet.</div>}
+          </section>
+        </section>}
 
-      {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div>
+        {accountSection==='vehicle' && <section className="portal-panel vehicle-onboarding-page">
+          <div className="vehicle-page-header">
+            <button className="icon-btn" onClick={()=>{setAccountSection('vendor');setVehicleSubmitAttempted(false)}} disabled={busy}><ChevronLeft size={18}/></button>
+            <div><span className="account-eyebrow">FLEET</span><h2>{vehicleEditId?'Correct vehicle details':'Add your vehicle'}</h2><p>{vehicleEditId?'Update the rejected details and resubmit for review.':'Two quick sections: vehicle details first, then the assigned driver.'}</p></div>
+          </div>
+
+          <section className="vehicle-form-card">
+            <div className="vehicle-form-step-head"><span>1</span><div><b>Vehicle details</b><small>Identity, specifications and daily price</small></div></div>
+            <div className="vehicle-form-grid-web">
+              <label>Vehicle name<input value={vehicleForm.name} onChange={e=>setVehicleForm({...vehicleForm,name:sanitizeVehicleAlphaNumeric(e.target.value,120)})}/>{vehicleSubmitAttempted&&!vehicleForm.name.trim()&&<small className="field-error">Vehicle name is required</small>}</label>
+              <label>Make<input value={vehicleForm.make} onChange={e=>setVehicleForm({...vehicleForm,make:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/>{vehicleSubmitAttempted&&!vehicleForm.make.trim()&&<small className="field-error">Make is required</small>}</label>
+              <label>Model<input value={vehicleForm.model} onChange={e=>setVehicleForm({...vehicleForm,model:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/>{vehicleSubmitAttempted&&!vehicleForm.model.trim()&&<small className="field-error">Model is required</small>}</label>
+              <label>Variant <em>(optional)</em><input value={vehicleForm.variant} onChange={e=>setVehicleForm({...vehicleForm,variant:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/></label>
+              <label>Category<select value={vehicleForm.category} onChange={e=>setVehicleForm({...vehicleForm,category:e.target.value})}>{['Sedan','SUV','Hatchback','MUV','Luxury','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Seats<select value={String(vehicleForm.seats)} onChange={e=>setVehicleForm({...vehicleForm,seats:Number(e.target.value)})}>{Array.from({length:7},(_,i)=>i+2).map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Transmission<select value={vehicleForm.transmission} onChange={e=>setVehicleForm({...vehicleForm,transmission:e.target.value})}>{['Automatic','Manual'].map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Fuel type<select value={vehicleForm.fuelType} onChange={e=>setVehicleForm({...vehicleForm,fuelType:e.target.value})}>{['Petrol','Diesel','CNG','Electric','Hybrid','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Manufacturing year<select value={String(vehicleForm.manufacturingYear||'')} onChange={e=>{const year=Number(e.target.value);setVehicleForm(v=>({...v,manufacturingYear:year,registrationYear:Number(v.registrationYear)<year?year:v.registrationYear}));}}>
+                <option value="">Select</option>{Array.from({length:21},(_,i)=>new Date().getFullYear()-20+i).map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Registration year<select value={String(vehicleForm.registrationYear||'')} onChange={e=>setVehicleForm({...vehicleForm,registrationYear:Number(e.target.value)})}>
+                <option value="">Select</option>{Array.from({length:Math.max(1,new Date().getFullYear()-Number(vehicleForm.manufacturingYear||new Date().getFullYear()-20)+1)},(_,i)=>Number(vehicleForm.manufacturingYear||new Date().getFullYear()-20)+i).map(x=><option key={x}>{x}</option>)}</select></label>
+              <label>Registration number<input value={vehicleForm.registrationNumber} onChange={e=>setVehicleForm({...vehicleForm,registrationNumber:sanitizeRegistration(e.target.value)})}/>{vehicleSubmitAttempted&&!vehicleForm.registrationNumber.trim()&&<small className="field-error">Registration number is required</small>}</label>
+              <label>City<input value={vehicleForm.city} onChange={e=>setVehicleForm({...vehicleForm,city:sanitizeVehicleAlphaNumeric(e.target.value,100)})}/>{vehicleSubmitAttempted&&!vehicleForm.city.trim()&&<small className="field-error">City is required</small>}</label>
+              <label>State<select value={vehicleForm.state} onChange={e=>setVehicleForm({...vehicleForm,state:e.target.value})}><option value="">Select state</option>{indianStatesAndUt.map(x=><option key={x}>{x}</option>)}</select>{vehicleSubmitAttempted&&!vehicleForm.state.trim()&&<small className="field-error">State is required</small>}</label>
+              <label>Price per day (₹)<input inputMode="decimal" value={vehicleForm.pricePerDay} onChange={e=>setVehicleForm({...vehicleForm,pricePerDay:sanitizeDecimal(e.target.value)})}/>{vehicleSubmitAttempted && validateVehicleForm().includes('price')&&<small className="field-error">Enter a valid positive price with up to 2 decimals</small>}<small>Price charged per 24-hour rental day.</small></label>
+            </div>
+            <div className="vehicle-form-helper">Vehicle age is limited to 20 years; registration year cannot be before manufacture year.</div>
+          </section>
+
+          <section className="vehicle-form-card">
+            <div className="vehicle-form-step-head"><span>2</span><div><b>Vehicle photos</b><small>All four photos are mandatory</small></div></div>
+            <p className="vehicle-form-description">Use an image URL or a photo from your device for each slot. Device photos must be JPG, PNG or WebP and 5 MB or smaller.</p>
+            <div className="vehicle-photo-form-grid">
+              {['Front photo','Side photo','Rear photo','Interior photo'].map((label,slot)=>{
+                const selectedFile=vehiclePhotoFiles[slot];
+                const preview=vehiclePhotoPreviews[slot];
+                const rawUrl=vehiclePhotoUrls[slot];
+                const complete=Boolean(selectedFile || rawUrl.trim());
+                return <div className={'vehicle-photo-form-card '+(complete?'complete':'incomplete')} key={label}>
+                  <div className="vehicle-photo-preview">{preview ? <img src={preview} alt={label}/> : <Car size={24}/>}</div>
+                  <b>{label}</b>
+                  {selectedFile ? <><small>Photo selected from device</small><button type="button" className="landing-secondary compact" onClick={()=>{setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});setVehiclePhotoPreviews(v=>{const n=[...v];n[slot]='';return n})}}>Use image URL instead</button></> :
+                  <><input value={rawUrl} placeholder={label+' image URL'} onChange={e=>setVehiclePhotoUrl(slot,e.target.value)}/><label className="photo-file-button landing-secondary compact"><Camera size={13}/> Choose from device<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleVehiclePhotoSelection(slot,e.target.files?.[0]||null)}/></label></>}
+                  {vehicleSubmitAttempted&&!complete&&<small className="field-error">This photo is required</small>}
+                </div>
+              })}
+            </div>
+            {vehicleSubmitAttempted && validateVehicleForm().includes('photos') && <div className="vendor-form-error">Front, side, rear and interior vehicle photos are required.</div>}
+          </section>
+
+          <section className="vehicle-form-card">
+            <div className="vehicle-form-step-head"><span>3</span><div><b>Driver details</b><small>The chauffeur assigned to this vehicle</small></div></div>
+            <div className="driver-form-photo-row">
+              <div className="driver-photo-preview">{driverPhotoPreview?<img src={driverPhotoPreview} alt="Driver"/>:<UserRound size={25}/>}</div>
+              <div><b>Driver photo</b><small>Passport-style square photo</small><label className="photo-file-button landing-secondary compact"><Camera size={13}/> {driverPhotoFile?'Change':'Add'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleDriverPhotoSelection(e.target.files?.[0]||null)}/></label></div>
+            </div>
+            <div className="vehicle-form-grid-web">
+              <label>Driver full name<input value={vehicleForm.driver.fullName} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,fullName:sanitizeVehicleAlphaNumeric(e.target.value,120)}})}/>{vehicleSubmitAttempted&&!vehicleForm.driver.fullName.trim()&&<small className="field-error">Driver name is required</small>}</label>
+              <label>Driver mobile<input inputMode="numeric" value={vehicleForm.driver.mobile} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,mobile:normalizeIndianMobile(e.target.value)}})}/>{vehicleSubmitAttempted&&!/^\d{10}$/.test(normalizeIndianMobile(vehicleForm.driver.mobile))&&<small className="field-error">Enter exactly 10 digits</small>}</label>
+              <label>Driving licence no.<input value={vehicleForm.driver.licenseNumber} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,licenseNumber:sanitizeLicense(e.target.value)}})}/>{vehicleSubmitAttempted&&!vehicleForm.driver.licenseNumber.trim()&&<small className="field-error">Driving licence number is required</small>}</label>
+              <label>Licence expiry<input type="date" min={localDate(new Date(Date.now()+86400000))} value={vehicleForm.driver.licenseExpiry} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,licenseExpiry:e.target.value}})}/>{vehicleSubmitAttempted && (!vehicleForm.driver.licenseExpiry || new Date(vehicleForm.driver.licenseExpiry+'T00:00:00')<=new Date(new Date().toDateString()))&&<small className="field-error">Licence expiry must be a future date</small>}</label>
+              <label className="vendor-field-wide">Driver address <em>(optional)</em><input value={vehicleForm.driver.address} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,address:e.target.value.slice(0,300)}})}/></label>
+            </div>
+          </section>
+
+          <div className="vehicle-form-note">All vehicle details and the assigned chauffeur are reviewed before the car appears in the customer marketplace.</div>
+          {notice && <div className="vendor-form-error">{notice}</div>}
+          <div className="vendor-form-actions">
+            <button className="landing-secondary" onClick={()=>{setAccountSection('vendor');setVehicleSubmitAttempted(false)}} disabled={busy}>Cancel</button>
+            <button className="landing-primary" disabled={busy} onClick={saveVehicle}>{busy ? 'Submitting…' : vehicleEditId ? 'Resubmit vehicle for review' : 'Submit vehicle for review'}</button>
+          </div>
+        </section>}
+
+        {editingProfile && <div className="modal-backdrop" onClick={()=>!busy&&setEditingProfile(false)}>
+          <div className="portal-modal small-modal profile-edit-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head"><div><h2>Edit profile</h2><p>Update your name, email and profile photo.</p></div><button className="icon-btn" onClick={()=>!busy&&setEditingProfile(false)}><X size={17}/></button></div>
+            <div className="profile-edit-preview">
+              <div className="account-profile-avatar">
+                {profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div><label className="photo-file-button landing-secondary compact"><Camera size={13}/> Change photo<input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0]&&uploadProfileImage(e.target.files[0])}/></label>{profileImage&&<button className="text-danger-btn" onClick={removeProfileImage} disabled={busy}>Remove</button>}</div>
+            </div>
+            <label className="account-modal-field">Full name<input value={profileForm.name} onChange={e=>setProfileForm({...profileForm,name:e.target.value.slice(0,120)})}/></label>
+            <label className="account-modal-field">Email<input type="email" value={profileForm.email} onChange={e=>setProfileForm({...profileForm,email:e.target.value.slice(0,254)})}/></label>
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setEditingProfile(false)} disabled={busy}>Cancel</button><button className="landing-primary" onClick={async()=>{await saveProfile();setEditingProfile(false)}} disabled={busy}>{busy?'Saving…':'Save'}</button></div>
+          </div>
+        </div>}
+
+        {showDeleteDialog && <div className="modal-backdrop" onClick={()=>!deletingAccount&&setShowDeleteDialog(false)}>
+          <div className="portal-modal small-modal account-delete-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head"><div><h2>Delete mPay account</h2><p>This permanently signs you out and removes or redacts personal account data. Financial records required for reconciliation or legal compliance may be retained in redacted form.</p></div><button className="icon-btn" onClick={()=>!deletingAccount&&setShowDeleteDialog(false)}><X size={17}/></button></div>
+            <label className="account-modal-field">Current password<input type="password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>
+            <label className="account-modal-field">Type DELETE to confirm<input value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value.toUpperCase().slice(0,6))}/></label>
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowDeleteDialog(false)} disabled={deletingAccount}>Cancel</button><button className="text-danger-btn delete-confirm-button" onClick={deleteAccount} disabled={deletingAccount||!deletePassword.trim()||deleteConfirmation!=='DELETE'}>{deletingAccount?'Deleting account…':'Delete account'}</button></div>
+          </div>
+        </div>}
+
+        {showVendorForm && vendorVerified && <div className="modal-backdrop" onClick={()=>!busy&&setShowVendorForm(false)}>
+          <div className="portal-modal vendor-profile-edit-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head"><div><h2>Edit vendor profile</h2><p>Update identity and payout preferences without leaving Vendor Studio.</p></div><button className="icon-btn" onClick={()=>!busy&&setShowVendorForm(false)}><X size={17}/></button></div>
+            <div className="vendor-form-grid">
+              <label>Full name<input value={vendorForm.fullName} onChange={e=>setVendorForm({...vendorForm,fullName:e.target.value.slice(0,120)})}/></label>
+              <label>Business name<input value={vendorForm.businessName} onChange={e=>setVendorForm({...vendorForm,businessName:e.target.value.slice(0,120)})}/></label>
+              <label className="vendor-field-wide">Address<input value={vendorForm.address} onChange={e=>setVendorForm({...vendorForm,address:e.target.value.slice(0,300)})}/></label>
+              <label>City<input value={vendorForm.city} onChange={e=>setVendorForm({...vendorForm,city:e.target.value.slice(0,100)})}/></label>
+              <label>State<input value={vendorForm.state} onChange={e=>setVendorForm({...vendorForm,state:e.target.value.slice(0,100)})}/></label>
+              <label>PIN<input value={vendorForm.pinCode} onChange={e=>setVendorForm({...vendorForm,pinCode:e.target.value.replace(/\D/g,'').slice(0,10)})}/></label>
+              <label>PAN<input value={vendorForm.panNumber} onChange={e=>setVendorForm({...vendorForm,panNumber:e.target.value.toUpperCase().slice(0,20)})}/></label>
+              <label>Bank name<input value={vendorForm.bankName} onChange={e=>setVendorForm({...vendorForm,bankName:e.target.value.slice(0,120)})}/></label>
+              <label>Bank account<input value={vendorForm.bankAccountNumber} onChange={e=>setVendorForm({...vendorForm,bankAccountNumber:e.target.value.replace(/\D/g,'').slice(0,30)})}/></label>
+              <label>IFSC<input value={vendorForm.bankIfsc} onChange={e=>setVendorForm({...vendorForm,bankIfsc:e.target.value.toUpperCase().slice(0,20)})}/></label>
+              <label>UPI ID<input value={vendorForm.payoutUpiId} onChange={e=>setVendorForm({...vendorForm,payoutUpiId:e.target.value.slice(0,120)})}/></label>
+            </div>
+            <div className="vendor-primary-payout"><span>Primary payout method</span><button disabled={!vendorForm.payoutUpiId.trim()} className={vendorForm.payoutPrimaryMethod==='UPI'?'selected':''} onClick={()=>setVendorForm({...vendorForm,payoutPrimaryMethod:'UPI'})}>UPI</button><button disabled={!vendorForm.bankAccountNumber.trim()||!vendorForm.bankIfsc.trim()} className={vendorForm.payoutPrimaryMethod==='BANK'?'selected':''} onClick={()=>setVendorForm({...vendorForm,payoutPrimaryMethod:'BANK'})}>Bank</button></div>
+            {vendorSubmitAttempted&&validateVendorForm()&&<div className="vendor-form-error">{validateVendorForm()}</div>}
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setShowVendorForm(false)} disabled={busy}>Cancel</button><button className="landing-primary" onClick={saveVendor} disabled={busy}>{busy?'Saving…':'Save changes'}</button></div>
+          </div>
+        </div>}
+
+        {selectedVendorVehicle && accountSection==='vendor' && <div className="modal-backdrop" onClick={()=>setSelectedVendorVehicle(undefined)}>
+          <div className="portal-modal vendor-vehicle-details-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head"><div><span className="account-eyebrow">VEHICLE DETAILS</span><h2>{selectedVendorVehicle.name}</h2><p>{[selectedVendorVehicle.make,selectedVendorVehicle.model,selectedVendorVehicle.variant].filter(Boolean).join(' ')||selectedVendorVehicle.category}</p></div><button className="icon-btn" onClick={()=>setSelectedVendorVehicle(undefined)}><X size={17}/></button></div>
+            <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>})}</div>
+            <div className="vendor-detail-status-row"><span className={statusClass(selectedVendorVehicle.approvalStatus)}>{String(selectedVendorVehicle.approvalStatus||'PENDING').toUpperCase()}</span>{selectedVendorVehicle.rejectionReason&&<span className="vendor-review-note">{selectedVendorVehicle.rejectionReason}</span>}</div>
+            <div className="detail-grid-web"><span>Make / model <b>{[selectedVendorVehicle.make,selectedVendorVehicle.model,selectedVendorVehicle.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Category / seats <b>{selectedVendorVehicle.category} / {selectedVendorVehicle.seats}</b></span><span>Transmission / fuel <b>{selectedVendorVehicle.transmission} / {selectedVendorVehicle.fuelType||'—'}</b></span><span>Manufacturing year <b>{selectedVendorVehicle.manufacturingYear||'—'}</b></span><span>Registration year <b>{selectedVendorVehicle.registrationYear||'—'}</b></span><span>Price per day <b>{money(selectedVendorVehicle.pricePerDay)}</b></span><span>Registration number <b>{selectedVendorVehicle.registrationNumber||'—'}</b></span><span>Pickup address <b>{selectedVendorVehicle.pickupAddress||'—'}</b></span><span>City / state <b>{selectedVendorVehicle.city||'—'} / {selectedVendorVehicle.state||'—'}</b></span></div>
+            <div className="driver-profile-card"><div className="driver-profile-photo">{selectedVendorVehicle.driverPhotoUrl?<img src={selectedVendorVehicle.driverPhotoUrl.startsWith('http')?selectedVendorVehicle.driverPhotoUrl:base+selectedVendorVehicle.driverPhotoUrl} alt="Driver"/>:<UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName||'Driver'}</b><span>{selectedVendorVehicle.driverMobile||'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber||'Licence not provided'}</small><small>{selectedVendorVehicle.driverLicenseExpiry?date(selectedVendorVehicle.driverLicenseExpiry):'Licence expiry not provided'}</small></div></div>
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setSelectedVendorVehicle(undefined)}>Close details</button>{String(selectedVendorVehicle.approvalStatus||'').toUpperCase()!=='APPROVED' || vendorVehicles.some(x=>x.id===selectedVendorVehicle.id && vehicleUnavailability.some(u=>u.carId===x.id && u.startDate<=localDate() && u.endDate>=localDate())) ? <button className="landing-primary" onClick={()=>{const car=selectedVendorVehicle;setSelectedVendorVehicle(undefined);resetVehicleForm(car)}}>Edit details</button>:null}</div>
+          </div>
+        </div>}
+
+        {offMarketOpenId && selectedVendorVehicle && <div className="modal-backdrop" onClick={()=>!busy&&setOffMarketOpenId('')}>
+          <div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head"><div><h2>Take {selectedVendorVehicle.name} off market</h2><p>Customers will not see this vehicle for the selected period. The reason is stored for admin visibility.</p></div><button className="icon-btn" onClick={()=>!busy&&setOffMarketOpenId('')}><X size={17}/></button></div>
+            <div className="vehicle-form-grid-web">
+              <label>From<input type="date" min={localDate()} value={unavailabilityForm.startDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,startDate:e.target.value})}/></label>
+              <label>To<input type="date" min={localDate()} value={unavailabilityForm.endDate} onChange={e=>setUnavailabilityForm({...unavailabilityForm,endDate:e.target.value})}/></label>
+              <label className="vendor-field-wide">Reason<select value={unavailabilityForm.reasonCode} onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonCode:e.target.value})}>{rentalOffMarketReasons.map(([code,label])=><option value={code} key={code}>{label}</option>)}</select></label>
+              <label className="vendor-field-wide">Optional note for admin<input value={unavailabilityForm.reasonNote} onChange={e=>setUnavailabilityForm({...unavailabilityForm,reasonNote:e.target.value.slice(0,300)})}/></label>
+            </div>
+            {unavailabilityForm.startDate&&unavailabilityForm.endDate&&unavailabilityForm.endDate<unavailabilityForm.startDate&&<div className="vendor-form-error">Choose a current/future period with the end date on or after the start date.</div>}
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>setOffMarketOpenId('')} disabled={busy}>Cancel</button><button className="landing-primary" onClick={()=>{if(!unavailabilityForm.startDate||!unavailabilityForm.endDate||unavailabilityForm.endDate<unavailabilityForm.startDate){setNotice('Choose a valid current/future period.');return;}takeVehicleOffMarket(selectedVendorVehicle.id).then(()=>setOffMarketOpenId(''))}} disabled={busy||!unavailabilityForm.startDate||!unavailabilityForm.endDate||unavailabilityForm.endDate<unavailabilityForm.startDate}>{busy?'Saving…':'Keep off market'}</button></div>
+          </div>
+        </div>}
+
+        {calendarCarId && <div className="modal-backdrop" onClick={()=>setCalendarCarId('')}>
+          <div className="portal-modal vendor-calendar-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head"><div><h2>{vendorVehicles.find(c=>c.id===calendarCarId)?.name||'Vehicle calendar'}</h2><p>{new Date(Number(calendarMonth.slice(0,4)),Number(calendarMonth.slice(5,7))-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</p></div><div className="calendar-nav"><button className="icon-btn" onClick={()=>{const[y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m-2,1)))}}><ChevronLeft size={15}/></button><button className="icon-btn" onClick={()=>{const[y,m]=calendarMonth.split('-').map(Number);setCalendarMonth(localYearMonth(new Date(y,m,1)))}}><ChevronRight size={15}/></button><button className="icon-btn" onClick={()=>setCalendarCarId('')}><X size={16}/></button></div></div>
+            {vehicleCalendar.length ? <div className="vendor-calendar-grid"><div className="vendor-calendar-week">{['M','T','W','T','F','S','S'].map((x,i)=><span key={i}>{x}</span>)}</div>{Array.from({length:new Date(Number(calendarMonth.slice(0,4)),Number(calendarMonth.slice(5,7)),0).getDate()},(_,i)=>i+1).map(day=>{
+              const dateValue=calendarMonth+'-'+pad2(day); const d=vehicleCalendar.find(x=>x.date===dateValue); const past=dateValue<localDate(); const st=past?'PAST':String(d?.status||'AVAILABLE').toUpperCase();
+              return <span key={dateValue} className={'calendar-cell calendar-'+st.toLowerCase()}><b>{day}</b></span>;
+            })}</div> : <div className="vendor-loading-card">Loading calendar…<div className="home-earnings-progress"><i/></div></div>}
+            <div className="vendor-calendar-legend"><span className="booked">Booked</span><span className="off">Off market</span><span className="available">Available</span><span className="past">Past</span></div>
+          </div>
+        </div>}
+      </section>}      {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div>
           {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>Wallet debit <b>{money(selectedRechargeDetail.walletDebitAmount)}</b></span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}          {selectedWithdrawalDetail && <div className="recharge-detail-box"><h3>Withdrawal details</h3><div className="detail-grid-web"><span>Withdrawal <b>{selectedWithdrawalDetail.withdrawalId || '—'}</b></span><span>Amount <b className="amount-debit">{money(selectedWithdrawalDetail.amount)}</b></span><span>UPI ID <b>{selectedWithdrawalDetail.upiId || '—'}</b></span><span>Status <b>{selectedWithdrawalDetail.status || '—'}</b></span><span>Provider <b>{selectedWithdrawalDetail.provider || '—'}</b></span><span>Provider status <b>{selectedWithdrawalDetail.providerStatus || '—'}</b></span><span>Provider reference <b>{selectedWithdrawalDetail.providerReference || '—'}</b></span><span>Wallet ledger <b>{selectedWithdrawalDetail.walletLedgerRef || '—'}</b></span><span>Failure reason <b>{selectedWithdrawalDetail.failureReason || '—'}</b></span><span>Created <b>{dt(selectedWithdrawalDetail.createdAt)}</b></span><span>Completed <b>{dt(selectedWithdrawalDetail.completedAt)}</b></span></div></div>}</div></div>}
 
       {rentalDetails && (() => {
