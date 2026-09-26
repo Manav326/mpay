@@ -1893,7 +1893,7 @@ export default function Portal() {
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>QUICK ACTIONS</span><h2>Quick actions</h2></div>
+            <div><span>QUICK ACTIONS</span></div>
           </div>
           <div className="android-home-quick-card">
             <button className="android-action-card recharge" onClick={()=>setView('recharge')}>
@@ -1910,7 +1910,7 @@ export default function Portal() {
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>MARKETPLACE</span><h2>Marketplace</h2></div>
+            <div><span>MARKETPLACE</span></div>
           </div>
           <button className="android-marketplace-card" onClick={()=>setView('rental')}>
             <span className="android-marketplace-icon"><Car size={21}/></span>
@@ -1935,7 +1935,7 @@ export default function Portal() {
             : <HomeRecentRecharge item={latestRecharge} onCopy={copyText}/>}
         </section>}
 
-        <section className="android-home-section">
+        <section className="android-home-section android-home-earnings-section">
           <div className="android-home-section-title">
             <h2>Today’s recharge earnings</h2>
             <button onClick={()=>loadCommissionSummary()} disabled={busy}><RefreshCw size={15}/></button>
@@ -1943,7 +1943,7 @@ export default function Portal() {
           <HomeEarningsPeriod period={commissionSummary?.daily} isToday={true}/>
         </section>
 
-        <section className="android-home-section">
+        <section className="android-home-section android-home-earnings-section">
           <div className="android-home-section-title">
             <h2>Monthly recharge earnings</h2>
           </div>
