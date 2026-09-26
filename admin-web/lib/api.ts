@@ -336,10 +336,7 @@ export async function getUserWalletHistory(id: string, page = 0, size = 25): Pro
 
 export async function getUserProfileImage(id: string): Promise<string | null> {
   if (demo) return null;
-  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
-  const response = await fetch(baseUrl + '/api/v1/admin/users/' + encodeURIComponent(id) + '/profile-image', {
-    headers: token ? { Authorization: 'Bearer ' + token } : {},
-  });
+  const response = await authenticatedFetch('/api/v1/admin/users/' + encodeURIComponent(id) + '/profile-image');
   if (response.status === 404) return null;
   if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
   const blob = await response.blob();
@@ -392,17 +389,8 @@ export async function getAdminProfile(): Promise<AdminProfile> {
 
 export async function getAdminProfileImage(): Promise<string | null> {
   if (demo) return null;
-  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
-  const response = await fetch(baseUrl + '/api/v1/profile/image', {
-    headers: token ? { Authorization: 'Bearer ' + token } : {},
-  });
+  const response = await authenticatedFetch('/api/v1/profile/image');
   if (response.status === 404) return null;
-  if (response.status === 401 && typeof window !== 'undefined') {
-    localStorage.removeItem('mpay_admin_token');
-    localStorage.removeItem('mpay_admin_session');
-    window.location.href = '/admin';
-    throw new Error('Your admin session has expired. Please sign in again.');
-  }
   if (!response.ok) throw new Error((await response.text()) || 'Profile image request failed (' + response.status + ')');
   return URL.createObjectURL(await response.blob());
 }
