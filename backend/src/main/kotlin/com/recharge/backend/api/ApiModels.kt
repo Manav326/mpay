@@ -30,7 +30,8 @@ data class LoginResponse(
     val refreshToken: String,
     val userId: Long,
     val role: String,
-    val permissions: Set<String> = emptySet()
+    val permissions: Set<String> = emptySet(),
+    val mobileVerified: Boolean = false
 )
 
 data class PortalLoginRequest(
@@ -44,6 +45,37 @@ data class PortalLoginRequest(
 
 data class PortalRolesResponse(val roles: List<String>)
 
+data class OtpSendRequest(
+    @field:Pattern(regexp = "[6-9][0-9]{9}", message = "Mobile number must be a valid 10 digit Indian mobile number")
+    val mobile: String,
+    @field:NotBlank val purpose: String
+)
+
+data class OtpSendResponse(
+    val status: String,
+    val purpose: String,
+    val expiresInSeconds: Long,
+    val resendAfterSeconds: Long,
+    val maskedMobile: String,
+    val deliveryMode: String,
+    val demoOtp: String? = null
+)
+
+data class OtpVerifyRequest(
+    @field:Pattern(regexp = "[6-9][0-9]{9}", message = "Mobile number must be a valid 10 digit Indian mobile number")
+    val mobile: String,
+    @field:Pattern(regexp = "[0-9]{6}", message = "OTP must be a 6 digit number")
+    val otp: String,
+    @field:NotBlank val purpose: String
+)
+
+data class OtpVerifyResponse(
+    val verified: Boolean,
+    val purpose: String,
+    val verificationToken: String? = null,
+    val verificationTokenExpiresInSeconds: Long? = null
+)
+
 data class RegisterRequest(
     @field:Size(max = 120, message = "Name must be 120 characters or fewer")
     val name: String?,
@@ -53,7 +85,8 @@ data class RegisterRequest(
     @field:Pattern(regexp = "[6-9][0-9]{9}", message = "Mobile number must be a valid 10 digit Indian mobile number")
     val mobile: String,
     @field:Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters")
-    val password: String
+    val password: String,
+    val mobileVerificationToken: String? = null
 )
 
 data class ForgotPasswordRequest(
@@ -65,7 +98,8 @@ data class ForgotPasswordResponse(
     val status: String,
     val expiresInSeconds: Long,
     val demoOtp: String? = null,
-    val deliveryMode: String = "twilio"
+    val deliveryMode: String = "way2api",
+    val resendAfterSeconds: Long = 60
 )
 
 data class ResetPasswordRequest(
@@ -87,6 +121,7 @@ data class CurrentUserResponse(
     val email: String?,
     val profileImageUrl: String?,
     val profileImageVersion: Long?,
+    val mobileVerified: Boolean = false,
     val role: String,
     val commissionRate: BigDecimal,
     val createdAt: Instant,
