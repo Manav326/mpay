@@ -113,7 +113,6 @@ export default function Page() {
   return <div className="shell">
     <aside className={`sidebar ${drawer?'open ':''}${sidebarCollapsed?'collapsed':''}`}>
       <div className="side-top"><Logo compact/><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={19}/></button></div>
-      <div className="portal-role"><ShieldCheck size={16}/><span>{session.role.replace('_',' ')} portal</span></div>
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><button className="nav" onClick={logout} title="Logout"><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
