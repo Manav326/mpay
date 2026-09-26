@@ -222,9 +222,13 @@ class RentalController(
     }
 
     @PostMapping("/admin/bookings/{bookingId}/cancel")
-    fun cancelAdminBooking(authentication: Authentication, @PathVariable bookingId: String): RentalBookingResponse {
+    fun cancelAdminBooking(
+        authentication: Authentication,
+        @PathVariable bookingId: String,
+        @Valid @RequestBody request: RentalAdminCancelBookingRequest
+    ): RentalBookingResponse {
         requireRentalOperationsAccess(authentication)
-        return rentalService.adminCancelBooking(bookingId, userId(authentication))
+        return rentalService.adminCancelBooking(bookingId, userId(authentication), request.reason.trim())
     }
 
     @PostMapping("/admin/vehicles/{carId}/approve")
