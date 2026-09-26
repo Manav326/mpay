@@ -47,9 +47,20 @@ class GlobalExceptionHandler {
             .body(ErrorResponse(ex.message ?: "Requested provider is not configured"))
 
     @ExceptionHandler(com.recharge.backend.service.OtpDeliveryException::class)
-    fun handleOtpDelivery(ex: com.recharge.backend.service.OtpDeliveryException): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+    fun handleOtpDelivery(ex: com.recharge.backend.service.OtpDeliveryException): ResponseEntity<ErrorResponse> {
+        val status = when (ex.upstreamStatusCode) {
+            429 -> HttpStatus.TOO_MANY_REQUESTS
+            else -> HttpStatus.SERVICE_UNAVAILABLE
+        }
+        return ResponseEntity.status(status)
             .body(ErrorResponse(ex.message ?: "OTP delivery service is currently unavailable"))
+    }
+
+    @ExceptionHandler(com.recharge.backend.service.OtpRateLimitException::class)
+    fun handleOtpRateLimit(ex: com.recharge.backend.service.OtpRateLimitException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header("Retry-After", ex.retryAfterSeconds.toString())
+            .body(ErrorResponse(ex.message ?: "Too many OTP requests. Please try again later."))
 
     @ExceptionHandler(com.recharge.backend.service.AccountDeletionBlockedException::class)
     fun handleAccountDeletionBlocked(ex: com.recharge.backend.service.AccountDeletionBlockedException): ResponseEntity<ErrorResponse> =
