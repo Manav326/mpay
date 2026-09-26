@@ -1039,3 +1039,71 @@
   outline:2px solid rgba(245,158,11,.72);
   outline-offset:2px;
 }
+
+/* Admin authentication — same mPay visual system as the console */
+.admin-login-page{
+  background:
+    radial-gradient(circle at 8% 10%,rgba(245,158,11,.15),transparent 30%),
+    radial-gradient(circle at 92% 88%,rgba(251,191,36,.11),transparent 28%),
+    #fffaf2;
+}
+.admin-login-card{
+  width:min(500px,calc(100vw - 32px));
+  background:rgba(255,255,255,.96);
+  border-color:#e9dfd2;
+  border-radius:24px;
+  box-shadow:0 28px 80px rgba(67,48,22,.13);
+}
+.admin-login-brand{margin-top:26px}
+.admin-login-brand img{box-shadow:0 8px 22px rgba(245,158,11,.14)}
+.admin-login-copy h1{
+  color:#211d18;
+  letter-spacing:-.04em;
+}
+.admin-login-copy p,.admin-login-foot{color:#776e63}
+.admin-login-copy{margin:23px 0 20px}
+.admin-login-copy .secure-badge{
+  background:#fff4df;
+  border:1px solid #efd6a7;
+  color:#8d5c08;
+}
+.admin-login-card .form{gap:13px}
+.admin-login-card .form label{
+  color:#554c43;
+  font-size:11px;
+}
+.admin-login-card .form input,.admin-login-card .form select{
+  min-height:43px;
+  border-radius:11px;
+  border-color:#e8dfd3;
+}
+.admin-login-card .form input:focus,.admin-login-card .form select:focus{
+  border-color:#e2bc70;
+  box-shadow:0 0 0 3px rgba(245,158,11,.12);
+  outline:none;
+}
+.admin-login-card .primary{
+  min-height:43px;
+  margin-top:2px;
+}
+.admin-login-card .link-btn{font-size:11px;padding:4px}
+.admin-login-foot{
+  border-top-color:#eee7dd;
+  font-size:10px;
+}
+.auth-wrap{
+  background:
+    radial-gradient(circle at 8% 10%,rgba(245,158,11,.15),transparent 30%),
+    radial-gradient(circle at 92% 88%,rgba(251,191,36,.11),transparent 28%),
+    #fffaf2;
+}
+.auth-card{
+  width:min(500px,calc(100vw - 32px));
+  border-color:#e9dfd2;
+  border-radius:24px;
+  box-shadow:0 28px 80px rgba(67,48,22,.13);
+}
+.auth-card .form input,.auth-card .form select{
+  min-height:43px;
+  border-radius:11px;
+}
