@@ -1180,3 +1180,6 @@
   .shell .users-directory-head .user-directory-filters{grid-template-columns:1fr}
   .shell .users-directory-head .admin-user-search{grid-column:auto}
 }
+
+.shell .user-directory-account .type-pill.unknown{background:#f4f2ef;color:#6f665d;border-color:#e5dfd6}
+.shell .user-directory-status.unknown .status{color:#6f665d;background:#f4f2ef;border-color:#e5dfd6}
