@@ -89,19 +89,22 @@ async function refreshAdminAccessToken(): Promise<string | null> {
 
 async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
-  const request = () => fetch(baseUrl + path, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...(init.headers || {}) },
-  });
+  const buildHeaders = (authorization?: string) => {
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('Content-Type') && !(typeof FormData !== 'undefined' && init.body instanceof FormData)) {
+      headers.set('Content-Type', 'application/json');
+    }
+    if (authorization) headers.set('Authorization', 'Bearer ' + authorization);
+    else if (token) headers.set('Authorization', 'Bearer ' + token);
+    return headers;
+  };
 
-  let response = await request();
+  let response = await fetch(baseUrl + path, { ...init, headers: buildHeaders() });
   if (response.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/v1/auth/')) {
     const refreshed = await refreshAdminAccessToken();
     if (refreshed) {
-      response = await fetch(baseUrl + path, {
-        ...init,
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + refreshed, ...(init.headers || {}) },
-      });
+      response = await fetch(baseUrl + path, { ...init, headers: buildHeaders(refreshed) });
+      if (response.status === 401) clearAdminSession();
     } else {
       clearAdminSession();
     }
@@ -397,16 +400,11 @@ export async function getAdminProfileImage(): Promise<string | null> {
 
 export async function uploadAdminProfileImage(file: File): Promise<unknown> {
   if (demo) return { ok: true };
-  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
   const form = new FormData();
   form.append('image', file, file.name);
-  const response = await fetch(baseUrl + '/api/v1/profile/image', {
-    method: 'PUT',
-    body: form,
-    headers: token ? { Authorization: 'Bearer ' + token } : {},
-  });
+  const response = await authenticatedFetch('/api/v1/profile/image', { method: 'PUT', body: form });
   if (!response.ok) throw new Error((await response.text()) || 'Unable to upload profile image.');
-  return response.json();
+  return normalizeDisplayValue(await response.json());
 }
 
 export async function deleteAdminProfileImage(): Promise<unknown> {
