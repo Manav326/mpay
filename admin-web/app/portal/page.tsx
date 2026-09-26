@@ -996,7 +996,7 @@ export default function Portal() {
           {recharges.length ? <div className="history-list">{recharges.map((x,i)=><div className="history-row" key={String(x.transactionId || i)}>
             <div><ReceiptText size={18}/><b>{x.mobileNumber || 'Recharge'} · {x.operator || '—'}</b><small>{x.planDescription || 'Plan'} · {x.transactionId || 'No reference'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
             <strong className="amount-debit">{money(x.amount)}</strong>
-            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span>{x.transactionId && <button className="copy-btn" onClick={()=>copyText(x.transactionId || '','Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
+            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span>{x.transactionId && <button className="copy-btn" onClick={()=>openWalletItem({id:x.transactionId,type:'RECHARGE',amount:x.amount,status:x.status,referenceId:x.transactionId,referenceType:'RECHARGE',provider:x.provider,createdAt:x.createdAt})}><Eye size={14}/><span>Details</span></button>}{x.transactionId && <button className="copy-btn" onClick={()=>copyText(x.transactionId || '','Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
           </div>)}</div> : <div className="empty-state"><History size={22}/><b>No recharge history yet</b><span>Your completed and pending recharges will appear here.</span></div>}
         </div>
       </section>}
