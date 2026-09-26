@@ -3,14 +3,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { completeRentalBooking, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
+import { cancelRentalBooking, completeRentalBooking, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
 import RentalVendorReview from './RentalVendorReview';
+import RentalBookingActions from './RentalBookingActions';
+import RentalPayouts from './RentalPayouts';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
+
+interface AdminAttention {
+  pendingRecharges: number;
+  pendingWithdrawals: number;
+  pendingVendorApplications: number;
+  pendingPayouts: number;
+}
 
 function Logo({ compact = false }: { compact?: boolean }) {
   return <div className="brand"><img src="/mpay-logo.png" alt="mPay"/><div><strong>mPay</strong>{!compact && <span>Admin Portal</span>}</div></div>;
@@ -31,6 +40,7 @@ export default function Page() {
   const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
   const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
   const [commissionRates, setCommissionRates] = useState<RoleCommissionRate[]>([]);
+  const [attention, setAttention] = useState<AdminAttention>({ pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingPayouts: 0 });
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
@@ -39,8 +49,40 @@ export default function Page() {
     getPortalRoles().then(roles=>{ if(roles.length) { setPortalRoles(roles); if(!roles.includes(selectedPortalRole)) setSelectedPortalRole(roles[0]); } }).catch(()=>{});
   },[]);
 
-  useEffect(()=>{ if(session) { getDashboard().then(setDashboard); getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); loadUsers(); if(session.permissions?.includes('MANAGE_RENTAL_OPERATIONS')) { getRentalAdminDashboard().then(setRentalDashboard).catch(()=>{}); } if(session.permissions?.includes('MANAGE_COMMISSION_RATES')) getCommissionRates().then(setCommissionRates).catch(()=>{}); } },[session]);
+  useEffect(()=>{ if(session) { getDashboard().then(setDashboard); getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); loadUsers(); loadAttention(); if(session.permissions?.includes('MANAGE_RENTAL_OPERATIONS')) { getRentalAdminDashboard().then(setRentalDashboard).catch(()=>{}); } if(session.permissions?.includes('MANAGE_COMMISSION_RATES')) getCommissionRates().then(setCommissionRates).catch(()=>{}); } },[session]);
   async function loadUsers(){ setUsers(await getUsers(roleFilter, sort)); }
+  async function loadAttention(){
+    const next: AdminAttention = { pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingPayouts: 0 };
+    const jobs: Promise<void>[] = [];
+    if (session?.permissions?.includes('VIEW_FINANCIAL_OPERATIONS')) {
+      jobs.push((async()=>{
+        const [pendingRecharge, processingRecharge, pendingWithdrawal, processingWithdrawal] = await Promise.allSettled([
+          getAdminRecharges(0, 1, 'PENDING', 'ALL'),
+          getAdminRecharges(0, 1, 'PROCESSING', 'ALL'),
+          getAdminWithdrawals(0, 1, 'PENDING', 'ALL'),
+          getAdminWithdrawals(0, 1, 'PROCESSING', 'ALL')
+        ]);
+        if (pendingRecharge.status === 'fulfilled') next.pendingRecharges += pendingRecharge.value.totalItems;
+        if (processingRecharge.status === 'fulfilled') next.pendingRecharges += processingRecharge.value.totalItems;
+        if (pendingWithdrawal.status === 'fulfilled') next.pendingWithdrawals += pendingWithdrawal.value.totalItems;
+        if (processingWithdrawal.status === 'fulfilled') next.pendingWithdrawals += processingWithdrawal.value.totalItems;
+      })().catch(()=>{}));
+    }
+    if (session?.permissions?.includes('MANAGE_VENDORS')) {
+      jobs.push((async()=>{
+        const vendors = await getRentalAdminVendors();
+        next.pendingVendorApplications = vendors.filter(v => String(v.status || '').toUpperCase() === 'PENDING').length;
+      })().catch(()=>{}));
+    }
+    if (session?.permissions?.includes('MANAGE_RENTAL_OPERATIONS')) {
+      jobs.push((async()=>{
+        const payouts = await getRentalAdminPayouts(0, 1, 'PENDING');
+        next.pendingPayouts = payouts.totalItems;
+      })().catch(()=>{}));
+    }
+    await Promise.all(jobs);
+    setAttention(next);
+  }
   async function loadRental(){ try { const [summary, page] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus)]); setRentalDashboard(summary); setRentalBookings(page.items); setRentalBookingHasNext(page.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
   useEffect(()=>{ if(session) loadUsers(); },[roleFilter, sort]);
   useEffect(()=>{ if(session && view==='rental' && permissionsForSession(session).includes('MANAGE_RENTAL_OPERATIONS')) loadRental(); },[session,view,rentalBookingPage,rentalBookingStatus]);
@@ -77,7 +119,7 @@ export default function Page() {
     </aside>
     <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':'Commission Rules'}</h1></div></div><div className="top-actions"><span className="role-pill">{session.role}</span><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
       {notice && <div className="admin-notice"><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-      {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
+      {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} attention={attention} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
@@ -91,11 +133,12 @@ function AuthScreen(p:any){
   return <main className="auth-wrap"><div className="auth-card"><div className="auth-brand"><Logo/></div>{p.state==='login'?<><div className="auth-copy"><h1>Welcome to mPay Admin</h1><p>Sign in as Admin, Manager, or another enabled portal role.</p></div><form onSubmit={p.onLogin} className="form"><label>Portal role<select value={p.selectedPortalRole} onChange={e=>p.setSelectedPortalRole(e.target.value)}>{p.portalRoles.map((r:string)=><option key={r} value={r}>{r.charAt(0)+r.slice(1).toLowerCase()}</option>)}</select></label><label>Mobile number<input value={p.mobile} onChange={e=>p.setMobile(e.target.value)} placeholder="10-digit mobile number" /></label><label>Password<input type="password" value={p.password} onChange={e=>p.setPassword(e.target.value)} placeholder="Enter password" /></label>{p.notice&&<div className="alert">{p.notice}</div>}<button className="primary" disabled={p.busy}>{p.busy?'Signing in…':'Sign in'}</button><button type="button" className="link-btn" onClick={()=>{p.setState('forgot');p.notice&&p.setMobile(p.mobile)}}>Forgot password?</button></form></>:<><div className="auth-copy"><h1>Reset admin password</h1><p>Only Admin and Manager accounts can access this portal.</p></div><form onSubmit={p.onReset} className="form"><label>Registered mobile<input value={p.mobile} onChange={e=>p.setMobile(e.target.value)} placeholder="10-digit mobile number" /></label>{p.resetRequested&&<label>OTP<input value={p.otp} onChange={e=>p.setOtp(e.target.value)} placeholder="6-digit OTP" /></label>}{p.resetRequested&&<label>New password<input type="password" value={p.newPassword} onChange={e=>p.setNewPassword(e.target.value)} placeholder="New password" /></label>}{p.notice&&<div className="alert">{p.notice}</div>}<button className="primary" disabled={p.busy}>{p.busy?'Please wait…':p.resetRequested?'Reset password':'Send OTP'}</button><button type="button" className="link-btn" onClick={()=>{p.setState('login');p.setResetRequested(false)}}>Back to sign in</button></form></>}</div></main>
 }
 
-function Dashboard({data,rental,showRental,onUsers,onRental,onVendors,onFinancial,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;showRental:boolean;onUsers:()=>void;onRental:()=>void;onVendors:()=>void;onFinancial?:()=>void;onCommissions?:()=>void}){
+function Dashboard({data,rental,showRental,attention,onUsers,onRental,onVendors,onFinancial,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;showRental:boolean;attention:AdminAttention;onUsers:()=>void;onRental:()=>void;onVendors:()=>void;onFinancial?:()=>void;onCommissions?:()=>void}){
   if(!data) return <div className="loading">Loading dashboard…</div>;
   const cards:Array<[string,string,string,typeof CircleDollarSign]>=[['Today earnings',INR.format(data.todayCommission),'Company recharge commission today',CircleDollarSign],['Today volume',INR.format(data.todayVolume),'Successful recharge value',Wallet],['This month',INR.format(data.monthlyCommission),'Company commission through today',TrendingUp],['Active clients',data.activeClients.toLocaleString('en-IN'),'Currently active client accounts',Users]];
   if(showRental) cards.push(['Rental bookings',String(rental?.totalBookings ?? '—'),'Persisted chauffeur-driven bookings',CalendarDays],['Rental fees',rental ? INR.format(rental.totalPlatformFees) : '—','Platform fees from settled rentals',CarFront]);
-  return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{value}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Jump directly into the operation you need.</p></div></div><div className="quick-grid"><button className="quick" onClick={onUsers}><Users size={20}/><div><b>Users & wallet</b><span>Balances, customer history and account status</span></div></button>{onFinancial&&<button className="quick" onClick={onFinancial}><WalletCards size={20}/><div><b>Money operations</b><span>Recharge, withdrawal and wallet ledger oversight</span></div></button>}{showRental&&<button className="quick" onClick={onVendors}><CarFront size={20}/><div><b>Rental partners</b><span>Vendor and vehicle review workflow</span></div></button>}{showRental&&<button className="quick" onClick={onRental}><CalendarDays size={20}/><div><b>Rental operations</b><span>Bookings and settlement lifecycle</span></div></button>}{onCommissions&&<button className="quick" onClick={onCommissions}><BarChart3 size={20}/><div><b>Commission rules</b><span>Review and update role-based rates</span></div></button>}</div></section></div></div>
+  const attentionTotal = attention.pendingRecharges + attention.pendingWithdrawals + attention.pendingVendorApplications + attention.pendingPayouts;
+  return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{value}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Jump directly into the operation you need.</p></div></div><div className="quick-grid"><button className="quick" onClick={onUsers}><Users size={20}/><div><b>Users & wallet</b><span>Balances, customer history and account status</span></div></button>{onFinancial&&<button className="quick" onClick={onFinancial}><WalletCards size={20}/><div><b>Money operations</b><span>Recharge, withdrawal and wallet ledger oversight</span></div></button>}{showRental&&<button className="quick" onClick={onVendors}><CarFront size={20}/><div><b>Rental partners</b><span>Vendor and vehicle review workflow</span></div></button>}{showRental&&<button className="quick" onClick={onRental}><CalendarDays size={20}/><div><b>Rental operations</b><span>Bookings and settlement lifecycle</span></div></button>}{onCommissions&&<button className="quick" onClick={onCommissions}><BarChart3 size={20}/><div><b>Commission rules</b><span>Review and update role-based rates</span></div></button>}</div></section></div></div><section className="panel attention-panel"><div className="panel-head wrap"><div><h2>Needs attention</h2><p>Priority queues surfaced from the authoritative operational services.</p></div><span className={attentionTotal ? 'attention-count active' : 'attention-count'}>{attentionTotal} open</span></div><div className="attention-grid"><button className="attention-card" onClick={()=>onFinancial?.()} disabled={!onFinancial}><b>{attention.pendingRecharges}</b><span>Recharge operations</span><small>Pending or processing</small></button><button className="attention-card" onClick={()=>onFinancial?.()} disabled={!onFinancial}><b>{attention.pendingWithdrawals}</b><span>Withdrawals</span><small>Pending or processing</small></button><button className="attention-card" onClick={onVendors} disabled={!showRental}><b>{attention.pendingVendorApplications}</b><span>Rental partner reviews</span><small>Pending applications</small></button><button className="attention-card" onClick={onRental} disabled={!showRental}><b>{attention.pendingPayouts}</b><span>Vendor payouts</span><small>Awaiting settlement</small></button></div></section></div>
 }
 
 function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,selected,setSelected,canManageUserStatus,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
