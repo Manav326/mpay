@@ -454,3 +454,52 @@
 @media(max-width:1150px){.rental-partners-columns{grid-template-columns:1fr}.rental-scroll-area{height:420px}.rental-partner-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:850px){.rental-partners-header{align-items:flex-start}.rental-filter-bar{grid-template-columns:1fr}.rental-vendor-card{grid-template-columns:auto minmax(0,1fr)}.rental-vendor-actions{grid-column:1 / -1;flex-direction:row}.rental-action{flex:1}.rental-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rental-submission-toolbar{align-items:stretch;flex-direction:column}.rental-submission-toolbar .rental-filter-bar{width:100%}.inspection-hero{grid-template-columns:1fr}.inspection-photo-grid .rental-photo-tile{min-height:120px}.driver-review-card{grid-template-columns:100px minmax(0,1fr)}.driver-photo-large{height:100px}}
 @media(max-width:600px){.rental-partners-summary{grid-template-columns:1fr 1fr}.rental-partner-summary{grid-template-columns:1fr 1fr}.rental-partners-header h2{font-size:21px}.rental-review-head{align-items:flex-start}.rental-vendor-name-row{align-items:flex-start}.rental-modal-backdrop{padding:0}.rental-modal,.rental-modal-vendor,.rental-modal-submissions,.rental-modal-inspection{width:100%;height:100%;max-height:none;border-radius:0;border-left:0}.rental-modal-inspection-backdrop{align-items:stretch}.rental-modal-header{padding:13px}.rental-modal-body{padding:11px}.rental-info-grid{grid-template-columns:1fr}.rental-submission-scroll{height:auto;min-height:0}.rental-vehicle-review-card{grid-template-columns:64px minmax(0,1fr)}.inspect-action{grid-column:1 / -1;width:100%}.inspection-photo-grid{grid-template-columns:1fr 1fr}.inspection-photo-grid .rental-photo-tile{min-height:140px}.inspection-photo-grid .driver-photo-tile{grid-column:span 2}.driver-review-card{grid-template-columns:1fr}.driver-photo-large{height:auto}.rental-decision-actions{flex-direction:column;align-items:stretch}.rental-reject-control{width:100%}.rental-reject-control input{width:100%}.rental-reject-control{display:grid;grid-template-columns:minmax(0,1fr) auto}.rental-decision-actions .primary{width:100%;justify-content:center}.rental-vendor-actions{flex-direction:column}.rental-action{width:100%}}
+
+
+/* Rental vehicle inspection — focused media hierarchy */
+.inspection-hero{grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:14px;align-items:stretch}
+.inspection-vehicle-gallery{min-width:0;display:flex;flex-direction:column;gap:8px}
+.inspection-gallery-stage{position:relative;min-width:0;aspect-ratio:16/10;border-radius:16px;overflow:hidden;background:#f3efe9;border:1px solid var(--border);box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}
+.inspection-gallery-stage .inspection-gallery-main{height:100%;border:0;border-radius:0;background:#f3efe9}
+.inspection-gallery-stage .inspection-gallery-main>img{aspect-ratio:auto;width:100%;height:100%;object-fit:cover}
+.inspection-gallery-stage .inspection-gallery-main .rental-photo-fallback{height:100%;aspect-ratio:auto}
+.inspection-gallery-stage .rental-photo-label{left:10px;bottom:10px;padding:5px 7px;font-size:8px}
+.inspection-gallery-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border:1px solid rgba(255,255,255,.7);border-radius:50%;display:grid;place-items:center;background:rgba(28,24,20,.52);color:#fff;backdrop-filter:blur(8px);cursor:pointer;transition:.15s ease;z-index:2}
+.inspection-gallery-nav:hover{background:rgba(28,24,20,.74);transform:translateY(-50%) scale(1.04)}
+.inspection-gallery-nav.prev{left:10px}.inspection-gallery-nav.next{right:10px}
+.inspection-gallery-thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.inspection-gallery-thumb{padding:0;border:2px solid transparent;background:transparent;border-radius:10px;overflow:hidden;cursor:pointer;min-width:0}
+.inspection-gallery-thumb.active{border-color:#b77908;box-shadow:0 0 0 2px rgba(183,121,8,.12)}
+.inspection-gallery-thumb .rental-photo-tile{border:0;border-radius:8px}
+.inspection-gallery-thumb .rental-photo-tile>img,.inspection-gallery-thumb .rental-photo-fallback{height:64px;aspect-ratio:auto}
+.inspection-summary{display:flex;flex-direction:column;justify-content:flex-start;padding:15px}
+.inspection-summary-topline{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.inspection-summary-topline>span{display:inline-flex;align-items:center;gap:4px;color:#8c8175;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.inspection-summary h3{font-size:20px;margin:12px 0 3px}
+.inspection-quick-grid{margin-top:16px}
+.inspection-section{margin-top:15px}
+.driver-review-card{grid-template-columns:180px minmax(0,1fr);gap:14px;padding:12px;align-items:stretch}
+.driver-photo-panel{min-width:0}
+.driver-photo-large{height:100%;min-height:180px;border-radius:13px}
+.driver-photo-large>img{aspect-ratio:auto;height:100%;min-height:180px;object-fit:cover}
+.driver-photo-large .rental-photo-fallback{height:100%;min-height:180px;aspect-ratio:auto}
+.driver-photo-caption{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px;color:#7c7268;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.driver-info-content{min-width:0}
+.driver-name-line{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin:2px 1px 9px}
+.driver-name-line>div:first-child>span{display:block;color:#8c8175;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.driver-name-line>div:first-child>b{display:block;margin-top:3px;font-size:14px}
+.driver-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+@media(max-width:850px){
+  .inspection-hero{grid-template-columns:1fr}
+  .inspection-gallery-stage{aspect-ratio:16/9}
+  .driver-review-card{grid-template-columns:150px minmax(0,1fr)}
+  .driver-photo-large,.driver-photo-large>img,.driver-photo-large .rental-photo-fallback{min-height:150px}
+}
+@media(max-width:600px){
+  .inspection-gallery-thumbs{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .inspection-gallery-thumb .rental-photo-tile>img,.inspection-gallery-thumb .rental-photo-fallback{height:56px}
+  .driver-review-card{grid-template-columns:1fr}
+  .driver-photo-large,.driver-photo-large>img,.driver-photo-large .rental-photo-fallback{min-height:220px;height:220px}
+  .driver-name-line{align-items:flex-start}
+  .driver-info-grid{grid-template-columns:1fr}
+}
