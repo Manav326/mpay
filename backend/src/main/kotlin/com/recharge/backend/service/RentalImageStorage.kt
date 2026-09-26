@@ -46,6 +46,10 @@ class LocalRentalImageStorage(
         }
         val key = "rental_${carId}_${slot}_${UUID.randomUUID()}.$ext"
         Files.write(resolve(key), file.bytes)
+        runCatching {
+            ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB)
+            ImageVariantSupport.ensureVariant(root, key, ImageVariant.LARGE)
+        }
         return key
     }
 
