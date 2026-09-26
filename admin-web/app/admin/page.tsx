@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CarFront, CalendarDays, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X } from 'lucide-react';
+import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, Users, Wallet, WalletCards, X, XCircle } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { cancelRentalBooking, completeRentalBooking, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
@@ -124,7 +124,7 @@ export default function Page() {
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
-      {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id)=>{setBusy(true);try{await cancelRentalBooking(id);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
+      {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id,reason)=>{setBusy(true);try{await cancelRentalBooking(id,reason);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} \n      {view==='vendors' && canVendors && <RentalVendorReview/>}
     </main>
   </div>
 }
@@ -332,46 +332,78 @@ function RentalOperations(p:{
   onNext:()=>void;
   onRefresh:()=>void;
   onComplete:(id:string)=>void;
-  onCancel:(id:string)=>void;
+  onCancel:(id:string,reason:string)=>void;
   onNotice:(message:string)=>void;
   busy:boolean;
 }){
   const d=p.dashboard;
   const money=(v:number)=>INR.format(v);
-  const statusClass=(s:string)=>(s||'UNKNOWN').toLowerCase().replace(/_/g,'-');
-  return <div className="content">
-    <section className="metric-grid">
+  const [activeTab,setActiveTab]=useState<'bookings'|'payouts'>('bookings');
+
+  function bookingStatusMeta(value:string){
+    const status=(value||'UNKNOWN').toUpperCase();
+    if(status==='CONFIRMED') return {label:'CONFIRMED',className:'confirmed',Icon:CheckCircle2};
+    if(status==='COMPLETED') return {label:'COMPLETED',className:'completed',Icon:CheckCircle2};
+    if(status==='CANCELLED') return {label:'CANCELLED',className:'cancelled',Icon:XCircle};
+    return {label:status.replace(/_/g,' '),className:'unknown',Icon:Clock3};
+  }
+
+  return <div className="content rental-operations-page">
+    <section className="metric-grid rental-ops-metrics">
       <div className="metric-card"><div className="metric-head"><span>Total bookings</span><div className="metric-icon"><CalendarDays size={18}/></div></div><strong>{d?.totalBookings ?? '—'}</strong><small>All persisted rental bookings</small></div>
-      <div className="metric-card"><div className="metric-head"><span>Active</span><div className="metric-icon"><Clock3 size={18}/></div></div><strong>{d?.activeBookings ?? '—'}</strong><small>Currently in progress</small></div>
+      <div className="metric-card"><div className="metric-head"><span>Active bookings</span><div className="metric-icon"><Clock3 size={18}/></div></div><strong>{d?.activeBookings ?? '—'}</strong><small>Currently in progress</small></div>
       <div className="metric-card"><div className="metric-head"><span>Booking value</span><div className="metric-icon"><CircleDollarSign size={18}/></div></div><strong>{d ? money(d.totalBookingValue) : '—'}</strong><small>Total rental value</small></div>
       <div className="metric-card"><div className="metric-head"><span>Platform fees</span><div className="metric-icon"><TrendingUp size={18}/></div></div><strong>{d ? money(d.totalPlatformFees) : '—'}</strong><small>Settled vendor fees</small></div>
     </section>
-    <section className="panel">
-      <div className="panel-head wrap">
-        <div><h2>Rental bookings</h2><p>Wallet-paid bookings and their operational lifecycle.</p></div>
-        <div className="filters">
-          <select value={p.status} onChange={e=>p.setStatus(e.target.value)}><option>ALL</option><option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option></select>
-          <button className="secondary" onClick={p.onRefresh}>Refresh</button>
-        </div>
+
+    <section className="rental-ops-workspace">
+      <div className="rental-ops-tabs" role="tablist" aria-label="Rental operations">
+        <button className={activeTab==='bookings'?'active':''} role="tab" aria-selected={activeTab==='bookings'} onClick={()=>setActiveTab('bookings')}>
+          <CalendarDays size={16}/><span>Rental bookings</span><strong>{d?.totalBookings ?? '—'}</strong>
+        </button>
+        <button className={activeTab==='payouts'?'active':''} role="tab" aria-selected={activeTab==='payouts'} onClick={()=>setActiveTab('payouts')}>
+          <Banknote size={16}/><span>Vendor payouts</span><strong>{d ? money(d.totalVendorPayouts) : '—'}</strong>
+        </button>
       </div>
-      {p.bookings.length===0 ? <div className="empty-state">No rental bookings found.</div> :
-      <div className="table-wrap"><table><thead><tr><th>Booking</th><th>Customer</th><th>Car / Vendor</th><th>Trip</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>
-        {p.bookings.map(b=><tr key={b.bookingId}>
-          <td><b className="mono">{b.bookingId}</b><span>{dateTime(b.createdAt)}</span></td>
-          <td><b>{b.userName || 'Customer'}</b><span>{b.userMobile || b.userId}</span></td>
-          <td><b>{b.carName}</b><span>{b.vendorName || 'Vendor'}</span></td>
-          <td><b>{b.pickup}</b><span>→ {b.drop}</span><span>{dateTime(b.startDate)} → {dateTime(b.endDate)}</span></td>
-          <td><b>{money(b.total)}</b><span>{b.paymentMethod} · {b.paymentStatus}</span></td>
-          <td><span className={'status '+statusClass(b.status)}>{b.status}</span></td>
-          <td><RentalBookingActions booking={b} busy={p.busy} onComplete={p.onComplete} onCancel={p.onCancel}/></td>
-        </tr>)}
-      </tbody></table></div>}
-      <div className="panel-head"><span>Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>
+
+      {activeTab==='bookings' ? (
+        <section className="panel rental-bookings-panel">
+          <div className="panel-head wrap rental-bookings-head">
+            <div className="rental-ops-title">
+              <div className="rental-ops-title-icon bookings"><CalendarDays size={18}/></div>
+              <div><h2>Rental bookings</h2><p>Wallet-paid bookings and their operational lifecycle.</p></div>
+            </div>
+            <div className="rental-ops-toolbar">
+              <label className="rental-ops-filter"><span>Filter</span><select value={p.status} onChange={e=>p.setStatus(e.target.value)}><option>ALL</option><option>CONFIRMED</option><option>COMPLETED</option><option>CANCELLED</option></select></label>
+              <button className="secondary" onClick={p.onRefresh}><History size={14}/> Refresh</button>
+            </div>
+          </div>
+
+          {p.bookings.length===0 ? <div className="empty-state rental-ops-empty"><CalendarDays size={24}/><b>No rental bookings found.</b><span>Bookings will appear here as customers complete rental payments.</span></div> :
+          <div className="table-wrap rental-bookings-table"><table><thead><tr><th>Booking</th><th>Customer</th><th>Car / Vendor</th><th>Trip</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>
+            {p.bookings.map(b=>{
+              const meta=bookingStatusMeta(b.status);
+              const StatusIcon=meta.Icon;
+              return <tr key={b.bookingId}>
+                <td><b className="mono">{b.bookingId}</b><span>{dateTime(b.createdAt)}</span></td>
+                <td><div className="rental-table-primary"><Users size={13}/><div><b>{b.userName || 'Customer'}</b><span>{b.userMobile || b.userId}</span></div></div></td>
+                <td><div className="rental-table-primary"><CarFront size={13}/><div><b>{b.carName}</b><span>{b.vendorName || 'Vendor'}</span></div></div></td>
+                <td><div className="rental-trip-cell"><span><MapPin size={12}/>{b.pickup}</span><span className="trip-arrow">→</span><span>{b.drop}</span><small><CalendarDays size={11}/>{dateTime(b.startDate)} → {dateTime(b.endDate)}</small></div></td>
+                <td><div className="rental-amount-cell"><b>{money(b.total)}</b><span><WalletCards size={11}/>{b.paymentMethod} · {b.paymentStatus}</span></div></td>
+                <td><span className={'rental-booking-status '+meta.className}><StatusIcon size={12}/>{meta.label}</span></td>
+                <td><RentalBookingActions booking={b} busy={p.busy} onComplete={p.onComplete} onCancel={p.onCancel}/></td>
+              </tr>;
+            })}
+          </tbody></table></div>}
+
+          <div className="panel-head rental-ops-pagination"><span><History size={13}/> Page {p.page+1}</span><div className="filters"><button className="secondary" disabled={p.page===0} onClick={p.onPrev}>Previous</button><button className="secondary" disabled={!p.hasNext} onClick={p.onNext}>Next</button></div></div>
+        </section>
+      ) : (
+        <RentalPayouts onNotice={p.onNotice}/>
+      )}
     </section>
-    <RentalPayouts onNotice={p.onNotice}/>
   </div>;
 }
-
 
 function CommissionView(p:{rates:RoleCommissionRate[];busy:boolean;onSave:(role:string,percent:number,active:boolean)=>void}){
   return <div className="content">
