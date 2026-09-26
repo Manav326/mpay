@@ -2240,3 +2240,111 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .wallet-custom-range>span{display:none}
   .wallet-custom-range .wallet-outline-btn{grid-column:1/-1}
 }
+
+
+/* ===== Android-style customer Home parity ===== */
+.android-home-parity{padding-top:18px}
+.android-home-greeting{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 2px 2px}
+.android-home-greeting-copy span{display:block;color:#737373;font-size:13px}
+.android-home-greeting-copy h2{margin:3px 0 0;font-size:24px;line-height:1.15;letter-spacing:-.03em;color:#171717}
+.android-home-avatar{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:900;overflow:hidden;box-shadow:0 8px 22px rgba(196,116,7,.16);flex:none}
+.android-home-avatar img{width:100%;height:100%;object-fit:cover}
+
+.android-wallet-hero{margin-top:4px;background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 14px 34px rgba(188,107,0,.15)}
+.android-wallet-refresh{width:34px;height:34px;border:1px solid rgba(255,255,255,.20);border-radius:11px;background:transparent;color:#fff;display:grid;place-items:center;cursor:pointer}
+.android-wallet-refresh:hover{background:rgba(255,255,255,.10)}
+.android-wallet-refresh:disabled{opacity:.55;cursor:not-allowed}
+.android-wallet-reserved{margin:7px 0 0;color:rgba(255,255,255,.78);font-size:10px}
+.android-wallet-hero .portal-wallet-actions .landing-secondary{border-color:rgba(255,255,255,.42);color:#fff;background:transparent}
+.android-wallet-hero .portal-wallet-actions .landing-primary{background:#fff;color:#d97706;border-color:#fff}
+
+.android-home-section{margin-top:0}
+.android-home-section .portal-home-section-head{margin-bottom:9px}
+.android-home-section .portal-home-section-head span{font-size:9px;letter-spacing:.14em}
+.android-home-section .portal-home-section-head h2{font-size:17px}
+
+.android-home-quick-card{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 0;border-radius:18px;background:#fff9ec;border:1px solid #f2e5c9}
+.android-action-card{border:1px solid #eee7dd;background:#fff;border-radius:16px;min-height:88px;padding:12px 8px;color:#39342f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.android-action-card:hover{border-color:#e7cf9d;box-shadow:0 7px 18px rgba(75,57,31,.06)}
+.android-action-card span{width:38px;height:38px;border-radius:13px;display:grid;place-items:center}
+.android-action-card.recharge span{background:rgba(22,163,74,.12);color:#16a34a}
+.android-action-card.add span{background:rgba(217,119,6,.12);color:#d97706}
+.android-action-card.bookings span{background:rgba(217,119,6,.12);color:#d97706}
+.android-action-card b{font-size:10px;text-align:center;line-height:1.25}
+
+.android-marketplace-card{width:100%;border:1px solid #eadfce;border-radius:20px;background:#fff5df;padding:15px 16px;display:flex;align-items:center;gap:12px;text-align:left;color:#2f2a24;cursor:pointer}
+.android-marketplace-card:hover{background:#fff0cf}
+.android-marketplace-icon{width:44px;height:44px;border-radius:15px;background:#ffedc2;color:#b26a00;display:grid;place-items:center;flex:none}
+.android-marketplace-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.android-marketplace-copy b{font-size:15px}
+.android-marketplace-copy small{font-size:10px;line-height:1.45;color:#737373}
+.android-marketplace-action{font-size:10px;font-weight:900;color:#9a6408}
+
+.android-recharge-history-card{width:100%;margin-top:1px;border:1px solid #f0d7a2;border-radius:19px;background:#fff4df;color:#5d450f;padding:15px 16px;display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left;cursor:pointer}
+.android-recharge-history-card:hover{background:#ffefd2}
+.android-recharge-history-icon{width:44px;height:44px;border-radius:14px;background:#ffe8b8;color:#b26a00;display:grid;place-items:center}
+.android-recharge-history-card>span:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0}
+.android-recharge-history-card>span:nth-child(2) b{font-size:14px}
+.android-recharge-history-card>span:nth-child(2) small{font-size:10px;color:#737373;line-height:1.4}
+.android-recharge-history-card> b{font-size:10px;color:#9a6408}
+
+.android-home-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.android-home-section-title h2{margin:0;font-size:17px;letter-spacing:-.015em}
+.android-home-section-title button{border:0;background:transparent;color:#9a6408;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;cursor:pointer;padding:5px 2px}
+.android-home-section-title button:disabled{opacity:.5;cursor:not-allowed}
+.android-home-section-title button:hover{color:#d97706}
+
+.home-recent-recharge-card{background:#fff;border:1px solid #eee7dd;border-radius:20px;box-shadow:0 6px 20px rgba(47,37,28,.04)}
+.home-recharge-main{padding:16px}
+.home-recharge-summary{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.home-recharge-summary>div:first-child{min-width:0}
+.home-recharge-summary strong{display:block;font-size:19px;color:#29241f}
+.home-recharge-summary span{display:block;margin-top:3px;color:#737373;font-size:10px}
+.home-recharge-summary b{display:block;margin-top:6px;font-size:11px;color:#3e3832;font-weight:800;line-height:1.4}
+.home-recharge-summary small{display:block;margin-top:3px;color:#9a6408;font-size:9px}
+.home-recharge-status-area{display:flex;align-items:center;gap:8px;flex:none}
+.home-recharge-divider{height:1px;background:#eee7dd;margin:12px 0}
+.home-recharge-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.home-recharge-meta span,.home-recharge-footer span{display:block;color:#8a8074;font-size:9px}
+.home-recharge-meta b{display:block;margin-top:3px;color:#4a433a;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-recharge-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px}
+.home-recharge-footer .amount-credit{font-size:10px}
+.home-recharge-message{margin:8px 0 0;padding-top:8px;border-top:1px dashed #ece4d7;color:#737373;font-size:9px;line-height:1.45}
+
+.home-earnings-card{border:1px solid #eee7dd;border-radius:20px;background:#fff;padding:16px;box-shadow:0 6px 20px rgba(47,37,28,.035)}
+.home-earnings-card.loading{display:flex;flex-direction:column;gap:6px}
+.home-earnings-card.loading b{font-size:13px}
+.home-earnings-card.loading span{font-size:10px;color:#737373}
+.home-earnings-period{display:block;color:#737373;font-size:9px}
+.home-earnings-values{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:13px}
+.home-earnings-values small,.home-earnings-values em{display:block;color:#737373;font-size:9px;font-style:normal}
+.home-earnings-values strong{display:block;margin:4px 0 2px;font-size:21px}
+.home-earnings-values>div:last-child{text-align:right}
+.home-earnings-progress{height:5px;border-radius:999px;background:#f0ede8;overflow:hidden;margin-top:5px}
+.home-earnings-progress i{display:block;width:45%;height:100%;border-radius:999px;background:#f59e0b;animation:home-earnings-progress 1.1s ease-in-out infinite alternate}
+@keyframes home-earnings-progress{from{transform:translateX(-20%)}to{transform:translateX(180%)}}
+
+.home-action-modal{padding:20px}
+.home-action-modal .panel-head{margin-bottom:14px}
+.home-action-modal .wallet-current-balance{margin-top:2px}
+.home-action-modal .wallet-primary-wide{margin-top:4px}
+
+@media(max-width:700px){
+  .android-home-greeting-copy h2{font-size:22px}
+  .android-home-quick-card{gap:6px;padding:8px}
+  .android-action-card{min-height:82px}
+  .android-recharge-history-card{grid-template-columns:40px minmax(0,1fr) auto;padding:13px}
+  .android-recharge-history-icon{width:40px;height:40px}
+  .home-recharge-summary{flex-direction:column}
+  .home-recharge-status-area{width:100%;justify-content:flex-start}
+  .home-recharge-meta{grid-template-columns:1fr 1fr}
+  .home-recharge-meta span:last-child{grid-column:1/-1}
+  .home-earnings-values{grid-template-columns:1fr}
+  .home-earnings-values>div:last-child{text-align:left}
+}
+
+@media(max-width:520px){
+  .android-home-quick-card{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .android-action-card b{font-size:9px}
+  .android-marketplace-card{padding:13px}
+}
