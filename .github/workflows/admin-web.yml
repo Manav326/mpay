@@ -1,6 +1,7 @@
 name: Admin Web CI
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'admin-web/**'
