@@ -1345,6 +1345,39 @@ export default function Portal() {
     }
   }
 
+  function handleVehiclePhotoSelection(slot:number, file:File|null) {
+    if(!file) return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+      setNotice('Please select a JPG, PNG or WebP vehicle photo.');
+      return;
+    }
+    if(file.size > 5 * 1024 * 1024){
+      setNotice('Vehicle photo must be 5 MB or smaller.');
+      return;
+    }
+    setVehiclePhotoFile(slot,file);
+  }
+
+  function handleDriverPhotoSelection(file:File|null) {
+    if(!file) return;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+      setNotice('Please select a JPG, PNG or WebP driver photo.');
+      return;
+    }
+    if(file.size > 5 * 1024 * 1024){
+      setNotice('Driver photo must be 5 MB or smaller.');
+      return;
+    }
+    const preview=URL.createObjectURL(file);
+    setDriverPhotoFile(file);
+    setDriverPhotoPreview(preview);
+  }
+
+  useEffect(() => () => {
+    vehiclePhotoPreviews.forEach(value => { if(value.startsWith('blob:')) URL.revokeObjectURL(value); });
+    if(driverPhotoPreview.startsWith('blob:')) URL.revokeObjectURL(driverPhotoPreview);
+  }, [vehiclePhotoPreviews, driverPhotoPreview]);
+
   function validateVehicleForm() {
     const currentYear=new Date().getFullYear();
     const earliestYear=currentYear-20;
@@ -1362,7 +1395,7 @@ export default function Portal() {
     if(!vehicleForm.state.trim()) return 'State is required.';
     if(!Number.isInteger(manufacturing) || manufacturing < earliestYear || manufacturing > currentYear) return 'Manufacturing year must be within the last 20 years.';
     if(!Number.isInteger(registration) || registration < manufacturing || registration > currentYear) return 'Registration year cannot be before manufacture year or after the current year.';
-    if(!(price>0)) return 'Enter a valid positive price with up to 2 decimals.';
+    if(!/^\\d+(\\.\\d{1,2})?$/.test(String(vehicleForm.pricePerDay).trim()) || !(price>0)) return 'Enter a valid positive price with up to 2 decimals.';
     if(!(Number(vehicleForm.seats) >= 2 && Number(vehicleForm.seats) <= 8)) return 'Seats must be between 2 and 8.';
     if(!vehicleForm.driver.fullName.trim()) return 'Driver name is required.';
     if(!/^\\d{10}$/.test(mobile)) return 'Driver mobile must contain exactly 10 digits.';
