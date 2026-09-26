@@ -217,6 +217,7 @@ export interface RentalAdminBooking {
   paymentStatus: string;
   walletLedgerRef?: string | null;
   status: string;
+  cancellationReason?: string | null;
   createdAt: string;
 }
 
