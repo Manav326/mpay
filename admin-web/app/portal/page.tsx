@@ -138,13 +138,11 @@ function bookingShareText(b: RentalBooking) {
     'mPay Car Rental Booking',
     'Booking ID: ' + b.bookingId,
     'Car: ' + b.carName,
-    'Driver: ' + (b.driverName || '—') + (b.driverMobile ? ' (' + b.driverMobile + ')' : ''),
     'From: ' + b.pickup,
     'To: ' + b.drop,
-    'Start: ' + dt(b.startDate),
-    'End: ' + dt(b.endDate),
+    'Start: ' + b.startDate,
+    'End: ' + b.endDate,
     'Amount: ' + money(b.total),
-    'Payment: ' + (b.paymentMethod || 'WALLET'),
     'Status: ' + String(b.status || 'UNKNOWN').toUpperCase()
   ].join(' | ');
 }
@@ -1155,7 +1153,7 @@ export default function Portal() {
   }
 
   async function cancelBooking(bookingId:string) {
-    if(!confirm('Cancel this booking and refund the wallet amount?')) return;
+    if(!confirm('This will cancel the rental booking and refund the wallet amount. Continue?')) return;
     setBusy(true);
     try {
       await api('/api/v1/car-rental/bookings/'+encodeURIComponent(bookingId)+'/cancel',{method:'POST'});
@@ -1941,30 +1939,227 @@ export default function Portal() {
         <button className="rental-car selected" onClick={()=>setView('rental')}><div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong></button>
       </div></section>}
 
-      {view==='rental' && <section className="portal-content">
-        <div className="portal-panel"><div className="panel-head"><div><h2>Choose a car</h2><p>Filter by city/pickup area and date & time, inspect the vehicle, review the fare and book from your wallet.</p></div><CarFront size={28}/></div>
-          <div className="rental-search-card"><div className="rental-search-heading"><div><b>1. Set your trip window</b><span>These dates control availability and are reused for the fare quote and booking.</span></div>{(rentalSearch.startDate || rentalSearch.endDate || rentalSearch.location) && <span className="search-state-chip">Filter ready</span>}</div>
-            <div className="rental-search-grid"><label>City or pickup area<input value={rentalSearch.location} placeholder="e.g. Patna, Airport Road" onChange={e=>setRentalSearch({...rentalSearch,location:e.target.value})}/></label>
-              <label>From<input type="datetime-local" value={rentalSearch.startDate} min={isoNow()} onChange={e=>setRentalSearch({...rentalSearch,startDate:e.target.value})}/></label>
-              <label>To<input type="datetime-local" value={rentalSearch.endDate} min={rentalSearch.startDate || isoNow()} onChange={e=>setRentalSearch({...rentalSearch,endDate:e.target.value})}/></label>
+      {view==='rental' && <section className="portal-content rental-marketplace-page">
+        <div className="portal-panel rental-marketplace-panel">
+          <div className="panel-head rental-marketplace-head">
+            <div>
+              <span className="rental-eyebrow">MOBILITY</span>
+              <h2>Car Rental Marketplace</h2>
+              <p>Find chauffeur-driven cars by place and availability.</p>
             </div>
-            <div className="rental-search-actions"><button className="landing-secondary" onClick={clearRentalSearch}>Clear</button><button className="landing-primary" onClick={searchRentalCars}>Find cars <ArrowRight size={16}/></button></div>
-            {selectedCar && <div className="rental-trip-details"><div className="rental-trip-context"><span>2. Complete booking details</span><b>{selectedCar.name}</b><small>{rentalSearch.startDate && rentalSearch.endDate ? dt(rentalSearch.startDate)+' → '+dt(rentalSearch.endDate) : 'Choose From and To above before checking fare.'}</small></div><label>Pickup location<input placeholder="Pickup location" value={rentalForm.pickup} onChange={e=>setRentalForm({...rentalForm,pickup:e.target.value})}/></label><label>Drop location <em>(optional)</em><input placeholder="Drop location" value={rentalForm.drop} onChange={e=>setRentalForm({...rentalForm,drop:e.target.value})}/></label></div>}
+            <span className="rental-head-icon"><CarFront size={24}/></span>
           </div>
-          {cars.length ? <div className="rental-car-grid">{cars.map(car=><div className={'rental-car '+(selectedCar?.id===car.id?'selected':'')} key={car.id}>
-            <button className="rental-car-main" onClick={()=>{setSelectedCar(car);setRentalQuote(undefined);}}><div className="rental-car-icon">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={26}/>}</div><b>{car.name}</b><span>{car.category} · {car.seats} seats · {car.transmission}</span><strong>{money(car.pricePerDay)} / day</strong></button><button className="copy-btn" onClick={()=>setRentalDetails(car)}><Eye size={14}/><span>Details</span></button>
-          </div>)}</div> : <div className="rental-empty-state"><div className="rental-empty-icon"><Car size={28}/></div><b>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'No cars match this search':'No cars available right now'}</b><span>{rentalSearch.location||rentalSearch.startDate||rentalSearch.endDate?'Try a different city, pickup area or rental window.':'There are no approved chauffeur-driven cars available for your account at the moment.'}</span><button className="landing-secondary" onClick={refreshRentalData}><RefreshCw size={15}/> Check again</button></div>}
-          {selectedCar && <div className="rental-summary"><div><span>Selected</span><b>{selectedCar.name}</b></div><div><span>Billing</span><b>{rentalQuote ? rentalQuote.days+' day'+(rentalQuote.days>1?'s':''):'Check fare'}</b></div><div><span>Total</span><strong>{rentalQuote ? money(rentalQuote.total):'—'}</strong></div>
-            {!rentalQuote?<button className="landing-primary" disabled={busy} onClick={checkRentalFare}>{busy?'Calculating…':'Check fare'} <ArrowRight size={16}/></button>:<button className="landing-primary" disabled={busy || Number(wallet?.availableBalance || 0)<Number(rentalQuote.total || 0)} onClick={bookCar}>{busy?'Confirming…':'Confirm booking'} <ArrowRight size={16}/></button>}
-            <p className="rental-pricing-note">Price is per 24-hour day. Any partial day is charged as one full day; time is used for duration and availability. Payment is from your wallet.</p>
-          </div>}
+
+          <section className="rental-search-card rental-android-card">
+            <div className="rental-search-heading">
+              <div>
+                <b>Search availability</b>
+                <span>Use a pickup area, a future time window, or both.</span>
+              </div>
+              {(rentalSearch.startDate || rentalSearch.endDate || rentalSearch.location) && <span className="search-state-chip">Filters active</span>}
+            </div>
+            <div className="rental-search-grid">
+              <label>City / pickup area
+                <div className="rental-field-shell"><LocationOn size={16}/><input value={rentalSearch.location} placeholder="Patna, Airport Road…" onChange={e=>setRentalSearch({...rentalSearch,location:e.target.value})}/></div>
+              </label>
+              <label>From
+                <div className="rental-field-shell"><CalendarDays size={16}/><input type="datetime-local" value={rentalSearch.startDate} min={isoNow()} onChange={e=>setRentalSearch({...rentalSearch,startDate:e.target.value})}/></div>
+              </label>
+              <label>To
+                <div className="rental-field-shell"><CalendarDays size={16}/><input type="datetime-local" value={rentalSearch.endDate} min={rentalSearch.startDate || isoNow()} onChange={e=>setRentalSearch({...rentalSearch,endDate:e.target.value})}/></div>
+              </label>
+            </div>
+            {((rentalSearch.startDate && !rentalSearch.endDate) || (!rentalSearch.startDate && rentalSearch.endDate) ||
+              (rentalSearch.startDate && rentalSearch.endDate && new Date(rentalSearch.endDate).getTime() <= new Date(rentalSearch.startDate).getTime()) ||
+              (rentalSearch.startDate && new Date(rentalSearch.startDate).getTime() < Date.now())) &&
+              <div className="rental-inline-error">Choose both dates and times, with an end later than the start and a future start.</div>}
+            {!rentalSearch.location.trim() && !rentalSearch.startDate && !rentalSearch.endDate &&
+              <div className="rental-inline-help">Use a place, a time window, or both.</div>}
+            <div className="rental-search-actions">
+              <button className="landing-secondary" onClick={clearRentalSearch}>Clear</button>
+              <button className="landing-primary" onClick={searchRentalCars}>Find cars <ArrowRight size={16}/></button>
+            </div>
+          </section>
+
+          {cars.length ? (
+            <section className="rental-results-section">
+              <div className="rental-results-head">
+                <div><span>AVAILABLE VEHICLES</span><b>{cars.length} car{cars.length===1?'':'s'} found</b></div>
+                <small>Tap a vehicle to inspect details and book with its chauffeur.</small>
+              </div>
+              <div className="rental-car-grid rental-android-grid">
+                {cars.map(car=>(
+                  <article className="rental-market-card" key={car.id}>
+                    <button className="rental-market-card-main" onClick={()=>openRentalDetails(car)}>
+                      <div className="rental-market-image">
+                        {imageFromCar(car) ? <img src={imageFromCar(car)} alt={car.name}/> : <Car size={30}/>}
+                        <span>{car.category}</span>
+                      </div>
+                      <div className="rental-market-copy">
+                        <div className="rental-market-title-row">
+                          <div><b>{car.name}</b><small>{[car.make,car.model,car.variant].filter(Boolean).join(' ') || car.category}</small></div>
+                          <strong>{money(car.pricePerDay)}<em>/day</em></strong>
+                        </div>
+                        <div className="rental-market-specs">
+                          <span>{car.seats} seats</span><span>{car.transmission}</span><span>{car.fuelType || 'Fuel —'}</span>
+                        </div>
+                        <div className="rental-market-driver">
+                          <span className="rental-driver-avatar">{car.driverPhotoUrl ? <img src={car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl} alt=""/> : <UserRound size={15}/>}</span>
+                          <span><b>{car.driverName}</b><small>Chauffeur</small></span>
+                          {car.driverRating != null && <span className="rental-driver-rating">★ {Number(car.driverRating).toFixed(1)}</span>}
+                        </div>
+                      </div>
+                    </button>
+                    <button className="rental-market-details-button" onClick={()=>openRentalDetails(car)}><Eye size={14}/> View details</button>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <div className="rental-empty-state rental-android-empty">
+              <div className="rental-empty-icon"><Car size={28}/></div>
+              <b>{rentalSearch.location || rentalSearch.startDate || rentalSearch.endDate ? 'No cars match these filters' : 'No cars available right now'}</b>
+              <span>{rentalSearch.location || rentalSearch.startDate || rentalSearch.endDate ? 'Try a broader pickup area or availability window.' : 'Approved chauffeur-driven vehicles will appear here.'}</span>
+              {(rentalSearch.location || rentalSearch.startDate || rentalSearch.endDate) && <button className="landing-secondary" onClick={clearRentalSearch}>Clear filters</button>}
+            </div>
+          )}
         </div>
       </section>}
 
-      {view==='bookings' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>My Bookings</h2><p>Booked cars, chauffeur details, trip timing, wallet payment, status and cancellation.</p></div><button className="landing-secondary" onClick={refreshBookings}><RefreshCw size={15}/> Refresh</button></div>
-        <div className="funding-picker">{bookingStatuses.map(s=><button key={s} className={bookingStatusFilter===s?'selected':''} onClick={()=>setBookingStatusFilter(s)}>{s==='ALL'?'All':s.replace(/_/g,' ')}</button>)}</div>
-        {filteredBookings.length ? <div className="history-list">{filteredBookings.map(b=><div className="history-row" key={b.bookingId}><div><Car size={18}/><b>{b.carName}</b><small>{b.bookingId} · {b.pickup} → {b.drop} · {dt(b.startDate)} to {dt(b.endDate)} · Driver {b.driverName || '—'}</small></div><strong className={['CANCELLED','REFUNDED'].includes(String(b.status || '').toUpperCase()) ? 'amount-credit' : 'amount-debit'}>{money(b.total)}</strong><div className="history-actions"><span className={statusClass(b.status)}>{String(b.status).toUpperCase()}</span><span>{b.paymentMethod || 'WALLET'}</span><button className="copy-btn" onClick={()=>copyText(bookingShareText(b),'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>{String(b.status).toUpperCase()==='CONFIRMED' && new Date(b.startDate).getTime()>Date.now() && <button className="text-danger-btn" disabled={busy} onClick={()=>cancelBooking(b.bookingId)}>Cancel</button>}</div></div>)}</div> : <div className="empty-state">No bookings match the selected status.</div>}
-      </div></section>}
+      {view==='rental-booking' && rentalBookingCar && <section className="portal-content rental-booking-page">
+        <div className="rental-booking-layout">
+          <div className="portal-panel rental-booking-panel">
+            <div className="panel-head rental-booking-head">
+              <div>
+                <span className="rental-eyebrow">BOOKING</span>
+                <h2>Book with driver</h2>
+                <p>Your payment will come from the available wallet balance.</p>
+              </div>
+              <button className="landing-secondary" onClick={()=>{setRentalBookingCar(undefined);setRentalQuote(undefined);setView('rental');}} disabled={busy}><ChevronLeft size={15}/> Back</button>
+            </div>
+
+            <article className="rental-booking-car-card">
+              <div className="rental-booking-car-image">
+                {imageFromCar(rentalBookingCar) ? <img src={imageFromCar(rentalBookingCar)} alt={rentalBookingCar.name}/> : <Car size={32}/>}
+              </div>
+              <div className="rental-booking-car-copy">
+                <div className="rental-booking-car-title"><div><b>{rentalBookingCar.name}</b><small>{[rentalBookingCar.make,rentalBookingCar.model,rentalBookingCar.variant].filter(Boolean).join(' ') || rentalBookingCar.category}</small></div><strong>{money(rentalBookingCar.pricePerDay)}<em>/day</em></strong></div>
+                <div className="rental-booking-car-driver">
+                  <span className="rental-driver-avatar">{rentalBookingCar.driverPhotoUrl ? <img src={rentalBookingCar.driverPhotoUrl.startsWith('http') ? rentalBookingCar.driverPhotoUrl : base + rentalBookingCar.driverPhotoUrl} alt=""/> : <UserRound size={15}/>}</span>
+                  <span><b>{rentalBookingCar.driverName}</b><small>{rentalBookingCar.driverMobile || 'Chauffeur'}</small></span>
+                  {rentalBookingCar.driverRating != null && <span className="rental-driver-rating">★ {Number(rentalBookingCar.driverRating).toFixed(1)}</span>}
+                </div>
+              </div>
+            </article>
+
+            <div className="rental-booking-section">
+              <div className="rental-booking-section-head"><span>1</span><div><b>Trip details</b><small>Enter the exact pickup and drop locations.</small></div></div>
+              <div className="rental-booking-form-grid">
+                <label>Pickup location
+                  <div className="rental-input-with-icon"><LocationOn size={16}/><input value={rentalForm.pickup} onChange={e=>{setRentalForm({...rentalForm,pickup:e.target.value});clearRentalBookingQuote();}} placeholder="Enter pickup location"/></div>
+                </label>
+                <label>Drop location
+                  <div className="rental-input-with-icon"><LocationOn size={16}/><input value={rentalForm.drop} onChange={e=>{setRentalForm({...rentalForm,drop:e.target.value});clearRentalBookingQuote();}} placeholder="Enter drop location"/></div>
+                </label>
+              </div>
+              <div className="rental-mapless-note"><LocationOn size={14}/><span>Enter locations manually for now. Map/Places selection can be added when the maps key is enabled.</span></div>
+            </div>
+
+            <div className="rental-booking-section">
+              <div className="rental-booking-section-head"><span>2</span><div><b>Availability window</b><small>Time controls vehicle availability; billing is per 24-hour day.</small></div></div>
+              <div className="rental-booking-form-grid">
+                <label>Start date & time
+                  <div className="rental-input-with-icon"><CalendarDays size={16}/><input type="datetime-local" min={isoNow()} value={rentalSearch.startDate} onChange={e=>{setRentalSearch({...rentalSearch,startDate:e.target.value});clearRentalBookingQuote();}}/></div>
+                </label>
+                <label>End date & time
+                  <div className="rental-input-with-icon"><CalendarDays size={16}/><input type="datetime-local" min={rentalSearch.startDate || isoNow()} value={rentalSearch.endDate} onChange={e=>{setRentalSearch({...rentalSearch,endDate:e.target.value});clearRentalBookingQuote();}}/></div>
+                </label>
+              </div>
+              {(!rentalSearch.startDate || !rentalSearch.endDate || new Date(rentalSearch.startDate).getTime() < Date.now() || new Date(rentalSearch.endDate).getTime() <= new Date(rentalSearch.startDate).getTime()) ?
+                <div className="rental-inline-error">Choose a future start and an end date/time later than the start.</div> :
+                <div className="rental-inline-help">Pricing is per day (24 hours). Any partial day is charged as one full day; time also controls availability.</div>}
+            </div>
+
+            {!rentalQuote ? (
+              <div className="rental-booking-cta">
+                <button className="landing-primary rental-wide-action" disabled={busy || !rentalForm.pickup.trim() || !rentalForm.drop.trim() || !rentalSearch.startDate || !rentalSearch.endDate || new Date(rentalSearch.endDate).getTime() <= new Date(rentalSearch.startDate).getTime() || new Date(rentalSearch.startDate).getTime() < Date.now()} onClick={checkRentalFareForBooking}>
+                  {busy ? 'Calculating…' : 'Check fare'} <ArrowRight size={16}/>
+                </button>
+              </div>
+            ) : (
+              <section className="rental-fare-card">
+                <div className="rental-fare-head"><div><span>FARE SUMMARY</span><b>{rentalQuote.days} day{rentalQuote.days===1?'':'s'} × {money(rentalQuote.pricePerDay)}</b></div><strong>{money(rentalQuote.total)}</strong></div>
+                <div className="rental-fare-divider"/>
+                <div className="rental-fare-line"><span>Available balance</span><b className={wallet == null ? 'rental-wallet-unknown' : Number(wallet.availableBalance) < Number(rentalQuote.total) ? 'amount-debit' : 'amount-credit'}>{wallet == null ? 'Unavailable' : money(wallet.availableBalance)}</b></div>
+                <div className="rental-payment-method"><WalletCards size={15}/> Payment method: <b>Wallet</b></div>
+
+                {wallet == null ? (
+                  <div className="rental-wallet-warning"><b>Wallet balance unavailable</b><span>We cannot safely confirm this booking until the latest available wallet balance is loaded.</span><button className="landing-secondary" onClick={refreshWallet}>Refresh wallet</button></div>
+                ) : Number(wallet.availableBalance) < Number(rentalQuote.total) ? (
+                  <div className="rental-wallet-warning danger"><b>Not enough available balance</b><span>Add {money(Math.max(0,Number(rentalQuote.total)-Number(wallet.availableBalance)))} to complete this booking.</span><button className="landing-secondary" onClick={()=>setHomeActionModal('add')}>Add money</button></div>
+                ) : (
+                  <>
+                    <div className="rental-confirm-note">{money(rentalQuote.total)} will be deducted from your available wallet balance when you confirm.</div>
+                    <button className="landing-primary rental-wide-action" disabled={busy} onClick={confirmRentalBooking}>{busy ? 'Confirming…' : 'Confirm booking'} <ArrowRight size={16}/></button>
+                  </>
+                )}
+                <button className="rental-recheck" disabled={busy} onClick={clearRentalBookingQuote}>Recheck fare</button>
+              </section>
+            )}
+          </div>
+        </div>
+      </section>}
+
+      {view==='bookings' && <section className="portal-content rental-bookings-page">
+        <div className="portal-panel rental-bookings-panel">
+          <div className="panel-head rental-bookings-head">
+            <div><span className="rental-eyebrow">TRIPS</span><h2>My Bookings</h2><p>Your chauffeur-driven rental bookings.</p></div>
+            <button className="landing-secondary" onClick={refreshBookings} disabled={busy}><RefreshCw size={15}/> Refresh</button>
+          </div>
+          <div className="rental-booking-status-filters">
+            {bookingStatuses.map(s=><button key={s} className={bookingStatusFilter===s?'selected':''} onClick={()=>setBookingStatusFilter(s)}>{s==='ALL'?'All':s.replace(/_/g,' ')}</button>)}
+          </div>
+          {bookings.length === 0 ? (
+            <div className="rental-bookings-empty"><span><Car size={25}/></span><b>No rental bookings yet</b><small>Confirmed chauffeur-driven rentals will appear here.</small></div>
+          ) : filteredBookings.length === 0 ? (
+            <div className="rental-bookings-empty"><span><History size={25}/></span><b>No matching bookings</b><small>Try another status filter.</small></div>
+          ) : (
+            <div className="rental-bookings-grid">
+              {filteredBookings.map(b=>{
+                const rawStatus=String(b.status||'UNKNOWN').toUpperCase();
+                const rideCompleted=rawStatus==='CONFIRMED' && Number.isFinite(new Date(b.endDate).getTime()) && new Date(b.endDate).getTime() < Date.now();
+                const label=rideCompleted ? 'Ride completed' : rawStatus.replace(/_/g,' ').replace(/\b\w/g,m=>m.toUpperCase());
+                const displayStatus=rideCompleted ? 'COMPLETED' : rawStatus;
+                const credit=rawStatus==='CANCELLED' || rawStatus==='REFUNDED';
+                const canCancel=rawStatus==='CONFIRMED' && new Date(b.startDate).getTime() > Date.now();
+                return <article className="rental-booking-card" key={b.bookingId}>
+                  <div className="rental-booking-card-image">
+                    {b.carImageUrl ? <img src={b.carImageUrl.startsWith('http') ? b.carImageUrl : base + b.carImageUrl} alt={b.carName}/> : <Car size={28}/>}
+                  </div>
+                  <div className="rental-booking-card-body">
+                    <div className="rental-booking-card-head">
+                      <div><b>{b.carName}</b><small>Booking {b.bookingId}</small></div>
+                      <span className={'rental-booking-status '+String(displayStatus).toLowerCase()}>{label}</span>
+                    </div>
+                    <div className="rental-booking-info-grid">
+                      <div><span>Driver</span><b>{b.driverName || '—'}</b>{b.driverMobile && <small>{b.driverMobile}</small>}</div>
+                      <div><span>Payment</span><b>{b.paymentMethod || 'WALLET'}</b></div>
+                      <div><span>Trip</span><b>{b.pickup} → {b.drop}</b></div>
+                      <div className="align-right"><span>Total</span><strong className={credit ? 'amount-credit' : 'amount-debit'}>{money(b.total)}</strong></div>
+                    </div>
+                    <div className="rental-booking-dates"><CalendarDays size={14}/><span>{dt(b.startDate)} → {dt(b.endDate)}</span></div>
+                    <div className="rental-booking-created">Booked {dt(b.createdAt)}</div>
+                    <div className="rental-booking-actions">
+                      <button className="copy-btn" onClick={()=>copyText(bookingShareText(b),'Booking details copied.')}><Copy size={14}/><span>Copy</span></button>
+                      {canCancel && <button className="text-danger-btn" disabled={busy} onClick={()=>cancelBooking(b.bookingId)}>Cancel booking</button>}
+                    </div>
+                  </div>
+                </article>;
+              })}
+            </div>
+          )}
+        </div>
+      </section>}
 
       {view==='account' && <section className="portal-content">
         <div className="portal-panel account-panel">
