@@ -470,6 +470,7 @@ export default function Portal() {
   const [vendorSubmitAttempted, setVendorSubmitAttempted] = useState(false);
   const [vehicleSubmitAttempted, setVehicleSubmitAttempted] = useState(false);
   const [vehiclePhotoUrls, setVehiclePhotoUrls] = useState<string[]>(['','','','']);
+  const [offMarketOpenId, setOffMarketOpenId] = useState('');
   const [vehiclePhotoFiles, setVehiclePhotoFiles] = useState<(File|null)[]>([null,null,null,null]);
   const [vehiclePhotoPreviews, setVehiclePhotoPreviews] = useState<string[]>(['','','','']);
   const [driverPhotoFile, setDriverPhotoFile] = useState<File|null>(null);
@@ -1274,7 +1275,7 @@ export default function Portal() {
   }
 
   function rawVehiclePhotos(car?:RentalCar) {
-    return String(car?.imageUrl || '').split('|').map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
+    return String(car?.imageUrl || '').replace(/\\n/g,'|').split('|').map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
   }
 
   function resetVehicleForm(car?:RentalCar) {
