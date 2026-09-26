@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
-  ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, MapPin,
+  ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Trash2, Upload, UserRound, WalletCards, X
+  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -387,44 +387,64 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
 }
 
 function MpayServiceShowcase({ view }: { view: string }) {
-  const active = view === 'wallet' ? 'wallet' : view === 'recharge' ? 'recharge' : view.startsWith('rental') || view === 'bookings' ? 'rental' : 'ecosystem';
+  const active = view === 'wallet' ? 'secure' : view === 'recharge' ? 'simple' : view.startsWith('rental') || view === 'bookings' ? 'smart' : 'ecosystem';
 
   return (
-    <section className="mpay-service-showcase" aria-label="mPay services">
-      <div className="mpay-showcase-glow glow-left" />
-      <div className="mpay-showcase-glow glow-right" />
-      <div className="mpay-showcase-glow glow-center" />
-
-      <svg className="mpay-showcase-routes" viewBox="0 0 1200 70" preserveAspectRatio="none" aria-hidden="true">
-        <path className="route route-wallet" d="M80 50 C 300 8, 410 9, 600 34" />
-        <path className="route route-recharge" d="M600 34 C 790 9, 900 8, 1120 50" />
-        <path className="route route-rental" d="M145 55 C 370 78, 830 78, 1055 55" />
-        <circle className="route-pulse pulse-one" cx="0" cy="0" r="2.8" />
-        <circle className="route-pulse pulse-two" cx="0" cy="0" r="2.5" />
-        <circle className="route-pulse pulse-three" cx="0" cy="0" r="2.5" />
-      </svg>
-
-      <div className="mpay-showcase-services" aria-hidden="true">
-        <div className={'mpay-showcase-icon service-wallet ' + (active === 'wallet' ? 'is-active' : '')}>
-          <img src="/wallet-icon.png" alt="" />
-        </div>
-        <div className={'mpay-showcase-core ' + (active === 'ecosystem' ? 'is-active' : '')}>
-          <span className="mpay-showcase-core-ring" />
-          <span className="mpay-showcase-core-halo" />
-          <img src="/mpay-logo.png" alt="" />
-        </div>
-        <div className={'mpay-showcase-icon service-recharge ' + (active === 'recharge' ? 'is-active' : '')}>
-          <img src="/recharge-icon.png" alt="" />
-        </div>
-        <div className={'mpay-showcase-icon service-rental ' + (active === 'rental' ? 'is-active' : '')}>
-          <img src="/car-rental-icon.png" alt="" />
-        </div>
+    <section className="mpay-service-showcase" aria-label="mPay Secure Simple Smart">
+      <div className="mpay-story-rail" aria-hidden="true">
+        <span className="rail-line rail-line-main" />
+        <span className="rail-line rail-line-lower" />
+        <span className="rail-pulse rail-pulse-one" />
+        <span className="rail-pulse rail-pulse-two" />
+        <span className="rail-pulse rail-pulse-three" />
       </div>
 
-      <div className="mpay-showcase-scanline" />
-      <div className="mpay-showcase-particle particle-one" />
-      <div className="mpay-showcase-particle particle-two" />
-      <div className="mpay-showcase-particle particle-three" />
+      <div className={'mpay-story-word story-secure ' + (active === 'secure' ? 'is-page-active' : '')}>
+        <span className="story-word-icon"><LockKeyhole size={14} strokeWidth={2.1}/></span>
+        <strong>Secure</strong>
+      </div>
+
+      <div className="mpay-finance-flow" aria-hidden="true">
+        <div className="flow-icon flow-money"><Banknote size={17}/></div>
+        <span className="flow-arrow arrow-money" />
+        <div className="flow-icon flow-wallet"><WalletCards size={18}/></div>
+        <span className="flow-arrow arrow-wallet" />
+        <div className="flow-icon flow-bank"><Landmark size={17}/></div>
+        <span className="flow-tag">UPI / BANK</span>
+      </div>
+
+      <div className="mpay-brand-mark" aria-hidden="true">
+        <strong>mPay</strong>
+        <span>Secure · Simple · Smart</span>
+      </div>
+
+      <div className={'mpay-story-word story-simple ' + (active === 'simple' ? 'is-page-active' : '')}>
+        <span className="story-word-icon"><Sparkles size={14} strokeWidth={2}/></span>
+        <strong>Simple</strong>
+      </div>
+
+      <div className="mpay-recharge-flow" aria-hidden="true">
+        <div className="flow-icon flow-phone"><Smartphone size={17}/></div>
+        <span className="flow-arrow arrow-recharge" />
+        <div className="flow-icon flow-check"><CheckCircle2 size={17}/></div>
+        <span className="flow-tag">RECHARGE</span>
+      </div>
+
+      <div className={'mpay-story-word story-smart ' + (active === 'smart' ? 'is-page-active' : '')}>
+        <span className="story-word-icon"><Sparkles size={14} strokeWidth={2}/></span>
+        <strong>Smart</strong>
+      </div>
+
+      <div className="mpay-rental-flow" aria-hidden="true">
+        <div className="flow-icon flow-location"><MapPin size={16}/></div>
+        <span className="flow-arrow arrow-rental" />
+        <div className="flow-icon flow-car"><CarFront size={19}/></div>
+        <span className="flow-tag">WITH DRIVER</span>
+      </div>
+
+      <div className="mpay-showcase-aura aura-one" />
+      <div className="mpay-showcase-aura aura-two" />
+      <div className="mpay-showcase-aura aura-three" />
     </section>
   );
 }
