@@ -18,6 +18,7 @@ class UserEntity(
     @Column(nullable = false) var passwordHash: String = "",
     @Column(nullable = false) var role: String = "CLIENT",
     @Column(nullable = false) var active: Boolean = true,
+    @Column(name = "deleted_at") var deletedAt: Instant? = null,
     @Column(nullable = false) var createdAt: Instant = Instant.now()
 )
 
