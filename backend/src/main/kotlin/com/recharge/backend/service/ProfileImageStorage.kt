@@ -1,17 +1,26 @@
 package com.recharge.backend.service
 
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.FileSystemResource
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Instant
 import java.util.UUID
 
 interface ProfileImageStorage {
-    data class StoredImage(val key: String, val contentType: String, val bytes: ByteArray)
+    data class StoredImage(
+        val key: String,
+        val contentType: String,
+        val resource: FileSystemResource,
+        val size: Long,
+        val lastModified: Instant
+    )
+
     fun save(publicUserId: String, file: MultipartFile): String
-    fun load(key: String): StoredImage?
+    fun load(key: String, variant: ImageVariant = ImageVariant.AVATAR): StoredImage?
     fun delete(key: String?)
 }
 
@@ -33,25 +42,36 @@ class LocalProfileImageStorage(
             else -> "jpg"
         }
         val key = "${publicUserId}_${UUID.randomUUID()}.$ext"
-        val target = resolve(key)
-        Files.write(target, file.bytes)
+        Files.write(resolve(key), file.bytes)
         return key
     }
 
-    override fun load(key: String): ProfileImageStorage.StoredImage? {
-        val path = runCatching { resolve(key) }.getOrNull() ?: return null
-        if (!Files.exists(path) || !Files.isRegularFile(path)) return null
-        val type = when (path.fileName.toString().substringAfterLast('.', "jpg").lowercase()) {
-            "png" -> "image/png"
-            "webp" -> "image/webp"
-            else -> "image/jpeg"
+    override fun load(key: String, variant: ImageVariant): ProfileImageStorage.StoredImage? {
+        val original = runCatching { resolve(key) }.getOrNull() ?: return null
+        if (!Files.exists(original) || !Files.isRegularFile(original)) return null
+
+        val target = if (variant == ImageVariant.MEDIUM) {
+            ImageVariantSupport.ensureVariant(root, key, variant)
+        } else {
+            ImageVariantSupport.ensureVariant(root, key, variant)
         }
-        return ProfileImageStorage.StoredImage(key, type, Files.readAllBytes(path))
+
+        val contentType = "image/jpeg"
+        val resource = FileSystemResource(target.toFile())
+        if (!resource.exists() || !resource.isReadable) return null
+        return ProfileImageStorage.StoredImage(
+            key = key,
+            contentType = contentType,
+            resource = resource,
+            size = resource.contentLength(),
+            lastModified = Instant.ofEpochMilli(resource.lastModified())
+        )
     }
 
     override fun delete(key: String?) {
         if (key.isNullOrBlank()) return
         runCatching { Files.deleteIfExists(resolve(key)) }
+        ImageVariantSupport.deleteVariants(root, key)
     }
 
     private fun resolve(key: String): Path {
