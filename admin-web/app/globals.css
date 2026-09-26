@@ -1183,3 +1183,129 @@
 
 .shell .user-directory-account .type-pill.unknown{background:#f4f2ef;color:#6f665d;border-color:#e5dfd6}
 .shell .user-directory-status.unknown .status{color:#6f665d;background:#f4f2ef;border-color:#e5dfd6}
+
+
+/* Rental inspection — compact premium layout */
+.shell .rental-modal-inspection{
+  height:min(90vh,900px);
+}
+.shell .rental-modal-inspection .rental-modal-header{
+  padding:12px 15px;
+}
+.shell .rental-modal-inspection .rental-modal-icon{
+  width:33px;
+  height:33px;
+  border-radius:10px;
+}
+.shell .rental-modal-inspection .rental-modal-header h2{
+  font-size:17px;
+}
+.shell .rental-modal-inspection .rental-modal-body{
+  padding:11px 14px 14px;
+}
+.shell .rental-modal-inspection .rental-modal-status-row{
+  margin-bottom:8px;
+}
+.shell .rental-modal-inspection .inspection-hero{
+  grid-template-columns:minmax(0,1.3fr) minmax(290px,.7fr);
+  gap:11px;
+  align-items:start;
+}
+.shell .rental-modal-inspection .inspection-vehicle-gallery{
+  height:auto;
+  gap:6px;
+}
+.shell .rental-modal-inspection .inspection-gallery-stage{
+  height:286px;
+  min-height:286px;
+  flex:none;
+  aspect-ratio:auto;
+  border-radius:14px;
+}
+.shell .rental-modal-inspection .inspection-gallery-nav{
+  width:30px;
+  height:30px;
+}
+.shell .rental-modal-inspection .inspection-gallery-nav.prev{left:8px}
+.shell .rental-modal-inspection .inspection-gallery-nav.next{right:8px}
+.shell .rental-modal-inspection .inspection-gallery-thumbs{
+  gap:5px;
+}
+.shell .rental-modal-inspection .inspection-gallery-thumb{
+  border-radius:8px;
+}
+.shell .rental-modal-inspection .inspection-gallery-thumb .rental-photo-tile>img,
+.shell .rental-modal-inspection .inspection-gallery-thumb .rental-photo-fallback{
+  height:44px;
+}
+.shell .rental-modal-inspection .inspection-summary{
+  padding:12px;
+  border-radius:14px;
+}
+.shell .rental-modal-inspection .inspection-summary h3{
+  font-size:18px;
+  margin:9px 0 2px;
+}
+.shell .rental-modal-inspection .inspection-quick-grid{
+  margin-top:11px;
+  gap:6px;
+}
+.shell .rental-modal-inspection .inspection-quick-stat{
+  padding:7px;
+  border-radius:9px;
+}
+.shell .rental-modal-inspection .inspection-section{
+  margin-top:10px;
+}
+.shell .rental-modal-inspection .inspection-section-title{
+  margin-bottom:6px;
+}
+.shell .rental-modal-inspection .rental-info-grid{
+  gap:6px;
+}
+.shell .rental-modal-inspection .rental-info-card{
+  padding:8px 9px;
+  border-radius:10px;
+}
+.shell .rental-modal-inspection .rental-info-card b{
+  margin-top:4px;
+}
+.shell .rental-modal-inspection .driver-review-card{
+  gap:10px;
+  padding:9px;
+  border-radius:12px;
+}
+.shell .rental-modal-inspection .driver-name-line{
+  margin:1px 1px 7px;
+}
+.shell .rental-modal-inspection .rental-decision-footer{
+  margin-top:10px;
+  padding:10px;
+  border-radius:12px;
+}
+.shell .rental-modal-inspection .rental-decision-actions{
+  margin-top:7px;
+  gap:7px;
+}
+@media(max-width:850px){
+  .shell .rental-modal-inspection .inspection-hero{
+    grid-template-columns:1fr;
+  }
+  .shell .rental-modal-inspection .inspection-gallery-stage{
+    height:250px;
+    min-height:250px;
+  }
+}
+@media(max-width:600px){
+  .shell .rental-modal-inspection .rental-modal-body{
+    padding:10px;
+  }
+  .shell .rental-modal-inspection .inspection-gallery-stage{
+    height:218px;
+    min-height:218px;
+  }
+  .shell .rental-modal-inspection .inspection-gallery-thumb .rental-photo-tile>img,
+  .shell .rental-modal-inspection .inspection-gallery-thumb .rental-photo-fallback{
+    height:44px;
+  }
+}
