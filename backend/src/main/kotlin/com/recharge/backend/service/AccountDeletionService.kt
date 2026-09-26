@@ -59,6 +59,17 @@ class AccountDeletionService(
             select count(*) from wallet_withdrawals
             where user_id = :userId and status in ('PENDING', 'PROCESSING')
         """, userId)
+        val pendingRecharges = scalarLong("""
+            select count(*) from recharge_transactions
+            where user_id = :userId
+              and status in ('RESERVED', 'PENDING', 'PROCESSING')
+        """, userId)
+        if (pendingRecharges > 0) {
+            throw AccountDeletionBlockedException(
+                "Please wait until pending recharge transactions are completed before deleting your account"
+            )
+        }
+
         if (pendingWithdrawals > 0) {
             throw AccountDeletionBlockedException(
                 "Please wait until pending withdrawals are completed before deleting your account"
@@ -74,6 +85,16 @@ class AccountDeletionService(
         if (activeCustomerBookings > 0) {
             throw AccountDeletionBlockedException(
                 "Please complete or cancel your active rental bookings before deleting your account"
+            )
+        }
+
+        val pendingRentalPayments = scalarLong("""
+            select count(*) from rental_payments
+            where user_id = :userId and status = 'PENDING'
+        """, userId)
+        if (pendingRentalPayments > 0) {
+            throw AccountDeletionBlockedException(
+                "Please wait until pending rental payments are completed before deleting your account"
             )
         }
 
