@@ -985,7 +985,7 @@ export default function Portal() {
           <div><span>RECENT ACTIVITY</span><b>Recharge History</b><p>See pending, completed, failed and refunded recharge activity.</p></div>
           <ArrowRight size={17}/>
         </button>
-      </section>
+      </section>}
 
       {view==='recharge' && <section className="portal-content"><div className="portal-panel">
         <div className="panel-head"><div><h2>Recharge a mobile</h2><p>Detect the operator, edit the detected operator if required, load plans and choose how to fund the recharge.</p></div></div>
