@@ -26,6 +26,7 @@ interface RentalCarRepository : JpaRepository<RentalCarEntity, Long> {
     fun findAllByActiveTrueAndApprovalStatusAndVendorIdIsNotNullOrderByPricePerDayAsc(approvalStatus: String): List<RentalCarEntity>
     fun findAllByVendorIdOrderByIdDesc(vendorId: Long): List<RentalCarEntity>
     fun countByVendorId(vendorId: Long): Int
+    fun countByVendorIdAndApprovalStatus(vendorId: Long, approvalStatus: String): Int
     fun existsByRegistrationNumberIgnoreCase(registrationNumber: String): Boolean
     fun existsByRegistrationNumberIgnoreCaseAndIdNot(registrationNumber: String, id: Long): Boolean
 

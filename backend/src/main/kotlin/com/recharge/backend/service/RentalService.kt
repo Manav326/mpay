@@ -990,6 +990,8 @@ class RentalService(
                 bankName = v.bankName,
                 payoutPrimaryMethod = v.payoutPrimaryMethod,
                 vehicleCount = cars.countByVendorId(requireNotNull(v.id)),
+                pendingVehicleCount = cars.countByVendorIdAndApprovalStatus(requireNotNull(v.id), "PENDING_REVIEW"),
+                approvedVehicleCount = cars.countByVendorIdAndApprovalStatus(requireNotNull(v.id), "APPROVED"),
                 rejectionReason = v.rejectionReason,
                 submittedAt = v.createdAt,
                 updatedAt = v.updatedAt
@@ -1007,6 +1009,7 @@ class RentalService(
         val vendor = car.vendorId?.let { vendors.findById(it).orElse(null) }
             ?: throw IllegalArgumentException("Vehicle vendor not found")
         require(vendor.status == "VERIFIED") { "Vendor must be verified before approving a vehicle" }
+        require(car.approvalStatus == "PENDING_REVIEW") { "Only pending vehicles can be approved" }
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
             ?: throw IllegalArgumentException("Vehicle driver not found")
         require(driver.active) { "Driver must be active before approving a vehicle" }
@@ -1019,7 +1022,7 @@ class RentalService(
     @Transactional
     fun rejectVehicle(carId: Long, reason: String?, actorUserId: Long): RentalCarResponse {
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
-        require(car.approvalStatus != "APPROVED") { "Approved vehicles cannot be rejected from this action" }
+        require(car.approvalStatus == "PENDING_REVIEW") { "Only pending vehicles can be rejected" }
         car.approvalStatus = "REJECTED"
         car.rejectionReason = reason?.trim()?.takeIf { it.isNotBlank() } ?: "Additional vehicle information is required"
         car.active = false

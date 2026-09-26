@@ -55,6 +55,15 @@ function cleanText(value: unknown, fallback = '—') {
   return text || fallback;
 }
 
+function normalizedVehicleStatus(value?: string) {
+  return cleanText(value, 'PENDING_REVIEW').toUpperCase();
+}
+
+function isPendingVehicle(value?: string) {
+  const status = normalizedVehicleStatus(value);
+  return status === 'PENDING_REVIEW' || status === 'PENDING';
+}
+
 function statusMeta(value?: string) {
   const status = cleanText(value, 'UNKNOWN').toUpperCase();
   if (status === 'VERIFIED' || status === 'APPROVED' || status === 'ACTIVE') {
@@ -355,11 +364,11 @@ export default function RentalVendorReview() {
                         </div>
                         <span>{cleanText(vendor.businessName, 'Individual vendor')} · {cleanText(vendor.vendorType)}</span>
                         <div className="rental-meta-row"><span><Phone size={12} /> {cleanText(vendor.mobile, 'No mobile')}</span><span><MapPin size={12} /> {cleanText(vendor.city)}, {cleanText(vendor.state)}</span></div>
-                        <div className="rental-vendor-submission-line"><span><CalendarDays size={12} /> Submitted {dateTime(vendor.submittedAt)}</span><span><CarFront size={12} /> {vendor.vehicleCount} submission{vendor.vehicleCount === 1 ? '' : 's'}</span></div>
-                      </div>
+                        <div className="rental-vendor-submission-line"><span><CalendarDays size={12} /> Submitted {dateTime(vendor.submittedAt)}</span><span className="rental-approved-vehicle-count"><BadgeCheck size={12} /> {vendor.approvedVehicleCount} approved</span></div>
+                        <div className="rental-vendor-submission-line"><span><Clock3 size={12} /> {vendor.pendingVehicleCount} pending review</span><span><CarFront size={12} /> {vendor.vehicleCount} total vehicle{vendor.vehicleCount === 1 ? '' : 's'}</span></div>
                       <div className="rental-vendor-actions">
                         <button className="secondary rental-action" onClick={() => openVendorDetail(vendor)}><Eye size={14} /> Details</button>
-                        <button className="primary rental-action" disabled={vendor.vehicleCount <= 0} onClick={() => void openSubmissions(vendor)}><CarFront size={14} /> View submissions <span className="action-count">{vendor.vehicleCount}</span></button>
+                        <button className="primary rental-action" disabled={vendor.vehicleCount <= 0} onClick={() => void openSubmissions(vendor)}><CarFront size={14} /> View submissions <span className="action-count">{vendor.pendingVehicleCount}</span></button>
                       </div>
                     </article>
                   ))}
@@ -446,10 +455,10 @@ export default function RentalVendorReview() {
       {modal?.kind === 'submissions' && (
         <div className="rental-modal-backdrop" onClick={closeModal}>
           <aside className="rental-modal rental-modal-submissions" onClick={(event) => event.stopPropagation()}>
-            <ModalHeader icon={<CarFront size={18} />} eyebrow="Submitted vehicles" title={cleanText(modal.vendor.fullName, 'Vendor')} subtitle={`${modalVehicles.length} vehicles submitted`} onClose={closeModal} />
+            <ModalHeader icon={<CarFront size={18} />} eyebrow="Submitted vehicles" title={cleanText(modal.vendor.fullName, 'Vendor')} subtitle={modalVehicles.length + ' vehicles · ' + modalVehicles.filter((vehicle) => isPendingVehicle(vehicle.approvalStatus)).length + ' pending review'} onClose={closeModal} />
             <div className="rental-modal-body">
               <div className="rental-submission-toolbar">
-                <div><span className="eyebrow"><FileCheck2 size={13} /> Vehicle review queue</span><p>Inspect each submission before changing its approval status.</p></div>
+                <div><span className="eyebrow"><FileCheck2 size={13} /> Vehicle review queue</span><p>Pending vehicles can be approved or rejected; completed reviews are view-only.</p></div>
                 <div className="rental-filter-bar compact">
                   <div className="rental-search"><Search size={14} /><input value={submissionQuery} onChange={(e) => setSubmissionQuery(e.target.value)} placeholder="Search vehicle, registration or driver" /></div>
                   <label className="rental-filter-select"><Filter size={13} /><select value={submissionStatus} onChange={(e) => setSubmissionStatus(e.target.value)}><option>ALL</option><option>PENDING_REVIEW</option><option>APPROVED</option><option>REJECTED</option></select></label>
@@ -468,7 +477,7 @@ export default function RentalVendorReview() {
                         <div className="rental-meta-row"><span><Users size={12} /> {cleanText(vehicle.driverName, 'Driver assigned')}</span><span><MapPin size={12} /> {cleanText(vehicle.city)}, {cleanText(vehicle.state)}</span></div>
                         <div className="rental-vendor-submission-line"><span><IndianRupee size={12} /> {INR.format(Number(vehicle.pricePerDay || 0))} / day</span><span>Reg. {cleanText(vehicle.registrationNumber)}</span></div>
                       </div>
-                      <button className="primary rental-action inspect-action" onClick={() => inspectVehicle(modal.vendor, vehicle)}><Eye size={14} /> Inspect all details</button>
+                       <button className={`${isPendingVehicle(vehicle.approvalStatus) ? 'primary' : 'secondary'} rental-action inspect-action`} onClick={() => inspectVehicle(modal.vendor, vehicle)}><Eye size={14} /> {isPendingVehicle(vehicle.approvalStatus) ? 'Inspect details' : 'See details'}</button>
                     </article>
                   ))}
               </div>
@@ -480,7 +489,7 @@ export default function RentalVendorReview() {
       {modal?.kind === 'inspection' && (
         <div className="rental-modal-backdrop rental-modal-inspection-backdrop" onClick={backToSubmissions}>
           <aside className="rental-modal rental-modal-inspection" onClick={(event) => event.stopPropagation()}>
-            <ModalHeader icon={<FileCheck2 size={18} />} eyebrow="Vehicle inspection" title={cleanText(modal.vehicle.name, 'Vehicle')} subtitle={`${cleanText(modal.vendor.fullName, 'Vendor')} · ${cleanText(modal.vehicle.approvalStatus, 'PENDING_REVIEW')}`} onClose={backToSubmissions} backLabel="Back to submissions" />
+            <ModalHeader icon={<FileCheck2 size={18} />} eyebrow={isPendingVehicle(modal.vehicle.approvalStatus) ? 'Vehicle inspection' : 'Vehicle details'} title={cleanText(modal.vehicle.name, 'Vehicle')} subtitle={cleanText(modal.vendor.fullName, 'Vendor') + ' · ' + cleanText(modal.vehicle.approvalStatus, 'PENDING_REVIEW')} onClose={backToSubmissions} backLabel="Back to submissions" />
             <div className="rental-modal-body">
               <div className="inspection-hero">
                 <VehiclePhotoCarousel
@@ -558,7 +567,7 @@ export default function RentalVendorReview() {
 
               {modal.vehicle.rejectionReason && <div className="rental-review-note danger"><AlertCircle size={16} /><div><b>Review note</b><span>{cleanText(modal.vehicle.rejectionReason)}</span></div></div>}
 
-              {modal.vehicle.approvalStatus !== 'APPROVED' && (
+              {isPendingVehicle(modal.vehicle.approvalStatus) && (
                 <DecisionFooter
                   confirmed={inspectionConfirmed}
                   setConfirmed={setInspectionConfirmed}

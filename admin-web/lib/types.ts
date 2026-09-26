@@ -179,6 +179,8 @@ export interface RentalAdminVendor {
   bankName?: string | null;
   payoutPrimaryMethod?: string | null;
   vehicleCount: number;
+  pendingVehicleCount: number;
+  approvedVehicleCount: number;
   rejectionReason?: string | null;
   submittedAt: string;
   updatedAt: string;

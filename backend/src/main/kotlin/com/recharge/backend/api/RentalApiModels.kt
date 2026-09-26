@@ -114,6 +114,8 @@ data class RentalAdminVendorResponse(
     val bankName: String? = null,
     val payoutPrimaryMethod: String? = null,
     val vehicleCount: Int,
+    val pendingVehicleCount: Int,
+    val approvedVehicleCount: Int,
     val rejectionReason: String?,
     val submittedAt: Instant,
     val updatedAt: Instant
