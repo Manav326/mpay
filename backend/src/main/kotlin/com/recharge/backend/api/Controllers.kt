@@ -223,7 +223,7 @@ class AuthController(
         return otpService.send(
             mobileInput = request.mobile,
             purpose = purpose,
-            allowUnknownUser = purpose == com.recharge.backend.service.OtpPurpose.PASSWORD_RESET
+            allowUnknownUser = false
         )
     }
 
