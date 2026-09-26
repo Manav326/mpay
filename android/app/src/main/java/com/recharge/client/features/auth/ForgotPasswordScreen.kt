@@ -32,9 +32,26 @@ fun ForgotPasswordScreen(
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var resendRemaining by remember { mutableIntStateOf(0) }
 
-    val otpSent = state is PasswordResetUiState.OtpSent || state is PasswordResetUiState.Resetting || state is PasswordResetUiState.Success
-    val errorMessage = (state as? PasswordResetUiState.Error)?.message
+    LaunchedEffect(state) {
+        if (state is PasswordResetUiState.OtpSent) resendRemaining = 60
+    }
+    LaunchedEffect(resendRemaining) {
+        if (resendRemaining > 0) {
+            delay(1000)
+            resendRemaining -= 1
+        }
+    }
+
+    val errorState = state as? PasswordResetUiState.Error
+    val otpSent = state is PasswordResetUiState.OtpSent ||
+        state is PasswordResetUiState.Sending ||
+        state is PasswordResetUiState.Resetting ||
+        state is PasswordResetUiState.Success ||
+        errorState?.otpSent == true
+    val errorMessage = errorState?.message
+    val errorDemoOtp = errorState?.demoOtp
 
     AuthScreen {
 
@@ -152,8 +169,11 @@ fun ForgotPasswordScreen(
                 else Text("Reset password", fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { otp = ""; newPassword = ""; confirmPassword = ""; onRequestOtp(mobile) }) {
-                Text("Send OTP again")
+            TextButton(
+                onClick = { otp = ""; newPassword = ""; confirmPassword = ""; onRequestOtp(mobile) },
+                enabled = resendRemaining == 0 && state !is PasswordResetUiState.Sending && state !is PasswordResetUiState.Resetting
+            ) {
+                Text(if (resendRemaining > 0) "Send OTP again in " + resendRemaining + "s" else "Send OTP again")
             }
         }
         Spacer(Modifier.height(8.dp))
