@@ -329,7 +329,7 @@ class AccountDeletionService(
 
     private fun parseRentalPhotoKeys(value: String?): List<String> =
         value.orEmpty()
-            .replace("\\n", "|")
+            .replace('\n', '|')
             .split("|")
             .mapNotNull(::rentalPhotoKey)
             .take(4)
