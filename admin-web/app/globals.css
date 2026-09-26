@@ -1107,3 +1107,76 @@
   min-height:43px;
   border-radius:11px;
 }
+
+
+/* Users & Wallet — information-dense directory treatment inspired by Rental Partner review */
+.shell .users-wallet-page{padding-top:18px}
+.shell .users-directory-panel{padding:0;overflow:hidden}
+.shell .users-directory-head{margin:0;padding:14px 16px 13px;border-bottom:1px solid var(--admin-border);background:linear-gradient(180deg,#fff,#fffdf9);align-items:center}
+.shell .users-directory-title{display:flex;align-items:center;gap:9px;min-width:340px}
+.shell .users-section-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;background:#fff4df;border:1px solid #f1dcba;color:var(--admin-amber-strong)}
+.shell .users-directory-title h2{margin:0;font-size:16px;letter-spacing:-.02em;color:var(--admin-ink)}
+.shell .users-directory-title p{margin:3px 0 0;color:var(--admin-muted);font-size:10px;line-height:1.4}
+.shell .users-directory-count{min-width:28px;height:24px;padding:0 8px;display:grid;place-items:center;border-radius:999px;background:#fff4df;border:1px solid #efd8ad;color:#8d5c08;font-size:10px;font-weight:900}
+.shell .users-wallet-table-wrap{border:0;border-radius:0;background:#fff}
+.shell .users-wallet-table{min-width:960px!important;table-layout:fixed}
+.shell .users-wallet-table th{padding:10px 12px;background:#fcfaf6;color:#9b8e81;font-size:9px;letter-spacing:.1em;font-weight:900}
+.shell .users-wallet-table th:nth-child(1){width:25%}
+.shell .users-wallet-table th:nth-child(2){width:16%}
+.shell .users-wallet-table th:nth-child(3){width:20%}
+.shell .users-wallet-table th:nth-child(4){width:16%}
+.shell .users-wallet-table th:nth-child(5){width:20%}
+.shell .users-wallet-table th:nth-child(6){width:3%}
+.shell .users-wallet-table td{padding:11px 12px;vertical-align:middle}
+.shell .users-wallet-table tbody tr{height:74px;background:#fff}
+.shell .users-wallet-table tbody tr:hover{background:#fffaf1}
+.shell .users-wallet-table tbody tr:focus{outline:2px solid rgba(245,158,11,.42);outline-offset:-2px}
+.shell .user-directory-cell{display:flex;align-items:center;gap:9px;min-width:0}
+.shell .user-directory-user .avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;font-size:13px;font-weight:900;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;box-shadow:0 5px 14px rgba(245,158,11,.16)}
+.shell .user-directory-primary{min-width:0}
+.shell .user-directory-primary>b{display:block;font-size:12px;color:var(--admin-ink);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shell .user-directory-primary>span{display:flex;align-items:center;gap:4px;margin-top:4px;color:#756b61;font-size:9px;white-space:nowrap}
+.shell .user-directory-primary>small{display:block;margin-top:3px;color:#a09588;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shell .user-directory-account{align-items:center}
+.shell .user-directory-account>div:last-child{min-width:0}
+.shell .users-cell-icon{width:27px;height:27px;border-radius:9px;display:grid;place-items:center;flex:none;border:1px solid transparent}
+.shell .users-cell-icon.account{background:#f4efff;color:#7048be;border-color:#e7dcfb}
+.shell .users-cell-icon.wallet{background:#fff4df;color:#9a6309;border-color:#f0ddb8}
+.shell .user-directory-account .type-pill{display:inline-flex;align-items:center;padding:4px 7px;font-size:8px;line-height:1;letter-spacing:.06em}
+.shell .user-directory-account small{display:block;margin-top:5px;color:#8d8174;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
+.shell .user-directory-money{min-width:0}
+.shell .money-line{display:grid;grid-template-columns:14px 38px minmax(0,1fr);align-items:center;gap:5px}
+.shell .money-line svg{color:#bf7a08}
+.shell .money-line span{font-size:9px;color:#8b8075;font-weight:800}
+.shell .money-line b{justify-self:end;color:#2d271f;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.shell .money-line.secondary-line{margin-top:7px}
+.shell .money-line.secondary-line svg{color:#8c8175}
+.shell .money-line.secondary-line b{color:#6f655b;font-size:10px}
+.shell .user-directory-money.wallet{padding-left:0}
+.shell .wallet-main{grid-template-columns:27px minmax(0,1fr);gap:7px}
+.shell .wallet-main b{justify-self:start;font-size:13px;letter-spacing:-.02em}
+.shell .user-directory-money.wallet>small{display:block;margin:5px 0 0 34px;color:#978c80;font-size:8px}
+.shell .user-directory-status{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
+.shell .user-directory-status .status{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;font-size:8px;line-height:1;letter-spacing:.08em}
+.shell .user-directory-status small{display:block;max-width:180px;color:#81766b;font-size:8px;line-height:1.35;font-weight:700}
+.shell .user-directory-status.active small{color:#427457}
+.shell .user-directory-status.blocked small{color:#9b5a54}
+.shell .user-directory-status.unknown small{color:#8c8176}
+.shell .users-row-action{padding-right:10px!important;text-align:right;color:#a89b8d}
+.shell .users-wallet-table tbody tr:hover .users-row-action{color:var(--admin-amber-strong)}
+.shell .users-directory-head .user-directory-filters{flex:1;min-width:520px;max-width:700px}
+@media(max-width:1100px){
+  .shell .users-directory-head{align-items:flex-start}
+  .shell .users-directory-title{min-width:0}
+  .shell .users-directory-head .user-directory-filters{min-width:0;max-width:none;width:100%}
+}
+@media(max-width:700px){
+  .shell .users-directory-head{padding:12px;gap:10px}
+  .shell .users-directory-title{width:100%}
+  .shell .users-directory-head .user-directory-filters{grid-template-columns:1fr 1fr}
+  .shell .user-directory-status small{max-width:145px}
+}
+@media(max-width:600px){
+  .shell .users-directory-head .user-directory-filters{grid-template-columns:1fr}
+  .shell .users-directory-head .admin-user-search{grid-column:auto}
+}
