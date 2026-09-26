@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   AlertCircle,
   BadgeCheck,
@@ -380,7 +381,7 @@ export default function RentalVendorReview() {
                         <div className="rental-vendor-name-row"><b>{cleanText(row.carName, 'Car')}</b><StatusBadge value={row.status} /></div>
                         <div className="rental-meta-row"><span><CalendarDays size={12} /> {dateOnly(row.startDate)} → {dateOnly(row.endDate)}</span><span>{cleanText(row.reasonLabel)}</span></div>
                         {row.reasonNote && <p>{cleanText(row.reasonNote)}</p>}
-                        <small>Vehicle ID {cleanText(row.carId)} · Vendor ID {cleanText(row.vendorId)}</small>
+                        <small>{cleanText(vendors.find((vendor) => vendor.vendorId === row.vendorId)?.fullName, 'Vendor')} · Vehicle ID {cleanText(row.carId)}</small>
                       </div>
                     </article>
                   ))}
@@ -552,7 +553,7 @@ export default function RentalVendorReview() {
 function ModalHeader({
   icon, eyebrow, title, subtitle, onClose, backLabel,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   eyebrow: string;
   title: string;
   subtitle: string;
@@ -571,11 +572,11 @@ function ModalHeader({
   );
 }
 
-function InfoCard({ icon, label, value, tone = 'default' }: { icon?: React.ReactNode; label: string; value: unknown; tone?: 'default' | 'danger' }) {
+function InfoCard({ icon, label, value, tone = 'default' }: { icon?: ReactNode; label: string; value: unknown; tone?: 'default' | 'danger' }) {
   return <div className={`rental-info-card ${tone}`}><div className="rental-info-label">{icon}{label}</div><b>{cleanText(value)}</b></div>;
 }
 
-function QuickStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: unknown }) {
+function QuickStat({ icon, label, value }: { icon: ReactNode; label: string; value: unknown }) {
   return <div className="inspection-quick-stat"><span>{icon}{label}</span><b>{cleanText(value)}</b></div>;
 }
 
