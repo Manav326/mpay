@@ -4078,3 +4078,95 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
     gap:8px;
   }
 }
+
+
+/* ===== Full vehicle image delivery performance pass ===== */
+.rental-market-card,
+.vendor-vehicle-android-card,
+.rental-vehicle-review-card{
+  content-visibility:auto;
+  contain-intrinsic-size:420px;
+}
+.vehicle-card-gallery{
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:5px;
+}
+.vehicle-card-gallery-main,
+.vehicle-card-gallery-thumb{
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  position:relative;
+  background:#f4efe6;
+  display:grid;
+  place-items:center;
+  color:#8e8273;
+}
+.vehicle-card-gallery-main{
+  border-radius:12px;
+}
+.vehicle-card-gallery-thumbs{
+  min-width:0;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+}
+.vehicle-card-gallery-thumb{
+  aspect-ratio:1.45;
+  border-radius:8px;
+}
+.vehicle-card-gallery img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.rental-market-image > .vehicle-card-gallery,
+.vendor-vehicle-gallery-main > .vehicle-card-gallery,
+.rental-booking-car-image > .vehicle-card-gallery,
+.rental-booking-card-image > .vehicle-card-gallery{
+  position:absolute;
+  inset:0;
+}
+.rental-market-image > span,
+.vendor-vehicle-category{
+  z-index:2;
+}
+.rental-review-card-gallery{
+  min-width:0;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:5px;
+}
+.rental-review-card-gallery .rental-review-card-photo{
+  min-width:0;
+  aspect-ratio:1;
+  border-radius:8px;
+}
+.rental-review-card-gallery .rental-photo-tile > img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.rental-vehicle-review-card{
+  grid-template-columns:minmax(240px,300px) minmax(0,1fr) auto;
+}
+@media(max-width:600px){
+  .rental-vehicle-review-card{
+    grid-template-columns:1fr;
+  }
+  .rental-review-card-gallery{
+    width:100%;
+  }
+  .rental-market-image{
+    aspect-ratio:16/11;
+  }
+  .vendor-vehicle-gallery-main{
+    aspect-ratio:16/11;
+  }
+}
