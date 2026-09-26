@@ -1637,7 +1637,7 @@ export default function Portal() {
     if(view==='account' && accountSection==='vendor' && vendorVerified && vendorVehicles.length){
       vendorVehicles.forEach(car => { void loadVehicleUnavailability(car.id); });
     }
-  },[view, accountSection, vendorVerified, vendorVehicles.map(car=>car.id).join('|')]);
+  },[view, accountSection, String(vendor?.status || '').toUpperCase(), vendorVehicles.map(car=>car.id).join('|')]);
 
   async function copyText(value:string,message='Copied to clipboard.') {
     try { await navigator.clipboard.writeText(value); setNotice(message); }
