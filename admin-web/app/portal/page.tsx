@@ -161,8 +161,10 @@ function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thu
   const value = values[slot] || '';
   if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
-  const url = base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
-  return url + '?variant=' + variant;
+  const url = value.startsWith('/api/')
+    ? base + value
+    : base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
 function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
