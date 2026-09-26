@@ -361,6 +361,7 @@ private fun AppRoot(
 ) {
     val authState by authViewModel.state.collectAsState()
     val passwordResetState by passwordResetViewModel.state.collectAsState()
+    val registrationOtpState by authViewModel.registrationOtpState.collectAsState()
     val paymentState by paymentViewModel.state.collectAsState()
     val rechargeState by rechargeViewModel.state.collectAsState()
     val historyState by rechargeHistoryViewModel.state.collectAsState()
@@ -377,6 +378,7 @@ private fun AppRoot(
         if (authState is AuthUiState.Authenticated) {
             rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
+            authViewModel.clearRegistrationOtp()
             authRoute = "login"
         }
     }
@@ -419,13 +421,19 @@ private fun AppRoot(
             "login" -> LoginScreen(
                 authState = authState,
                 onLogin = { mobile, password -> authViewModel.login(mobile, password) },
-                onSignUp = { authViewModel.clearError(); authRoute = "register" },
+                onSignUp = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = "register" },
                 onForgotPassword = { authViewModel.clearError(); passwordResetViewModel.clear(); authRoute = "forgot-password" }
             )
             "register" -> RegisterScreen(
                 authState = authState,
-                onRegister = { name, email, mobile, password -> authViewModel.register(name, email, mobile, password) },
-                onBack = { authViewModel.clearError(); authRoute = "login" }
+                registrationOtpState = registrationOtpState,
+                onRegister = { name, email, mobile, password, verificationToken ->
+                    authViewModel.register(name, email, mobile, password, verificationToken)
+                },
+                onSendOtp = authViewModel::sendRegistrationOtp,
+                onVerifyOtp = authViewModel::verifyRegistrationOtp,
+                onClearOtp = authViewModel::clearRegistrationOtp,
+                onBack = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = "login" }
             )
             else -> ForgotPasswordScreen(
                 state = passwordResetState,
