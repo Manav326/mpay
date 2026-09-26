@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, MapPin,
-  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Send, ShieldCheck, Smartphone, Trash2, Upload, UserRound, WalletCards, X
+  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
+  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -119,6 +119,37 @@ const localDateTimeInput = (d = new Date()) =>
 const isoNow = () => localDateTimeInput();
 const localDate = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 const localYearMonth = (d = new Date()) => d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+
+const indianStatesAndUt = [
+  'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh',
+  'Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram',
+  'Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand',
+  'West Bengal','Andaman and Nicobar Islands','Chandigarh','Dadra and Nagar Haveli and Daman and Diu','Delhi',
+  'Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry'
+].filter((v,i,a)=>a.indexOf(v)===i);
+
+const sanitizeVehicleAlphaNumeric = (value:string,maxLength:number) =>
+  value.replace(/[^A-Za-z0-9 ]/g,'').slice(0,maxLength);
+const sanitizeVehicleText = (value:string,maxLength:number=120) =>
+  value.replace(/[^A-Za-z0-9 .&'()\-]/g,'').slice(0,maxLength);
+const sanitizeRegistration = (value:string) =>
+  value.toUpperCase().replace(/[^A-Z0-9 -]/g,'').slice(0,32);
+const sanitizeLicense = (value:string) =>
+  value.toUpperCase().replace(/[^A-Z0-9 -]/g,'').slice(0,64);
+const sanitizeDecimal = (value:string) => {
+  const cleaned=value.replace(/[^0-9.]/g,'');
+  const dot=cleaned.indexOf('.');
+  return dot<0 ? cleaned.slice(0,9) : cleaned.slice(0,dot+1)+cleaned.slice(dot+1).replace(/\D/g,'').slice(0,2);
+};
+const normalizeIndianMobile = (value:string) => value.replace(/\D/g,'').slice(0,10);
+const rentalOffMarketReasons = [
+  ['SERVICE_MAINTENANCE','Service / maintenance'],
+  ['PRIVATE_USE','Private use'],
+  ['DRIVER_UNAVAILABLE','Driver unavailable'],
+  ['LEGAL_DOCUMENTATION','Documentation / compliance'],
+  ['PERSONAL_REASON','Personal reason'],
+  ['OTHER','Other']
+] as const;
 
 function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -431,9 +462,18 @@ export default function Portal() {
   const [vehicleUnavailability, setVehicleUnavailability] = useState<VehicleUnavailability[]>([]);
   const [vehicleCalendar, setVehicleCalendar] = useState<CalendarDay[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(localYearMonth());
+  const [accountSection, setAccountSection] = useState<'profile'|'vendor'|'vehicle'>('profile');
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [vehicleEditId, setVehicleEditId] = useState('');
+  const [vendorSubmitAttempted, setVendorSubmitAttempted] = useState(false);
+  const [vehicleSubmitAttempted, setVehicleSubmitAttempted] = useState(false);
+  const [vehiclePhotoUrls, setVehiclePhotoUrls] = useState<string[]>(['','','','']);
+  const [vehiclePhotoFiles, setVehiclePhotoFiles] = useState<(File|null)[]>([null,null,null,null]);
+  const [vehiclePhotoPreviews, setVehiclePhotoPreviews] = useState<string[]>(['','','','']);
+  const [driverPhotoFile, setDriverPhotoFile] = useState<File|null>(null);
+  const [driverPhotoPreview, setDriverPhotoPreview] = useState('');
+
   const [vendorForm, setVendorForm] = useState({
     vendorType: 'INDIVIDUAL', fullName: '', businessName: '', address: '', city: '', state: '', pinCode: '',
     panNumber: '', payoutUpiId: '', bankAccountNumber: '', bankIfsc: '', bankName: '', payoutPrimaryMethod: ''
@@ -1314,6 +1354,12 @@ export default function Portal() {
     });
     void loadProfileImage();
   },[]);
+
+  useEffect(()=>{
+    if(view==='account') {
+      setAccountSection('profile');
+    }
+  },[view]);
 
   useEffect(()=>{
     if(view==='home'){
