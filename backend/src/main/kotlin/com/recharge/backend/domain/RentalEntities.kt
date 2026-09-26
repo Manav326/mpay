@@ -96,6 +96,7 @@ class RentalBookingEntity(
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2) var totalAmount: BigDecimal = BigDecimal.ZERO,
     @Column(nullable = false, length = 30) var status: String = "CONFIRMED",
     @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
+    @Column(name = "cancellation_reason", length = 500) var cancellationReason: String? = null,
     @Column(name = "payment_method", nullable=false, length=30) var paymentMethod: String = "WALLET",
     @Column(name = "payment_id") var paymentId: Long? = null,
     @Column(nullable = false) var createdAt: Instant = Instant.now(),
