@@ -17,6 +17,7 @@ import {
   FileCheck2,
   FileText,
   Filter,
+  History,
   IndianRupee,
   Mail,
   MapPin,
