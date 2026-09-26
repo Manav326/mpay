@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
@@ -147,6 +148,7 @@ function bookingShareText(b: RentalBooking) {
 }
 
 export default function Portal() {
+  const webCapabilities = useWebCapabilities();
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -870,13 +872,25 @@ export default function Portal() {
   }
 
   async function chooseContact() {
-    const contacts=(navigator as any).contacts;
-    if(!contacts?.select){setNotice('Contact picker is not available in this browser. Enter the number manually.');return;}
+    if (!webCapabilities.canUseContactPicker) {
+      setNotice('Contact selection is available only on supported mobile browsers. Enter the number manually.');
+      return;
+    }
+    const contacts = (navigator as Navigator & {
+      contacts?: { select?: (properties: string[], options?: { multiple?: boolean }) => Promise<Array<{ tel?: string[] }>> };
+    }).contacts;
+    if (typeof contacts?.select !== 'function') return;
     try {
-      const selected=await contacts.select(['tel'],{multiple:false});
-      const tel=selected?.[0]?.tel?.[0] || '';
-      if(tel) setMobile(String(tel).replace(/\D/g,'').slice(-10));
-    } catch {}
+      const selected = await contacts.select(['tel'], { multiple: false });
+      const tel = selected?.[0]?.tel?.[0] || '';
+      const normalized = String(tel).replace(/\D/g, '').slice(-10);
+      if (normalized.length === 10) {
+        setMobile(normalized);
+        setNotice('Mobile number selected from contacts.');
+      }
+    } catch {
+      // User cancelled the native picker; keep the current number unchanged.
+    }
   }
 
   function logout() {
@@ -899,7 +913,7 @@ export default function Portal() {
   const vendorStatus = String(vendor?.status || '').toUpperCase();
   const vendorVerified = vendorStatus === 'VERIFIED';
 
-  return <div className="portal-shell">
+  return <div className="portal-shell" data-form-factor={webCapabilities.formFactor} data-contact-picker={webCapabilities.canUseContactPicker ? 'available' : 'unavailable'}>
     <aside className={'portal-sidebar ' + (drawer ? 'open ' : '') + (sidebarCollapsed ? 'collapsed' : '')}>
       <div className="portal-side-head"><a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a><div className="portal-side-controls"><button className="icon-btn sidebar-collapse-btn" title={sidebarCollapsed?'Expand navigation':'Collapse navigation'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</button><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div></div>
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
@@ -923,31 +937,61 @@ export default function Portal() {
 
       {notice && <div className="portal-notice">{notice}<button onClick={()=>setNotice('')}><X size={14}/></button></div>}
 
-      {view==='home' && <section className="portal-content">
-        <div className="portal-hero-card"><div><span>AVAILABLE TO SPEND</span><strong>{money(wallet?.availableBalance)}</strong><p>Manage recharges, wallet activity and your chauffeur-driven mobility services from one place.</p></div><button className="landing-primary" onClick={()=>setView('recharge')}>Recharge now <ArrowRight size={16}/></button></div>
-        <div className="portal-quick-actions">
-          <button onClick={()=>setView('recharge')}><Smartphone/><span>Mobile Recharge</span></button>
-          <button onClick={()=>setView('wallet')}><WalletCards/><span>Add Money</span></button>
-          <button onClick={()=>setView('bookings')}><Clock3/><span>My Bookings</span></button>
-        </div>
-        <div className="home-earnings-strip">
-          <div><span>Today's earnings</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div>
-          <div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>Recharge volume {money(commissionSummary?.monthly?.successfulRechargeAmount)}</small></div>
-          <button onClick={()=>setView('wallet')}><CircleDollarSign size={18}/><span>Wallet earnings</span><ArrowRight size={15}/></button>
-        </div>
-        <section className="home-marketplace"><div className="home-section-label">Marketplace</div><button className="home-marketplace-card" onClick={()=>setView('rental')}>
-          <div className="home-marketplace-icon"><Car size={27}/></div><div className="home-marketplace-copy"><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose a chauffeur-driven car, set your trip time and book directly from Home.</p></div><ArrowRight size={19}/>
-        </button></section>
+      {view==='home' && <section className="portal-content portal-home">
+        <section className="portal-wallet-hero">
+          <div className="portal-wallet-hero-top">
+            <div className="portal-wallet-label"><span className="portal-wallet-icon"><WalletCards size={17}/></span><span>MY WALLET</span></div>
+            <span className="portal-wallet-state"><CheckCircle2 size={13}/> Ready</span>
+          </div>
+          <div className="portal-wallet-copy">
+            <span>Available balance</span>
+            <strong>{money(wallet?.availableBalance)}</strong>
+            <p>Use your available wallet balance for recharge and other mPay services.</p>
+          </div>
+          <div className="portal-wallet-breakdown">
+            <div><span>Total balance</span><b>{money(wallet?.balance)}</b></div>
+            <div><span>Reserved</span><b>{money(wallet?.reservedBalance)}</b></div>
+          </div>
+          <div className="portal-wallet-actions">
+            <button className="landing-primary" onClick={()=>setView('recharge')}><Smartphone size={15}/> Recharge</button>
+            <button className="landing-secondary" onClick={()=>setView('wallet')}><Plus size={15}/> Add money</button>
+          </div>
+        </section>
+
+        <section className="portal-home-section">
+          <div className="portal-home-section-head">
+            <div><span>QUICK ACTIONS</span><h2>Your everyday mPay actions</h2></div>
+          </div>
+          <div className="portal-quick-actions">
+            <button className="portal-quick-action recharge" onClick={()=>setView('recharge')}><span className="portal-action-icon"><Smartphone/></span><span className="portal-action-copy"><b>Mobile Recharge</b><small>Check operator & offers</small></span><ArrowRight size={15}/></button>
+            <button className="portal-quick-action wallet" onClick={()=>setView('wallet')}><span className="portal-action-icon"><WalletCards/></span><span className="portal-action-copy"><b>Add Money</b><small>Top up your mPay wallet</small></span><ArrowRight size={15}/></button>
+            <button className="portal-quick-action bookings" onClick={()=>setView('bookings')}><span className="portal-action-icon"><Clock3/></span><span className="portal-action-copy"><b>My Bookings</b><small>View your car bookings</small></span><ArrowRight size={15}/></button>
+          </div>
+        </section>
+
+        <section className="portal-home-section home-marketplace">
+          <div className="portal-home-section-head">
+            <div><span>MARKETPLACE</span><h2>Services beyond recharge</h2></div>
+          </div>
+          <button className="home-marketplace-card" onClick={()=>setView('rental')}>
+            <div className="home-marketplace-icon"><Car size={24}/></div>
+            <div className="home-marketplace-copy"><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose your car, set your trip time and book with wallet payment.</p></div>
+            <ArrowRight size={18}/>
+          </button>
+        </section>
+
         <button className="home-recharge-history" onClick={()=>{setView('history');loadHistory();}}>
-          <div className="home-recharge-history-icon"><History size={22}/></div><div><span>TRANSACTION HISTORY</span><b>Recharge History</b><p>View submitted, pending, completed and failed recharge activity.</p></div><ArrowRight size={18}/>
+          <div className="home-recharge-history-icon"><History size={20}/></div>
+          <div><span>RECENT ACTIVITY</span><b>Recharge History</b><p>See pending, completed, failed and refunded recharge activity.</p></div>
+          <ArrowRight size={17}/>
         </button>
-      </section>}
+      </section>
 
       {view==='recharge' && <section className="portal-content"><div className="portal-panel">
         <div className="panel-head"><div><h2>Recharge a mobile</h2><p>Detect the operator, edit the detected operator if required, load plans and choose how to fund the recharge.</p></div></div>
-        <div className="recharge-web-form">
-          <input inputMode="numeric" maxLength={10} value={mobile} onChange={e=>setMobile(e.target.value.replace(/\D/g,''))} placeholder="10-digit mobile number"/>
-          <button className="landing-secondary" disabled={busy} onClick={chooseContact}><Smartphone size={15}/> Contacts</button>
+        <div className={'recharge-web-form ' + (webCapabilities.canUseContactPicker ? 'has-contact-picker' : 'no-contact-picker')}>
+          <input inputMode="numeric" maxLength={10} value={mobile} onChange={e=>setMobile(e.target.value.replace(/\D/g,''))} placeholder="10-digit mobile number" aria-label="10-digit mobile number"/>
+          {webCapabilities.canUseContactPicker && <button className="landing-secondary contact-picker-btn" disabled={busy} onClick={chooseContact}><Smartphone size={15}/> Contacts</button>}
           <button className="primary" disabled={busy || mobile.length!==10} onClick={detect}>{busy?'Checking…':'Find plans'}</button>
         </div>
         {operator && <div className="operator-result editable-operator">
