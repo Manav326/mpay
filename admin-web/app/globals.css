@@ -381,3 +381,12 @@
 .privacy-card li{margin:6px 0}
 .privacy-card strong{color:var(--text)}
 @media(max-width:600px){.privacy-page{padding:16px 12px 36px}.privacy-header{margin-bottom:16px}.privacy-back{font-size:11px}.privacy-card{border-radius:18px;padding:22px 18px}.privacy-card h2{font-size:16px;margin-top:24px}.privacy-card p,.privacy-card li{font-size:13px;line-height:1.7}}
+
+
+.deletion-callout{margin:18px 0 26px;padding:16px 18px;border:1px solid #f2d9a3;background:#fff7e6;border-radius:16px}
+.deletion-callout strong{color:#7c5104}
+.deletion-callout p{margin:7px 0 0}
+.deletion-callout a,.privacy-card a{color:#b45309;font-weight:800;text-decoration:none}
+.deletion-callout a:hover,.privacy-card a:hover{text-decoration:underline}
+.privacy-card ol{margin:8px 0 18px;padding-left:22px}
+.privacy-card ol li{margin:7px 0}
