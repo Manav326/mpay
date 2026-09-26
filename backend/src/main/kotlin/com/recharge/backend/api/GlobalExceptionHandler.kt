@@ -50,6 +50,11 @@ class GlobalExceptionHandler {
         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
             .body(ErrorResponse(ex.message ?: "OTP delivery service is currently unavailable"))
 
+    @ExceptionHandler(com.recharge.backend.service.AccountDeletionBlockedException::class)
+    fun handleAccountDeletionBlocked(ex: com.recharge.backend.service.AccountDeletionBlockedException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse(ex.message ?: "Account deletion cannot be completed yet"))
+
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleBadRequest(ex: IllegalArgumentException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.BAD_REQUEST)
