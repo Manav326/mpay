@@ -17,7 +17,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.recharge.client"
+        applicationId = "com.client.mapp"
         minSdk = 24
         targetSdk = 36
         versionCode = 11
