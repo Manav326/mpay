@@ -139,7 +139,7 @@ class RentalController(
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
             .contentLength(stored.bytes.size.toLong())
-            .cacheControl(CacheControl.noCache().cachePublic())
+            .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(30)).cachePublic())
             .body(stored.bytes)
     }
 
