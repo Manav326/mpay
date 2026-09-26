@@ -196,6 +196,171 @@ function WebHistoryPagination({
   );
 }
 
+function homeRechargeStatus(item?: RechargeItem) {
+  const raw = String(item?.status || 'UNKNOWN').toUpperCase();
+  return raw === 'RESERVED' ? 'PENDING' : raw;
+}
+
+function webOperatorLabel(operator?: string) {
+  switch (String(operator || '').toUpperCase()) {
+    case 'AIRTEL': return 'Airtel';
+    case 'JIO': return 'Jio';
+    case 'VI':
+    case 'VODAFONE':
+    case 'VODAFONE IDEA': return 'Vodafone Idea (VI)';
+    case 'BSNL': return 'BSNL';
+    default: return operator || 'Operator';
+  }
+}
+
+function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (text: string, message?: string) => void }) {
+  if (!item) return null;
+  const status = homeRechargeStatus(item);
+  const copyTextValue = [
+    'Recharge history',
+    'Amount: ' + money(item.amount),
+    'Wallet debit: ' + money(item.walletDebitAmount),
+    'Mobile: ' + (item.mobileNumber || '—'),
+    'Operator: ' + webOperatorLabel(item.operator),
+    'Circle: ' + (item.circle || '—'),
+    'Plan: ' + (item.planDescription || item.transactionId || '—'),
+    'Validity: ' + (item.planValidity || '—'),
+    'Transaction ID: ' + (item.transactionId || '—'),
+    'Client Request ID: ' + (item.clientRequestId || '—'),
+    'Provider reference: ' + (item.providerReference || '—'),
+    'Provider: ' + (item.provider || '—'),
+    'Status: ' + status,
+    'Message: ' + (item.message || '—'),
+    'Date & time: ' + dt(item.completedAt || item.createdAt),
+    ...(status === 'SUCCESS' ? ['Commission earned: ' + money(item.clientCommission)] : [])
+  ].join('\n');
+  return (
+    <div className="home-recent-recharge-card">
+      <div className="home-recharge-main">
+        <div className="home-recharge-summary">
+          <div>
+            <strong>{money(item.amount)}</strong>
+            <span>{webOperatorLabel(item.operator)} · {item.mobileNumber || '—'}</span>
+            {item.planDescription && <b>{item.planDescription}</b>}
+            {item.planValidity && <small>{item.planValidity}</small>}
+          </div>
+          <div className="home-recharge-status-area">
+            <span className={'status-pill status-' + status.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{status}</span>
+            <button className="copy-btn" onClick={()=>onCopy(copyTextValue,'Recharge details copied.')} title="Copy all recharge data">
+              <Copy size={14}/><span>Copy</span>
+            </button>
+          </div>
+        </div>
+        <div className="home-recharge-divider"/>
+        <div className="home-recharge-meta">
+          <span>{status === 'PENDING' || status === 'PROCESSING' ? 'Reserved' : 'Wallet debit'} <b>{money(item.walletDebitAmount)}</b></span>
+          <span>Transaction <b>{item.transactionId || '—'}</b></span>
+          <span>Reference <b>{item.clientRequestId || '—'}</b></span>
+          {item.providerReference && <span>Provider ref <b>{item.providerReference}</b></span>}
+        </div>
+        <div className="home-recharge-footer">
+          <span>{dt(item.completedAt || item.createdAt)}</span>
+          {status === 'SUCCESS' && <b className="amount-credit">Commission earned: {money(item.clientCommission)}</b>}
+        </div>
+        {item.message && <p className="home-recharge-message">{item.message}</p>}
+      </div>
+    </div>
+  );
+}
+
+function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolean }) {
+  if (!period) {
+    return (
+      <div className="home-earnings-card loading">
+        <b>Earnings are loading</b>
+        <span>We are refreshing the latest recharge commission summary.</span>
+        <div className="home-earnings-progress"><i/></div>
+      </div>
+    );
+  }
+  return (
+    <div className="home-earnings-card">
+      <span className="home-earnings-period">{isToday ? 'As of ' + date(period.to) : date(period.from) + ' → ' + date(period.to)}</span>
+      <div className="home-earnings-values">
+        <div><small>Commission earned</small><strong className="amount-credit">{money(period.commission)}</strong><em>{period.successfulRechargeCount || 0} successful recharges</em></div>
+        <div><small>Recharge volume</small><strong>{money(period.successfulRechargeAmount)}</strong></div>
+      </div>
+    </div>
+  );
+}
+
+function homeRechargeStatus(item?: RechargeItem) {
+  const raw = String(item?.status || 'UNKNOWN').toUpperCase();
+  return raw === 'RESERVED' ? 'PENDING' : raw;
+}
+
+function webOperatorLabel(operator?: string) {
+  switch (String(operator || '').toUpperCase()) {
+    case 'AIRTEL': return 'Airtel';
+    case 'JIO': return 'Jio';
+    case 'VI':
+    case 'VODAFONE':
+    case 'VODAFONE IDEA': return 'Vodafone Idea (VI)';
+    case 'BSNL': return 'BSNL';
+    default: return operator || 'Operator';
+  }
+}
+
+function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (text: string, message?: string) => void }) {
+  if (!item) return null;
+  const status = homeRechargeStatus(item);
+  const copyTextValue = [
+    'Recharge history',
+    'Amount: ' + money(item.amount),
+    'Wallet debit: ' + money(item.walletDebitAmount),
+    'Mobile: ' + (item.mobileNumber || '—'),
+    'Operator: ' + webOperatorLabel(item.operator),
+    'Circle: ' + (item.circle || '—'),
+    'Plan: ' + (item.planDescription || item.transactionId || '—'),
+    'Validity: ' + (item.planValidity || '—'),
+    'Transaction ID: ' + (item.transactionId || '—'),
+    'Client Request ID: ' + (item.clientRequestId || '—'),
+    'Provider reference: ' + (item.providerReference || '—'),
+    'Provider: ' + (item.provider || '—'),
+    'Status: ' + status,
+    'Message: ' + (item.message || '—'),
+    'Date & time: ' + dt(item.completedAt || item.createdAt),
+    ...(status === 'SUCCESS' ? ['Commission earned: ' + money(item.clientCommission)] : [])
+  ].join('\n');
+  return (
+    <div className="home-recent-recharge-card">
+      <div className="home-recharge-main">
+        <div className="home-recharge-summary">
+          <div>
+            <strong>{money(item.amount)}</strong>
+            <span>{webOperatorLabel(item.operator)} · {item.mobileNumber || '—'}</span>
+            {item.planDescription && <b>{item.planDescription}</b>}
+            {item.planValidity && <small>{item.planValidity}</small>}
+          </div>
+          <div className="home-recharge-status-area">
+            <span className={'status-pill status-' + status.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{status}</span>
+            <button className="copy-btn" onClick={()=>onCopy(copyTextValue,'Recharge details copied.')} title="Copy all recharge data">
+              <Copy size={14}/><span>Copy</span>
+            </button>
+          </div>
+        </div>
+        <div className="home-recharge-divider"/>
+        <div className="home-recharge-meta">
+          <span>{status === 'PENDING' || status === 'PROCESSING' ? 'Reserved' : 'Wallet debit'} <b>{money(item.walletDebitAmount)}</b></span>
+          <span>Transaction <b>{item.transactionId || '—'}</b></span>
+          <span>Reference <b>{item.clientRequestId || '—'}</b></span>
+          {item.providerReference && <span>Provider ref <b>{item.providerReference}</b></span>}
+        </div>
+        <div className="home-recharge-footer">
+          <span>{dt(item.completedAt || item.createdAt)}</span>
+          {status === 'SUCCESS' && <b className="amount-credit">Commission earned: {money(item.clientCommission)}</b>}
+        </div>
+        {item.message && <p className="home-recharge-message">{item.message}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
@@ -282,6 +447,10 @@ export default function Portal() {
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [homeGreeting, setHomeGreeting] = useState('Good day');
+  const [latestRecharge, setLatestRecharge] = useState<RechargeItem>();
+  const [latestRechargeLoading, setLatestRechargeLoading] = useState(false);
+  const [homeActionModal, setHomeActionModal] = useState<'add'|'withdraw'|null>(null);
   const rentalLoadSeq = useRef(0);
   const historyLoadSeq = useRef(0);
 
@@ -332,6 +501,21 @@ export default function Portal() {
 
   async function loadCommissionSummary() {
     try { setCommissionSummary(await api<any>('/api/v1/recharge/commission-summary')); } catch {}
+  }
+
+  async function loadLatestRecharge() {
+    setLatestRechargeLoading(true);
+    try {
+      const today = localDate();
+      const params = new URLSearchParams({ page: '0', size: '1', from: today, to: today });
+      const data = await api<any>('/api/v1/recharge/history?' + params.toString());
+      const items = data?.items || data?.content || data || [];
+      setLatestRecharge(items?.[0]);
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to load the latest recharge.');
+    } finally {
+      setLatestRechargeLoading(false);
+    }
   }
 
   async function loadWalletHistory(
@@ -973,6 +1157,8 @@ export default function Portal() {
   useEffect(() => () => { if(profileImage.startsWith('blob:')) URL.revokeObjectURL(profileImage); }, [profileImage]);
 
   useEffect(()=>{
+    const hour = new Date().getHours();
+    setHomeGreeting(hour >= 5 && hour <= 11 ? 'Good morning' : hour >= 12 && hour <= 16 ? 'Good afternoon' : hour >= 17 && hour <= 21 ? 'Good evening' : 'Good night');
     if(!localStorage.getItem('mpay_token')){window.location.href='/login';return;}
     void Promise.allSettled([
       api<Me>('/api/v1/me'),
@@ -995,7 +1181,9 @@ export default function Portal() {
   },[]);
 
   useEffect(()=>{
-    if(view==='history'){
+    if(view==='home'){
+      void Promise.all([refreshWallet(), loadLatestRecharge(), loadCommissionSummary()]);
+    } else if(view==='history'){
       void loadHistory();
     } else if(view==='wallet'){
       void Promise.all([refreshWallet(), loadWalletHistory(0), loadWithdrawals(0), loadCommissionSummary()]);
@@ -1093,54 +1281,141 @@ export default function Portal() {
 
       {notice && <div className="portal-notice">{notice}<button onClick={()=>setNotice('')}><X size={14}/></button></div>}
 
-      {view==='home' && <section className="portal-content portal-home">
-        <section className="portal-wallet-hero">
+      {view==='home' && <section className="portal-content portal-home android-home-parity">
+        <section className="android-home-greeting">
+          <div className="android-home-greeting-copy">
+            <span>{homeGreeting}</span>
+            <h2>{me?.name || 'there'}</h2>
+          </div>
+          <div className="android-home-avatar">
+            {profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}
+          </div>
+        </section>
+
+        <section className="portal-wallet-hero android-wallet-hero">
           <div className="portal-wallet-hero-top">
             <div className="portal-wallet-label"><span className="portal-wallet-icon"><WalletCards size={17}/></span><span>MY WALLET</span></div>
-            <span className="portal-wallet-state"><CheckCircle2 size={13}/> Ready</span>
+            <button className="android-wallet-refresh" onClick={()=>refreshWallet()} disabled={busy} title="Refresh balance"><RefreshCw size={15}/></button>
           </div>
           <div className="portal-wallet-copy">
             <span>Available balance</span>
             <strong>{money(wallet?.availableBalance)}</strong>
-            <p>Use your available wallet balance for recharge and other mPay services.</p>
           </div>
           <div className="portal-wallet-breakdown">
-            <div><span>Total balance</span><b>{money(wallet?.balance)}</b></div>
+            <div><span>Total</span><b>{money(wallet?.balance)}</b></div>
             <div><span>Reserved</span><b>{money(wallet?.reservedBalance)}</b></div>
           </div>
+          {Number(wallet?.reservedBalance || 0) > 0 && <p className="android-wallet-reserved">{money(wallet?.reservedBalance)} reserved in pending transactions</p>}
           <div className="portal-wallet-actions">
-            <button className="landing-primary" onClick={()=>setView('recharge')}><Smartphone size={15}/> Recharge</button>
-            <button className="landing-secondary" onClick={()=>setView('wallet')}><Plus size={15}/> Add money</button>
+            <button className="landing-primary" onClick={()=>setHomeActionModal('add')}><Plus size={15}/> Add Money</button>
+            <button className="landing-secondary" onClick={()=>setHomeActionModal('withdraw')}><Banknote size={15}/> Withdraw to UPI</button>
           </div>
         </section>
 
-        <section className="portal-home-section">
+        <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>QUICK ACTIONS</span><h2>Your everyday mPay actions</h2></div>
+            <div><span>QUICK ACTIONS</span><h2>Quick actions</h2></div>
           </div>
-          <div className="portal-quick-actions">
-            <button className="portal-quick-action recharge" onClick={()=>setView('recharge')}><span className="portal-action-icon"><Smartphone/></span><span className="portal-action-copy"><b>Mobile Recharge</b><small>Check operator & offers</small></span><ArrowRight size={15}/></button>
-            <button className="portal-quick-action wallet" onClick={()=>setView('wallet')}><span className="portal-action-icon"><WalletCards/></span><span className="portal-action-copy"><b>Add Money</b><small>Top up your mPay wallet</small></span><ArrowRight size={15}/></button>
-            <button className="portal-quick-action bookings" onClick={()=>setView('bookings')}><span className="portal-action-icon"><Clock3/></span><span className="portal-action-copy"><b>My Bookings</b><small>View your car bookings</small></span><ArrowRight size={15}/></button>
+          <div className="android-home-quick-card">
+            <button className="android-action-card recharge" onClick={()=>setView('recharge')}>
+              <span><Smartphone size={19}/></span><b>Mobile Recharge</b>
+            </button>
+            <button className="android-action-card add" onClick={()=>setHomeActionModal('add')}>
+              <span><Plus size={19}/></span><b>Add Money</b>
+            </button>
+            <button className="android-action-card bookings" onClick={()=>setView('bookings')}>
+              <span><Clock3 size={19}/></span><b>My Bookings</b>
+            </button>
           </div>
         </section>
 
-        <section className="portal-home-section home-marketplace">
+        <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>MARKETPLACE</span><h2>Services beyond recharge</h2></div>
+            <div><span>MARKETPLACE</span><h2>Marketplace</h2></div>
           </div>
-          <button className="home-marketplace-card" onClick={()=>setView('rental')}>
-            <div className="home-marketplace-icon"><Car size={24}/></div>
-            <div className="home-marketplace-copy"><span>CHAUFFEUR-DRIVEN MOBILITY</span><b>Car Rental</b><p>Choose your car, set your trip time and book with wallet payment.</p></div>
-            <ArrowRight size={18}/>
+          <button className="android-marketplace-card" onClick={()=>setView('rental')}>
+            <span className="android-marketplace-icon"><Car size={21}/></span>
+            <span className="android-marketplace-copy"><b>Car Rental</b><small>Chauffeur-driven cars, available directly from here.</small></span>
+            <span className="android-marketplace-action">Explore</span>
           </button>
         </section>
 
-        <button className="home-recharge-history" onClick={()=>{setView('history');loadHistory();}}>
-          <div className="home-recharge-history-icon"><History size={20}/></div>
-          <div><span>RECENT ACTIVITY</span><b>Recharge History</b><p>See pending, completed, failed and refunded recharge activity.</p></div>
-          <ArrowRight size={17}/>
+        <button className="android-recharge-history-card" onClick={()=>{setView('history');loadHistory();}}>
+          <span className="android-recharge-history-icon"><History size={19}/></span>
+          <span><b>Recharge History</b><small>View your submitted and completed mobile recharges.</small></span>
+          <b>View</b>
         </button>
+
+        {(latestRechargeLoading || latestRecharge) && <section className="android-home-section">
+          <div className="android-home-section-title">
+            <h2>Latest recharge</h2>
+            <button onClick={()=>{setView('history');loadHistory();}}>View all</button>
+          </div>
+          {latestRechargeLoading
+            ? <div className="home-earnings-loading">Refreshing the latest recharge…</div>
+            : <HomeRecentRecharge item={latestRecharge} onCopy={copyText}/>}
+        </section>}
+
+        <section className="android-home-section">
+          <div className="android-home-section-title">
+            <h2>Today’s recharge earnings</h2>
+            <button onClick={()=>loadCommissionSummary()} disabled={busy}><RefreshCw size={15}/></button>
+          </div>
+          <HomeEarningsPeriod period={commissionSummary?.daily} isToday={true}/>
+        </section>
+
+        <section className="android-home-section">
+          <div className="android-home-section-title">
+            <h2>Monthly recharge earnings</h2>
+          </div>
+          <HomeEarningsPeriod period={commissionSummary?.monthly} isToday={false}/>
+        </section>
+
+        {homeActionModal && <div className="modal-backdrop" onClick={()=>!busy&&setHomeActionModal(null)}>
+          <div className="portal-modal small-modal home-action-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head">
+              <div>
+                <h2>{homeActionModal === 'add' ? 'Add money' : 'Withdraw to UPI'}</h2>
+                <p>{homeActionModal === 'add' ? 'Choose how to fund the wallet.' : 'UPI ID is required for every withdrawal.'}</p>
+              </div>
+              <button className="icon-btn" onClick={()=>!busy&&setHomeActionModal(null)}><X size={17}/></button>
+            </div>
+            {homeActionModal === 'add' ? (
+              <>
+                <div className="wallet-current-balance">Current available balance <b>{money(wallet?.availableBalance)}</b></div>
+                <div className="wallet-provider-picker">
+                  {(['mock','razorpay','payu'] as const).map(provider => <button key={provider} className={addMoneyProvider===provider?'selected':''} onClick={()=>setAddMoneyProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
+                </div>
+                <label className="wallet-field-label">Amount (INR)
+                  <div className="wallet-input-shell"><span>₹</span><input inputMode="decimal" maxLength={10} value={addMoneyAmount} onChange={e=>setAddMoneyAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Enter amount"/></div>
+                </label>
+                <div className="wallet-field-help">Minimum ₹1 · Maximum ₹50,000</div>
+                <button className="wallet-primary-wide" disabled={busy || !(Number(addMoneyAmount)>=1 && Number(addMoneyAmount)<=50000)} onClick={async()=>{await addMoney();if(!notice)setHomeActionModal(null);}}>
+                  {busy ? 'Processing…' : 'Continue'} <ArrowRight size={15}/>
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="wallet-current-balance">Available to withdraw <b>{money(wallet?.availableBalance)}</b></div>
+                <div className="wallet-provider-picker">
+                  {(['mock','razorpay','payu'] as const).map(provider => <button key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
+                </div>
+                <div className="wallet-field-grid">
+                  <label className="wallet-field-label">Amount (INR)
+                    <div className="wallet-input-shell"><span>₹</span><input inputMode="decimal" maxLength={10} value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Enter amount"/></div>
+                  </label>
+                  <label className="wallet-field-label">UPI ID (required)
+                    <input className="wallet-text-input" maxLength={120} value={withdrawUpi} onChange={e=>setWithdrawUpi(e.target.value)} placeholder="name@upi"/>
+                  </label>
+                </div>
+                <div className="wallet-field-help">Minimum ₹1 · Available {money(wallet?.availableBalance)}</div>
+                <button className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{await withdrawMoney();if(!notice)setHomeActionModal(null);}}>
+                  {busy ? 'Processing…' : 'Withdraw'} <ArrowRight size={15}/>
+                </button>
+              </>
+            )}
+          </div>
+        </div>}
       </section>}
 
       {view==='recharge' && <section className="portal-content"><div className="portal-panel">
