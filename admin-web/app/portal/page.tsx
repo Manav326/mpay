@@ -388,58 +388,43 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
 
 function MpayServiceShowcase({ view }: { view: string }) {
   const active = view === 'wallet' ? 'wallet' : view === 'recharge' ? 'recharge' : view.startsWith('rental') || view === 'bookings' ? 'rental' : 'ecosystem';
-  const headline =
-    active === 'wallet' ? 'Your money, always ready.' :
-    active === 'recharge' ? 'Recharge in seconds.' :
-    active === 'rental' ? 'Move with chauffeur-driven mobility.' :
-    'One wallet. Recharge. Mobility.';
 
   return (
     <section className="mpay-service-showcase" aria-label="mPay services">
-      <div className="mpay-showcase-ambient ambient-one" />
-      <div className="mpay-showcase-ambient ambient-two" />
-      <svg className="mpay-showcase-routes" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
-        <path className="route route-wallet" d="M70 84 C 250 18, 355 18, 600 60" />
-        <path className="route route-recharge" d="M600 60 C 755 18, 880 18, 1090 74" />
-        <path className="route route-rental" d="M145 94 C 365 118, 855 118, 1055 84" />
-        <circle className="route-pulse pulse-one" cx="0" cy="0" r="3.5" />
-        <circle className="route-pulse pulse-two" cx="0" cy="0" r="3" />
-        <circle className="route-pulse pulse-three" cx="0" cy="0" r="3" />
+      <div className="mpay-showcase-glow glow-left" />
+      <div className="mpay-showcase-glow glow-right" />
+      <div className="mpay-showcase-glow glow-center" />
+
+      <svg className="mpay-showcase-routes" viewBox="0 0 1200 70" preserveAspectRatio="none" aria-hidden="true">
+        <path className="route route-wallet" d="M80 50 C 300 8, 410 9, 600 34" />
+        <path className="route route-recharge" d="M600 34 C 790 9, 900 8, 1120 50" />
+        <path className="route route-rental" d="M145 55 C 370 78, 830 78, 1055 55" />
+        <circle className="route-pulse pulse-one" cx="0" cy="0" r="2.8" />
+        <circle className="route-pulse pulse-two" cx="0" cy="0" r="2.5" />
+        <circle className="route-pulse pulse-three" cx="0" cy="0" r="2.5" />
       </svg>
 
-      <div className="mpay-showcase-copy">
-        <span>THE mPAY ECOSYSTEM</span>
-        <strong>{headline}</strong>
-        <small>Designed for everyday money, instant recharge and chauffeur-driven mobility.</small>
-      </div>
-
-      <div className="mpay-showcase-services">
-        <div className={'mpay-showcase-node ' + (active === 'wallet' ? 'is-active' : '') + ' service-wallet'}>
-          <span className="mpay-showcase-node-icon"><WalletCards size={16} /></span>
-          <span><b>Wallet</b><small>Money ready</small></span>
+      <div className="mpay-showcase-services" aria-hidden="true">
+        <div className={'mpay-showcase-icon service-wallet ' + (active === 'wallet' ? 'is-active' : '')}>
+          <img src="/wallet-icon.png" alt="" />
         </div>
-
         <div className={'mpay-showcase-core ' + (active === 'ecosystem' ? 'is-active' : '')}>
           <span className="mpay-showcase-core-ring" />
-          <div className="mpay-showcase-core-mark">
-            <CircleDollarSign size={20} />
-            <b>mPay</b>
-          </div>
-          <small>one ecosystem</small>
+          <span className="mpay-showcase-core-halo" />
+          <img src="/mpay-logo.png" alt="" />
         </div>
-
-        <div className={'mpay-showcase-node ' + (active === 'recharge' ? 'is-active' : '') + ' service-recharge'}>
-          <span className="mpay-showcase-node-icon"><Smartphone size={16} /></span>
-          <span><b>Recharge</b><small>In seconds</small></span>
+        <div className={'mpay-showcase-icon service-recharge ' + (active === 'recharge' ? 'is-active' : '')}>
+          <img src="/recharge-icon.png" alt="" />
         </div>
-
-        <div className={'mpay-showcase-node ' + (active === 'rental' ? 'is-active' : '') + ' service-rental'}>
-          <span className="mpay-showcase-node-icon"><Car size={16} /></span>
-          <span><b>Car Rental</b><small>With a driver</small></span>
+        <div className={'mpay-showcase-icon service-rental ' + (active === 'rental' ? 'is-active' : '')}>
+          <img src="/car-rental-icon.png" alt="" />
         </div>
       </div>
 
-      <div className="mpay-showcase-badge"><ShieldCheck size={13} /><span>Built for simple, connected everyday journeys</span></div>
+      <div className="mpay-showcase-scanline" />
+      <div className="mpay-showcase-particle particle-one" />
+      <div className="mpay-showcase-particle particle-two" />
+      <div className="mpay-showcase-particle particle-three" />
     </section>
   );
 }
