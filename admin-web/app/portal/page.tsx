@@ -465,6 +465,7 @@ export default function Portal() {
   const [vehicleUnavailability, setVehicleUnavailability] = useState<VehicleUnavailability[]>([]);
   const [vehicleCalendar, setVehicleCalendar] = useState<CalendarDay[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(localYearMonth());
+  const [calendarCarId, setCalendarCarId] = useState('');
   const [accountSection, setAccountSection] = useState<'profile'|'vendor'|'vehicle'>('profile');
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
