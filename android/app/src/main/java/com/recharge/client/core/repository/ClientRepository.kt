@@ -60,6 +60,12 @@ class ClientRepository(context: Context) {
     private val api: ClientApi = NetworkModule.clientApi(context.applicationContext)
     private val profileCache = ProfileCacheStore(appContext)
 
+    suspend fun deleteAccount(password: String, confirmation: String): Result<AccountDeletionResponse> = apiCall {
+        val response = api.deleteAccount(AccountDeletionRequest(password = password, confirmation = confirmation))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun currentUser(): Result<CurrentUserResponse> {
         val result = apiCall {
             val response = api.me()
