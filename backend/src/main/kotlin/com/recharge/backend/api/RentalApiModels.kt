@@ -123,6 +123,10 @@ data class RentalAdminDecisionRequest(
     @field:Size(max = 500) val reason: String? = null
 )
 
+data class RentalAdminCancelBookingRequest(
+    @field:NotBlank @field:Size(max = 500) val reason: String
+)
+
 data class RentalVendorOnboardingRequest(
     @field:NotBlank val vendorType: String,
     @field:NotBlank @field:Size(max = 120) val fullName: String,
@@ -414,6 +418,7 @@ data class RentalAdminBookingResponse(
     val paymentStatus: String,
     val walletLedgerRef: String?,
     val status: String,
+    val cancellationReason: String? = null,
     val createdAt: Instant
 )
 
