@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.viewmodel.PasswordResetUiState
+import kotlinx.coroutines.delay
 
 @Composable
 fun ForgotPasswordScreen(
