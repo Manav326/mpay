@@ -88,15 +88,15 @@ export function useWebCapabilities(): WebCapabilities {
       if (!cancelled) setCapabilities(detected);
     };
 
+    const onViewportChange = () => { void refresh(); };
     void refresh();
-
-    window.addEventListener('resize', () => { void refresh(); });
-    window.addEventListener('orientationchange', () => { void refresh(); });
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
 
     return () => {
       cancelled = true;
-      window.removeEventListener('resize', () => { void refresh(); });
-      window.removeEventListener('orientationchange', () => { void refresh(); });
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('orientationchange', onViewportChange);
     };
   }, []);
 
