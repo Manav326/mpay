@@ -1203,7 +1203,8 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
 private fun RentalVehicleGallery(
     imageUrl: String?,
     driverPhotoUrl: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    loadThumbnails: Boolean = true
 ) {
     val urls = rentalPhotoSlots(imageUrl)
     var focusedIndex by remember(urls.joinToString("|")) { mutableIntStateOf(0) }
@@ -1218,18 +1219,20 @@ private fun RentalVehicleGallery(
                 urls[focusedIndex],
                 Modifier.fillMaxWidth().aspectRatio(1.75f)
             )
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                orderedSmall.take(3).forEach { index ->
-                    RentalCarImageTile(
-                        urls[index],
-                        Modifier
-                            .weight(1f)
-                            .aspectRatio(1.55f)
-                            .clickable { focusedIndex = index }
-                    )
+            if (loadThumbnails) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    orderedSmall.take(3).forEach { index ->
+                        RentalCarImageTile(
+                            urls[index],
+                            Modifier
+                                .weight(1f)
+                                .aspectRatio(1.55f)
+                                .clickable { focusedIndex = index }
+                        )
+                    }
                 }
             }
         }
@@ -1266,7 +1269,7 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth(), loadThumbnails = false)
                         Surface(
                             Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -3024,7 +3027,8 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                loadThumbnails = false
                             )
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
