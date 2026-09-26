@@ -848,14 +848,16 @@ class RentalService(
     }
 
     @Transactional
-    fun adminCancelBooking(bookingId: String, actorUserId: Long): RentalBookingResponse {
+    fun adminCancelBooking(bookingId: String, actorUserId: Long, reason: String): RentalBookingResponse {
         val booking = bookings.findByBookingIdForUpdate(bookingId)
             .orElseThrow { IllegalArgumentException("Rental booking not found") }
         check(booking.status == "CONFIRMED") { "Only confirmed rental bookings can be cancelled" }
         check(booking.startDate.isAfter(LocalDateTime.now())) { "Bookings starting today cannot be cancelled" }
+        require(reason.isNotBlank()) { "Cancellation reason is required" }
         val payment = rentalPaymentRepository.findByBookingIdAndUserId(bookingId, booking.userId)
             .orElseThrow { IllegalStateException("Rental payment not found for booking") }
         booking.status = "CANCELLED"
+        booking.cancellationReason = reason.trim().take(500)
         booking.updatedAt = Instant.now()
         rentalPayments.refund(payment)
         val saved = bookings.save(booking)
@@ -930,6 +932,7 @@ class RentalService(
                     paymentStatus = payment?.status ?: "UNKNOWN",
                     walletLedgerRef = booking.walletLedgerRef,
                     status = booking.status,
+                    cancellationReason = booking.cancellationReason,
                     createdAt = booking.createdAt
                 )
             },
