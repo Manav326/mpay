@@ -1269,7 +1269,7 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth(), loadThumbnails = false)
+                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
                         Surface(
                             Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -1568,7 +1568,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth(), loadThumbnails = false)
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
