@@ -10,6 +10,7 @@ import {
   CarFront,
   CheckCircle2,
   ChevronLeft,
+  ChevronRight,
   Clock3,
   CreditCard,
   Eye,
@@ -45,7 +46,12 @@ const dateTime = (v?: string) => v ? new Intl.DateTimeFormat('en-IN', { dateStyl
 const dateOnly = (v?: string) => v ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(v)) : '—';
 
 function cleanText(value: unknown, fallback = '—') {
-  const text = String(value ?? '').replace(/\\n/g, ' ').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = String(value ?? '')
+    .replace(/\\+(?:r)?n/g, ' ')
+    .replace(/\\+r/g, ' ')
+    .replace(/\r?\n/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return text || fallback;
 }
 
@@ -121,6 +127,7 @@ export default function RentalVendorReview() {
   const [rejectReason, setRejectReason] = useState('');
   const [vehicleRejectReason, setVehicleRejectReason] = useState('');
   const [inspectionConfirmed, setInspectionConfirmed] = useState(false);
+  const [inspectionPhotoIndex, setInspectionPhotoIndex] = useState(0);
 
   async function refresh() {
     setLoading(true);
@@ -161,6 +168,7 @@ export default function RentalVendorReview() {
     setSubmissionStatus('ALL');
     setInspectionConfirmed(false);
     setVehicleRejectReason('');
+    setInspectionPhotoIndex(0);
     setModal({ kind: 'submissions', vendor });
     await loadSubmissions(vendor);
   }
@@ -174,6 +182,7 @@ export default function RentalVendorReview() {
   function inspectVehicle(vendor: RentalAdminVendor, vehicle: any) {
     setVehicleRejectReason('');
     setInspectionConfirmed(false);
+    setInspectionPhotoIndex(0);
     setModal({ kind: 'inspection', vendor, vehicle });
   }
 
@@ -474,12 +483,24 @@ export default function RentalVendorReview() {
             <ModalHeader icon={<FileCheck2 size={18} />} eyebrow="Vehicle inspection" title={cleanText(modal.vehicle.name, 'Vehicle')} subtitle={`${cleanText(modal.vendor.fullName, 'Vendor')} · ${cleanText(modal.vehicle.approvalStatus, 'PENDING_REVIEW')}`} onClose={backToSubmissions} backLabel="Back to submissions" />
             <div className="rental-modal-body">
               <div className="inspection-hero">
-                <div className="inspection-photo-grid">
-                  {vehiclePhotos(modal.vehicle).map((src, index) => <PhotoTile key={src + index} src={src} alt={`Vehicle photo ${index + 1}`} label={`Photo ${index + 1}`} />)}
-                  <PhotoTile src={modal.vehicle.driverPhotoUrl} alt="Assigned driver" label="Driver" className="driver-photo-tile" />
-                </div>
+                <VehiclePhotoCarousel
+                  photos={vehiclePhotos(modal.vehicle)}
+                  activeIndex={Math.min(inspectionPhotoIndex, Math.max(vehiclePhotos(modal.vehicle).length - 1, 0))}
+                  onPrev={() => setInspectionPhotoIndex((current) => {
+                    const photos = vehiclePhotos(modal.vehicle);
+                    return photos.length ? (current - 1 + photos.length) % photos.length : 0;
+                  })}
+                  onNext={() => setInspectionPhotoIndex((current) => {
+                    const photos = vehiclePhotos(modal.vehicle);
+                    return photos.length ? (current + 1) % photos.length : 0;
+                  })}
+                  onSelect={setInspectionPhotoIndex}
+                />
                 <div className="inspection-summary">
-                  <StatusBadge value={modal.vehicle.approvalStatus} />
+                  <div className="inspection-summary-topline">
+                    <StatusBadge value={modal.vehicle.approvalStatus} />
+                    <span><CarFront size={12} /> Vehicle submission</span>
+                  </div>
                   <h3>{cleanText(modal.vehicle.name, 'Vehicle')}</h3>
                   <p>{cleanText([modal.vehicle.make, modal.vehicle.model, modal.vehicle.variant].filter(Boolean).join(' '), '—')}</p>
                   <div className="inspection-quick-grid">
@@ -513,13 +534,24 @@ export default function RentalVendorReview() {
               <section className="inspection-section">
                 <div className="inspection-section-title"><div><h3>Assigned driver</h3><p>Driver information returned by the rental service.</p></div><UserCheck size={18} /></div>
                 <div className="driver-review-card">
-                  <PhotoTile src={modal.vehicle.driverPhotoUrl} alt="Driver" label="Driver" className="driver-photo-large" />
-                  <div className="rental-info-grid driver-info-grid">
-                    <InfoCard icon={<UserRound size={15} />} label="Driver name" value={modal.vehicle.driverName} />
-                    <InfoCard icon={<Phone size={15} />} label="Mobile" value={modal.vehicle.driverMobile} />
-                    <InfoCard icon={<CreditCard size={15} />} label="Licence number" value={modal.vehicle.driverLicenseNumber} />
-                    <InfoCard icon={<CalendarDays size={15} />} label="Licence expiry" value={modal.vehicle.driverLicenseExpiry ? dateTime(modal.vehicle.driverLicenseExpiry) : null} />
-                    <InfoCard icon={<MapPin size={15} />} label="Driver address" value={modal.vehicle.driverAddress} />
+                  <div className="driver-photo-panel">
+                    <PhotoTile src={modal.vehicle.driverPhotoUrl} alt="Driver" label="Driver photo" className="driver-photo-large" />
+                    <div className="driver-photo-caption"><UserRound size={13} /><span>Assigned driver</span></div>
+                  </div>
+                  <div className="driver-info-content">
+                    <div className="driver-name-line">
+                      <div>
+                        <span>Assigned driver</span>
+                        <b>{cleanText(modal.vehicle.driverName, 'Driver not specified')}</b>
+                      </div>
+                      <StatusBadge value={modal.vehicle.driverStatus || (modal.vehicle.driverLicenseExpiry && new Date(modal.vehicle.driverLicenseExpiry).getTime() >= Date.now() ? 'ACTIVE' : 'PENDING')} />
+                    </div>
+                    <div className="rental-info-grid driver-info-grid">
+                      <InfoCard icon={<Phone size={15} />} label="Mobile" value={modal.vehicle.driverMobile} />
+                      <InfoCard icon={<CreditCard size={15} />} label="Licence number" value={modal.vehicle.driverLicenseNumber} />
+                      <InfoCard icon={<CalendarDays size={15} />} label="Licence expiry" value={modal.vehicle.driverLicenseExpiry ? dateTime(modal.vehicle.driverLicenseExpiry) : null} />
+                      <InfoCard icon={<MapPin size={15} />} label="Driver address" value={modal.vehicle.driverAddress} />
+                    </div>
                   </div>
                 </div>
               </section>
@@ -568,6 +600,57 @@ function ModalHeader({
         <div><div className="eyebrow">{eyebrow}</div><h2>{title}</h2><p>{subtitle}</p></div>
       </div>
       <button className="icon-btn" onClick={onClose}><X size={18} /></button>
+    </div>
+  );
+}
+
+function VehiclePhotoCarousel({
+  photos,
+  activeIndex,
+  onPrev,
+  onNext,
+  onSelect,
+}: {
+  photos: string[];
+  activeIndex: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onSelect: (index: number) => void;
+}) {
+  const safeIndex = photos.length ? Math.min(activeIndex, photos.length - 1) : 0;
+  const activePhoto = photos[safeIndex];
+
+  return (
+    <div className="inspection-vehicle-gallery">
+      <div className="inspection-gallery-stage">
+        <PhotoTile
+          src={activePhoto}
+          alt={activePhoto ? `Vehicle photo ${safeIndex + 1}` : 'Vehicle'}
+          label={activePhoto ? `Photo ${safeIndex + 1} of ${photos.length}` : 'Vehicle photo'}
+          className="inspection-gallery-main"
+        />
+        {photos.length > 1 && (
+          <>
+            <button className="inspection-gallery-nav prev" type="button" onClick={onPrev} aria-label="Previous vehicle photo"><ChevronLeft size={17} /></button>
+            <button className="inspection-gallery-nav next" type="button" onClick={onNext} aria-label="Next vehicle photo"><ChevronRight size={17} /></button>
+          </>
+        )}
+      </div>
+      {photos.length > 1 && (
+        <div className="inspection-gallery-thumbs">
+          {photos.map((photo, index) => (
+            <button
+              key={photo + index}
+              type="button"
+              className={`inspection-gallery-thumb ${index === safeIndex ? 'active' : ''}`}
+              onClick={() => onSelect(index)}
+              aria-label={`Show vehicle photo ${index + 1}`}
+            >
+              <PhotoTile src={photo} alt={`Vehicle thumbnail ${index + 1}`} />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
