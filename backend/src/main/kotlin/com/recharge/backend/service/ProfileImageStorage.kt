@@ -51,13 +51,17 @@ class LocalProfileImageStorage(
         val original = runCatching { resolve(key) }.getOrNull() ?: return null
         if (!Files.exists(original) || !Files.isRegularFile(original)) return null
 
-        val target = if (variant == ImageVariant.MEDIUM) {
+        val target = runCatching {
             ImageVariantSupport.ensureVariant(root, key, variant)
-        } else {
-            ImageVariantSupport.ensureVariant(root, key, variant)
+        }.getOrElse {
+            original
         }
 
-        val contentType = "image/jpeg"
+        val contentType = when (target.fileName.toString().substringAfterLast('.', "jpg").lowercase()) {
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            else -> "image/jpeg"
+        }
         val resource = FileSystemResource(target.toFile())
         if (!resource.exists() || !resource.isReadable) return null
         return ProfileImageStorage.StoredImage(
