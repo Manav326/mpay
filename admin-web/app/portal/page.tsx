@@ -155,7 +155,7 @@ function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function imageFromCar(car?: RentalCar, slot = 0, variant: 'thumb' | 'large' = 'thumb') {
+function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(car?.imageUrl || '');
   const values = raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean);
   const value = values[slot] || '';
@@ -165,7 +165,7 @@ function imageFromCar(car?: RentalCar, slot = 0, variant: 'thumb' | 'large' = 't
   return url + '?variant=' + variant;
 }
 
-function vehiclePhotoSlots(car?: RentalCar): string[] {
+function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
   const raw = String(car?.imageUrl || '');
   return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4).concat(['', '', '', '']).slice(0, 4);
 }
@@ -175,7 +175,7 @@ function VehicleFourPhotoGallery({
   priority = false,
   className = '',
 }: {
-  car?: RentalCar;
+  car?: Pick<RentalCar, 'imageUrl' | 'name'>;
   priority?: boolean;
   className?: string;
 }) {
@@ -2559,7 +2559,7 @@ export default function Portal() {
                 return <article className="rental-booking-card" key={b.bookingId}>
                   <div className="rental-booking-card-image">
                     <VehicleFourPhotoGallery
-                       car={{ ...rentalBookingCar, id: b.bookingId, name: b.carName, imageUrl: b.carImageUrl, driverName: b.driverName || 'Driver' }}
+                       car={{ name: b.carName, imageUrl: b.carImageUrl }}
                        priority={false}
                      />
                   </div>
