@@ -19,7 +19,7 @@ type RechargeItem = {
   transactionId?: string; clientRequestId?: string; mobileNumber?: string; recipientName?: string | null; operator?: string; circle?: string;
   amount?: number; walletDebitAmount?: number; status?: string; createdAt?: string; updatedAt?: string; completedAt?: string | null;
   planDescription?: string | null; planValidity?: string | null; provider?: string; providerReference?: string | null;
-  message?: string | null; completedAt?: string | null; clientCommission?: number;
+  message?: string | null; clientCommission?: number;
 };
 type WalletItem = {
   id?: string | number; type?: string; amount?: number; status?: string; referenceId?: string;
