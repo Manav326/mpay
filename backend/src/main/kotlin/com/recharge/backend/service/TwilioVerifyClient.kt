@@ -7,7 +7,11 @@ import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 
-class OtpDeliveryException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+class OtpDeliveryException(
+    message: String,
+    cause: Throwable? = null,
+    val upstreamStatusCode: Int? = null
+) : RuntimeException(message, cause)
 
 @Component
 class TwilioVerifyClient(
