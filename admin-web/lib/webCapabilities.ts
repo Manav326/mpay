@@ -110,3 +110,5 @@ export function useWebCapabilities(): WebCapabilities {
 
   return capabilities;
 }
+
+// Build verification: keep customer web capability detection covered by Admin Web CI.\n
