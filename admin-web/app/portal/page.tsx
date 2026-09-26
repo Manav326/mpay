@@ -593,6 +593,7 @@ export default function Portal() {
             provider:'razorpay', paymentId:response.razorpay_payment_id, orderId:response.razorpay_order_id, signature:response.razorpay_signature
           })});
           await refreshWallet();
+          await loadHistory();
           await loadWalletHistory(0);
           await loadWithdrawals(0);
           setNotice(purpose === 'recharge'
@@ -612,6 +613,7 @@ export default function Portal() {
         const verified=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'payu',orderId})});
         if(verified.status==='CAPTURED' || verified.transactionId || verified.rechargeStatus){
           await refreshWallet();
+          await loadHistory();
           await loadWalletHistory(0);
           await loadWithdrawals(0);
           setNotice(purpose === 'recharge'
@@ -657,9 +659,8 @@ export default function Portal() {
       if(addMoneyProvider==='mock'){
         await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
         await refreshWallet();
-          setAddMoneyAmount('');
+        setAddMoneyAmount('');
         setNotice('Mock wallet top-up completed.');
-        await refreshWallet();
         await loadWalletHistory(0);
         await loadWithdrawals(0);
       } else if(addMoneyProvider==='razorpay') {
