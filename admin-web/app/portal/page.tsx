@@ -2817,7 +2817,7 @@ export default function Portal() {
                   return (
                     <article className="vendor-vehicle-android-card" key={car.id} onClick={()=>setSelectedVendorVehicle(car)}>
                       <div className="vendor-vehicle-gallery-main">
-                        {imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={30}/>}
+                        <VehicleFourPhotoGallery car={car} priority={carIndex < 2} />
                         <span className="vendor-vehicle-category">{car.category}</span>
                       </div>
                       <div className="vendor-vehicle-card-content">
