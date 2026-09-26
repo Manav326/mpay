@@ -170,6 +170,10 @@ export default function Portal() {
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
   const [selectedWalletItem, setSelectedWalletItem] = useState<WalletItem>();
   const [selectedRechargeDetail, setSelectedRechargeDetail] = useState<any>();
+  const [selectedWithdrawalDetail, setSelectedWithdrawalDetail] = useState<any>();
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [commissionSummary, setCommissionSummary] = useState<any>();
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
@@ -335,11 +339,17 @@ export default function Portal() {
   async function openWalletItem(item: WalletItem) {
     setSelectedWalletItem(item);
     setSelectedRechargeDetail(undefined);
-    if (String(item.referenceType || '').toUpperCase() !== 'RECHARGE' || !item.referenceId) return;
+    setSelectedWithdrawalDetail(undefined);
+    const referenceType = String(item.referenceType || '').toUpperCase();
+    if (!item.referenceId) return;
     try {
-      setSelectedRechargeDetail(await api<any>('/api/v1/recharge/' + encodeURIComponent(String(item.referenceId))));
+      if (referenceType === 'RECHARGE') {
+        setSelectedRechargeDetail(await api<any>('/api/v1/recharge/' + encodeURIComponent(String(item.referenceId))));
+      } else if (referenceType === 'WITHDRAWAL') {
+        setSelectedWithdrawalDetail(await api<any>('/api/v1/wallet/withdrawals/' + encodeURIComponent(String(item.referenceId))));
+      }
     } catch (e:any) {
-      setNotice(e.message || 'Unable to load recharge transaction details.');
+      setNotice(e.message || (referenceType === 'WITHDRAWAL' ? 'Unable to load withdrawal transaction details.' : 'Unable to load recharge transaction details.'));
     }
   }
 
@@ -386,6 +396,25 @@ export default function Portal() {
     } catch(e:any) { setNotice(e.message || 'Unable to remove profile photo.'); }
     finally { setBusy(false); }
   }
+  async function deleteAccount() {
+    if (deletePassword.trim().length === 0 || deleteConfirmation.trim().toUpperCase() !== 'DELETE') return;
+    setDeletingAccount(true);
+    setNotice('');
+    try {
+      await api('/api/v1/account/deletion', {
+        method: 'POST',
+        body: JSON.stringify({ password: deletePassword, confirmation: deleteConfirmation })
+      });
+      localStorage.removeItem('mpay_token');
+      localStorage.removeItem('mpay_refresh_token');
+      window.location.href = '/';
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to delete your account.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
 
   async function ensureScript(src:string) {
     const existing = document.querySelector('script[data-mpay-provider="' + src + '"]') as HTMLScriptElement | null;
@@ -1017,6 +1046,25 @@ export default function Portal() {
           {editingProfile && <div className="profile-edit-form"><input value={profileForm.name} placeholder="Full name" onChange={e=>setProfileForm({...profileForm,name:e.target.value})}/><input value={profileForm.email} placeholder="Email" onChange={e=>setProfileForm({...profileForm,email:e.target.value})}/><button className="landing-primary" disabled={busy} onClick={saveProfile}><Save size={15}/> Save profile</button></div>}
         </div>
 
+        <div className="portal-panel account-security-panel">
+          <div className="panel-head">
+            <div><h2>Account & privacy</h2><p>Manage your account lifecycle and account deletion.</p></div>
+            <ShieldCheck size={22}/>
+          </div>
+          <div className="account-security-links">
+            <a className="landing-secondary" href="/privacy-policy" target="_blank" rel="noreferrer">Privacy policy <ArrowRight size={14}/></a>
+            <a className="landing-secondary" href="/delete-account" target="_blank" rel="noreferrer">Account deletion information <ArrowRight size={14}/></a>
+          </div>
+          <div className="danger-panel">
+            <div><b>Delete your mPay account</b><span>This permanently disables the account and removes or redacts personal data. Financial records required for reconciliation are retained in redacted form.</span></div>
+            <div className="danger-panel-form">
+              <label>Password<input type="password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)} placeholder="Enter your password"/></label>
+              <label>Type DELETE to confirm<input value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE" autoCapitalize="characters"/></label>
+              <button className="text-danger-btn" disabled={deletingAccount || !deletePassword.trim() || deleteConfirmation.trim().toUpperCase()!=='DELETE'} onClick={deleteAccount}>{deletingAccount?'Deleting account…':'Delete account'}</button>
+            </div>
+          </div>
+        </div>
+
         <div className="portal-panel vendor-hub">
           <div className="vendor-hub-hero">
             <div className="vendor-hub-icon"><CarFront size={25}/></div>
@@ -1099,7 +1147,7 @@ export default function Portal() {
       </section>}
 
       {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div>
-          {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>Wallet debit <b>{money(selectedRechargeDetail.walletDebitAmount)}</b></span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}</div></div>}
+          {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>Wallet debit <b>{money(selectedRechargeDetail.walletDebitAmount)}</b></span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}          {selectedWithdrawalDetail && <div className="recharge-detail-box"><h3>Withdrawal details</h3><div className="detail-grid-web"><span>Withdrawal <b>{selectedWithdrawalDetail.withdrawalId || '—'}</b></span><span>Amount <b className="amount-debit">{money(selectedWithdrawalDetail.amount)}</b></span><span>UPI ID <b>{selectedWithdrawalDetail.upiId || '—'}</b></span><span>Status <b>{selectedWithdrawalDetail.status || '—'}</b></span><span>Provider <b>{selectedWithdrawalDetail.provider || '—'}</b></span><span>Provider status <b>{selectedWithdrawalDetail.providerStatus || '—'}</b></span><span>Provider reference <b>{selectedWithdrawalDetail.providerReference || '—'}</b></span><span>Wallet ledger <b>{selectedWithdrawalDetail.walletLedgerRef || '—'}</b></span><span>Failure reason <b>{selectedWithdrawalDetail.failureReason || '—'}</b></span><span>Created <b>{dt(selectedWithdrawalDetail.createdAt)}</b></span><span>Completed <b>{dt(selectedWithdrawalDetail.completedAt)}</b></span></div></div>}</div></div>}
 
       {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
         <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
