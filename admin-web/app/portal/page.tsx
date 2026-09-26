@@ -1893,7 +1893,7 @@ export default function Portal() {
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>QUICK ACTIONS</span></div>
+            <div><h2>Quick Actions</h2></div>
           </div>
           <div className="android-home-quick-card">
             <button className="android-action-card recharge" onClick={()=>setView('recharge')}>
@@ -1910,7 +1910,7 @@ export default function Portal() {
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>MARKETPLACE</span></div>
+            <div><h2>Marketplace</h2></div>
           </div>
           <button className="android-marketplace-card" onClick={()=>setView('rental')}>
             <span className="android-marketplace-icon"><Car size={21}/></span>
