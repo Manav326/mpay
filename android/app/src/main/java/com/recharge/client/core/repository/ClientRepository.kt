@@ -2,6 +2,8 @@ package com.recharge.client.core.repository
 
 import android.content.Context
 import android.net.Uri
+import com.recharge.client.core.model.AccountDeletionRequest
+import com.recharge.client.core.model.AccountDeletionResponse
 import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
