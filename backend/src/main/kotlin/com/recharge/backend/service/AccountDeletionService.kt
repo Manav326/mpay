@@ -283,7 +283,7 @@ class AccountDeletionService(
 
         val redactedPassword = passwordEncoder.encode(UUID.randomUUID().toString())
         val replacementMobile = uniqueDeletedMobile()
-        val replacementPublicId = "deleted-" + UUID.randomUUID().toString()
+        val replacementPublicId = UUID.randomUUID().toString()
 
         user.mobile = replacementMobile
         user.publicId = replacementPublicId
