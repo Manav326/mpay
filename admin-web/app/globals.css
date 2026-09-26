@@ -617,3 +617,42 @@
   .rental-cancel-footer{padding:10px 14px;flex-direction:column-reverse}
   .rental-cancel-footer button{width:100%;justify-content:center}
 }
+
+
+/* Admin shell — premium role badge, image-first profile and cleaner collapsible navigation */
+.admin-role-badge{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 7px;border:1px solid #eadfce;border-radius:999px;background:linear-gradient(180deg,#fffdf9,#fff8ed);box-shadow:0 4px 16px rgba(47,37,28,.06)}
+.admin-role-badge-icon{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#f7d27d,#f1a92d);color:#fff;box-shadow:0 3px 8px rgba(217,119,6,.22)}
+.admin-role-badge b{display:block;font-size:9px;letter-spacing:.09em;color:#7f560e}
+.admin-role-badge small{display:block;margin-top:1px;font-size:7px;letter-spacing:.04em;color:#a09484}
+.admin-profile-menu{position:relative}
+.admin-user-chip{width:42px;height:42px;padding:2px;border:1px solid #e7ddcf;background:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:3px;cursor:pointer;box-shadow:0 6px 18px rgba(47,37,28,.08)}
+.admin-user-chip:hover{border-color:#d9c59f;box-shadow:0 9px 24px rgba(47,37,28,.11)}
+.admin-user-chip .avatar,.admin-user-chip .admin-avatar-image{width:36px;height:36px;border-radius:11px}
+.profile-chevron{color:#8d8174;transition:transform .16s ease}.profile-chevron.open{transform:rotate(180deg)}
+.admin-profile-popover{top:52px;width:min(360px,calc(100vw - 24px));padding:0;border-radius:18px;overflow:hidden;box-shadow:0 26px 70px rgba(35,27,18,.19)}
+.profile-popover-title{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px 10px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fffdf9,#fcfaf6)}
+.profile-popover-title span,.profile-popover-title b{display:block}.profile-popover-title span{font-size:8px;text-transform:uppercase;letter-spacing:.11em;color:#9a8e80;font-weight:900}.profile-popover-title b{font-size:12px;margin-top:3px}
+.profile-popover-title .icon-btn{width:29px;height:29px;border-radius:9px}
+.profile-popover-head{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:center;padding:14px}
+.profile-popover-head>div:last-child{min-width:0}
+.admin-avatar-large{width:52px;height:52px;border-radius:16px;object-fit:cover;border:1px solid var(--border);flex:none}
+.profile-popover-head>b,.profile-popover-head>div>b,.profile-popover-head span,.profile-popover-head small{display:block}
+.profile-popover-head>div>b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-popover-head span{display:flex;align-items:center;gap:4px;margin-top:3px;color:#94600a;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.profile-popover-head small{margin-top:5px;color:var(--muted);font-size:9px;line-height:1.35;overflow-wrap:anywhere}
+.admin-profile-popover>.alert{margin:0 14px 10px;font-size:9px}
+.profile-popover-actions{display:grid;grid-template-columns:1fr auto;gap:7px;padding:0 14px 13px}
+.profile-popover-actions .secondary{justify-content:center;min-height:35px;font-size:10px}
+.profile-popover-divider{height:1px;background:var(--border)}
+.profile-logout{width:100%;border:0;background:#fff;color:#a52f29;display:flex;align-items:center;gap:7px;padding:11px 14px;cursor:pointer;font-size:10px;font-weight:900;text-align:left}
+.profile-logout:hover{background:#fff6f5}
+.profile-popover-security{display:flex;align-items:center;gap:5px;padding:0 14px 12px;color:#9a9083;font-size:8px}
+.sidebar.collapsed .side-bottom{align-items:stretch}
+.sidebar.collapsed .side-bottom .nav{min-height:40px}
+.sidebar.collapsed .side-bottom .nav span{display:none}
+.sidebar.collapsed .side-bottom .nav{justify-content:center}
+@media(max-width:800px){
+  .admin-role-badge{display:none}
+  .admin-user-chip{width:40px;height:40px}
+  .admin-profile-popover{right:-4px}
+}
