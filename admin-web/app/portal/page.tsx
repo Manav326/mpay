@@ -2835,13 +2835,18 @@ export default function Portal() {
             <div className="panel-head"><div><h2>Edit profile</h2><p>Update your name, email and profile photo.</p></div><button className="icon-btn" onClick={()=>!busy&&setEditingProfile(false)}><X size={17}/></button></div>
             <div className="profile-edit-preview">
               <div className="account-profile-avatar">
-                {profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}
+                {pendingProfileImagePreview ? <img src={pendingProfileImagePreview} alt="Profile"/> : profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}
               </div>
               <div><label className="photo-file-button landing-secondary compact"><Camera size={13}/> {pendingProfileImageFile?'Change':'Change photo'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>chooseProfileImage(e.target.files?.[0]||null)}/></label>{profileImage&&<button className="text-danger-btn" onClick={removeProfileImage} disabled={busy}>Remove</button>}</div>
             </div>
             <label className="account-modal-field">Full name<input value={profileForm.name} onChange={e=>setProfileForm({...profileForm,name:e.target.value.slice(0,120)})}/></label>
             <label className="account-modal-field">Email<input type="email" value={profileForm.email} onChange={e=>setProfileForm({...profileForm,email:e.target.value.slice(0,254)})}/></label>
-            <div className="form-actions"><button className="landing-secondary" onClick={()=>setEditingProfile(false)} disabled={busy}>Cancel</button><button className="landing-primary" onClick={async()=>{await saveProfile();setEditingProfile(false)}} disabled={busy}>{busy?'Saving…':'Save'}</button></div>
+            <div className="form-actions"><button className="landing-secondary" onClick={()=>{
+              if(pendingProfileImagePreview.startsWith('blob:')) URL.revokeObjectURL(pendingProfileImagePreview);
+              setPendingProfileImageFile(null);
+              setPendingProfileImagePreview('');
+              setEditingProfile(false);
+            }} disabled={busy}>Cancel</button><button className="landing-primary" onClick={async()=>{await saveProfile();setEditingProfile(false)}} disabled={busy}>{busy?'Saving…':'Save'}</button></div>
           </div>
         </div>}
 
