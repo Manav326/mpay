@@ -1,6 +1,5 @@
 package com.recharge.backend.service
 
-import com.recharge.backend.domain.UserEntity
 import com.recharge.backend.repository.UserRepository
 import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
@@ -330,8 +329,7 @@ class AccountDeletionService(
 
     private fun parseRentalPhotoKeys(value: String?): List<String> =
         value.orEmpty()
-            .replace("
-", "|")
+            .replace("\\n", "|")
             .split("|")
             .mapNotNull(::rentalPhotoKey)
             .take(4)
