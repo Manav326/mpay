@@ -41,9 +41,9 @@ android {
 
             if (keystorePath.isPresent) {
                 storeFile = file(keystorePath.get())
-                storePassword?.let { this.storePassword = it }
-                keyAlias?.let { this.keyAlias = it }
-                keyPassword?.let { this.keyPassword = it }
+                storePassword.orNull?.let { this.storePassword = it }
+                keyAlias.orNull?.let { this.keyAlias = it }
+                keyPassword.orNull?.let { this.keyPassword = it }
             }
         }
     }
