@@ -3707,10 +3707,20 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   min-width:0;
 }
 .android-recharge-history-card{
-  margin-top:12px;
+  margin-top:20px;
 }
 .android-home-section-title{
   min-height:24px;
+}
+.android-home-earnings-section{
+  margin-top:22px;
+}
+.android-home-earnings-section .android-home-section-title{
+  margin-bottom:12px;
+  padding-inline:2px;
+}
+.android-home-secondary-section{
+  margin-top:20px;
 }
 .portal-wallet-parity,
 .recharge-history-page,
