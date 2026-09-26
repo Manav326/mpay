@@ -832,9 +832,9 @@ export default function Portal() {
     void monitorPayUVerification(orderId,purpose);
   }
 
-  async function addMoney() {
+  async function addMoney(): Promise<boolean> {
     const amount=Number(addMoneyAmount);
-    if (!(amount >= 1 && amount <= 50000)) { setNotice('Enter a wallet top-up amount between ₹1 and ₹50,000.'); return; }
+    if (!(amount >= 1 && amount <= 50000)) { setNotice('Enter a wallet top-up amount between ₹1 and ₹50,000.'); return false; }
     setBusy(true); setNotice('');
     try {
       const order=await api<any>('/api/v1/payments/orders',{method:'POST',body:JSON.stringify({
@@ -852,19 +852,20 @@ export default function Portal() {
       } else {
         await launchPayU(order,'wallet');
       }
-    } catch(e:any) { setNotice(e.message || 'Unable to start wallet top-up.'); }
+    } catch(e:any) { setNotice(e.message || 'Unable to start wallet top-up.'); return false; }
     finally { setBusy(false); }
+    return true;
   }
 
-  async function withdrawMoney() {
+  async function withdrawMoney(): Promise<boolean> {
     const amount=Number(withdrawAmount);
     const upi=withdrawUpi.trim();
     const availableBalance = Number(wallet?.availableBalance || 0);
     if (!(amount >= 1) || amount > availableBalance) {
       setNotice('Enter a valid withdrawal amount of at least ₹1 and no more than the available balance.');
-      return;
+      return false;
     }
-    if (!/^[A-Za-z0-9]+@[A-Za-z]+$/.test(upi)) { setNotice('Enter a valid UPI ID.'); return; }
+    if (!/^[A-Za-z0-9]+@[A-Za-z]+$/.test(upi)) { setNotice('Enter a valid UPI ID.'); return false; }
     setBusy(true); setNotice('');
     try {
       const result=await api<WithdrawalItem>('/api/v1/wallet/withdraw',{method:'POST',body:JSON.stringify({
@@ -876,8 +877,9 @@ export default function Portal() {
       setNotice(result.message || ('Withdrawal ' + String(result.status || '').toLowerCase() + ' for ' + upi + '.'));
       await loadWalletHistory(0);
       await loadWithdrawals(0);
-    } catch(e:any) { setNotice(e.message || 'Unable to withdraw money.'); }
+    } catch(e:any) { setNotice(e.message || 'Unable to withdraw money.'); return false; }
     finally { setBusy(false); }
+    return true;
   }
 
   async function detect() {
@@ -1390,7 +1392,7 @@ export default function Portal() {
                   <div className="wallet-input-shell"><span>₹</span><input inputMode="decimal" maxLength={10} value={addMoneyAmount} onChange={e=>setAddMoneyAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Enter amount"/></div>
                 </label>
                 <div className="wallet-field-help">Minimum ₹1 · Maximum ₹50,000</div>
-                <button className="wallet-primary-wide" disabled={busy || !(Number(addMoneyAmount)>=1 && Number(addMoneyAmount)<=50000)} onClick={async()=>{await addMoney();if(!notice)setHomeActionModal(null);}}>
+                <button className="wallet-primary-wide" disabled={busy || !(Number(addMoneyAmount)>=1 && Number(addMoneyAmount)<=50000)} onClick={async()=>{if(await addMoney())setHomeActionModal(null);}}>
                   {busy ? 'Processing…' : 'Continue'} <ArrowRight size={15}/>
                 </button>
               </>
@@ -1409,7 +1411,7 @@ export default function Portal() {
                   </label>
                 </div>
                 <div className="wallet-field-help">Minimum ₹1 · Available {money(wallet?.availableBalance)}</div>
-                <button className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{await withdrawMoney();if(!notice)setHomeActionModal(null);}}>
+                <button className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{if(await withdrawMoney())setHomeActionModal(null);}}>
                   {busy ? 'Processing…' : 'Withdraw'} <ArrowRight size={15}/>
                 </button>
               </>
