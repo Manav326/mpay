@@ -15,13 +15,19 @@ sealed interface PasswordResetUiState {
     data class OtpSent(val expiresInSeconds: Long, val demoOtp: String? = null, val deliveryMode: String = "twilio") : PasswordResetUiState
     data object Resetting : PasswordResetUiState
     data object Success : PasswordResetUiState
-    data class Error(val message: String) : PasswordResetUiState
+    data class Error(
+        val message: String,
+        val otpSent: Boolean = false,
+        val demoOtp: String? = null,
+        val deliveryMode: String = "way2api"
+    ) : PasswordResetUiState
 }
 
 class PasswordResetViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AuthRepository.getInstance(application)
     private val _state = MutableStateFlow<PasswordResetUiState>(PasswordResetUiState.Idle)
     val state = _state.asStateFlow()
+    private var lastOtpSent: PasswordResetUiState.OtpSent? = null
 
     fun requestOtp(mobile: String) {
         if (_state.value is PasswordResetUiState.Sending || _state.value is PasswordResetUiState.Resetting) return
@@ -40,13 +46,22 @@ class PasswordResetViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             _state.value = repository.resetPassword(mobile, otp, newPassword).fold(
                 onSuccess = { PasswordResetUiState.Success },
-                onFailure = { PasswordResetUiState.Error(it.message ?: "Unable to reset password") }
+                onFailure = {
+                    val last = lastOtpSent
+                    PasswordResetUiState.Error(
+                        message = it.message ?: "Unable to reset password",
+                        otpSent = last != null,
+                        demoOtp = last?.demoOtp,
+                        deliveryMode = last?.deliveryMode ?: "way2api"
+                    )
+                }
             )
         }
     }
 
     fun clear() {
         viewModelScope.coroutineContext.cancelChildren()
+        lastOtpSent = null
         _state.value = PasswordResetUiState.Idle
     }
 }
