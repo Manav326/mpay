@@ -519,54 +519,58 @@ export default function RentalVendorReview() {
                     <QuickStat icon={<CarFront size={14} />} label="Transmission" value={modal.vehicle.transmission} />
                     <QuickStat icon={<BadgeCheck size={14} />} label="Fuel" value={modal.vehicle.fuelType} />
                   </div>
+                  <div className="inspection-summary-meta">
+                    <span><CalendarDays size={12} /> Submitted {dateTime(modal.vehicle.createdAt || modal.vehicle.submittedAt)}</span>
+                    <span><FileText size={12} /> ID {cleanText(modal.vehicle.id)}</span>
+                  </div>
                 </div>
               </div>
 
-              <section className="inspection-section">
-                <div className="inspection-section-title"><div><h3>Vehicle information</h3><p>Review identity, pricing and pickup information before deciding.</p></div></div>
-                <div className="rental-info-grid">
-                  <InfoCard label="Vehicle ID" value={modal.vehicle.id} />
-                  <InfoCard label="Category" value={modal.vehicle.category} />
-                  <InfoCard label="Make" value={modal.vehicle.make} />
-                  <InfoCard label="Model" value={modal.vehicle.model} />
-                  <InfoCard label="Variant" value={modal.vehicle.variant} />
-                  <InfoCard label="Registration number" value={modal.vehicle.registrationNumber} />
-                  <InfoCard label="Manufacturing year" value={modal.vehicle.manufacturingYear} />
-                  <InfoCard label="Registration year" value={modal.vehicle.registrationYear} />
-                  <InfoCard label="Pickup address" value={modal.vehicle.pickupAddress} />
-                  <InfoCard label="City / State" value={`${cleanText(modal.vehicle.city)}, ${cleanText(modal.vehicle.state)}`} />
-                  <InfoCard label="Pickup latitude" value={modal.vehicle.pickupLatitude} />
-                  <InfoCard label="Pickup longitude" value={modal.vehicle.pickupLongitude} />
-                  <InfoCard label="Pickup Place ID" value={modal.vehicle.pickupPlaceId} />
-                </div>
-              </section>
-
-              <section className="inspection-section">
-                <div className="inspection-section-title"><div><h3>Assigned driver</h3><p>Driver information returned by the rental service.</p></div><UserCheck size={18} /></div>
-                <div className="driver-review-card">
-                  <div className="driver-photo-panel">
-                    <PhotoTile src={modal.vehicle.driverPhotoUrl} alt="Driver" label="Driver photo" className="driver-photo-large" />
-                    <div className="driver-photo-caption"><UserRound size={13} /><span>Assigned driver</span></div>
+              <div className="inspection-grid">
+                <section className="inspection-section inspection-info-section">
+                  <div className="inspection-section-title"><div><h3>Vehicle information</h3><p>Identity, pricing and pickup details.</p></div></div>
+                  <div className="rental-info-grid">
+                    <InfoCard label="Category" value={modal.vehicle.category} />
+                    <InfoCard label="Make / model" value={[modal.vehicle.make, modal.vehicle.model].filter(Boolean).join(' ')} />
+                    <InfoCard label="Variant" value={modal.vehicle.variant} />
+                    <InfoCard label="Registration" value={modal.vehicle.registrationNumber} />
+                    <InfoCard label="Manufacturing year" value={modal.vehicle.manufacturingYear} />
+                    <InfoCard label="Registration year" value={modal.vehicle.registrationYear} />
+                    <InfoCard label="Price / day" value={INR.format(Number(modal.vehicle.pricePerDay || 0))} />
+                    <InfoCard label="Pickup address" value={modal.vehicle.pickupAddress} />
+                    <InfoCard label="City / State" value={`${cleanText(modal.vehicle.city)}, ${cleanText(modal.vehicle.state)}`} />
+                    <InfoCard label="Pickup coordinates" value={[modal.vehicle.pickupLatitude, modal.vehicle.pickupLongitude].filter(v => v !== undefined && v !== null && v !== '').join(', ')} />
+                    <InfoCard label="Pickup Place ID" value={modal.vehicle.pickupPlaceId} />
                   </div>
-                  <div className="driver-info-content">
-                    <div className="driver-name-line">
-                      <div>
-                        <span>Assigned driver</span>
-                        <b>{cleanText(modal.vehicle.driverName, 'Driver not specified')}</b>
+                </section>
+
+                <section className="inspection-section inspection-driver-section">
+                  <div className="inspection-section-title"><div><h3>Assigned driver</h3><p>Driver identity and licence details.</p></div><UserCheck size={17} /></div>
+                  <div className="driver-review-card">
+                    <div className="driver-photo-panel">
+                      <PhotoTile src={modal.vehicle.driverPhotoUrl} alt="Driver" label="Driver photo" className="driver-photo-large" />
+                      <div className="driver-photo-caption"><UserRound size={13} /><span>Assigned driver</span></div>
+                    </div>
+                    <div className="driver-info-content">
+                      <div className="driver-name-line">
+                        <div>
+                          <span>Assigned driver</span>
+                          <b>{cleanText(modal.vehicle.driverName, 'Driver not specified')}</b>
+                        </div>
+                        <StatusBadge value={modal.vehicle.driverStatus || (modal.vehicle.driverLicenseExpiry && new Date(modal.vehicle.driverLicenseExpiry).getTime() >= Date.now() ? 'ACTIVE' : 'PENDING')} />
                       </div>
-                      <StatusBadge value={modal.vehicle.driverStatus || (modal.vehicle.driverLicenseExpiry && new Date(modal.vehicle.driverLicenseExpiry).getTime() >= Date.now() ? 'ACTIVE' : 'PENDING')} />
-                    </div>
-                    <div className="rental-info-grid driver-info-grid">
-                      <InfoCard icon={<Phone size={15} />} label="Mobile" value={modal.vehicle.driverMobile} />
-                      <InfoCard icon={<CreditCard size={15} />} label="Licence number" value={modal.vehicle.driverLicenseNumber} />
-                      <InfoCard icon={<CalendarDays size={15} />} label="Licence expiry" value={modal.vehicle.driverLicenseExpiry ? dateTime(modal.vehicle.driverLicenseExpiry) : null} />
-                      <InfoCard icon={<MapPin size={15} />} label="Driver address" value={modal.vehicle.driverAddress} />
+                      <div className="rental-info-grid driver-info-grid">
+                        <InfoCard icon={<Phone size={15} />} label="Mobile" value={modal.vehicle.driverMobile} />
+                        <InfoCard icon={<CreditCard size={15} />} label="Licence number" value={modal.vehicle.driverLicenseNumber} />
+                        <InfoCard icon={<CalendarDays size={15} />} label="Licence expiry" value={modal.vehicle.driverLicenseExpiry ? dateTime(modal.vehicle.driverLicenseExpiry) : null} />
+                        <InfoCard icon={<MapPin size={15} />} label="Driver address" value={modal.vehicle.driverAddress} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              </div>
 
-              {modal.vehicle.rejectionReason && <div className="rental-review-note danger"><AlertCircle size={16} /><div><b>Review note</b><span>{cleanText(modal.vehicle.rejectionReason)}</span></div></div>}
+              <ReviewTimeline vendor={modal.vendor} vehicle={modal.vehicle} />
 
               {isPendingVehicle(modal.vehicle.approvalStatus) && (
                 <DecisionFooter
@@ -589,6 +593,85 @@ export default function RentalVendorReview() {
         </div>
       )}
     </>
+  );
+}
+
+function ReviewTimeline({ vendor, vehicle }: { vendor: RentalAdminVendor; vehicle: any }) {
+  const events = (() => {
+    const sourceNotes = [
+      ...(Array.isArray(vehicle?.reviewHistory) ? vehicle.reviewHistory : []),
+      ...(Array.isArray(vehicle?.reviewNotes) ? vehicle.reviewNotes : []),
+      ...(Array.isArray(vehicle?.statusHistory) ? vehicle.statusHistory : []),
+      ...(Array.isArray(vendor?.reviewHistory) ? vendor.reviewHistory : []),
+    ];
+    const mapped = sourceNotes.map((entry: any, index: number) => ({
+      id: String(entry?.id || index),
+      at: entry?.createdAt || entry?.updatedAt || entry?.timestamp || vehicle?.updatedAt || vehicle?.createdAt || vendor?.updatedAt || vendor?.submittedAt,
+      status: entry?.status || entry?.approvalStatus || entry?.type || 'REVIEW',
+      note: entry?.note || entry?.message || entry?.reason || entry?.description || '',
+      actor: entry?.actorName || entry?.reviewedBy || entry?.adminName || 'Admin review',
+    }));
+
+    if (vehicle?.rejectionReason) {
+      mapped.push({
+        id: 'vehicle-rejection',
+        at: vehicle?.updatedAt || vehicle?.createdAt,
+        status: 'REJECTED',
+        note: vehicle.rejectionReason,
+        actor: 'Admin review',
+      });
+    }
+
+    if (!mapped.length) {
+      mapped.push({
+        id: 'submission',
+        at: vehicle?.createdAt || vehicle?.submittedAt || vendor?.submittedAt,
+        status: 'SUBMITTED',
+        note: 'Vehicle submission received for review.',
+        actor: 'System',
+      });
+      if (vehicle?.updatedAt && vehicle.updatedAt !== (vehicle?.createdAt || vehicle?.submittedAt)) {
+        mapped.push({
+          id: 'latest-state',
+          at: vehicle.updatedAt,
+          status: vehicle?.approvalStatus || 'PENDING_REVIEW',
+          note: 'Latest vehicle review state recorded.',
+          actor: 'System',
+        });
+      }
+    }
+
+    return mapped
+      .filter(event => event.at)
+      .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  })();
+
+  return (
+    <section className="inspection-section review-timeline-section">
+      <div className="inspection-section-title">
+        <div><h3>Review timeline</h3><p>Chronological review events and notes. Notes are shown from the data returned by the rental workflow.</p></div>
+        <History size={17} />
+      </div>
+      <div className="review-timeline">
+        {events.map((event, index) => {
+          const meta = statusMeta(event.status);
+          const Icon = meta.icon;
+          return (
+            <article className={`review-timeline-item ${meta.className}`} key={event.id + '-' + index}>
+              <div className="review-timeline-rail"><span><Icon size={12} /></span></div>
+              <div className="review-timeline-content">
+                <div className="review-timeline-head">
+                  <StatusBadge value={event.status} />
+                  <time>{dateTime(event.at)}</time>
+                </div>
+                <p>{cleanText(event.note || meta.label)}</p>
+                <small>{cleanText(event.actor, 'Admin review')}</small>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
