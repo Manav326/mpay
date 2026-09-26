@@ -147,6 +147,55 @@ function bookingShareText(b: RentalBooking) {
   ].join(' | ');
 }
 
+function WebHistoryPagination({
+  page,
+  totalItems,
+  totalPages,
+  pageSize,
+  onPageSizeChange,
+  onPrevious,
+  onNext
+}: {
+  page: number;
+  totalItems: number;
+  totalPages: number;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  if (totalItems <= 10) return null;
+  const safeTotalPages = Math.max(totalPages, 1);
+  const currentPage = Math.min(page + 1, safeTotalPages);
+  const first = Math.min(page * pageSize + 1, totalItems);
+  const last = Math.min(totalItems, (page + 1) * pageSize);
+  return (
+    <div className="wallet-pagination">
+      <span>Showing {first}–{last} of {totalItems}</span>
+      <div className="wallet-pagination-controls">
+        <div className="wallet-page-sizes">
+          {[10, 20, 50].map(size => (
+            <button
+              key={size}
+              className={pageSize === size ? 'selected' : ''}
+              onClick={() => onPageSizeChange(size)}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+        <button className="wallet-page-arrow" onClick={onPrevious} disabled={page <= 0}>
+          <ChevronLeft size={15} />
+        </button>
+        <strong>{currentPage} / {safeTotalPages}</strong>
+        <button className="wallet-page-arrow" onClick={onNext} disabled={page + 1 >= safeTotalPages}>
+          <ChevronRight size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
@@ -170,6 +219,20 @@ export default function Portal() {
   const [rechargeFunding, setRechargeFunding] = useState<'WALLET'|'RAZORPAY'|'PAYU'>('WALLET');
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
+  const [walletHistoryKind, setWalletHistoryKind] = useState('');
+  const [walletDateFilter, setWalletDateFilter] = useState<'TODAY'|'LAST_7_DAYS'|'THIS_MONTH'|'CUSTOM'>('TODAY');
+  const [walletHistoryFrom, setWalletHistoryFrom] = useState(localDate());
+  const [walletHistoryTo, setWalletHistoryTo] = useState(localDate());
+  const [walletHistoryPage, setWalletHistoryPage] = useState(0);
+  const [walletHistoryTotalItems, setWalletHistoryTotalItems] = useState(0);
+  const [walletHistoryTotalPages, setWalletHistoryTotalPages] = useState(0);
+  const [walletHistoryHasNext, setWalletHistoryHasNext] = useState(false);
+  const [walletHistoryLoading, setWalletHistoryLoading] = useState(false);
+  const [walletHistoryPageSize, setWalletHistoryPageSize] = useState(20);
+  const [withdrawalPage, setWithdrawalPage] = useState(0);
+  const [withdrawalTotalItems, setWithdrawalTotalItems] = useState(0);
+  const [withdrawalTotalPages, setWithdrawalTotalPages] = useState(0);
+  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
   const [selectedWalletItem, setSelectedWalletItem] = useState<WalletItem>();
   const [selectedRechargeDetail, setSelectedRechargeDetail] = useState<any>();
   const [selectedWithdrawalDetail, setSelectedWithdrawalDetail] = useState<any>();
@@ -271,13 +334,100 @@ export default function Portal() {
     try { setCommissionSummary(await api<any>('/api/v1/recharge/commission-summary')); } catch {}
   }
 
-  async function loadWithdrawals() {
+  async function loadWalletHistory(
+    page = 0,
+    overrides?: { kind?: string; from?: string; to?: string; size?: number }
+  ) {
+    const size = overrides?.size ?? walletHistoryPageSize;
+    const kind = overrides?.kind ?? walletHistoryKind;
+    const from = overrides?.from ?? walletHistoryFrom;
+    const to = overrides?.to ?? walletHistoryTo;
+    if (from && to && to < from) {
+      setNotice('The wallet history end date must be on or after the start date.');
+      return;
+    }
+    setWalletHistoryLoading(true);
     try {
-      const data = await api<any>('/api/v1/wallet/withdrawals?page=0&size=25');
+      const params = new URLSearchParams({
+        page: String(Math.max(0, page)),
+        size: String(size),
+        kind: kind || 'ALL',
+        from,
+        to
+      });
+      const data = await api<any>('/api/v1/wallet/history?' + params.toString());
+      setWalletHistory(data?.items || data?.content || data || []);
+      setWalletHistoryPage(Number(data?.page ?? page));
+      setWalletHistoryTotalItems(Number(data?.totalItems ?? data?.items?.length ?? 0));
+      setWalletHistoryTotalPages(Number(data?.totalPages ?? 0));
+      setWalletHistoryHasNext(Boolean(data?.hasNext));
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to load wallet history.');
+    } finally {
+      setWalletHistoryLoading(false);
+    }
+  }
+
+  async function loadWithdrawals(page = 0, size = walletHistoryPageSize) {
+    setWithdrawalLoading(true);
+    try {
+      const data = await api<any>('/api/v1/wallet/withdrawals?page=' + Math.max(0, page) + '&size=' + size);
       setWithdrawals(data?.items || data?.content || data || []);
+      setWithdrawalPage(Number(data?.page ?? page));
+      setWithdrawalTotalItems(Number(data?.totalItems ?? data?.items?.length ?? 0));
+      setWithdrawalTotalPages(Number(data?.totalPages ?? 0));
     } catch (e:any) {
       setNotice(e.message || 'Unable to load withdrawal history.');
+    } finally {
+      setWithdrawalLoading(false);
     }
+  }
+
+  function selectWalletHistoryFilter(kind: string) {
+    setWalletHistoryKind(kind);
+    setWalletHistoryPage(0);
+    void loadWalletHistory(0, { kind });
+  }
+
+  function selectWalletDatePreset(filter: 'TODAY'|'LAST_7_DAYS'|'THIS_MONTH') {
+    const today = localDate();
+    let from = today;
+    if (filter === 'LAST_7_DAYS') {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      from = localDate(d);
+    } else if (filter === 'THIS_MONTH') {
+      const d = new Date();
+      d.setDate(1);
+      from = localDate(d);
+    }
+    setWalletDateFilter(filter);
+    setWalletHistoryFrom(from);
+    setWalletHistoryTo(today);
+    setWalletHistoryPage(0);
+    void loadWalletHistory(0, { from, to: today });
+  }
+
+  function applyWalletCustomRange() {
+    const today = localDate();
+    const from = walletHistoryFrom || today;
+    const to = walletHistoryTo || today;
+    if (to < from) {
+      setNotice('The wallet history end date must be on or after the start date.');
+      return;
+    }
+    setWalletDateFilter('CUSTOM');
+    setWalletHistoryPage(0);
+    void loadWalletHistory(0, { from, to });
+  }
+
+  function changeWalletPageSize(size: number) {
+    const normalized = [10, 20, 50].includes(size) ? size : 20;
+    setWalletHistoryPageSize(normalized);
+    setWalletHistoryPage(0);
+    setWithdrawalPage(0);
+    void loadWalletHistory(0, { size: normalized });
+    void loadWithdrawals(0, normalized);
   }
 
   async function loadProfileImage() {
@@ -443,7 +593,8 @@ export default function Portal() {
             provider:'razorpay', paymentId:response.razorpay_payment_id, orderId:response.razorpay_order_id, signature:response.razorpay_signature
           })});
           await refreshWallet();
-          await loadHistory();
+          await loadWalletHistory(0);
+          await loadWithdrawals(0);
           setNotice(purpose === 'recharge'
             ? ('Payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
             : 'Payment verified and wallet updated.');
@@ -461,7 +612,8 @@ export default function Portal() {
         const verified=await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'payu',orderId})});
         if(verified.status==='CAPTURED' || verified.transactionId || verified.rechargeStatus){
           await refreshWallet();
-          await loadHistory();
+          await loadWalletHistory(0);
+          await loadWithdrawals(0);
           setNotice(purpose === 'recharge'
             ? ('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
             : 'PayU payment verified and wallet updated.');
@@ -496,7 +648,7 @@ export default function Portal() {
 
   async function addMoney() {
     const amount=Number(addMoneyAmount);
-    if (!(amount >= 1 && amount <= 100000)) { setNotice('Enter a wallet top-up amount between ₹1 and ₹1,00,000.'); return; }
+    if (!(amount >= 1 && amount <= 50000)) { setNotice('Enter a wallet top-up amount between ₹1 and ₹50,000.'); return; }
     setBusy(true); setNotice('');
     try {
       const order=await api<any>('/api/v1/payments/orders',{method:'POST',body:JSON.stringify({
@@ -505,9 +657,11 @@ export default function Portal() {
       if(addMoneyProvider==='mock'){
         await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
         await refreshWallet();
-        setAddMoneyAmount('');
+          setAddMoneyAmount('');
         setNotice('Mock wallet top-up completed.');
-        await loadHistory();
+        await refreshWallet();
+        await loadWalletHistory(0);
+        await loadWithdrawals(0);
       } else if(addMoneyProvider==='razorpay') {
         await launchRazorpay(order,'wallet');
       } else {
@@ -520,8 +674,12 @@ export default function Portal() {
   async function withdrawMoney() {
     const amount=Number(withdrawAmount);
     const upi=withdrawUpi.trim();
-    if (!(amount >= 1)) { setNotice('Enter a withdrawal amount of at least ₹1.'); return; }
-    if (!/^[^\s@]+@[^\s@]+$/.test(upi)) { setNotice('Enter a valid UPI ID. UPI ID is required for every withdrawal.'); return; }
+    const availableBalance = Number(wallet?.availableBalance || 0);
+    if (!(amount >= 1) || amount > availableBalance) {
+      setNotice('Enter a valid withdrawal amount of at least ₹1 and no more than the available balance.');
+      return;
+    }
+    if (!/^[A-Za-z0-9]+@[A-Za-z]+$/.test(upi)) { setNotice('Enter a valid UPI ID.'); return; }
     setBusy(true); setNotice('');
     try {
       const result=await api<WithdrawalItem>('/api/v1/wallet/withdraw',{method:'POST',body:JSON.stringify({
@@ -531,8 +689,8 @@ export default function Portal() {
       setWithdrawals(x=>[result,...x]);
       setWithdrawAmount('');
       setNotice(result.message || ('Withdrawal ' + String(result.status || '').toLowerCase() + ' for ' + upi + '.'));
-      await loadHistory();
-      await loadWithdrawals();
+      await loadWalletHistory(0);
+      await loadWithdrawals(0);
     } catch(e:any) { setNotice(e.message || 'Unable to withdraw money.'); }
     finally { setBusy(false); }
   }
@@ -839,7 +997,7 @@ export default function Portal() {
     if(view==='history'){
       void loadHistory();
     } else if(view==='wallet'){
-      void Promise.all([loadHistory(),loadWithdrawals(),loadCommissionSummary()]);
+      void Promise.all([refreshWallet(), loadWalletHistory(0), loadWithdrawals(0), loadCommissionSummary()]);
     } else if(view==='rental'){
       void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
     } else if(view==='bookings'){
@@ -850,7 +1008,7 @@ export default function Portal() {
   },[view]);
 
   useEffect(()=>{
-    if((view==='history'||view==='wallet')){
+    if(view==='history'){
       void loadHistory();
     }
   },[historyKind,historyFrom,historyTo]);
@@ -907,9 +1065,6 @@ export default function Portal() {
   const filteredBookings=bookings.filter(b=>bookingStatusFilter==='ALL'||String(b.status||'').toUpperCase()===bookingStatusFilter);
   const bookingStatuses=['ALL',...Array.from(new Set(bookings.map(b=>String(b.status||'').toUpperCase()).filter(Boolean)))];
 
-  const walletFilters=[
-    {key:'',label:'All'}, {key:'ADD_MONEY',label:'Add money'}, {key:'WITHDRAWN',label:'Withdrawals'}, {key:'RECHARGE',label:'Recharges'}, {key:'RENTAL',label:'Rental'}
-  ];
   const vendorStatus = String(vendor?.status || '').toUpperCase();
   const vendorVerified = vendorStatus === 'VERIFIED';
 
@@ -1003,35 +1158,236 @@ export default function Portal() {
         {operator && !plans.length && !busy && <div className="empty-state">No plans were returned for this number.</div>}
       </div></section>}
 
-      {view==='wallet' && <section className="portal-content">
-        <div className="wallet-grid"><div className="wallet-big"><span>Total balance</span><strong>{money(wallet?.balance)}</strong></div><div><span>Available</span><b>{money(wallet?.availableBalance)}</b></div><div><span>Reserved</span><b>{money(wallet?.reservedBalance)}</b></div></div>
-
-        <div className="wallet-actions-grid">
-        <div className="portal-panel wallet-action-card"><div className="panel-head"><div><h2>Add Money</h2><p>Top up with Mock, Razorpay or PayU.</p></div><CircleDollarSign size={22}/></div>
-          <div className="funding-picker"><span>Provider</span><button className={addMoneyProvider==='mock'?'selected':''} onClick={()=>setAddMoneyProvider('mock')}>Mock</button><button className={addMoneyProvider==='razorpay'?'selected':''} onClick={()=>setAddMoneyProvider('razorpay')}>Razorpay</button><button className={addMoneyProvider==='payu'?'selected':''} onClick={()=>setAddMoneyProvider('payu')}>PayU</button></div>
-          <div className="money-action-row"><input inputMode="decimal" value={addMoneyAmount} onChange={e=>setAddMoneyAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Amount (₹1 to ₹1,00,000)"/><button className="landing-primary" disabled={busy} onClick={addMoney}>{busy?'Processing…':'Add Money'} <ArrowRight size={16}/></button></div>
+      {view==='wallet' && <section className="portal-content portal-wallet-parity">
+        <div className="wallet-parity-header">
+          <div>
+            <span>PERSONAL WALLET</span>
+            <h2>Wallet</h2>
+            <p>Balance, earnings and wallet activity</p>
+          </div>
+          <button className="wallet-icon-action" onClick={()=>refreshWallet()} disabled={busy} title="Refresh balance">
+            <RefreshCw size={17}/>
+          </button>
         </div>
 
-        <div className="portal-panel wallet-action-card"><div className="panel-head"><div><h2>Withdraw to UPI</h2><p>UPI ID is mandatory and remains in withdrawal history.</p></div><Banknote size={22}/></div>
-          <div className="money-action-grid"><label>Amount<input inputMode="decimal" value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Amount"/></label><label>UPI ID<input value={withdrawUpi} onChange={e=>setWithdrawUpi(e.target.value)} placeholder="name@upi"/></label></div>
-          <div className="funding-picker"><span>Provider</span><button className={withdrawProvider==='mock'?'selected':''} onClick={()=>setWithdrawProvider('mock')}>Mock</button><button className={withdrawProvider==='razorpay'?'selected':''} onClick={()=>setWithdrawProvider('razorpay')}>Razorpay</button><button className={withdrawProvider==='payu'?'selected':''} onClick={()=>setWithdrawProvider('payu')}>PayU</button></div>
-          <button className="landing-primary" disabled={busy} onClick={withdrawMoney}>{busy?'Processing…':'Withdraw money'} <ArrowRight size={16}/></button>
-          {withdrawals.length>0 && <div className="history-list compact-list">{withdrawals.map(w=><div className="history-row" key={w.withdrawalId}><div><ReceiptText size={18}/><b className="amount-debit">-{money(w.amount)} → {w.upiId}</b><small>{w.withdrawalId} · {w.provider} · {dt(w.createdAt)}</small></div><div className="history-actions"><span className={statusClass(w.status)}>{String(w.status).toUpperCase()}</span>{w.providerReference && <button className="copy-btn" onClick={()=>copyText(w.providerReference || '')}><Copy size={14}/><span>Copy</span></button>}</div></div>)}</div>}
-        </div></div>
+        <section className="wallet-parity-hero">
+          <div className="wallet-parity-hero-main">
+            <div className="wallet-parity-label"><WalletCards size={17}/><span>AVAILABLE BALANCE</span></div>
+            <strong>{busy ? 'Loading…' : money(wallet?.availableBalance)}</strong>
+            <div className="wallet-parity-breakdown">
+              <span>Total <b>{money(wallet?.balance)}</b></span>
+              <span>Reserved <b>{money(wallet?.reservedBalance)}</b></span>
+            </div>
+            {Number(wallet?.reservedBalance || 0) > 0 &&
+              <p>₹{Number(wallet?.reservedBalance || 0).toLocaleString('en-IN',{minimumFractionDigits:2})} reserved in pending transactions.</p>
+            }
+          </div>
+          <div className="wallet-parity-actions">
+            <button className="wallet-primary-btn" onClick={()=>document.getElementById('wallet-add-money')?.scrollIntoView({behavior:'smooth',block:'center'})}>
+              <Plus size={16}/> Add Money
+            </button>
+            <button className="wallet-outline-btn" onClick={()=>{document.getElementById('wallet-withdraw')?.scrollIntoView({behavior:'smooth',block:'center'});}}>
+              <Send size={16}/> Withdraw to UPI
+            </button>
+          </div>
+        </section>
 
-        <div className="portal-panel"><div className="panel-head"><div><h2>Earnings & recharge summary</h2><p>Android wallet earnings summary for daily and monthly periods.</p></div><CircleDollarSign size={22}/></div>
-          <div className="wallet-grid compact-wallet"><div className="wallet-big"><span>Commission %</span><strong>{commissionSummary?.commissionPercent != null ? Number(commissionSummary.commissionPercent).toFixed(2)+'%' : '—'}</strong></div><div><span>Today</span><b>{money(commissionSummary?.daily?.commission)}</b><small>{commissionSummary?.daily?.successfulRechargeCount || 0} successful recharges</small></div><div><span>This month</span><b>{money(commissionSummary?.monthly?.commission)}</b><small>{commissionSummary?.monthly?.successfulRechargeCount || 0} successful recharges</small></div></div>
+        <div className="wallet-parity-action-grid">
+          <div className="portal-panel wallet-parity-card" id="wallet-add-money">
+            <div className="wallet-parity-card-head">
+              <div><h3>Add money</h3><p>Choose how to fund the wallet.</p></div>
+              <span className="wallet-parity-card-icon"><Plus size={18}/></span>
+            </div>
+            <div className="wallet-current-balance">Current available balance <b>{money(wallet?.availableBalance)}</b></div>
+            <div className="wallet-provider-picker">
+              {(['mock','razorpay','payu'] as const).map(provider => (
+                <button key={provider} className={addMoneyProvider===provider?'selected':''} onClick={()=>setAddMoneyProvider(provider)} disabled={busy}>
+                  {provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}
+                </button>
+              ))}
+            </div>
+            <label className="wallet-field-label">Amount (INR)
+              <div className="wallet-input-shell"><span>₹</span><input inputMode="decimal" maxLength={10} value={addMoneyAmount} onChange={e=>setAddMoneyAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Enter amount"/></div>
+            </label>
+            <div className="wallet-field-help">Minimum ₹1 · Maximum ₹50,000</div>
+            <button className="wallet-primary-wide" disabled={busy || !(Number(addMoneyAmount) >= 1 && Number(addMoneyAmount) <= 50000)} onClick={addMoney}>
+              {busy ? 'Processing…' : 'Continue'} <ArrowRight size={15}/>
+            </button>
+          </div>
+
+          <div className="portal-panel wallet-parity-card" id="wallet-withdraw">
+            <div className="wallet-parity-card-head">
+              <div><h3>Withdraw to UPI</h3><p>UPI ID is required for every withdrawal.</p></div>
+              <span className="wallet-parity-card-icon withdraw"><Send size={18}/></span>
+            </div>
+            <div className="wallet-current-balance">Available to withdraw <b>{money(wallet?.availableBalance)}</b></div>
+            <div className="wallet-provider-picker">
+              {(['mock','razorpay','payu'] as const).map(provider => (
+                <button key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>
+                  {provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}
+                </button>
+              ))}
+            </div>
+            <div className="wallet-field-grid">
+              <label className="wallet-field-label">Amount (INR)
+                <div className="wallet-input-shell"><span>₹</span><input inputMode="decimal" maxLength={10} value={withdrawAmount} onChange={e=>setWithdrawAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Enter amount"/></div>
+              </label>
+              <label className="wallet-field-label">UPI ID (required)
+                <input className="wallet-text-input" maxLength={120} value={withdrawUpi} onChange={e=>setWithdrawUpi(e.target.value)} placeholder="name@upi"/>
+              </label>
+            </div>
+            <div className="wallet-field-help">Minimum ₹1 · Available {money(wallet?.availableBalance)}</div>
+            <button className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount) >= 1 && Number(withdrawAmount) <= Number(wallet?.availableBalance || 0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={withdrawMoney}>
+              {busy ? 'Processing…' : 'Withdraw'} <ArrowRight size={15}/>
+            </button>
+          </div>
         </div>
 
-        <div className="portal-panel"><div className="panel-head"><div><h2>Wallet ledger</h2><p>Balance movements, recharge debits, rental debits/refunds and gateway funding.</p></div><button className="landing-secondary" onClick={()=>{loadHistory();refreshWallet();}}><RefreshCw size={15}/> Refresh</button></div>
-          <div className="history-date-filters"><label>From<input type="date" max={localDate()} value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" max={localDate()} value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom(localDate());setHistoryTo(localDate());setHistoryKind('');}}>Clear</button></div>
-          <div className="funding-picker history-filter-picker"><span>Kind</span>{walletFilters.map(f=><button key={f.key} className={historyKind===f.key?'selected':''} onClick={()=>setHistoryKind(f.key)}>{f.label}</button>)}</div>
-          {walletHistory.length ? <div className="history-list">{walletHistory.map((x,i)=><div className="history-row" key={String(x.id || i)}>
-            <div><ReceiptText size={18}/><b>{x.description || x.referenceType || x.type || 'Wallet transaction'}</b><small>{x.referenceId || '—'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
-            <strong className={walletAmountClass(x)}>{walletAmountLabel(x)}</strong>
-            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span><button className="copy-btn" onClick={()=>openWalletItem(x)}><Eye size={14}/><span>Details</span></button>{x.referenceId && <button className="copy-btn" onClick={()=>copyText(String(x.referenceId),'Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
-          </div>)}</div> : <div className="empty-state">No wallet transactions were returned.</div>}
-        </div>
+        <section className="portal-panel wallet-parity-section">
+          <div className="wallet-parity-section-head">
+            <div><span>EARNINGS</span><h3>Earnings</h3><p>Recharge commission and volume for the same periods shown in Android.</p></div>
+            <button className="wallet-icon-action" onClick={()=>loadCommissionSummary()} disabled={busy}><RefreshCw size={16}/></button>
+          </div>
+          <div className="wallet-earnings-grid">
+            {[
+              ['Today', commissionSummary?.daily, true],
+              ['This month', commissionSummary?.monthly, false]
+            ].map(([title, period, isToday]: any) => (
+              <div className="wallet-earning-period" key={String(title)}>
+                <b className="wallet-earning-title">{title}</b>
+                <span>{isToday ? 'As of ' + date(period?.to) : (date(period?.from) + ' → ' + date(period?.to))}</span>
+                <div className="wallet-earning-values">
+                  <div><small>Commission earned</small><strong className="amount-credit">{money(period?.commission)}</strong><em>{period?.successfulRechargeCount || 0} successful recharges</em></div>
+                  <div><small>Recharge volume</small><strong>{money(period?.successfulRechargeAmount)}</strong></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="portal-panel wallet-withdraw-history-section">
+          <div className="wallet-parity-section-head">
+            <div><span>UPI PAYOUTS</span><h3>Withdrawal history</h3><p>UPI payout requests and their current status.</p></div>
+            <Send size={19} className="wallet-muted-icon"/>
+          </div>
+          {withdrawalLoading && withdrawals.length===0 ? (
+            <div className="wallet-loading"><span className="wallet-spinner"/><span>Loading withdrawals…</span></div>
+          ) : withdrawals.length===0 ? (
+            <div className="wallet-empty-state"><Send size={24}/><b>No withdrawal requests yet.</b><span>Your UPI withdrawal requests will appear here.</span></div>
+          ) : (
+            <div className="wallet-transaction-list">
+              {withdrawals.map(item => {
+                const status=String(item.status||'UNKNOWN').toUpperCase();
+                return <div className="wallet-transaction-row" key={item.withdrawalId}>
+                  <div className="wallet-transaction-leading withdraw"><Send size={16}/></div>
+                  <div className="wallet-transaction-copy">
+                    <b>₹{Number(item.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})} → {item.upiId}</b>
+                    <span>{String(item.provider||'').toUpperCase()} · {dt(item.createdAt)}</span>
+                    <small>{item.withdrawalId}</small>
+                    {item.failureReason && <small className="wallet-error-text">{item.failureReason}</small>}
+                  </div>
+                  <span className={'status-pill status-' + status.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{status}</span>
+                </div>;
+              })}
+            </div>
+          )}
+          {withdrawalLoading && withdrawals.length>0 && <div className="wallet-inline-loading"><span className="wallet-spinner"/></div>}
+          <WebHistoryPagination
+            page={withdrawalPage}
+            totalItems={withdrawalTotalItems}
+            totalPages={withdrawalTotalPages}
+            pageSize={walletHistoryPageSize}
+            onPageSizeChange={changeWalletPageSize}
+            onPrevious={()=>void loadWithdrawals(Math.max(0, withdrawalPage-1))}
+            onNext={()=>void loadWithdrawals(withdrawalPage+1)}
+          />
+        </section>
+
+        <section className="portal-panel wallet-history-parity-section">
+          <div className="wallet-parity-section-head">
+            <div><span>WALLET ACTIVITY</span><h3>Wallet history</h3><p>{date(walletHistoryFrom)} → {date(walletHistoryTo)}</p></div>
+            <button className="wallet-icon-action" onClick={()=>{void refreshWallet();void loadWalletHistory(walletHistoryPage);}} disabled={walletHistoryLoading}><RefreshCw size={16}/></button>
+          </div>
+
+          <div className="wallet-filter-chips">
+            {[
+              {key:'',label:'All'},
+              {key:'RECHARGE',label:'Recharge'},
+              {key:'ADD_MONEY',label:'Add money'},
+              {key:'WITHDRAWN',label:'Withdrawn'},
+              {key:'RENTAL',label:'Rental'}
+            ].map(filter => (
+              <button key={filter.key} className={walletHistoryKind===filter.key?'selected':''} onClick={()=>selectWalletHistoryFilter(filter.key)}>
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="wallet-date-segmented">
+            {[
+              ['TODAY','Today'],
+              ['LAST_7_DAYS','7 days'],
+              ['THIS_MONTH','Month'],
+              ['CUSTOM','Custom']
+            ].map(([key,label]: any) => (
+              <button key={key} className={walletDateFilter===key?'selected':''} onClick={()=>{
+                if(key==='CUSTOM') { setWalletDateFilter('CUSTOM'); return; }
+                selectWalletDatePreset(key);
+              }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {walletDateFilter==='CUSTOM' && <div className="wallet-custom-range">
+            <label>From<input type="date" max={localDate()} value={walletHistoryFrom} onChange={e=>setWalletHistoryFrom(e.target.value)}/></label>
+            <span>→</span>
+            <label>To<input type="date" max={localDate()} value={walletHistoryTo} onChange={e=>setWalletHistoryTo(e.target.value)}/></label>
+            <button className="wallet-outline-btn small" onClick={applyWalletCustomRange}>Apply</button>
+          </div>}
+
+          {walletHistoryLoading && walletHistory.length===0 ? (
+            <div className="wallet-loading"><span className="wallet-spinner"/><span>Loading wallet activity…</span></div>
+          ) : walletHistory.length===0 ? (
+            <div className="wallet-empty-state"><WalletCards size={24}/><b>No wallet activity</b><span>There are no wallet transactions for the selected filters.</span></div>
+          ) : (
+            <div className="wallet-transaction-list">
+              {walletHistory.map((item,i)=>{
+                const signed=walletSigned(item);
+                const isRecharge=String(item.referenceType||'').toUpperCase()==='RECHARGE';
+                const isRental=String(item.referenceType||'').toUpperCase().includes('RENTAL');
+                const isCredit=signed>0;
+                const label=String(item.referenceType||'').toUpperCase()==='RENTAL_REFUND' ? 'Car rental refund'
+                  : isRental ? 'Car rental payment'
+                  : isRecharge ? 'Recharge'
+                  : String(item.referenceType||'').toUpperCase()==='ADD_MONEY' ? 'Added money'
+                  : ['WITHDRAWAL','WITHDRAWN'].includes(String(item.referenceType||item.type||'').toUpperCase()) ? 'Withdrawn money'
+                  : item.description || item.type || 'Wallet transaction';
+                return <button className="wallet-transaction-row wallet-history-row" key={String(item.id||i)} onClick={()=>openWalletItem(item)}>
+                  <div className={'wallet-transaction-leading ' + (isCredit?'credit':'debit')}>{isCredit ? <Plus size={16}/> : <Send size={16}/>}</div>
+                  <div className="wallet-transaction-copy">
+                    <b>{label}</b>
+                    {isRental && <span>{item.referenceId || 'Booking reference'}</span>}
+                    {isRecharge && <span>{(item.operator || 'Operator') + ' · ' + (item.referenceId || 'Recharge reference')}</span>}
+                    <small>{dt(item.createdAt)}{item.provider ? ' · ' + String(item.provider).toUpperCase() : ''}</small>
+                  </div>
+                  <strong className={signed>0?'amount-credit':'amount-debit'}>{signed>0?'+':'-'}{money(Math.abs(Number(item.amount||0)))}</strong>
+                </button>;
+              })}
+            </div>
+          )}
+
+          {walletHistoryLoading && walletHistory.length>0 && <div className="wallet-inline-loading"><span className="wallet-spinner"/></div>}
+          <WebHistoryPagination
+            page={walletHistoryPage}
+            totalItems={walletHistoryTotalItems}
+            totalPages={walletHistoryTotalPages}
+            pageSize={walletHistoryPageSize}
+            onPageSizeChange={changeWalletPageSize}
+            onPrevious={()=>void loadWalletHistory(Math.max(0,walletHistoryPage-1))}
+            onNext={()=>void loadWalletHistory(walletHistoryPage+1)}
+          />
+        </section>
       </section>}
 
       {view==='history' && <section className="portal-content">
