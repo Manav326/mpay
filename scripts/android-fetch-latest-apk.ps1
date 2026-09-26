@@ -188,6 +188,7 @@ try {
 
             $runId = [string]$run.databaseId
             $artifactZip = $null
+        } else {
             if ([string]::IsNullOrWhiteSpace($githubToken)) {
                 throw "GitHub CLI (gh) is not installed and no GitHub token could be obtained from GH_TOKEN, GITHUB_TOKEN, or Git Credential Manager. Install gh from https://cli.github.com/ and run 'gh auth login', or configure a GitHub token in one of those supported locations."
             }
