@@ -180,6 +180,7 @@ fun ProfileScreen(
         DeleteAccountDialog(
             deleting = deletingAccount,
             onDismiss = { if (!deletingAccount) showDeleteDialog = false },
+            error = state.error,
             onDelete = { password, confirmation ->
                 onDeleteAccount(password, confirmation) {
                     showDeleteDialog = false
@@ -194,6 +195,7 @@ fun ProfileScreen(
 @Composable
 private fun DeleteAccountDialog(
     deleting: Boolean,
+    error: String?,
     onDismiss: () -> Unit,
     onDelete: (String, String) -> Unit
 ) {
@@ -209,6 +211,9 @@ private fun DeleteAccountDialog(
                     "This permanently signs you out and removes or redacts your personal account data. Financial records required for reconciliation or legal compliance may be retained in redacted form.",
                     style = MaterialTheme.typography.bodySmall
                 )
+                error?.let {
+                    Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
+                }
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
