@@ -291,61 +291,6 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
   );
 }
 
-function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (text: string, message?: string) => void }) {
-  if (!item) return null;
-  const status = homeRechargeStatus(item);
-  const copyTextValue = [
-    'Recharge history',
-    'Amount: ' + money(item.amount),
-    'Wallet debit: ' + money(item.walletDebitAmount),
-    'Mobile: ' + (item.mobileNumber || '—'),
-    'Operator: ' + webOperatorLabel(item.operator),
-    'Circle: ' + (item.circle || '—'),
-    'Plan: ' + (item.planDescription || item.transactionId || '—'),
-    'Validity: ' + (item.planValidity || '—'),
-    'Transaction ID: ' + (item.transactionId || '—'),
-    'Client Request ID: ' + (item.clientRequestId || '—'),
-    'Provider reference: ' + (item.providerReference || '—'),
-    'Provider: ' + (item.provider || '—'),
-    'Status: ' + status,
-    'Message: ' + (item.message || '—'),
-    'Date & time: ' + dt(item.completedAt || item.createdAt),
-    ...(status === 'SUCCESS' ? ['Commission earned: ' + money(item.clientCommission)] : [])
-  ].join('\n');
-  return (
-    <div className="home-recent-recharge-card">
-      <div className="home-recharge-main">
-        <div className="home-recharge-summary">
-          <div>
-            <strong>{money(item.amount)}</strong>
-            <span>{webOperatorLabel(item.operator)} · {item.mobileNumber || '—'}</span>
-            {item.planDescription && <b>{item.planDescription}</b>}
-            {item.planValidity && <small>{item.planValidity}</small>}
-          </div>
-          <div className="home-recharge-status-area">
-            <span className={'status-pill status-' + status.toLowerCase().replace(/[^a-z0-9]+/g,'-')}>{status}</span>
-            <button className="copy-btn" onClick={()=>onCopy(copyTextValue,'Recharge details copied.')} title="Copy all recharge data">
-              <Copy size={14}/><span>Copy</span>
-            </button>
-          </div>
-        </div>
-        <div className="home-recharge-divider"/>
-        <div className="home-recharge-meta">
-          <span>{status === 'PENDING' || status === 'PROCESSING' ? 'Reserved' : 'Wallet debit'} <b>{money(item.walletDebitAmount)}</b></span>
-          <span>Transaction <b>{item.transactionId || '—'}</b></span>
-          <span>Reference <b>{item.clientRequestId || '—'}</b></span>
-          {item.providerReference && <span>Provider ref <b>{item.providerReference}</b></span>}
-        </div>
-        <div className="home-recharge-footer">
-          <span>{dt(item.completedAt || item.createdAt)}</span>
-          {status === 'SUCCESS' && <b className="amount-credit">Commission earned: {money(item.clientCommission)}</b>}
-        </div>
-        {item.message && <p className="home-recharge-message">{item.message}</p>}
-      </div>
-    </div>
-  );
-}
-
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
