@@ -17,7 +17,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.client.mapp"
+        applicationId = "com.client.mpay"
         minSdk = 24
         targetSdk = 36
         versionCode = 11
