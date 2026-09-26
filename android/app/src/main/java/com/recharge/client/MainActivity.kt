@@ -618,7 +618,25 @@ private fun AppNavHost(
             )
         }
         composable("profile") {
-            ProfileScreen(profileViewModel.state.collectAsState().value, rentalViewModel.state.collectAsState().value.vendor, profileViewModel::load, rentalViewModel::loadVendor, profileViewModel::save, profileViewModel::removePhoto, authLogout, homeViewModel::load, { nav.navigate("rental-vendor") }, currentRoute == "profile")
+            ProfileScreen(
+                state = profileViewModel.state.collectAsState().value,
+                vendor = rentalViewModel.state.collectAsState().value.vendor,
+                onLoad = profileViewModel::load,
+                onRefreshVendor = rentalViewModel::loadVendor,
+                onSave = profileViewModel::save,
+                onRemovePhoto = profileViewModel::removePhoto,
+                onLogout = authLogout,
+                onProfileUpdated = homeViewModel::load,
+                onBecomeVendor = { nav.navigate("rental-vendor") },
+                onDeleteAccount = { password, confirmation, closeDialog ->
+                    profileViewModel.deleteAccount(password, confirmation) {
+                        closeDialog()
+                        authLogout()
+                    }
+                },
+                deletingAccount = profileViewModel.state.collectAsState().value.deletingAccount,
+                isVisible = currentRoute == "profile"
+            )
         }
         composable("marketplace") {
             MarketplaceScreen(onBack = { nav.popBackStack() }, onCarRental = { nav.navigate("car-rental") })
