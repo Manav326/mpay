@@ -3857,3 +3857,224 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
     aspect-ratio:4/3;
   }
 }
+
+
+/* ===== Full-site visual QA pass: shared shells, navbars, responsive geometry ===== */
+.landing-nav,
+.portal-topbar,
+.topbar,
+.sidebar,
+.content,
+.portal-content,
+.portal-auth-card,
+.admin-login-card,
+.portal-modal,
+.user-drawer,
+.admin-profile-popover,
+.rental-modal,
+.rental-modal-vendor,
+.rental-modal-submissions,
+.rental-modal-inspection,
+.privacy-card,
+.rental-partners-shell{
+  box-sizing:border-box;
+}
+
+.landing-nav{
+  min-width:0;
+}
+.landing-nav>.landing-brand{
+  flex:0 0 auto;
+  min-width:0;
+}
+.landing-links{
+  flex:0 0 auto;
+  min-width:0;
+}
+.landing-account{
+  flex:0 0 auto;
+}
+
+.portal-topbar,
+.topbar{
+  min-width:0;
+  overflow:hidden;
+}
+.portal-topbar .mpay-service-showcase{
+  min-width:0;
+}
+.topbar-leading{
+  flex:1 1 auto;
+  min-width:0;
+}
+.topbar-leading>div:last-child{
+  min-width:0;
+}
+.topbar-leading h1{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.top-actions{
+  flex:0 0 auto;
+  min-width:0;
+}
+.portal-main,
+.main{
+  min-width:0;
+}
+
+.portal-content,
+.content{
+  width:100%;
+}
+
+.portal-auth-card,
+.admin-login-card{
+  max-width:100%;
+}
+
+.portal-modal,
+.user-drawer,
+.admin-profile-popover{
+  max-width:100%;
+}
+
+.rental-partners-shell{
+  width:100%;
+}
+
+.account-profile-hero,
+.account-vendor-entry-card,
+.vendor-business-head,
+.vendor-page-header,
+.vehicle-page-header,
+.panel-head,
+.users-directory-head,
+.financial-workspace-head,
+.rental-partners-header,
+.rental-bookings-head,
+.rental-results-head,
+.rental-search-heading{
+  min-width:0;
+}
+
+@media(max-width:800px){
+  .topbar-leading h1{
+    font-size:18px;
+    line-height:1.15;
+  }
+  .landing-nav{
+    min-height:70px;
+    height:70px;
+    padding-inline:16px;
+  }
+  .portal-topbar{
+    overflow:hidden;
+  }
+}
+
+@media(max-width:600px){
+  .privacy-header{
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .privacy-header .privacy-back{
+    margin-left:auto;
+  }
+  .admin-login-page{
+    padding:16px;
+  }
+  .admin-login-card{
+    width:100%;
+    padding:24px;
+    border-radius:22px;
+  }
+  .portal-auth-page{
+    padding:16px;
+  }
+  .portal-auth-card{
+    width:100%;
+    padding:24px;
+    border-radius:22px;
+  }
+}
+
+/* ===== Admin image surfaces: stable alignment across review states ===== */
+.vendor-vehicle-gallery-main{
+  height:auto;
+  aspect-ratio:16/10;
+}
+.vendor-vehicle-gallery-main img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.driver-photo-large{
+  width:100%;
+  height:auto;
+  min-height:0;
+  aspect-ratio:1/1;
+  overflow:hidden;
+}
+.driver-photo-large>img,
+.driver-photo-large .rental-photo-fallback{
+  width:100%;
+  height:100%;
+  min-height:0;
+  object-fit:cover;
+  aspect-ratio:auto;
+}
+.rental-photo-tile{
+  box-sizing:border-box;
+  aspect-ratio:1/1;
+}
+.rental-photo-tile>img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+@media(max-width:850px){
+  .vendor-vehicle-gallery-main{
+    aspect-ratio:16/10;
+  }
+  .driver-photo-large{
+    width:100%;
+    aspect-ratio:1/1;
+  }
+}
+
+@media(max-width:600px){
+  .vendor-vehicle-gallery-main{
+    aspect-ratio:16/10;
+  }
+  .driver-photo-large{
+    aspect-ratio:1/1;
+    min-height:0;
+    height:auto;
+  }
+  .driver-photo-large>img,
+  .driver-photo-large .rental-photo-fallback{
+    min-height:0;
+    height:100%;
+  }
+}
+
+/* ===== Public-page mobile alignment ===== */
+@media(max-width:480px){
+  .privacy-brand{
+    font-size:19px;
+  }
+  .privacy-header .privacy-back{
+    width:100%;
+    margin-left:0;
+  }
+  .landing-brand{
+    gap:8px;
+  }
+}
