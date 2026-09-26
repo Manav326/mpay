@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Trash2, UserRound } from 'lucide-react';
+import { Camera, ChevronDown, LogOut, ShieldCheck, Trash2, UserRound, X } from 'lucide-react';
 import { deleteAdminProfileImage, getAdminProfile, getAdminProfileImage, uploadAdminProfileImage } from '@/lib/api';
 
 export default function AdminProfileMenu({
@@ -41,6 +41,16 @@ export default function AdminProfileMenu({
   useEffect(() => () => {
     if (image?.startsWith('blob:')) URL.revokeObjectURL(image);
   }, [image]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!(event.currentTarget as Document).getElementById('admin-profile-menu-root')?.contains(target)) setOpen(false);
+    };
+    document.addEventListener('click', closeOnOutside);
+    return () => document.removeEventListener('click', closeOnOutside);
+  }, [open]);
 
   async function upload(file?: File) {
     if (!file) return;
@@ -84,15 +94,16 @@ export default function AdminProfileMenu({
 
   const initial = (name || role || 'A').charAt(0).toUpperCase();
 
-  return <div className="admin-profile-menu">
-    <button className="admin-user-chip" onClick={() => setOpen(value => !value)} aria-expanded={open}>
+  return <div id="admin-profile-menu-root" className="admin-profile-menu">
+    <button className="admin-user-chip" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Open admin profile">
       {image ? <img className="admin-avatar-image" src={image} alt={name} /> : <div className="avatar">{initial}</div>}
-      <span>{name}</span>
+      <ChevronDown size={13} className={open ? 'profile-chevron open' : 'profile-chevron'} />
     </button>
     {open && <div className="admin-profile-popover">
+      <div className="profile-popover-title"><div><span>Administrator profile</span><b>Account details</b></div><button className="icon-btn" onClick={() => setOpen(false)} aria-label="Close"><X size={15}/></button></div>
       <div className="profile-popover-head">
         {image ? <img className="admin-avatar-large" src={image} alt="" /> : <div className="admin-avatar-large avatar">{initial}</div>}
-        <div><b>{name}</b><span>{role}</span><small>{mobile || 'Portal account'}{email ? ' · ' + email : ''}</small></div>
+        <div><b>{name}</b><span><ShieldCheck size={12}/> {role}</span><small>{mobile || 'Portal account'}{email ? ' · ' + email : ''}</small></div>
       </div>
       {notice && <div className="alert">{notice}</div>}
       <div className="profile-popover-actions">
@@ -100,7 +111,9 @@ export default function AdminProfileMenu({
         <button className="secondary" disabled={busy} onClick={() => inputRef.current?.click()}><Camera size={14}/> {busy ? 'Saving…' : 'Change photo'}</button>
         {image && <button className="secondary" disabled={busy} onClick={remove}><Trash2 size={14}/> Remove</button>}
       </div>
-      <button className="profile-logout" onClick={onLogout}><UserRound size={14}/> Sign out</button>
+      <div className="profile-popover-divider" />
+      <button className="profile-logout" onClick={onLogout}><LogOut size={14}/> Sign out</button>
+      <div className="profile-popover-security"><UserRound size={12}/> Protected by role-based access controls</div>
     </div>}
   </div>;
 }
