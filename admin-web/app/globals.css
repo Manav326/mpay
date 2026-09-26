@@ -2348,3 +2348,6 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .android-action-card b{font-size:9px}
   .android-marketplace-card{padding:13px}
 }
+
+.android-home-greeting-copy h2{font-weight:800}
+.home-recharge-recipient{color:#9a6408!important}
