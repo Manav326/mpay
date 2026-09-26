@@ -3667,3 +3667,117 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .vehicle-form-grid-web{grid-template-columns:1fr}
   .vehicle-photo-form-grid{grid-template-columns:1fr}
 }
+
+
+/* ===== Customer portal alignment pass — layout only ===== */
+.portal-content{
+  width:100%;
+  box-sizing:border-box;
+}
+.portal-content > .portal-panel{
+  margin-top:0;
+}
+.portal-notice{
+  margin-inline:24px;
+}
+.portal-home.android-home-parity{
+  display:flex;
+  flex-direction:column;
+}
+.portal-home.android-home-parity > .android-home-section{
+  margin-top:18px;
+}
+.android-home-parity .portal-home-section-head{
+  margin-bottom:10px;
+  min-height:27px;
+}
+.android-home-quick-card{
+  width:100%;
+  box-sizing:border-box;
+  padding:10px;
+}
+.android-action-card{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+.android-marketplace-card,
+.android-recharge-history-card{
+  box-sizing:border-box;
+  min-width:0;
+}
+.android-recharge-history-card{
+  margin-top:12px;
+}
+.android-home-section-title{
+  min-height:24px;
+}
+.portal-wallet-parity,
+.recharge-history-page,
+.rental-marketplace-page,
+.rental-booking-page,
+.rental-bookings-page,
+.account-android-parity,
+.vehicle-onboarding-page{
+  box-sizing:border-box;
+}
+.wallet-parity-action-grid,
+.wallet-earnings-grid,
+.web-plan-grid,
+.recharge-history-card-meta,
+.rental-search-grid,
+.rental-booking-form-grid,
+.rental-booking-info-grid,
+.vendor-form-grid,
+.vendor-form-grid-web,
+.vehicle-form-grid-web,
+.vehicle-photo-form-grid,
+.vendor-vehicle-grid-android{
+  align-items:stretch;
+}
+.wallet-parity-card,
+.wallet-earning-period,
+.web-plan,
+.recharge-history-card,
+.rental-market-card,
+.rental-booking-card,
+.vendor-vehicle-android-card,
+.vendor-form-card,
+.vehicle-form-card{
+  min-width:0;
+  box-sizing:border-box;
+}
+.rental-search-actions,
+.vendor-form-actions,
+.rental-booking-actions{
+  align-items:center;
+}
+.wallet-parity-section-head,
+.recharge-history-summary,
+.vendor-section-title{
+  min-width:0;
+}
+.account-profile-hero,
+.vendor-pending-card,
+.vendor-studio-hero{
+  box-sizing:border-box;
+}
+.account-detail-grid > div,
+.wallet-transaction-row,
+.rental-booking-info-grid > div{
+  min-width:0;
+}
+@media (max-width:900px){
+  .portal-notice{margin-inline:20px}
+}
+@media (max-width:700px){
+  .android-home-quick-card{
+    padding:8px;
+  }
+  .android-home-parity .portal-home-section-head{
+    margin-bottom:9px;
+  }
+}
+@media (max-width:600px){
+  .portal-notice{margin-inline:16px}
+}
