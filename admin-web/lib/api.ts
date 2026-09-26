@@ -4,15 +4,123 @@ import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+type AuthTokenPair = { accessToken: string; refreshToken: string };
+
+let refreshPromise: Promise<string | null> | null = null;
+
+function normalizeDisplayValue<T>(value: T): T {
+  if (typeof value === 'string') {
+    return value
+      .replace(/\\+(?:r)?n/g, ' ')
+      .replace(/\\+r/g, ' ')
+      .replace(/\r?\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() as T;
+  }
+  if (Array.isArray(value)) return value.map(item => normalizeDisplayValue(item)) as T;
+  if (value && typeof value === 'object') {
+    const copy: Record<string, unknown> = {};
+    Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+      copy[key] = normalizeDisplayValue(item);
+    });
+    return copy as T;
+  }
+  return value;
+}
+
+function sessionTokens(): AuthTokenPair | null {
+  if (typeof window === 'undefined') return null;
+  const accessToken = localStorage.getItem('mpay_admin_token');
+  const raw = localStorage.getItem('mpay_admin_session');
+  if (!accessToken || !raw) return null;
+  try {
+    const session = JSON.parse(raw);
+    if (!session?.refreshToken) return null;
+    return { accessToken, refreshToken: session.refreshToken };
+  } catch {
+    return null;
+  }
+}
+
+function saveRefreshedSession(result: AuthTokenPair): void {
+  if (typeof window === 'undefined') return;
+  const raw = localStorage.getItem('mpay_admin_session');
+  const current = raw ? JSON.parse(raw) : {};
+  const next = { ...current, token: result.accessToken, refreshToken: result.refreshToken };
+  localStorage.setItem('mpay_admin_token', result.accessToken);
+  localStorage.setItem('mpay_admin_session', JSON.stringify(next));
+}
+
+function clearAdminSession(): never {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('mpay_admin_token');
+    localStorage.removeItem('mpay_admin_session');
+    window.location.href = '/admin';
+  }
+  throw new Error('Your admin session has expired. Please sign in again.');
+}
+
+async function refreshAdminAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  const tokens = sessionTokens();
+  if (!tokens) return null;
+
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(baseUrl + '/api/v1/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+      });
+      if (!response.ok) return null;
+      const result = normalizeDisplayValue(await response.json()) as AuthTokenPair;
+      if (!result.accessToken || !result.refreshToken) return null;
+      saveRefreshedSession(result);
+      return result.accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
-  const response = await fetch(`${baseUrl}${path}`, {
+  const request = () => fetch(baseUrl + path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.headers || {}) },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...(init.headers || {}) },
   });
-  if (response.status === 401 && typeof window !== 'undefined') { localStorage.removeItem('mpay_admin_token'); localStorage.removeItem('mpay_admin_session'); window.location.href = '/admin'; throw new Error('Your admin session has expired. Please sign in again.'); }
-  if (!response.ok) { const text = await response.text(); let message = text || ('Request failed (' + response.status + ')'); try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {} throw new Error(message); }
-  return response.json();
+
+  let response = await request();
+  if (response.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/v1/auth/')) {
+    const refreshed = await refreshAdminAccessToken();
+    if (refreshed) {
+      response = await fetch(baseUrl + path, {
+        ...init,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + refreshed, ...(init.headers || {}) },
+      });
+    } else {
+      clearAdminSession();
+    }
+  }
+  return response;
+}
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  let response = await authenticatedFetch(path, init);
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text || ('Request failed (' + response.status + ')');
+    try {
+      const parsed = JSON.parse(text);
+      message = normalizeDisplayValue(parsed?.message || parsed?.error || message);
+    } catch {}
+    throw new Error(String(message));
+  }
+  return normalizeDisplayValue(await response.json()) as T;
 }
 
 export async function getPortalRoles(): Promise<string[]> {
