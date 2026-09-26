@@ -75,12 +75,22 @@ class LocalRentalImageStorage(
         val original = runCatching { resolve(key) }.getOrNull() ?: return null
         if (!Files.exists(original) || !Files.isRegularFile(original)) return null
 
-        val target = ImageVariantSupport.ensureVariant(root, key, variant)
+        val target = runCatching {
+            ImageVariantSupport.ensureVariant(root, key, variant)
+        }.getOrElse {
+            original
+        }
+
+        val contentType = when (target.fileName.toString().substringAfterLast('.', "jpg").lowercase()) {
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            else -> "image/jpeg"
+        }
         val resource = FileSystemResource(target.toFile())
         if (!resource.exists() || !resource.isReadable) return null
         return RentalImageStorage.StoredImage(
             key = key,
-            contentType = "image/jpeg",
+            contentType = contentType,
             resource = resource,
             size = resource.contentLength(),
             lastModified = Instant.ofEpochMilli(resource.lastModified())
