@@ -3,6 +3,16 @@ package com.recharge.client.core.model
 import java.math.BigDecimal
 
 /** Mirrors the backend authentication and client DTOs. */
+data class AccountDeletionRequest(
+    val password: String,
+    val confirmation: String
+)
+
+data class AccountDeletionResponse(
+    val status: String,
+    val message: String
+)
+
 data class LoginRequest(val mobile: String, val password: String)
 data class RegisterRequest(val name: String?, val email: String?, val mobile: String, val password: String)
 data class ForgotPasswordRequest(val mobile: String)
