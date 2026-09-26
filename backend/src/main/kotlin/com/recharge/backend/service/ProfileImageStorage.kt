@@ -43,6 +43,7 @@ class LocalProfileImageStorage(
         }
         val key = "${publicUserId}_${UUID.randomUUID()}.$ext"
         Files.write(resolve(key), file.bytes)
+        runCatching { ImageVariantSupport.ensureVariant(root, key, ImageVariant.AVATAR) }
         return key
     }
 
