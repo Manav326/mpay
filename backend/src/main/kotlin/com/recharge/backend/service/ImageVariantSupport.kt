@@ -33,7 +33,9 @@ object ImageVariantSupport {
             throw IllegalArgumentException("Image not found")
         }
 
-        val target = root.resolve("$" + "{key}." + "$" + "{variant.name.lowercase(Locale.ROOT)}.jpg").normalize()
+        val target = root.resolve(
+            key + "." + variant.name.lowercase(Locale.ROOT) + ".jpg"
+        ).normalize()
         require(target.parent == root) { "Invalid image path" }
 
         if (Files.exists(target) && Files.isRegularFile(target) && Files.size(target) > 0L) {
@@ -84,7 +86,9 @@ object ImageVariantSupport {
         ImageVariant.entries.forEach { variant ->
             runCatching {
                 Files.deleteIfExists(
-                    root.resolve("$" + "{key}." + "$" + "{variant.name.lowercase(Locale.ROOT)}.jpg").normalize()
+                    root.resolve(
+                        key + "." + variant.name.lowercase(Locale.ROOT) + ".jpg"
+                    ).normalize()
                 )
             }
         }
