@@ -1396,7 +1396,7 @@ export default function Portal() {
     if(!vehicleForm.state.trim()) return 'State is required.';
     if(!Number.isInteger(manufacturing) || manufacturing < earliestYear || manufacturing > currentYear) return 'Manufacturing year must be within the last 20 years.';
     if(!Number.isInteger(registration) || registration < manufacturing || registration > currentYear) return 'Registration year cannot be before manufacture year or after the current year.';
-    if(!/^\\d+(\\.\\d{1,2})?$/.test(String(vehicleForm.pricePerDay).trim()) || !(price>0)) return 'Enter a valid positive price with up to 2 decimals.';
+    if(!/^\d+(\.\d{1,2})?$/.test(String(vehicleForm.pricePerDay).trim()) || !(price>0)) return 'Enter a valid positive price with up to 2 decimals.';
     if(!(Number(vehicleForm.seats) >= 2 && Number(vehicleForm.seats) <= 8)) return 'Seats must be between 2 and 8.';
     if(!vehicleForm.driver.fullName.trim()) return 'Driver name is required.';
     if(!/^\\d{10}$/.test(mobile)) return 'Driver mobile must contain exactly 10 digits.';
@@ -1495,7 +1495,7 @@ export default function Portal() {
   async function loadVehicleUnavailability(carId:string) {
     try {
       const list=await api<any>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(carId)+'/unavailability');
-      setVehicleUnavailability(list || []);
+      setVehicleUnavailability(current => [...current.filter(item => item.carId !== carId), ...(list || [])]);
     } catch(e:any){setNotice(e.message || 'Unable to load vehicle availability.');}
   }
 
