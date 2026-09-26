@@ -18,6 +18,7 @@ export type WebCapabilities = {
 type ContactPickerNavigator = Navigator & {
   contacts?: {
     select?: (properties: string[], options?: { multiple?: boolean }) => Promise<Array<{ tel?: string[]; name?: string[] }>>;
+    getProperties?: () => Promise<string[]>;
   };
 };
 
@@ -69,13 +70,33 @@ export function useWebCapabilities(): WebCapabilities {
   const [capabilities, setCapabilities] = useState<WebCapabilities>(detectWebCapabilities);
 
   useEffect(() => {
-    const refresh = () => setCapabilities(detectWebCapabilities());
-    refresh();
-    window.addEventListener('resize', refresh);
-    window.addEventListener('orientationchange', refresh);
+    let cancelled = false;
+
+    const refresh = async () => {
+      const detected = detectWebCapabilities();
+      const contactManager = (navigator as ContactPickerNavigator).contacts;
+
+      if (detected.canUseContactPicker && typeof contactManager?.getProperties === 'function') {
+        try {
+          const properties = await contactManager.getProperties();
+          detected.canUseContactPicker = properties.includes('tel');
+        } catch {
+          detected.canUseContactPicker = false;
+        }
+      }
+
+      if (!cancelled) setCapabilities(detected);
+    };
+
+    void refresh();
+
+    window.addEventListener('resize', () => { void refresh(); });
+    window.addEventListener('orientationchange', () => { void refresh(); });
+
     return () => {
-      window.removeEventListener('resize', refresh);
-      window.removeEventListener('orientationchange', refresh);
+      cancelled = true;
+      window.removeEventListener('resize', () => { void refresh(); });
+      window.removeEventListener('orientationchange', () => { void refresh(); });
     };
   }, []);
 
