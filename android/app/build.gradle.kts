@@ -20,8 +20,8 @@ android {
         applicationId = "com.client.mpay"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.0.2"
+        versionCode = 1
+        versionName = "1.0.0"
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
         buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey.get()
@@ -32,11 +32,25 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = providers.environmentVariable("MPAY_RELEASE_KEYSTORE_PATH")
+            val storePassword = providers.environmentVariable("MPAY_RELEASE_STORE_PASSWORD")
+            val keyAlias = providers.environmentVariable("MPAY_RELEASE_KEY_ALIAS")
+            val keyPassword = providers.environmentVariable("MPAY_RELEASE_KEY_PASSWORD")
+
+            if (keystorePath.isPresent) {
+                storeFile = file(keystorePath.get())
+                storePassword?.let { this.storePassword = it }
+                keyAlias?.let { this.keyAlias = it }
+                keyPassword?.let { this.keyPassword = it }
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // CI uses the debug signing key so the optimized APK remains directly installable.
-            // Replace this with the production signing configuration for a store/distribution build.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
