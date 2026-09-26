@@ -46,10 +46,24 @@ jobs:
         run: |
           rm -rf ~/.gradle/caches/*/transforms
 
+      - name: Prepare production release keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "${ANDROID_KEYSTORE_BASE64}"
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/mpay-upload-key.jks"
+          test -s "${RUNNER_TEMP}/mpay-upload-key.jks"
+          chmod 600 "${RUNNER_TEMP}/mpay-upload-key.jks"
+
       - name: Build optimized release APK
         working-directory: android
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          MPAY_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/mpay-upload-key.jks
+          MPAY_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MPAY_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MPAY_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon --stacktrace \
