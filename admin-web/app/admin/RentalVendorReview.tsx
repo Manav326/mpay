@@ -56,7 +56,7 @@ function cleanText(value: unknown, fallback = '—') {
 }
 
 function statusMeta(value?: string) {
-  const status = String(value || 'UNKNOWN').toUpperCase();
+  const status = cleanText(value, 'UNKNOWN').toUpperCase();
   if (status === 'VERIFIED' || status === 'APPROVED' || status === 'ACTIVE') {
     return { label: status, className: 'approved', icon: CheckCircle2 };
   }
