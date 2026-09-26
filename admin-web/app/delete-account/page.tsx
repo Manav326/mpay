@@ -21,11 +21,18 @@ export default function DeleteAccountPage() {
           <p className="privacy-effective">mPay account deletion request</p>
 
           <div className="deletion-callout">
-            <strong>Request deletion by email</strong>
+            <strong>Delete from the mPay app</strong>
             <p>
-              Send an email from the email address associated with your mPay
-              account to <a href="mailto:customer-mpay@thinkwithsujeet.in">customer-mpay@thinkwithsujeet.in</a>
-              with the subject <strong>&quot;mPay Account Deletion Request&quot;</strong>.
+              While signed in, open <strong>Profile → Delete account</strong>,
+              enter your current password, and type <strong>DELETE</strong> to
+              confirm. The request is processed by mPay immediately when there
+              are no outstanding wallet, payout, recharge, or rental obligations.
+            </p>
+            <p>
+              Unable to access your account? Email
+              <a href="mailto:customer-mpay@thinkwithsujeet.in"> customer-mpay@thinkwithsujeet.in</a>
+              with the subject <strong>&quot;mPay Account Deletion Request&quot;</strong>
+              and your registered mobile number.
             </p>
           </div>
 
