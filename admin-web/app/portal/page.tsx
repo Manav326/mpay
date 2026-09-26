@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
-  ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LocationOn,
+  ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
   Plus, ReceiptText, RefreshCw, Save, Send, ShieldCheck, Smartphone, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
@@ -1960,7 +1960,7 @@ export default function Portal() {
             </div>
             <div className="rental-search-grid">
               <label>City / pickup area
-                <div className="rental-field-shell"><LocationOn size={16}/><input value={rentalSearch.location} placeholder="Patna, Airport Road…" onChange={e=>setRentalSearch({...rentalSearch,location:e.target.value})}/></div>
+                <div className="rental-field-shell"><MapPin size={16}/><input value={rentalSearch.location} placeholder="Patna, Airport Road…" onChange={e=>setRentalSearch({...rentalSearch,location:e.target.value})}/></div>
               </label>
               <label>From
                 <div className="rental-field-shell"><CalendarDays size={16}/><input type="datetime-local" value={rentalSearch.startDate} min={isoNow()} onChange={e=>setRentalSearch({...rentalSearch,startDate:e.target.value})}/></div>
@@ -2056,13 +2056,13 @@ export default function Portal() {
               <div className="rental-booking-section-head"><span>1</span><div><b>Trip details</b><small>Enter the exact pickup and drop locations.</small></div></div>
               <div className="rental-booking-form-grid">
                 <label>Pickup location
-                  <div className="rental-input-with-icon"><LocationOn size={16}/><input value={rentalForm.pickup} onChange={e=>{setRentalForm({...rentalForm,pickup:e.target.value});clearRentalBookingQuote();}} placeholder="Enter pickup location"/></div>
+                  <div className="rental-input-with-icon"><MapPin size={16}/><input value={rentalForm.pickup} onChange={e=>{setRentalForm({...rentalForm,pickup:e.target.value});clearRentalBookingQuote();}} placeholder="Enter pickup location"/></div>
                 </label>
                 <label>Drop location
-                  <div className="rental-input-with-icon"><LocationOn size={16}/><input value={rentalForm.drop} onChange={e=>{setRentalForm({...rentalForm,drop:e.target.value});clearRentalBookingQuote();}} placeholder="Enter drop location"/></div>
+                  <div className="rental-input-with-icon"><MapPin size={16}/><input value={rentalForm.drop} onChange={e=>{setRentalForm({...rentalForm,drop:e.target.value});clearRentalBookingQuote();}} placeholder="Enter drop location"/></div>
                 </label>
               </div>
-              <div className="rental-mapless-note"><LocationOn size={14}/><span>Enter locations manually for now. Map/Places selection can be added when the maps key is enabled.</span></div>
+              <div className="rental-mapless-note"><MapPin size={14}/><span>Enter locations manually for now. Map/Places selection can be added when the maps key is enabled.</span></div>
             </div>
 
             <div className="rental-booking-section">
