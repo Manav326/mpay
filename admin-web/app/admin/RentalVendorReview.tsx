@@ -84,20 +84,20 @@ function StatusBadge({ value }: { value?: string }) {
   return <span className={`rental-status-badge ${meta.className}`}><Icon size={13} />{meta.label}</span>;
 }
 
-function imageUrl(value?: string | null) {
+function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith('/api/')) return API_BASE + raw;
-  return API_BASE + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+  const url = raw.startsWith('/api/') ? API_BASE + raw : API_BASE + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+  return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
-function PhotoTile({ src, alt, label, className = '' }: { src?: string | null; alt: string; label?: string; className?: string }) {
+function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priority = false }: { src?: string | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large'; priority?: boolean }) {
   const [failed, setFailed] = useState(false);
-  const resolved = imageUrl(src);
+  const resolved = imageUrl(src, variant);
   return (
     <div className={`rental-photo-tile ${className}`}>
-      {resolved && !failed ? <img src={resolved} alt={alt} onError={() => setFailed(true)} /> : <div className="rental-photo-fallback"><CarFront size={22} /><span>{label || 'Photo unavailable'}</span></div>}
+      {resolved && !failed ? <img src={resolved} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async" fetchPriority={priority ? 'high' : 'auto'} onError={() => setFailed(true)} /> : <div className="rental-photo-fallback"><CarFront size={22} /><span>{label || 'Photo unavailable'}</span></div>}
       {label && !failed && <span className="rental-photo-label">{label}</span>}
     </div>
   );
@@ -110,6 +110,8 @@ function vehiclePhotos(vehicle: any): string[] {
     .split('|')
     .map((value) => value.trim())
     .filter(Boolean)
+    .slice(0, 4)
+    .concat(['', '', '', ''])
     .slice(0, 4);
 }
 
@@ -470,9 +472,19 @@ export default function RentalVendorReview() {
               <div className="rental-submission-scroll">
                 {submissionLoading ? <div className="rental-empty-panel"><Clock3 size={22} /><span>Loading submitted vehicles…</span></div> :
                   visibleVehicles.length === 0 ? <div className="rental-empty-panel"><Search size={22} /><span>No submitted vehicles match the selected filters.</span></div> :
-                  visibleVehicles.map((vehicle) => (
+                  visibleVehicles.map((vehicle, vehicleIndex) => (
                     <article className="rental-vehicle-review-card" key={vehicle.id}>
-                      <PhotoTile src={vehicle.imageUrl ? vehicle.imageUrl.split('|')[0] : null} alt={cleanText(vehicle.name, 'Vehicle')} label="Vehicle" />
+                      <div className="rental-review-card-gallery">
+                        {vehiclePhotos(vehicle).map((photo, photoIndex) => (
+                          <PhotoTile
+                            key={photoIndex}
+                            src={photo || null}
+                            alt={cleanText(vehicle.name, 'Vehicle') + ' photo ' + (photoIndex + 1)}
+                            className="rental-review-card-photo"
+                            priority={vehicleIndex < 2}
+                          />
+                        ))}
+                      </div>
                       <div className="rental-vehicle-main">
                         <div className="rental-vendor-name-row"><b>{cleanText(vehicle.name, 'Vehicle')}</b><StatusBadge value={vehicle.approvalStatus} /></div>
                         <span>{cleanText([vehicle.make, vehicle.model, vehicle.variant].filter(Boolean).join(' '), 'Vehicle details')} · {cleanText(vehicle.category)}</span>
@@ -722,6 +734,7 @@ function VehiclePhotoCarousel({
           alt={activePhoto ? `Vehicle photo ${safeIndex + 1}` : 'Vehicle'}
           label={activePhoto ? `Photo ${safeIndex + 1} of ${photos.length}` : 'Vehicle photo'}
           className="inspection-gallery-main"
+          variant="large"
         />
         {photos.length > 1 && (
           <>

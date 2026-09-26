@@ -206,10 +206,10 @@ class AdminService(
         )
     }
 
-    fun profileImage(viewer: UserEntity, targetPublicId: String): ProfileImageStorage.StoredImage {
+    fun profileImage(viewer: UserEntity, targetPublicId: String, variant: ImageVariant): ProfileImageStorage.StoredImage {
         val target = resolveTarget(viewer, targetPublicId)
         val key = target.profileImageKey ?: throw IllegalArgumentException("Profile image not found")
-        return imageStorage.load(key) ?: throw IllegalArgumentException("Profile image not found")
+        return imageStorage.load(key, variant) ?: throw IllegalArgumentException("Profile image not found")
     }
 
     private fun resolveTarget(viewer: UserEntity, targetPublicId: String): UserEntity {

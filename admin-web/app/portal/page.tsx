@@ -155,13 +155,65 @@ function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function imageFromCar(car?: RentalCar, slot = 0) {
+function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(car?.imageUrl || '');
-  const values = raw.split(',').map(x => x.trim()).filter(Boolean);
+  const values = raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean);
   const value = values[slot] || '';
   if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
-  return base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  const url = base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  return url + '?variant=' + variant;
+}
+
+function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
+  const raw = String(car?.imageUrl || '');
+  return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4).concat(['', '', '', '']).slice(0, 4);
+}
+
+function VehicleFourPhotoGallery({
+  car,
+  priority = false,
+  className = '',
+}: {
+  car?: Pick<RentalCar, 'imageUrl' | 'name'>;
+  priority?: boolean;
+  className?: string;
+}) {
+  const photos = vehiclePhotoSlots(car);
+  const main = imageFromCar(car, 0, 'thumb');
+  return (
+    <div className={`vehicle-card-gallery ${className}`}>
+      <div className="vehicle-card-gallery-main">
+        {main ? (
+          <img
+            src={main}
+            alt={car?.name || 'Vehicle'}
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={priority ? 'high' : 'auto'}
+          />
+        ) : <Car size={30} />}
+      </div>
+      <div className="vehicle-card-gallery-thumbs">
+        {[1, 2, 3].map(slot => {
+          const src = imageFromCar(car, slot, 'thumb');
+          return (
+            <div className="vehicle-card-gallery-thumb" key={slot}>
+              {src ? (
+                <img
+                  src={src}
+                  alt={`${car?.name || 'Vehicle'} photo ${slot + 1}`}
+                  loading={priority ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchPriority="auto"
+                />
+              ) : <span>Photo {slot + 1}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function bookingShareText(b: RentalBooking) {
@@ -1841,7 +1893,7 @@ export default function Portal() {
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>QUICK ACTIONS</span><h2>Quick actions</h2></div>
+            <div><h2>Quick Actions</h2></div>
           </div>
           <div className="android-home-quick-card">
             <button className="android-action-card recharge" onClick={()=>setView('recharge')}>
@@ -1858,7 +1910,7 @@ export default function Portal() {
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
-            <div><span>MARKETPLACE</span><h2>Marketplace</h2></div>
+            <div><h2>Marketplace</h2></div>
           </div>
           <button className="android-marketplace-card" onClick={()=>setView('rental')}>
             <span className="android-marketplace-icon"><Car size={21}/></span>
@@ -1883,7 +1935,7 @@ export default function Portal() {
             : <HomeRecentRecharge item={latestRecharge} onCopy={copyText}/>}
         </section>}
 
-        <section className="android-home-section">
+        <section className="android-home-section android-home-earnings-section">
           <div className="android-home-section-title">
             <h2>Today’s recharge earnings</h2>
             <button onClick={()=>loadCommissionSummary()} disabled={busy}><RefreshCw size={15}/></button>
@@ -1891,7 +1943,7 @@ export default function Portal() {
           <HomeEarningsPeriod period={commissionSummary?.daily} isToday={true}/>
         </section>
 
-        <section className="android-home-section">
+        <section className="android-home-section android-home-earnings-section">
           <div className="android-home-section-title">
             <h2>Monthly recharge earnings</h2>
           </div>
@@ -2361,11 +2413,11 @@ export default function Portal() {
                 <small>Tap a vehicle to inspect details and book with its chauffeur.</small>
               </div>
               <div className="rental-car-grid rental-android-grid">
-                {cars.map(car=>(
+                {cars.map((car, carIndex)=>(
                   <article className="rental-market-card" key={car.id}>
                     <button className="rental-market-card-main" onClick={()=>openRentalDetails(car)}>
                       <div className="rental-market-image">
-                        {imageFromCar(car) ? <img src={imageFromCar(car)} alt={car.name}/> : <Car size={30}/>}
+                        <VehicleFourPhotoGallery car={car} priority={carIndex < 2} />
                         <span>{car.category}</span>
                       </div>
                       <div className="rental-market-copy">
@@ -2413,8 +2465,7 @@ export default function Portal() {
 
             <article className="rental-booking-car-card">
               <div className="rental-booking-car-image">
-                {imageFromCar(rentalBookingCar) ? <img src={imageFromCar(rentalBookingCar)} alt={rentalBookingCar.name}/> : <Car size={32}/>}
-              </div>
+                <VehicleFourPhotoGallery car={rentalBookingCar} priority />              </div>
               <div className="rental-booking-car-copy">
                 <div className="rental-booking-car-title"><div><b>{rentalBookingCar.name}</b><small>{[rentalBookingCar.make,rentalBookingCar.model,rentalBookingCar.variant].filter(Boolean).join(' ') || rentalBookingCar.category}</small></div><strong>{money(rentalBookingCar.pricePerDay)}<em>/day</em></strong></div>
                 <div className="rental-booking-car-driver">
@@ -2507,7 +2558,10 @@ export default function Portal() {
                 const canCancel=rawStatus==='CONFIRMED' && new Date(b.startDate).getTime() > Date.now();
                 return <article className="rental-booking-card" key={b.bookingId}>
                   <div className="rental-booking-card-image">
-                    {b.carImageUrl ? <img src={b.carImageUrl.startsWith('http') ? b.carImageUrl : base + b.carImageUrl} alt={b.carName}/> : <Car size={28}/>}
+                    <VehicleFourPhotoGallery
+                       car={{ name: b.carName, imageUrl: b.carImageUrl }}
+                       priority={false}
+                     />
                   </div>
                   <div className="rental-booking-card-body">
                     <div className="rental-booking-card-head">
@@ -2750,7 +2804,7 @@ export default function Portal() {
               </div>
             ) : (
               <div className="vendor-vehicle-grid-android">
-                {vendorVehicles.map(car=>{
+                {vendorVehicles.map((car, carIndex)=>{
                   const status=String(car.approvalStatus||'PENDING_REVIEW').toUpperCase();
                   const blackouts=vehicleUnavailability.filter(u=>u.carId===car.id);
                   const today=localDate();
@@ -2763,7 +2817,7 @@ export default function Portal() {
                   return (
                     <article className="vendor-vehicle-android-card" key={car.id} onClick={()=>setSelectedVendorVehicle(car)}>
                       <div className="vendor-vehicle-gallery-main">
-                        {imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={30}/>}
+                        <VehicleFourPhotoGallery car={car} priority={carIndex < 2} />
                         <span className="vendor-vehicle-category">{car.category}</span>
                       </div>
                       <div className="vendor-vehicle-card-content">
@@ -2968,7 +3022,7 @@ export default function Portal() {
         {selectedVendorVehicle && accountSection==='vendor' && <div className="modal-backdrop" onClick={()=>setSelectedVendorVehicle(undefined)}>
           <div className="portal-modal vendor-vehicle-details-modal" onClick={e=>e.stopPropagation()}>
             <div className="panel-head"><div><span className="account-eyebrow">VEHICLE DETAILS</span><h2>{selectedVendorVehicle.name}</h2><p>{[selectedVendorVehicle.make,selectedVendorVehicle.model,selectedVendorVehicle.variant].filter(Boolean).join(' ')||selectedVendorVehicle.category}</p></div><button className="icon-btn" onClick={()=>setSelectedVendorVehicle(undefined)}><X size={17}/></button></div>
-            <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>})}</div>
+            <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot,'large');return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)} loading="eager" decoding="async" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>})}</div>
             <div className="vendor-detail-status-row"><span className={statusClass(selectedVendorVehicle.approvalStatus)}>{String(selectedVendorVehicle.approvalStatus||'PENDING').toUpperCase()}</span>{selectedVendorVehicle.rejectionReason&&<span className="vendor-review-note">{selectedVendorVehicle.rejectionReason}</span>}</div>
             <div className="detail-grid-web"><span>Make / model <b>{[selectedVendorVehicle.make,selectedVendorVehicle.model,selectedVendorVehicle.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Category / seats <b>{selectedVendorVehicle.category} / {selectedVendorVehicle.seats}</b></span><span>Transmission / fuel <b>{selectedVendorVehicle.transmission} / {selectedVendorVehicle.fuelType||'—'}</b></span><span>Manufacturing year <b>{selectedVendorVehicle.manufacturingYear||'—'}</b></span><span>Registration year <b>{selectedVendorVehicle.registrationYear||'—'}</b></span><span>Price per day <b>{money(selectedVendorVehicle.pricePerDay)}</b></span><span>Registration number <b>{selectedVendorVehicle.registrationNumber||'—'}</b></span><span>Pickup address <b>{selectedVendorVehicle.pickupAddress||'—'}</b></span><span>City / state <b>{selectedVendorVehicle.city||'—'} / {selectedVendorVehicle.state||'—'}</b></span></div>
             <div className="driver-profile-card"><div className="driver-profile-photo">{selectedVendorVehicle.driverPhotoUrl?<img src={selectedVendorVehicle.driverPhotoUrl.startsWith('http')?selectedVendorVehicle.driverPhotoUrl:base+selectedVendorVehicle.driverPhotoUrl} alt="Driver"/>:<UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName||'Driver'}</b><span>{selectedVendorVehicle.driverMobile||'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber||'Licence not provided'}</small><small>{selectedVendorVehicle.driverLicenseExpiry?date(selectedVendorVehicle.driverLicenseExpiry):'Licence expiry not provided'}</small></div></div>
@@ -3019,8 +3073,8 @@ export default function Portal() {
 
             <div className="vehicle-gallery rental-public-gallery">
               {[0,1,2,3].map(slot=>{
-                const src=imageFromCar(rentalDetails,slot);
-                return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={rentalDetails.name + ' ' + (slot+1)}/>:<span>Photo {slot+1}</span>}</div>;
+                const src=imageFromCar(rentalDetails,slot,'large');
+                return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={rentalDetails.name + ' ' + (slot+1)} loading="eager" decoding="async" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>;
               })}
             </div>
 

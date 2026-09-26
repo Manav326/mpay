@@ -35,9 +35,28 @@ const INR = new Intl.NumberFormat('en-IN', {
   currency: 'INR',
   maximumFractionDigits: 2,
 });
-const dateTime = (value: string) =>
-  new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+const dateTime = (value: string) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? 'Date unavailable'
+    : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
+};
 const pageSize = 25;
+
+function formatMobile(value?: string | null) {
+  const raw = String(value || '').replace(/\D/g, '');
+  if (raw.length === 10) return raw.slice(0, 5) + ' ' + raw.slice(5);
+  if (raw.length === 12 && raw.startsWith('91')) return '+91 ' + raw.slice(2, 7) + ' ' + raw.slice(7);
+  return value || 'No mobile';
+}
+
+function humanize(value?: string | null) {
+  return String(value || '—')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
 
 type Tab = 'recharges' | 'withdrawals' | 'ledger';
 
@@ -83,7 +102,7 @@ function DateCell({ value, reference }: { value: string; reference: string }) {
   return (
     <div className="finance-date-cell">
       <span><CalendarDays size={11} /> {dateTime(value)}</span>
-      <small>{reference}</small>
+      <small className="mono">{reference}</small>
     </div>
   );
 }
@@ -227,13 +246,22 @@ export default function FinancialOperations({ canRefreshRecharge }: { canRefresh
           tab === 'withdrawals' ? <WithdrawalTable items={withdrawals}/> :
           <LedgerTable items={ledger}/>}
 
-        <div className="financial-pager">
-          <span>Page {page + 1} · {totalItems.toLocaleString('en-IN')} records</span>
-          <div>
-            <button className="secondary" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(0, p - 1))}><ChevronLeft size={14}/> Previous</button>
-            <button className="secondary" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>Next <ChevronRight size={14}/></button>
+        {totalItems > 0 && (
+          <div className="financial-ops-pagination">
+            <span>
+              Showing <b>{page * pageSize + 1}</b>–<b>{Math.min((page + 1) * pageSize, totalItems)}</b> of <b>{totalItems.toLocaleString('en-IN')}</b> records
+            </span>
+            <div className="financial-pagination-actions">
+              <span>Page <b>{page + 1}</b> of <b>{Math.max(1, Math.ceil(totalItems / pageSize))}</b></span>
+              <button className="secondary" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(0, p - 1))}>
+                <ChevronLeft size={14}/> Previous
+              </button>
+              <button className="secondary" disabled={!hasNext || loading} onClick={() => setPage(p => p + 1)}>
+                Next <ChevronRight size={14}/>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </section>
     </div>
   );
@@ -247,35 +275,58 @@ function RechargeTable({ items, canRefresh, busy, onRefresh }: {
 }) {
   if (!items.length) return <div className="empty-state">No recharge operations match the selected filters.</div>;
   return (
-    <div className="financial-operation-list">
-      {items.map(item => {
-        const refreshable = ['PENDING', 'PROCESSING'].includes(String(item.status).toUpperCase());
-        return (
-          <article className="financial-operation-row recharge-row" key={item.transactionId}>
-            <div className="financial-row-date"><DateCell value={item.createdAt} reference={item.transactionId} /></div>
-            <CustomerCell name={item.userName} mobile={item.userMobile} publicId={item.userPublicId} />
-            <div className="financial-primary-cell">
-              <div className="financial-heading-line"><ReceiptText size={13} /><b>{item.operator || 'Mobile recharge'}</b></div>
-              <span>{item.mobileNumber || '—'} · {item.circle || 'Circle unavailable'}</span>
-            </div>
-            <div className="financial-money-stack">
-              <strong>{INR.format(item.amount)}</strong>
-              <span>Wallet debit {INR.format(item.walletDebitAmount)}</span>
-              <small>Client {INR.format(item.clientCommission)} · Company {INR.format(item.companyCommission)}</small>
-            </div>
-            <div className="financial-provider-cell">
-              <b>{item.provider || '—'}</b>
-              <span>{item.providerReference || item.providerOrderId || 'No provider reference'}</span>
-            </div>
-            <StatusBlock value={item.status} note={item.message} />
-            <div className="financial-action-cell">
-              {canRefresh && refreshable
-                ? <button className="secondary" disabled={busy === item.transactionId} onClick={() => onRefresh(item.transactionId)}><RefreshCw size={12}/>{busy === item.transactionId ? 'Refreshing…' : 'Refresh'}</button>
-                : <span>—</span>}
-            </div>
-          </article>
-        );
-      })}
+    <div className="table-wrap financial-table-wrap">
+      <table className="financial-data-table recharge-financial-table">
+        <thead>
+          <tr>
+            <th>Date / transaction</th>
+            <th>Customer</th>
+            <th>Recharge</th>
+            <th>Amount / wallet debit</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(item => {
+            const refreshable = ['PENDING', 'PROCESSING'].includes(String(item.status).toUpperCase());
+            return (
+              <tr key={item.transactionId}>
+                <td><DateCell value={item.createdAt} reference={item.transactionId} /></td>
+                <td><CustomerCell name={item.userName} mobile={formatMobile(item.userMobile)} publicId={item.userPublicId} /></td>
+                <td>
+                  <div className="financial-primary-cell">
+                    <div className="financial-heading-line"><ReceiptText size={13} /><b>{item.operator || 'Mobile recharge'}</b></div>
+                    <span>{item.mobileNumber || '—'} · {item.circle || 'Circle unavailable'}</span>
+                  </div>
+                </td>
+                <td>
+                  <div className="financial-money-stack">
+                    <strong>{INR.format(item.amount)}</strong>
+                    <span>Wallet debit {INR.format(item.walletDebitAmount)}</span>
+                    <small>Client {INR.format(item.clientCommission)} · Company {INR.format(item.companyCommission)}</small>
+                  </div>
+                </td>
+                <td>
+                  <div className="financial-provider-cell">
+                    <b>{item.provider || '—'}</b>
+                    <span className="mono">{item.providerReference || item.providerOrderId || 'No provider reference'}</span>
+                  </div>
+                </td>
+                <td><StatusBlock value={item.status} note={item.message} /></td>
+                <td>
+                  {canRefresh && refreshable ? (
+                    <button className="secondary table-action" disabled={busy === item.transactionId} onClick={() => onRefresh(item.transactionId)}>
+                      <RefreshCw size={12}/>{busy === item.transactionId ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                  ) : <span className="finance-muted-dash">—</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -283,31 +334,54 @@ function RechargeTable({ items, canRefresh, busy, onRefresh }: {
 function WithdrawalTable({ items }: { items: AdminFinancialWithdrawalOperation[] }) {
   if (!items.length) return <div className="empty-state">No withdrawal operations match the selected filters.</div>;
   return (
-    <div className="financial-operation-list">
-      {items.map(item => (
-        <article className="financial-operation-row withdrawal-row" key={item.withdrawalId}>
-          <div className="financial-row-date"><DateCell value={item.createdAt} reference={item.withdrawalId} /></div>
-          <CustomerCell name={item.userName} mobile={item.userMobile} publicId={item.userPublicId} />
-          <div className="financial-amount-focus">
-            <div><ArrowDownLeft size={14}/><strong>{INR.format(item.amount)}</strong></div>
-            <span>Withdrawal request</span>
-          </div>
-          <div className="financial-destination-cell">
-            <div><CircleDollarSign size={14}/><b>{item.upiId || 'UPI not available'}</b></div>
-            <span>UPI destination</span>
-          </div>
-          <div className="financial-provider-cell">
-            <b>{item.provider || '—'}</b>
-            <span>{item.providerStatus || 'Provider status unavailable'}</span>
-          </div>
-          <StatusBlock value={item.status} note={item.failureReason || item.providerStatus} />
-          <div className="financial-reference-cell">
-            <span>Provider ref</span>
-            <b className="mono">{item.providerReference || '—'}</b>
-            <small>Ledger {item.walletLedgerRef || '—'}</small>
-          </div>
-        </article>
-      ))}
+    <div className="table-wrap financial-table-wrap">
+      <table className="financial-data-table withdrawal-financial-table">
+        <thead>
+          <tr>
+            <th>Date / withdrawal</th>
+            <th>Customer</th>
+            <th>Amount</th>
+            <th>UPI destination</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>References</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(item => (
+            <tr key={item.withdrawalId}>
+              <td><DateCell value={item.createdAt} reference={item.withdrawalId} /></td>
+              <td><CustomerCell name={item.userName} mobile={formatMobile(item.userMobile)} publicId={item.userPublicId} /></td>
+              <td>
+                <div className="financial-amount-focus debit">
+                  <div><ArrowDownLeft size={14}/><strong>{INR.format(item.amount)}</strong></div>
+                  <span>Withdrawal request</span>
+                </div>
+              </td>
+              <td>
+                <div className="financial-destination-cell">
+                  <div><CircleDollarSign size={14}/><b>{item.upiId || 'UPI not available'}</b></div>
+                  <span>Customer payout destination</span>
+                </div>
+              </td>
+              <td>
+                <div className="financial-provider-cell">
+                  <b>{item.provider || '—'}</b>
+                  <span>{item.providerStatus || 'Provider status unavailable'}</span>
+                </div>
+              </td>
+              <td><StatusBlock value={item.status} note={item.failureReason || item.providerStatus} /></td>
+              <td>
+                <div className="financial-reference-cell">
+                  <span>Provider ref</span>
+                  <b className="mono">{item.providerReference || '—'}</b>
+                  <small>Ledger <span className="mono">{item.walletLedgerRef || '—'}</span></small>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -315,31 +389,57 @@ function WithdrawalTable({ items }: { items: AdminFinancialWithdrawalOperation[]
 function LedgerTable({ items }: { items: AdminFinancialWalletOperation[] }) {
   if (!items.length) return <div className="empty-state">No wallet ledger records match the selected filter.</div>;
   return (
-    <div className="financial-operation-list">
-      {items.map(item => {
-        const type = String(item.type || '').toUpperCase();
-        const credit = ['CREDIT', 'ADD_MONEY', 'RENTAL_REFUND'].includes(type);
-        const reference = String(item.referenceType || type || 'WALLET').replace(/_/g, ' ');
-        return (
-          <article className="financial-operation-row ledger-row" key={item.id}>
-            <div className="financial-row-date"><DateCell value={item.createdAt} reference={String(item.externalRef || item.id)} /></div>
-            <CustomerCell name={item.userName} mobile={item.userMobile} publicId={item.userPublicId} />
-            <div className={`financial-flow-focus ${credit ? 'credit' : 'debit'}`}>
-              <span><>{credit ? <ArrowUpRight size={14}/> : <ArrowDownLeft size={14}/>}</> {reference}</span>
-              <strong>{credit ? '+' : '-'}{INR.format(item.amount)}</strong>
-            </div>
-            <div className="financial-reference-cell">
-              <span>Reference ID</span>
-              <b className="mono">{item.referenceId || item.externalRef || '—'}</b>
-            </div>
-            <div className="financial-description-cell">
-              <b>{item.description || reference}</b>
-              <span>Wallet movement</span>
-            </div>
-            <StatusBlock value={item.status} note={item.description} />
-          </article>
-        );
-      })}
+    <div className="table-wrap financial-table-wrap">
+      <table className="financial-data-table ledger-financial-table">
+        <thead>
+          <tr>
+            <th>Date / ledger entry</th>
+            <th>Customer</th>
+            <th>Flow / type</th>
+            <th>Amount</th>
+            <th>Reference</th>
+            <th>Description</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(item => {
+            const type = String(item.type || '').toUpperCase();
+            const credit = ['CREDIT', 'ADD_MONEY', 'RENTAL_REFUND'].includes(type);
+            const reference = humanize(item.referenceType || type || 'WALLET');
+            return (
+              <tr key={item.id}>
+                <td><DateCell value={item.createdAt} reference={String(item.externalRef || item.id)} /></td>
+                <td><CustomerCell name={item.userName} mobile={formatMobile(item.userMobile)} publicId={item.userPublicId} /></td>
+                <td>
+                  <span className={'flow-pill ' + (credit ? 'flow-credit' : 'flow-debit')}>
+                    {credit ? <ArrowUpRight size={13}/> : <ArrowDownLeft size={13}/>}
+                    {reference}
+                  </span>
+                </td>
+                <td>
+                  <strong className={'financial-ledger-amount ' + (credit ? 'credit' : 'debit')}>
+                    {credit ? '+' : '-'}{INR.format(item.amount)}
+                  </strong>
+                </td>
+                <td>
+                  <div className="financial-reference-cell">
+                    <span>Reference ID</span>
+                    <b className="mono">{item.referenceId || item.externalRef || '—'}</b>
+                  </div>
+                </td>
+                <td>
+                  <div className="financial-description-cell">
+                    <b>{item.description || reference}</b>
+                    <span>Wallet movement</span>
+                  </div>
+                </td>
+                <td><StatusBlock value={item.status} note={item.description} /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

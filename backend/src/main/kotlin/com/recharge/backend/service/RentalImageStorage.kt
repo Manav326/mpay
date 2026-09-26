@@ -1,19 +1,27 @@
 package com.recharge.backend.service
 
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.FileSystemResource
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Instant
 import java.util.UUID
 
 interface RentalImageStorage {
-    data class StoredImage(val key: String, val contentType: String, val bytes: ByteArray)
+    data class StoredImage(
+        val key: String,
+        val contentType: String,
+        val resource: FileSystemResource,
+        val size: Long,
+        val lastModified: Instant
+    )
 
     fun save(carId: Long, slot: Int, file: MultipartFile): String
     fun saveDriverPhoto(driverId: Long, file: MultipartFile): String
-    fun load(key: String): StoredImage?
+    fun load(key: String, variant: ImageVariant = ImageVariant.THUMB): StoredImage?
     fun delete(key: String?)
 }
 
@@ -38,6 +46,10 @@ class LocalRentalImageStorage(
         }
         val key = "rental_${carId}_${slot}_${UUID.randomUUID()}.$ext"
         Files.write(resolve(key), file.bytes)
+        runCatching {
+            ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB)
+            ImageVariantSupport.ensureVariant(root, key, ImageVariant.LARGE)
+        }
         return key
     }
 
@@ -55,24 +67,30 @@ class LocalRentalImageStorage(
         }
         val key = "rental_driver_${driverId}_${UUID.randomUUID()}.$ext"
         Files.write(resolve(key), file.bytes)
+        runCatching { ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB) }
         return key
     }
 
-    override fun load(key: String): RentalImageStorage.StoredImage? {
-        val path = runCatching { resolve(key) }.getOrNull() ?: return null
-        if (!Files.exists(path) || !Files.isRegularFile(path)) return null
+    override fun load(key: String, variant: ImageVariant): RentalImageStorage.StoredImage? {
+        val original = runCatching { resolve(key) }.getOrNull() ?: return null
+        if (!Files.exists(original) || !Files.isRegularFile(original)) return null
 
-        val contentType = when (path.fileName.toString().substringAfterLast('.', "jpg").lowercase()) {
-            "png" -> "image/png"
-            "webp" -> "image/webp"
-            else -> "image/jpeg"
-        }
-        return RentalImageStorage.StoredImage(key, contentType, Files.readAllBytes(path))
+        val target = ImageVariantSupport.ensureVariant(root, key, variant)
+        val resource = FileSystemResource(target.toFile())
+        if (!resource.exists() || !resource.isReadable) return null
+        return RentalImageStorage.StoredImage(
+            key = key,
+            contentType = "image/jpeg",
+            resource = resource,
+            size = resource.contentLength(),
+            lastModified = Instant.ofEpochMilli(resource.lastModified())
+        )
     }
 
     override fun delete(key: String?) {
         if (key.isNullOrBlank()) return
         runCatching { Files.deleteIfExists(resolve(key)) }
+        ImageVariantSupport.deleteVariants(root, key)
     }
 
     private fun resolve(key: String): Path {

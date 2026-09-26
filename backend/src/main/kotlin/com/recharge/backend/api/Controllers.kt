@@ -10,6 +10,7 @@ import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.http.CacheControl
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import java.time.Duration
 import com.recharge.backend.service.PaymentGatewayService
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
@@ -274,13 +275,20 @@ class ProfileController(private val profileService: ProfileService) {
         profileService.deleteImage(authenticatedUserId(authentication))
 
     @GetMapping("/image")
-    fun image(authentication: Authentication): ResponseEntity<ByteArray> {
-        val stored = profileService.image(authenticatedUserId(authentication))
+    fun image(
+        authentication: Authentication,
+        @RequestParam(required = false) variant: String?
+    ): ResponseEntity<org.springframework.core.io.Resource> {
+        val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
+        val stored = profileService.image(authenticatedUserId(authentication), selectedVariant)
+        val etag = stored.key + ":" + selectedVariant.name + ":" + stored.lastModified.toEpochMilli() + ":" + stored.size
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
-            .contentLength(stored.bytes.size.toLong())
-            .cacheControl(CacheControl.noCache().cachePrivate())
-            .body(stored.bytes)
+            .contentLength(stored.size)
+            .lastModified(stored.lastModified.toEpochMilli())
+            .eTag(etag)
+            .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate())
+            .body(stored.resource)
     }
 }
 
@@ -381,14 +389,19 @@ class AdminController(
     @GetMapping("/users/{publicId}/profile-image")
     fun userProfileImage(
         authentication: Authentication,
-        @PathVariable publicId: String
-    ): ResponseEntity<ByteArray> {
-        val stored = adminService.profileImage(currentUser(authentication), publicId)
+        @PathVariable publicId: String,
+        @RequestParam(required = false) variant: String?
+    ): ResponseEntity<org.springframework.core.io.Resource> {
+        val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
+        val stored = adminService.profileImage(currentUser(authentication), publicId, selectedVariant)
+        val etag = stored.key + ":" + selectedVariant.name + ":" + stored.lastModified.toEpochMilli() + ":" + stored.size
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
-            .contentLength(stored.bytes.size.toLong())
-            .cacheControl(CacheControl.noCache().cachePrivate())
-            .body(stored.bytes)
+            .contentLength(stored.size)
+            .lastModified(stored.lastModified.toEpochMilli())
+            .eTag(etag)
+            .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate())
+            .body(stored.resource)
     }
 
 }

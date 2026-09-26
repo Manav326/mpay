@@ -648,8 +648,8 @@ class RentalService(
         return toCarResponse(car)
     }
 
-    fun rentalImage(key: String): RentalImageStorage.StoredImage =
-        rentalImageStorage.load(key) ?: throw IllegalArgumentException("Vehicle photo not found")
+    fun rentalImage(key: String, variant: ImageVariant): RentalImageStorage.StoredImage =
+        rentalImageStorage.load(key, variant) ?: throw IllegalArgumentException("Vehicle photo not found")
 
     @Transactional
     fun takeVehicleOffMarket(

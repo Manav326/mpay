@@ -8,6 +8,7 @@ import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
+import java.time.Duration
 import org.springframework.http.CacheControl
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -134,13 +135,17 @@ class RentalController(
         rentalService.vehicleCalendar(userId(authentication), carId, year, month)
 
     @GetMapping("/photos/{key:.+}")
-    fun vehiclePhoto(@PathVariable key: String): ResponseEntity<ByteArray> {
-        val stored = rentalService.rentalImage(key)
+    fun vehiclePhoto(
+        @PathVariable key: String,
+        @RequestParam(required = false) variant: String?
+    ): ResponseEntity<org.springframework.core.io.Resource> {
+        val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
+        val stored = rentalService.rentalImage(key, selectedVariant)
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
-            .contentLength(stored.bytes.size.toLong())
-            .cacheControl(CacheControl.noCache().cachePublic())
-            .body(stored.bytes)
+            .contentLength(stored.size)
+            .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic())
+            .body(stored.resource)
     }
 
     private fun requirePermission(authentication: Authentication, permission: String) {

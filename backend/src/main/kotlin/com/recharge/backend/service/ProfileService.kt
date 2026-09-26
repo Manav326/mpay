@@ -63,10 +63,10 @@ class ProfileService(
         return toResponse(user)
     }
 
-    fun image(userId: Long): ProfileImageStorage.StoredImage {
+    fun image(userId: Long, variant: ImageVariant): ProfileImageStorage.StoredImage {
         val user = requireUser(userId)
         val key = user.profileImageKey ?: throw IllegalArgumentException("Profile image not found")
-        return imageStorage.load(key) ?: throw IllegalArgumentException("Profile image not found")
+        return imageStorage.load(key, variant) ?: throw IllegalArgumentException("Profile image not found")
     }
 
     private fun requireUser(userId: Long) = users.findById(userId).orElseThrow { IllegalArgumentException("User not found") }

@@ -101,13 +101,15 @@ private fun rentalPhotoSlots(imageUrl: String?): List<String> {
     return List(4) { index -> values.getOrNull(index).orEmpty() }
 }
 
-private fun rentalPhotoDisplayUrl(value: String?): String? {
+private fun rentalPhotoDisplayUrl(value: String?, variant: String = "thumb"): String? {
     val trimmed = value?.trim().orEmpty()
     if (trimmed.isBlank()) return null
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("content://")) {
         return trimmed
     }
-    return ApiConfig.BASE_URL.trimEnd('/') + "/" + trimmed.trimStart('/')
+    val base = ApiConfig.BASE_URL.trimEnd('/') + "/" + trimmed.trimStart('/')
+    val separator = if (base.contains("?")) "&" else "?"
+    return base + separator + "variant=" + variant
 }
 
 private fun rentalStatusColor(status: String): Color = when (status.uppercase()) {
@@ -838,7 +840,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    RentalVehicleGallery(car.imageUrl)
+                                    RentalVehicleGallery(car.imageUrl, loadThumbnails = true, mainVariant = "thumb")
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
@@ -1174,7 +1176,11 @@ private fun rentalCarImageUrls(imageUrl: String?): List<String?> {
 }
 
 @Composable
-private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
+private fun RentalCarImageTile(
+    url: String?,
+    modifier: Modifier = Modifier,
+    variant: String = "thumb"
+) {
     Surface(
         modifier = modifier.clip(RoundedCornerShape(9.dp)),
         color = AppColors.Primary.copy(alpha = .045f)
@@ -1190,7 +1196,7 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
             }
         } else {
             AsyncImage(
-                model = rentalPhotoDisplayUrl(url),
+                model = rentalPhotoDisplayUrl(url, variant),
                 contentDescription = "Car photo",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -1203,7 +1209,9 @@ private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier) {
 private fun RentalVehicleGallery(
     imageUrl: String?,
     driverPhotoUrl: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    loadThumbnails: Boolean = true,
+    mainVariant: String = "large"
 ) {
     val urls = rentalPhotoSlots(imageUrl)
     var focusedIndex by remember(urls.joinToString("|")) { mutableIntStateOf(0) }
@@ -1216,20 +1224,24 @@ private fun RentalVehicleGallery(
         ) {
             RentalCarImageTile(
                 urls[focusedIndex],
-                Modifier.fillMaxWidth().aspectRatio(1.75f)
+                Modifier.fillMaxWidth().aspectRatio(1.75f),
+                variant = mainVariant
             )
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                orderedSmall.take(3).forEach { index ->
-                    RentalCarImageTile(
-                        urls[index],
-                        Modifier
-                            .weight(1f)
-                            .aspectRatio(1.55f)
-                            .clickable { focusedIndex = index }
-                    )
+            if (loadThumbnails) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    orderedSmall.take(3).forEach { index ->
+                        RentalCarImageTile(
+                            urls[index],
+                            Modifier
+                                .weight(1f)
+                                .aspectRatio(1.55f)
+                                .clickable { focusedIndex = index },
+                            variant = "thumb"
+                        )
+                    }
                 }
             }
         }
@@ -1565,7 +1577,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth(), loadThumbnails = true, mainVariant = "thumb")
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -3024,7 +3036,9 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                loadThumbnails = true,
+                                mainVariant = "thumb"
                             )
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
