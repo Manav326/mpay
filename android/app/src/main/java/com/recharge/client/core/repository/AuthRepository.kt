@@ -40,12 +40,32 @@ class AuthRepository(context: Context) {
         response.body()!!.also { tokenStore.save(it.accessToken, it.refreshToken) }
     }
 
-    suspend fun register(name: String, email: String, mobile: String, password: String): Result<LoginResponse> = apiCall {
-        val response = api.register(RegisterRequest(name.trim().takeIf { it.isNotBlank() }, email.trim().takeIf { it.isNotBlank() }, mobile, password))
+    suspend fun register(name: String, email: String, mobile: String, password: String, mobileVerificationToken: String?): Result<LoginResponse> = apiCall {
+        val response = api.register(
+            RegisterRequest(
+                name = name.trim().takeIf { it.isNotBlank() },
+                email = email.trim().takeIf { it.isNotBlank() },
+                mobile = mobile,
+                password = password,
+                mobileVerificationToken = mobileVerificationToken
+            )
+        )
         if (!response.isSuccessful || response.body() == null) {
             error(ApiError.message(response))
         }
         response.body()!!.also { tokenStore.save(it.accessToken, it.refreshToken) }
+    }
+
+    suspend fun sendRegistrationOtp(mobile: String): Result<OtpSendResponse> = apiCall {
+        val response = api.sendOtp(OtpSendRequest(mobile = mobile, purpose = "REGISTRATION"))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun verifyRegistrationOtp(mobile: String, otp: String): Result<OtpVerifyResponse> = apiCall {
+        val response = api.verifyOtp(OtpVerifyRequest(mobile = mobile, otp = otp, purpose = "REGISTRATION"))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
     }
 
     suspend fun forgotPassword(mobile: String): Result<ForgotPasswordResponse> = apiCall {
