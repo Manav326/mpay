@@ -27,11 +27,11 @@ class OtpService(
     private val otpRepository: PasswordResetOtpRepository,
     private val passwordEncoder: PasswordEncoder,
     private val providers: List<OtpDeliveryProvider>,
-    @Value("@@{app.auth.otp.provider:way2api}") private val providerName: String,
-    @Value("@@{app.auth.otp.ttl-seconds:600}") private val configuredTtlSeconds: Long,
-    @Value("@@{app.auth.otp.resend-cooldown-seconds:60}") private val resendCooldownSeconds: Long,
-    @Value("@@{app.auth.otp.max-sends-per-hour:5}") private val maxSendsPerHour: Int,
-    @Value("@@{app.auth.otp.verification-token-ttl-seconds:600}") private val verificationTokenTtlSeconds: Long
+    @Value("${app.auth.otp.provider:way2api}") private val providerName: String,
+    @Value("${app.auth.otp.ttl-seconds:600}") private val configuredTtlSeconds: Long,
+    @Value("${app.auth.otp.resend-cooldown-seconds:60}") private val resendCooldownSeconds: Long,
+    @Value("${app.auth.otp.max-sends-per-hour:5}") private val maxSendsPerHour: Int,
+    @Value("${app.auth.otp.verification-token-ttl-seconds:600}") private val verificationTokenTtlSeconds: Long
 ) {
     companion object {
         private const val MAX_VERIFY_ATTEMPTS = 5
