@@ -2035,3 +2035,69 @@
     min-width:160px;
   }
 }
+
+
+/* ===== Android-aligned customer home ===== */
+.portal-home{background:#fffbf3}
+.portal-home-section{margin-top:16px}
+.portal-home-section-head{display:flex;align-items:flex-end;justify-content:space-between;margin:0 0 8px}
+.portal-home-section-head>div>span{display:block;font-size:8px;letter-spacing:.16em;font-weight:900;color:#9b8b75}
+.portal-home-section-head h2{margin:3px 0 0;font-size:16px;color:#171717}
+.portal-wallet-hero{position:relative;overflow:hidden;margin-top:2px;padding:18px;border:1px solid #eed7a7;border-radius:20px;background:linear-gradient(135deg,#fff3d9 0%,#fff9ed 54%,#fff 100%);box-shadow:0 14px 32px rgba(67,48,22,.07)}
+.portal-wallet-hero:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#f59e0b}
+.portal-wallet-hero-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.portal-wallet-label{display:flex;align-items:center;gap:7px;font-size:8px;letter-spacing:.16em;font-weight:900;color:#8f6216}
+.portal-wallet-icon{width:32px;height:32px;border-radius:11px;background:#fff1cc;color:#d97706;display:grid;place-items:center}
+.portal-wallet-state{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border-radius:999px;background:#eaf8ee;color:#16803c;font-size:8px;font-weight:900}
+.portal-wallet-copy{margin-top:11px}
+.portal-wallet-copy>span{display:block;color:#817769;font-size:10px;font-weight:700}
+.portal-wallet-copy strong{display:block;margin-top:3px;font-size:31px;letter-spacing:-.035em;color:#171717}
+.portal-wallet-copy p{max-width:620px;margin:4px 0 0;color:#756b5e;font-size:10px;line-height:1.5}
+.portal-wallet-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+.portal-wallet-breakdown>div{padding:9px 10px;border-radius:11px;background:rgba(255,255,255,.72);border:1px solid #f0e0bf}
+.portal-wallet-breakdown span,.portal-wallet-breakdown b{display:block}
+.portal-wallet-breakdown span{font-size:8px;color:#897c6a}
+.portal-wallet-breakdown b{margin-top:3px;font-size:12px;color:#3f3932}
+.portal-wallet-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.portal-wallet-actions .landing-primary,.portal-wallet-actions .landing-secondary{padding:9px 12px;font-size:10px}
+.portal-quick-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important;margin-top:0!important;padding:0!important;border:0!important;background:transparent!important}
+.portal-quick-action{min-height:68px!important;padding:10px 10px!important;justify-content:flex-start!important;align-items:center!important;border:1px solid #ebe4da!important;border-radius:15px!important;background:#fff!important;box-shadow:none!important;color:#25211d!important;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease!important}
+.portal-quick-action:hover{transform:translateY(-1px)!important;filter:none!important;background:#fff!important;border-color:#ead5a4!important;box-shadow:0 8px 20px rgba(67,48,22,.06)!important}
+.portal-action-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none}
+.portal-action-icon svg{width:18px;height:18px}
+.portal-quick-action.recharge .portal-action-icon{background:#fff3d9;color:#d97706}
+.portal-quick-action.wallet .portal-action-icon{background:#eef4ff;color:#2563eb}
+.portal-quick-action.bookings .portal-action-icon{background:#edf8f1;color:#16803c}
+.portal-action-copy{min-width:0;display:flex;flex:1;flex-direction:column;align-items:flex-start;gap:2px}
+.portal-action-copy b{display:block;font-size:11px;color:#312c27}
+.portal-action-copy small{display:block;font-size:8px;color:#897f73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.portal-quick-action>svg:last-child{margin-left:auto;color:#b4a99b;flex:none}
+.home-marketplace{margin-top:16px!important}
+.home-marketplace-card{padding:15px 16px!important;border-radius:16px!important;background:#0f4c81!important;border-color:#0f4c81!important;color:#fff!important;box-shadow:0 12px 26px rgba(15,76,129,.14)}
+.home-marketplace-card:hover{background:#123f69!important}
+.home-marketplace-card>svg{color:#fff!important}
+.home-marketplace-icon{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12)!important;color:#ffd27a!important}
+.home-marketplace-copy span{color:#b9d2e6!important}.home-marketplace-copy b{color:#fff!important}.home-marketplace-copy p{color:#d5e2ed!important}
+.home-recharge-history{margin-top:10px!important;background:#fff3d9!important;border-color:#ecd398!important;color:#6d4d13!important}
+.home-recharge-history:hover{background:#ffefcb!important}
+.home-recharge-history-icon{background:#ffe3a3!important;color:#b56b00!important}
+.home-recharge-history>svg{color:#9b6815!important}
+.home-recharge-history span{color:#a17428!important}.home-recharge-history b{color:#6f4b0b!important}.home-recharge-history p{color:#8a6a2b!important}
+.recharge-web-form.has-contact-picker{grid-template-columns:minmax(0,1fr) auto auto}
+.recharge-web-form.no-contact-picker{grid-template-columns:minmax(0,1fr) auto}
+.recharge-web-form .contact-picker-btn{white-space:nowrap}
+.portal-shell[data-form-factor="mobile"] .portal-content{padding-inline:16px}
+.portal-shell[data-form-factor="tablet"] .portal-content{padding-inline:20px}
+.portal-shell[data-form-factor="desktop"] .portal-content{padding-inline:24px}
+@media(max-width:800px){
+  .portal-quick-actions{grid-template-columns:1fr!important}
+  .portal-quick-action{min-height:58px!important}
+  .portal-home-section{margin-top:13px}
+  .portal-wallet-copy strong{font-size:28px}
+  .recharge-web-form.has-contact-picker,.recharge-web-form.no-contact-picker{grid-template-columns:1fr 1fr}
+  .recharge-web-form input{grid-column:1/-1}
+}
+@media(max-width:520px){
+  .portal-wallet-breakdown{grid-template-columns:1fr 1fr}
+  .portal-wallet-actions .landing-primary,.portal-wallet-actions .landing-secondary{flex:1;justify-content:center}
+}
