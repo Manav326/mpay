@@ -366,6 +366,7 @@ export default function RentalVendorReview() {
                         <div className="rental-meta-row"><span><Phone size={12} /> {cleanText(vendor.mobile, 'No mobile')}</span><span><MapPin size={12} /> {cleanText(vendor.city)}, {cleanText(vendor.state)}</span></div>
                         <div className="rental-vendor-submission-line"><span><CalendarDays size={12} /> Submitted {dateTime(vendor.submittedAt)}</span><span className="rental-approved-vehicle-count"><BadgeCheck size={12} /> {vendor.approvedVehicleCount} approved</span></div>
                         <div className="rental-vendor-submission-line"><span><Clock3 size={12} /> {vendor.pendingVehicleCount} pending review</span><span><CarFront size={12} /> {vendor.vehicleCount} total vehicle{vendor.vehicleCount === 1 ? '' : 's'}</span></div>
+                      </div>
                       <div className="rental-vendor-actions">
                         <button className="secondary rental-action" onClick={() => openVendorDetail(vendor)}><Eye size={14} /> Details</button>
                         <button className="primary rental-action" disabled={vendor.vehicleCount <= 0} onClick={() => void openSubmissions(vendor)}><CarFront size={14} /> View submissions <span className="action-count">{vendor.pendingVehicleCount}</span></button>
