@@ -19,6 +19,14 @@ export default function PrivacyPolicyPage() {
           <div className="privacy-kicker">LEGAL &amp; PRIVACY</div>
           <h1>Privacy Policy</h1>
           <p className="privacy-effective">Effective date: September 26, 2026</p>
+          <div className="deletion-callout">
+            <strong>Account deletion</strong>
+            <p>
+              To request deletion of your mPay account and associated personal data,
+              visit <a href="/delete-account">mPay Account Deletion</a> or email
+              <a href="mailto:customer-mpay@thinkwithsujeet.in"> customer-mpay@thinkwithsujeet.in</a>.
+            </p>
+          </div>
 
           <p>
             This Privacy Policy explains how mPay collects, uses, stores, and shares
@@ -93,8 +101,8 @@ export default function PrivacyPolicyPage() {
             fraud-prevention, or dispute-resolution purposes.
           </p>
           <p>
-            For privacy or data-related requests, please use the support/contact
-            channel made available by mPay. We may need to verify your identity
+            For privacy or data-related requests, please email
+            <a href="mailto:customer-mpay@thinkwithsujeet.in">customer-mpay@thinkwithsujeet.in</a>. We may need to verify your identity
             before completing a request.
           </p>
 
@@ -113,8 +121,8 @@ export default function PrivacyPolicyPage() {
 
           <h2>9. Contact</h2>
           <p>
-            For privacy questions or requests, use the current mPay support/contact
-            channel provided through the mPay service.
+            For privacy questions or requests, email
+            <a href="mailto:customer-mpay@thinkwithsujeet.in">customer-mpay@thinkwithsujeet.in</a>.
           </p>
         </article>
       </div>
