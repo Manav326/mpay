@@ -48,12 +48,6 @@ function detectWebCapabilities(): WebCapabilities {
   const formFactor: WebFormFactor = isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop';
   const hasTouch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
   const isSecureContext = window.isSecureContext;
-  const contactPicker = (navigator as ContactPickerNavigator).contacts;
-  const contactPickerCandidate = isMobile
-    && isSecureContext
-    && typeof contactPicker?.select === 'function'
-    && typeof contactPicker?.getProperties === 'function';
-
   return {
     formFactor,
     isMobile,
