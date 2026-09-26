@@ -43,8 +43,10 @@ type RentalQuote = {
   startDate: string; endDate: string; days: number; pricePerDay: number; total: number;
 };
 type RentalBooking = {
-  bookingId: string; carName: string; driverName?: string; driverMobile?: string; pickup: string; drop: string;
-  startDate: string; endDate: string; total: number; paymentMethod?: string; status: string; createdAt?: string;
+  bookingId: string; carName: string; driverName?: string; driverMobile?: string; driverPhotoUrl?: string; carImageUrl?: string;
+  pickup: string; drop: string; startDate: string; endDate: string; total: number; paymentMethod?: string; status: string; createdAt?: string;
+  pickupLatitude?: number | null; pickupLongitude?: number | null; pickupPlaceId?: string | null;
+  dropLatitude?: number | null; dropLongitude?: number | null; dropPlaceId?: string | null;
 };
 type RentalVendor = {
   vendorId?: string | null; status: string; vendorType?: string | null; fullName?: string | null; businessName?: string | null;
@@ -357,7 +359,7 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
 
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
-  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'bookings'|'account'>('home');
+  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'rental-booking'|'bookings'|'account'>('home');
   const [drawer, setDrawer] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [wallet, setWallet] = useState<Wallet>();
@@ -417,6 +419,7 @@ export default function Portal() {
   const [bookings, setBookings] = useState<RentalBooking[]>([]);
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
   const [selectedCar, setSelectedCar] = useState<RentalCar>();
+  const [rentalBookingCar, setRentalBookingCar] = useState<RentalCar>();
   const [rentalQuote, setRentalQuote] = useState<RentalQuote>();
   const [rentalForm, setRentalForm] = useState({ pickup: '', drop: '' });
   const [rentalSearch, setRentalSearch] = useState({ location: '', startDate: '', endDate: '' });
@@ -1032,7 +1035,90 @@ export default function Portal() {
 
   function clearRentalSearch() {
     setRentalSearch({location:'',startDate:'',endDate:''});
-    setSelectedCar(undefined); setRentalQuote(undefined); loadRentalCars();
+    setSelectedCar(undefined);
+    setRentalQuote(undefined);
+    setRentalForm({pickup:'',drop:''});
+    loadRentalCars();
+  }
+
+  function openRentalBooking(car: RentalCar, startDate = '', endDate = '') {
+    setRentalDetails(undefined);
+    setSelectedCar(car);
+    setRentalBookingCar(car);
+    setRentalSearch(s => ({...s, startDate, endDate}));
+    setRentalForm({pickup: car.pickupAddress || '', drop: ''});
+    setRentalQuote(undefined);
+    setView('rental-booking');
+  }
+
+  function openRentalDetails(car: RentalCar) {
+    setRentalDetails(car);
+  }
+
+  function clearRentalBookingQuote() {
+    setRentalQuote(undefined);
+  }
+
+  async function checkRentalFareForBooking() {
+    const car = rentalBookingCar;
+    const startDate = rentalSearch.startDate;
+    const endDate = rentalSearch.endDate;
+    const pickup = rentalForm.pickup.trim();
+    const drop = rentalForm.drop.trim();
+    if(!car || !pickup || !drop || !startDate || !endDate){
+      setNotice('Enter pickup, drop, start date & time, and end date & time before checking the fare.');
+      return;
+    }
+    const startMs = new Date(startDate).getTime();
+    const endMs = new Date(endDate).getTime();
+    if(!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs || startMs < Date.now()){
+      setNotice('Choose a future start date/time and an end date/time later than the start.');
+      return;
+    }
+    setBusy(true); setNotice(''); setRentalQuote(undefined);
+    try {
+      const q=await api<RentalQuote>('/api/v1/car-rental/bookings/quote',{method:'POST',body:JSON.stringify({
+        carId:car.id,pickupLocation:pickup,dropLocation:drop,startDate,endDate
+      })});
+      setRentalQuote(q);
+    } catch(e:any) {
+      setNotice(e.message || 'Unable to calculate rental fare.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmRentalBooking() {
+    const car = rentalBookingCar;
+    const q = rentalQuote;
+    if(!car || !q){setNotice('Check the fare before confirming the booking.');return;}
+    const available = Number(wallet?.availableBalance || 0);
+    if(wallet == null){setNotice('Wallet balance is unavailable. Refresh the wallet and try again.');return;}
+    if(available < Number(q.total || 0)){setNotice('Not enough available balance. Add money to your wallet to continue.');return;}
+    setBusy(true); setNotice('');
+    try {
+      const result=await api<RentalBooking>('/api/v1/car-rental/bookings',{method:'POST',body:JSON.stringify({
+        clientRequestId:crypto.randomUUID(),
+        carId:car.id,
+        pickupLocation:q.pickup,
+        dropLocation:q.drop,
+        startDate:q.startDate,
+        endDate:q.endDate,
+        paymentMethod:'WALLET'
+      })});
+      setBookings(b=>[result,...b.filter(x=>x.bookingId!==result.bookingId)]);
+      await Promise.all([refreshWallet(), loadBookings()]);
+      setRentalBookingCar(undefined);
+      setSelectedCar(undefined);
+      setRentalQuote(undefined);
+      setRentalForm({pickup:'',drop:''});
+      setNotice('Booking confirmed. The amount was deducted from your available wallet balance.');
+      setView('bookings');
+    } catch(e:any) {
+      setNotice(e.message || 'Car rental booking could not be completed.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function checkRentalFare() {
@@ -1240,6 +1326,8 @@ export default function Portal() {
       void Promise.all([refreshWallet(), loadWalletHistory(0), loadWithdrawals(0), loadCommissionSummary()]);
     } else if(view==='rental'){
       void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
+    } else if(view==='rental-booking'){
+      void refreshWallet();
     } else if(view==='bookings'){
       void loadBookings();
     } else if(view==='account'){
@@ -1325,7 +1413,7 @@ export default function Portal() {
         <div><span>mPay personal workspace</span><h1>{
           view==='home'?'Good to see you.':view==='recharge'?'Mobile recharge':view==='wallet'?'Your wallet':
           view==='history'?'Transaction history':view==='marketplace'?'Marketplace':view==='rental'?'Marketplace · Car Rental':
-          view==='bookings'?'My Bookings':'Your account'
+          view==='rental-booking'?'Book with driver':view==='bookings'?'My Bookings':'Your account'
         }</h1></div>
         <div className="portal-avatar">{profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
