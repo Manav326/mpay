@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
-  ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft,
+  ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LocationOn,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
   Plus, ReceiptText, RefreshCw, Save, Send, ShieldCheck, Smartphone, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
@@ -2280,10 +2280,58 @@ export default function Portal() {
       {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div>
           {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>Wallet debit <b>{money(selectedRechargeDetail.walletDebitAmount)}</b></span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}          {selectedWithdrawalDetail && <div className="recharge-detail-box"><h3>Withdrawal details</h3><div className="detail-grid-web"><span>Withdrawal <b>{selectedWithdrawalDetail.withdrawalId || '—'}</b></span><span>Amount <b className="amount-debit">{money(selectedWithdrawalDetail.amount)}</b></span><span>UPI ID <b>{selectedWithdrawalDetail.upiId || '—'}</b></span><span>Status <b>{selectedWithdrawalDetail.status || '—'}</b></span><span>Provider <b>{selectedWithdrawalDetail.provider || '—'}</b></span><span>Provider status <b>{selectedWithdrawalDetail.providerStatus || '—'}</b></span><span>Provider reference <b>{selectedWithdrawalDetail.providerReference || '—'}</b></span><span>Wallet ledger <b>{selectedWithdrawalDetail.walletLedgerRef || '—'}</b></span><span>Failure reason <b>{selectedWithdrawalDetail.failureReason || '—'}</b></span><span>Created <b>{dt(selectedWithdrawalDetail.createdAt)}</b></span><span>Completed <b>{dt(selectedWithdrawalDetail.completedAt)}</b></span></div></div>}</div></div>}
 
-      {rentalDetails && <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}><div className="portal-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div><button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button></div>
-        <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(rentalDetails,slot);return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)}/>:<span>Photo {slot+1}</span>}</div>;})}</div>
-        <div className="driver-profile-card public-driver-card"><div className="driver-profile-photo">{rentalDetails.driverPhotoUrl ? <img src={(rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl)} alt="Chauffeur"/> : <UserRound size={22}/>}</div><div><b>{rentalDetails.driverName||'Chauffeur'}</b><span>Professional driver assigned for this vehicle</span></div></div><div className="detail-grid-web"><span>Make / model <b>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Fuel <b>{rentalDetails.fuelType||'—'}</b></span><span>Manufacturing year <b>{rentalDetails.manufacturingYear||'—'}</b></span><span>Pickup <b>{rentalDetails.pickupAddress||'—'}</b></span><span>City / State <b>{rentalDetails.city||'—'} / {rentalDetails.state||'—'}</b></span><span>Daily rate <b>{money(rentalDetails.pricePerDay)}</b></span></div>
-      </div></div>}
+      {rentalDetails && (() => {
+        const hasDateInput = Boolean(rentalSearch.startDate || rentalSearch.endDate);
+        const startMs = rentalSearch.startDate ? new Date(rentalSearch.startDate).getTime() : NaN;
+        const endMs = rentalSearch.endDate ? new Date(rentalSearch.endDate).getTime() : NaN;
+        const validWindow = Number.isFinite(startMs) && Number.isFinite(endMs) &&
+          endMs > startMs && startMs >= Date.now();
+        const bookEnabled = !hasDateInput || validWindow;
+        return <div className="modal-backdrop" onClick={()=>setRentalDetails(undefined)}>
+          <div className="portal-modal rental-details-modal" onClick={e=>e.stopPropagation()}>
+            <div className="panel-head rental-details-head">
+              <div><span className="rental-eyebrow">VEHICLE DETAILS</span><h2>{rentalDetails.name}</h2><p>{rentalDetails.category} · {rentalDetails.seats} seats · {rentalDetails.transmission}</p></div>
+              <button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button>
+            </div>
+
+            <div className="vehicle-gallery rental-public-gallery">
+              {[0,1,2,3].map(slot=>{
+                const src=imageFromCar(rentalDetails,slot);
+                return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={rentalDetails.name + ' ' + (slot+1)}/>:<span>Photo {slot+1}</span>}</div>;
+              })}
+            </div>
+
+            <div className="rental-details-hero">
+              <div>
+                <b>{rentalDetails.name}</b>
+                <span>{[rentalDetails.make,rentalDetails.model,rentalDetails.variant].filter(Boolean).join(' ') || rentalDetails.category}</span>
+              </div>
+              <strong>{money(rentalDetails.pricePerDay)}<em>/day</em></strong>
+            </div>
+
+            <div className="rental-detail-section">
+              <div className="rental-detail-section-title"><CarFront size={17}/><b>Vehicle</b></div>
+              <div className="rental-detail-facts">
+                <span><small>Seats</small><b>{rentalDetails.seats}</b></span>
+                <span><small>Transmission</small><b>{rentalDetails.transmission}</b></span>
+                <span><small>Fuel</small><b>{rentalDetails.fuelType || '—'}</b></span>
+                <span><small>Location</small><b>{[rentalDetails.city,rentalDetails.state].filter(Boolean).join(', ') || '—'}</b></span>
+              </div>
+            </div>
+
+            <div className="rental-public-driver-card">
+              <span className="rental-driver-avatar large">{rentalDetails.driverPhotoUrl ? <img src={rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl} alt={rentalDetails.driverName}/> : <UserRound size={20}/>}</span>
+              <div><small>Chauffeur</small><b>{rentalDetails.driverName}</b>{rentalDetails.driverMobile && <span>{rentalDetails.driverMobile}</span>}{rentalDetails.driverRating != null && <span className="rental-driver-rating">★ {Number(rentalDetails.driverRating).toFixed(1)}</span>}</div>
+            </div>
+
+            {!bookEnabled && <div className="rental-inline-error">Complete a valid future availability window before booking.</div>}
+            <div className="rental-details-actions">
+              <button className="landing-secondary" onClick={()=>setRentalDetails(undefined)}>Close</button>
+              <button className="landing-primary" disabled={!bookEnabled} onClick={()=>openRentalBooking(rentalDetails,rentalSearch.startDate,rentalSearch.endDate)}>Book with driver <ChevronRight size={16}/></button>
+            </div>
+          </div>
+        </div>;
+      })()}
     </main>
   </div>;
 }
