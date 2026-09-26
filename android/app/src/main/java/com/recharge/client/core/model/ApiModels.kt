@@ -14,14 +14,49 @@ data class AccountDeletionResponse(
 )
 
 data class LoginRequest(val mobile: String, val password: String)
-data class RegisterRequest(val name: String?, val email: String?, val mobile: String, val password: String)
+data class RegisterRequest(
+    val name: String?,
+    val email: String?,
+    val mobile: String,
+    val password: String,
+    val mobileVerificationToken: String? = null
+)
+data class OtpSendRequest(val mobile: String, val purpose: String)
+data class OtpSendResponse(
+    val status: String,
+    val purpose: String,
+    val expiresInSeconds: Long,
+    val resendAfterSeconds: Long,
+    val maskedMobile: String,
+    val deliveryMode: String,
+    val demoOtp: String? = null
+)
+data class OtpVerifyRequest(val mobile: String, val otp: String, val purpose: String)
+data class OtpVerifyResponse(
+    val verified: Boolean,
+    val purpose: String,
+    val verificationToken: String? = null,
+    val verificationTokenExpiresInSeconds: Long? = null
+)
 data class ForgotPasswordRequest(val mobile: String)
-data class ForgotPasswordResponse(val status: String, val expiresInSeconds: Long, val demoOtp: String? = null, val deliveryMode: String = "twilio")
+data class ForgotPasswordResponse(
+    val status: String,
+    val expiresInSeconds: Long,
+    val demoOtp: String? = null,
+    val deliveryMode: String = "way2api",
+    val resendAfterSeconds: Long = 60
+)
 data class ResetPasswordRequest(val mobile: String, val otp: String, val newPassword: String)
 data class ResetPasswordResponse(val status: String)
 
 data class RefreshTokenRequest(val refreshToken: String)
-data class LoginResponse(val accessToken: String, val refreshToken: String, val userId: Long, val role: String)
+data class LoginResponse(
+    val accessToken: String,
+    val refreshToken: String,
+    val userId: Long,
+    val role: String,
+    val mobileVerified: Boolean = false
+)
 data class CurrentUserResponse(
     val userId: Long,
     val publicUserId: String,
@@ -30,6 +65,7 @@ data class CurrentUserResponse(
     val email: String? = null,
     val profileImageUrl: String? = null,
     val profileImageVersion: Long? = null,
+    val mobileVerified: Boolean = false,
     val role: String,
     val commissionRate: BigDecimal = BigDecimal.ZERO,
     val createdAt: String? = null,
