@@ -8,6 +8,16 @@ import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 
+data class AccountDeletionRequest(
+    @field:NotBlank val password: String,
+    @field:NotBlank val confirmation: String
+)
+
+data class AccountDeletionResponse(
+    val status: String,
+    val message: String
+)
+
 data class LoginRequest(
     @field:Pattern(regexp = "[6-9][0-9]{9}", message = "Mobile number must be a valid 10 digit Indian mobile number")
     val mobile: String,
