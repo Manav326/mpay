@@ -291,23 +291,6 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
   );
 }
 
-function homeRechargeStatus(item?: RechargeItem) {
-  const raw = String(item?.status || 'UNKNOWN').toUpperCase();
-  return raw === 'RESERVED' ? 'PENDING' : raw;
-}
-
-function webOperatorLabel(operator?: string) {
-  switch (String(operator || '').toUpperCase()) {
-    case 'AIRTEL': return 'Airtel';
-    case 'JIO': return 'Jio';
-    case 'VI':
-    case 'VODAFONE':
-    case 'VODAFONE IDEA': return 'Vodafone Idea (VI)';
-    case 'BSNL': return 'BSNL';
-    default: return operator || 'Operator';
-  }
-}
-
 function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (text: string, message?: string) => void }) {
   if (!item) return null;
   const status = homeRechargeStatus(item);
