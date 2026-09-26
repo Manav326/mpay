@@ -143,6 +143,13 @@ function Dashboard({data,rental,showRental,attention,onUsers,onRental,onVendors,
   return <div className="content"><section className="metric-grid">{cards.map(([title,value,sub,Icon])=><div className="metric-card" key={title}><div className="metric-head"><span>{title}</span><div className="metric-icon"><Icon size={18}/></div></div><strong>{value}</strong><small>{sub}</small></div>)}</section><div className="split"><section className="panel"><div className="panel-head"><div><h2>Company performance</h2><p>Recharge volume and commission across the current period.</p></div><button className="secondary" onClick={onUsers}>View users <ChevronRight size={16}/></button></div><div className="chart-box"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.chart}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee7dd"/><XAxis dataKey="label" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false}/><Tooltip formatter={(v:any)=>INR.format(Number(v))}/><Bar dataKey="volume" fill="#f59e0b" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></section><section className="panel"><div className="panel-head"><div><h2>Quick actions</h2><p>Jump directly into the operation you need.</p></div></div><div className="quick-grid"><button className="quick" onClick={onUsers}><Users size={20}/><div><b>Users & wallet</b><span>Balances, customer history and account status</span></div></button>{onFinancial&&<button className="quick" onClick={onFinancial}><WalletCards size={20}/><div><b>Money operations</b><span>Recharge, withdrawal and wallet ledger oversight</span></div></button>}{showRental&&<button className="quick" onClick={onVendors}><CarFront size={20}/><div><b>Rental partners</b><span>Vendor and vehicle review workflow</span></div></button>}{showRental&&<button className="quick" onClick={onRental}><CalendarDays size={20}/><div><b>Rental operations</b><span>Bookings and settlement lifecycle</span></div></button>}{onCommissions&&<button className="quick" onClick={onCommissions}><BarChart3 size={20}/><div><b>Commission rules</b><span>Review and update role-based rates</span></div></button>}</div></section></div><section className="panel attention-panel"><div className="panel-head wrap"><div><h2>Needs attention</h2><p>Priority queues surfaced from the authoritative operational services.</p></div><span className={attentionTotal ? 'attention-count active' : 'attention-count'}>{attentionTotal} open</span></div><div className="attention-grid"><button className="attention-card" onClick={()=>onFinancial?.()} disabled={!onFinancial}><b>{attention.pendingRecharges}</b><span>Recharge operations</span><small>Pending or processing</small></button><button className="attention-card" onClick={()=>onFinancial?.()} disabled={!onFinancial}><b>{attention.pendingWithdrawals}</b><span>Withdrawals</span><small>Pending or processing</small></button><button className="attention-card" onClick={onVendors} disabled={!showRental}><b>{attention.pendingVendorApplications}</b><span>Rental partner reviews</span><small>Pending applications</small></button><button className="attention-card" onClick={onVendors} disabled={!showRental}><b>{attention.pendingVehicleReviews}</b><span>Vehicle reviews</span><small>Pending inspections</small></button><button className="attention-card" onClick={onRental} disabled={!showRental}><b>{attention.pendingPayouts}</b><span>Vendor payouts</span><small>Awaiting settlement</small></button></div></section></div>
 }
 
+function userStatusMeta(value?: string){
+  const status=String(value||'UNKNOWN').toUpperCase();
+  if(status==='ACTIVE') return {label:'ACTIVE',className:'active',description:'Account can use mPay normally.',Icon:CheckCircle2};
+  if(status==='BLOCKED') return {label:'BLOCKED',className:'blocked',description:'Platform access is currently restricted.',Icon:XCircle};
+  return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
+}
+
 function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
@@ -151,7 +158,90 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
     const matchesStatus = statusFilter === 'ALL' || String(u.status || '').toUpperCase() === statusFilter;
     return matchesQuery && matchesStatus;
   });
-  return <div className="content"><section className="panel"><div className="panel-head wrap"><div><h2>User hierarchy</h2><p>{role==='ADMIN'?'Admins can see managers and clients. Managers can see clients only.':'You can see client accounts assigned under your management.'} · {visibleUsers.length} visible of {users.length}</p></div><div className="filters user-directory-filters"><input className="admin-user-search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search name, mobile or user ID" /><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>{allowed.map(r=><option key={r} value={r}>{r==='ALL'?'All users':r}</option>)}</select><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option></select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="today-high">Today: highest earnings</option><option value="today-low">Today: lowest earnings</option><option value="month-high">Month: highest earnings</option><option value="month-low">Month: lowest earnings</option></select></div></div><div className="table-wrap"><table><thead><tr><th>User</th><th>Type</th><th>Today's earnings</th><th>Monthly earnings</th><th>Wallet</th><th>Status</th><th></th></tr></thead><tbody>{visibleUsers.map(u=><tr key={u.id} tabIndex={0} onClick={async()=>setSelected(await getUserDetailById(u.id))} onKeyDown={async e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(await getUserDetailById(u.id));}}} aria-label={'View details for ' + u.name}><td><div className="user-cell"><div className="avatar light">{u.name.charAt(0)}</div><div><b>{u.name}</b><span>{u.mobile} · {u.publicUserId}</span></div></div></td><td><span className={`type-pill ${(u.role || 'UNKNOWN').toLowerCase()}`}>{u.accountType}</span></td><td>{INR.format(u.todayEarnings)}</td><td>{INR.format(u.monthEarnings)}</td><td>{INR.format(u.walletBalance)}</td><td><span className={`status ${(u.status || 'UNKNOWN').toLowerCase()}`}>{u.status}</span></td><td><ChevronRight size={18}/></td></tr>)}</tbody></table></div>{visibleUsers.length===0&&<div className="empty-state">No users match the selected filters.</div>}</section>{selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} onStatusUpdated={onStatusUpdated}/>}</div>
+
+  return <div className="content users-wallet-page">
+    <section className="panel users-directory-panel">
+      <div className="panel-head wrap users-directory-head">
+        <div className="users-directory-title">
+          <div className="users-section-icon"><Users size={18}/></div>
+          <div>
+            <h2>User directory</h2>
+            <p>{role==='ADMIN'?'Admins can see managers and clients. Managers can see clients only.':'You can see client accounts assigned under your management.'} · {visibleUsers.length} visible of {users.length}</p>
+          </div>
+          <span className="users-directory-count">{visibleUsers.length}</span>
+        </div>
+        <div className="filters user-directory-filters">
+          <input className="admin-user-search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search name, mobile or user ID" />
+          <select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>{allowed.map(r=><option key={r} value={r}>{r==='ALL'?'All users':r}</option>)}</select>
+          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="BLOCKED">Blocked</option></select>
+          <select value={sort} onChange={e=>setSort(e.target.value)}><option value="today-high">Today: highest earnings</option><option value="today-low">Today: lowest earnings</option><option value="month-high">Month: highest earnings</option><option value="month-low">Month: lowest earnings</option></select>
+        </div>
+      </div>
+
+      <div className="table-wrap users-wallet-table-wrap">
+        <table className="users-wallet-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Account</th>
+              <th>Earnings</th>
+              <th>Wallet</th>
+              <th>Status</th>
+              <th aria-label="Open user"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleUsers.map(u=>{
+              const status=userStatusMeta(u.status);
+              const StatusIcon=status.Icon;
+              return <tr key={u.id} tabIndex={0} onClick={async()=>setSelected(await getUserDetailById(u.id))} onKeyDown={async e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(await getUserDetailById(u.id));}}} aria-label={'View details for ' + u.name}>
+                <td>
+                  <div className="user-directory-cell user-directory-user">
+                    <div className="avatar light">{u.name.charAt(0).toUpperCase()}</div>
+                    <div className="user-directory-primary">
+                      <b>{u.name}</b>
+                      <span><Smartphone size={11}/> {u.mobile}</span>
+                      <small>{u.publicUserId}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div className="user-directory-cell user-directory-account">
+                    <div className="users-cell-icon account"><ShieldCheck size={14}/></div>
+                    <div>
+                      <span className={`type-pill ${(u.role || 'UNKNOWN').toLowerCase()}`}>{u.accountType}</span>
+                      <small>{u.role || 'Role not available'}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div className="user-directory-money">
+                    <div className="money-line"><TrendingUp size={13}/><span>Today</span><b>{INR.format(u.todayEarnings)}</b></div>
+                    <div className="money-line secondary-line"><History size={13}/><span>Month</span><b>{INR.format(u.monthEarnings)}</b></div>
+                  </div>
+                </td>
+                <td>
+                  <div className="user-directory-money wallet">
+                    <div className="money-line wallet-main"><div className="users-cell-icon wallet"><WalletCards size={14}/></div><b>{INR.format(u.walletBalance)}</b></div>
+                    <small>Current wallet balance</small>
+                  </div>
+                </td>
+                <td>
+                  <div className={`user-directory-status ${status.className}`}>
+                    <span className={`status ${status.className}`}><StatusIcon size={12}/>{status.label}</span>
+                    <small>{status.description}</small>
+                  </div>
+                </td>
+                <td className="users-row-action"><ChevronRight size={17}/></td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+      {visibleUsers.length===0&&<div className="empty-state">No users match the selected filters.</div>}
+    </section>
+    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} onStatusUpdated={onStatusUpdated}/>}
+  </div>
 }
 
 function UserDrawer({user,onClose,canManageUserStatus,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
