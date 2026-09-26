@@ -49,6 +49,10 @@ function detectWebCapabilities(): WebCapabilities {
   const hasTouch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
   const isSecureContext = window.isSecureContext;
   const contactPicker = (navigator as ContactPickerNavigator).contacts;
+  const contactPickerCandidate = isMobile
+    && isSecureContext
+    && typeof contactPicker?.select === 'function'
+    && typeof contactPicker?.getProperties === 'function';
 
   return {
     formFactor,
@@ -58,8 +62,18 @@ function detectWebCapabilities(): WebCapabilities {
     isHandheld: isMobile || isTablet,
     hasTouch,
     isSecureContext,
-    canUseContactPicker: isMobile && isSecureContext && typeof contactPicker?.select === 'function',
+    // The async hook turns this on only after confirming that "tel" is supported.
+    canUseContactPicker: false,
   };
+}
+
+function contactPickerCandidate(capabilities: WebCapabilities): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const contactManager = (navigator as ContactPickerNavigator).contacts;
+  return capabilities.isMobile
+    && capabilities.isSecureContext
+    && typeof contactManager?.select === 'function'
+    && typeof contactManager?.getProperties === 'function';
 }
 
 export function getWebCapabilities(): WebCapabilities {
@@ -76,7 +90,7 @@ export function useWebCapabilities(): WebCapabilities {
       const detected = detectWebCapabilities();
       const contactManager = (navigator as ContactPickerNavigator).contacts;
 
-      if (detected.canUseContactPicker && typeof contactManager?.getProperties === 'function') {
+      if (contactPickerCandidate(detected) && typeof contactManager?.getProperties === 'function') {
         try {
           const properties = await contactManager.getProperties();
           detected.canUseContactPicker = properties.includes('tel');
