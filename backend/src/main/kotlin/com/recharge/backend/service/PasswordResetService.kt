@@ -4,12 +4,14 @@ import com.recharge.backend.api.ForgotPasswordResponse
 import com.recharge.backend.api.ResetPasswordRequest
 import com.recharge.backend.repository.UserRepository
 import jakarta.transaction.Transactional
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 
 @Service
 class PasswordResetService(
     private val users: UserRepository,
-    private val otpService: OtpService
+    private val otpService: OtpService,
+    private val passwordEncoder: PasswordEncoder
 ) {
     @Transactional
     fun requestOtp(mobileInput: String): ForgotPasswordResponse {
@@ -41,7 +43,7 @@ class PasswordResetService(
             otp = request.otp
         )
 
-        user.passwordHash = org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode(request.newPassword)
+        user.passwordHash = passwordEncoder.encode(request.newPassword)
         users.save(user)
     }
 }
