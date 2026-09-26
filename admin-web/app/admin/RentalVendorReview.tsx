@@ -602,7 +602,7 @@ function ReviewTimeline({ vendor, vehicle }: { vendor: RentalAdminVendor; vehicl
       ...(Array.isArray(vehicle?.reviewHistory) ? vehicle.reviewHistory : []),
       ...(Array.isArray(vehicle?.reviewNotes) ? vehicle.reviewNotes : []),
       ...(Array.isArray(vehicle?.statusHistory) ? vehicle.statusHistory : []),
-      ...(Array.isArray(vendor?.reviewHistory) ? vendor.reviewHistory : []),
+      ...(Array.isArray((vendor as any)?.reviewHistory) ? (vendor as any).reviewHistory : []),
     ];
     const mapped = sourceNotes.map((entry: any, index: number) => ({
       id: String(entry?.id || index),
