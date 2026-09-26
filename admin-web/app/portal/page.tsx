@@ -2570,71 +2570,149 @@ export default function Portal() {
             </div>
             <div className="vendor-payout-summary">
               <b>Payout details</b>
-              <div><span>Bank</span><strong>{vendor?.bankName||'—'}</strong><span>Account</span><strong>{vendor?.bankAccountNumber||'—'}</strong><span>IFSC</span><strong>{vendor?.bankIfsc||'—'}</strong><span>UPI</span><strong>{vendor?.payoutUpiId||'—'}</strong><span>Primary</span><strong>{vendor?.payoutPrimaryMethod||'—'}</strong></div>
+              <div>
+                <span>Bank</span><strong>{vendor?.bankName||'—'}</strong>
+                <span>Account</span><strong>{vendor?.bankAccountNumber||'—'}</strong>
+                <span>IFSC</span><strong>{vendor?.bankIfsc||'—'}</strong>
+                <span>UPI</span><strong>{vendor?.payoutUpiId||'—'}</strong>
+                <span>Primary</span><strong>{vendor?.payoutPrimaryMethod||'—'}</strong>
+              </div>
             </div>
           </section>
 
           <section className="vendor-earnings-section">
-            <div className="vendor-section-title"><div><h3>Rental earnings</h3><p>Rental payout overview — separate from recharge commission earnings.</p></div></div>
-            {!vendorEarnings ? <div className="vendor-loading-card">Loading payout summary…<div className="home-earnings-progress"><i/></div></div> : <>
+            <div className="vendor-section-title">
+              <div><h3>Rental earnings</h3><p>Rental payout overview — separate from recharge commission earnings.</p></div>
+            </div>
+            {!vendorEarnings ? (
+              <div className="vendor-loading-card">Loading payout summary…<div className="home-earnings-progress"><i/></div></div>
+            ) : (
               <div className="vendor-earnings-periods">
-                {[
-                  ['Today',vendorEarnings.today,true],
-                  ['This month',vendorEarnings.monthly,false]
-                ].map(([label,period])=>{
-                  const p=period as RentalVendorEarningsPeriod;
-                  return <article className="vendor-earnings-period" key={String(label)}>
-                    <h4>{String(label)}</h4>
-                    <div className="vendor-earnings-metrics"><div><span>Gross</span><b>{money(p.grossAmount)}</b></div><div><span>Platform fee</span><b className="amount-debit">{money(p.platformFeeAmount)}</b></div><div><span>Net earning</span><b className="amount-credit">{money(p.vendorNetAmount)}</b></div></div>
-                    <div className="vendor-earnings-foot"><span>{label==='This month' ? 'Bookings this month' : 'Completed today'}</span><b>{label==='This month' ? p.bookingCount : p.completedBookingCount}</b></div>
-                    {label==='Today' && <div className="vendor-earnings-foot"><span>Upcoming confirmed bookings</span><b>{vendorEarnings.upcomingBookingCount}</b></div>}
-                  </article>
-                })}
+                <article className="vendor-earnings-period">
+                  <h4>Today</h4>
+                  <div className="vendor-earnings-metrics">
+                    <div><span>Gross</span><b>{money(vendorEarnings.today.grossAmount)}</b></div>
+                    <div><span>Platform fee</span><b className="amount-debit">{money(vendorEarnings.today.platformFeeAmount)}</b></div>
+                    <div><span>Net earning</span><b className="amount-credit">{money(vendorEarnings.today.vendorNetAmount)}</b></div>
+                  </div>
+                  <div className="vendor-earnings-foot"><span>Completed today</span><b>{vendorEarnings.today.completedBookingCount}</b></div>
+                  <div className="vendor-earnings-foot"><span>Upcoming confirmed bookings</span><b>{vendorEarnings.upcomingBookingCount}</b></div>
+                </article>
+                <article className="vendor-earnings-period">
+                  <h4>This month</h4>
+                  <div className="vendor-earnings-metrics">
+                    <div><span>Gross</span><b>{money(vendorEarnings.monthly.grossAmount)}</b></div>
+                    <div><span>Platform fee</span><b className="amount-debit">{money(vendorEarnings.monthly.platformFeeAmount)}</b></div>
+                    <div><span>Net earning</span><b className="amount-credit">{money(vendorEarnings.monthly.vendorNetAmount)}</b></div>
+                  </div>
+                  <div className="vendor-earnings-foot"><span>Bookings this month</span><b>{vendorEarnings.monthly.bookingCount}</b></div>
+                </article>
               </div>
-            </>}
+            )}
           </section>
 
           <section className="vendor-vehicles-section">
-            <div className="vendor-section-title"><div><h3>My vehicles</h3><p>See exactly when each vehicle is booked, off market or available.</p></div><button className="landing-secondary compact" onClick={()=>loadAccountData()} disabled={busy}><RefreshCw size={14}/> Refresh</button></div>
-            {vendorVehicles.length===0 ? <div className="vendor-no-vehicle"><Car size={25}/><b>No vehicle added yet</b><span>Add your first chauffeur-driven car to begin the admin review process.</span><button className="landing-primary" onClick={()=>resetVehicleForm()}><Plus size={15}/> Add vehicle</button></div> :
-              <div className="vendor-vehicle-grid-android">{vendorVehicles.map(car=>{
-                const status=String(car.approvalStatus||'PENDING_REVIEW').toUpperCase();
-                const blackouts=vehicleUnavailability.filter(u=>u.carId===car.id);
-                const today=localDate();
-                const activeBlackout=blackouts.find(u=>u.startDate<=today && u.endDate>=today);
-                const scheduledBlackout=blackouts.find(u=>u.startDate>today);
-                const displayedBlackout=activeBlackout||scheduledBlackout;
-                const statusTone=status==='APPROVED'?'success':status==='REJECTED'?'failed':'pending';
-                const secondaryLabel=activeBlackout?'OFF MARKET':scheduledBlackout?'SCHEDULED':'';
-                return <article className="vendor-vehicle-android-card" key={car.id} onClick={()=>setSelectedVendorVehicle(car)}>
-                  <div className="vendor-vehicle-gallery-main">{imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={30}/>}<span className="vendor-vehicle-category">{car.category}</span></div>
-                  <div className="vendor-vehicle-card-content">
-                    <h4>{car.name}</h4>
-                    <p>{car.category} • {car.seats} seats</p>
-                    <div className="vendor-driver-inline"><span>{car.driverName}</span><small>{car.driverMobile||'—'}</small>{car.driverPhotoUrl&&<img src={car.driverPhotoUrl.startsWith('http')?car.driverPhotoUrl:base+car.driverPhotoUrl} alt=""/></div>
-                    <div className="vendor-vehicle-badges"><span className={'status-pill status-'+statusTone}>{status.replace(/_/g,' ')}</span>{secondaryLabel&&<span className="vendor-secondary-badge">{secondaryLabel}</span>}</div>
-                    <b className="vendor-price">{money(car.pricePerDay)}/day</b>
-                    <small className="vendor-fuel-note">Fuel expense paid by client</small>
-                    <small className="vendor-spec-line">{car.transmission} • {car.fuelType||'Fuel'}</small>
-                    {displayedBlackout&&<span className="vendor-blackout-period">{displayedBlackout.startDate} → {displayedBlackout.endDate}</span>}
-                    <div className="vendor-vehicle-actions" onClick={e=>e.stopPropagation()}>
-                      <button className="landing-secondary compact" onClick={()=>{setSelectedVendorVehicle(car);setCalendarMonth(localYearMonth());}}>Calendar</button>
-                      {displayedBlackout ? <button className="landing-secondary compact success" disabled={busy} onClick={()=>restoreOffMarket(car.id,displayedBlackout.id)}>Restore</button> :
-                        status==='APPROVED' ? <button className="landing-primary compact" disabled={busy} onClick={()=>{setUnavailabilityForm({reasonCode:'SERVICE_MAINTENANCE',reasonNote:'',startDate:localDate(new Date(Date.now()+86400000)),endDate:localDate(new Date(Date.now()+86400000))});setSelectedVendorVehicle(car);setOffMarketOpenId(car.id);}}>Off market</button> :
-                        <button className="landing-secondary compact" onClick={()=>resetVehicleForm(car)}>{status==='REJECTED'?'Correct & resubmit':'Edit details'}</button>}
-                    </div>
-                    {(status!=='APPROVED'||activeBlackout) ? <button className="landing-secondary vendor-edit-full" onClick={(e)=>{e.stopPropagation();resetVehicleForm(car)}}>{status==='REJECTED'?'Correct & resubmit':status==='APPROVED'?'Edit details (off market)':'Edit details'}</button> :
-                      <small className="vendor-edit-lock">Approved and on market — editing is available only while this vehicle is off market.</small>}
-                    {car.rejectionReason&&<small className="vendor-review-note">Review: {car.rejectionReason}</small>}
-                  </div>
-                </article>
-              })}</div>}
+            <div className="vendor-section-title">
+              <div><h3>My vehicles</h3><p>See exactly when each vehicle is booked, off market or available.</p></div>
+              <button className="landing-secondary compact" onClick={()=>loadAccountData()} disabled={busy}><RefreshCw size={14}/> Refresh</button>
+            </div>
+
+            {vendorVehicles.length===0 ? (
+              <div className="vendor-no-vehicle">
+                <Car size={25}/><b>No vehicle added yet</b>
+                <span>Add your first chauffeur-driven car to begin the admin review process.</span>
+                <button className="landing-primary" onClick={()=>resetVehicleForm()}><Plus size={15}/> Add vehicle</button>
+              </div>
+            ) : (
+              <div className="vendor-vehicle-grid-android">
+                {vendorVehicles.map(car=>{
+                  const status=String(car.approvalStatus||'PENDING_REVIEW').toUpperCase();
+                  const blackouts=vehicleUnavailability.filter(u=>u.carId===car.id);
+                  const today=localDate();
+                  const activeBlackout=blackouts.find(u=>u.startDate<=today && u.endDate>=today);
+                  const scheduledBlackout=blackouts.find(u=>u.startDate>today);
+                  const displayedBlackout=activeBlackout||scheduledBlackout;
+                  const statusTone=status==='APPROVED'?'success':status==='REJECTED'?'failed':'pending';
+                  const secondaryLabel=activeBlackout?'OFF MARKET':scheduledBlackout?'SCHEDULED':'';
+
+                  return (
+                    <article className="vendor-vehicle-android-card" key={car.id} onClick={()=>setSelectedVendorVehicle(car)}>
+                      <div className="vendor-vehicle-gallery-main">
+                        {imageFromCar(car)?<img src={imageFromCar(car)} alt={car.name}/>:<Car size={30}/>}
+                        <span className="vendor-vehicle-category">{car.category}</span>
+                      </div>
+                      <div className="vendor-vehicle-card-content">
+                        <h4>{car.name}</h4>
+                        <p>{car.category} • {car.seats} seats</p>
+                        <div className="vendor-driver-inline">
+                          <span>{car.driverName}</span>
+                          <small>{car.driverMobile||'—'}</small>
+                          {car.driverPhotoUrl&&<img src={car.driverPhotoUrl.startsWith('http')?car.driverPhotoUrl:base+car.driverPhotoUrl} alt=""/>}
+                        </div>
+                        <div className="vendor-vehicle-badges">
+                          <span className={'status-pill status-'+statusTone}>{status.replace(/_/g,' ')}</span>
+                          {secondaryLabel&&<span className="vendor-secondary-badge">{secondaryLabel}</span>}
+                        </div>
+                        <b className="vendor-price">{money(car.pricePerDay)}/day</b>
+                        <small className="vendor-fuel-note">Fuel expense paid by client</small>
+                        <small className="vendor-spec-line">{car.transmission} • {car.fuelType||'Fuel'}</small>
+                        {displayedBlackout&&<span className="vendor-blackout-period">{displayedBlackout.startDate} → {displayedBlackout.endDate}</span>}
+
+                        <div className="vendor-vehicle-actions" onClick={e=>e.stopPropagation()}>
+                          <button className="landing-secondary compact" onClick={()=>{
+                            setSelectedVendorVehicle(car);
+                            setCalendarCarId(car.id);
+                            setCalendarMonth(localYearMonth());
+                          }}>Calendar</button>
+
+                          {displayedBlackout ? (
+                            <button className="landing-secondary compact success" disabled={busy} onClick={()=>restoreOffMarket(car.id,displayedBlackout.id)}>Restore</button>
+                          ) : status==='APPROVED' ? (
+                            <button className="landing-primary compact" disabled={busy} onClick={()=>{
+                              const tomorrow=localDate(new Date(Date.now()+86400000));
+                              setUnavailabilityForm({reasonCode:'SERVICE_MAINTENANCE',reasonNote:'',startDate:tomorrow,endDate:tomorrow});
+                              setSelectedVendorVehicle(car);
+                              setOffMarketOpenId(car.id);
+                            }}>Off market</button>
+                          ) : (
+                            <button className="landing-secondary compact" onClick={()=>resetVehicleForm(car)}>
+                              {status==='REJECTED'?'Correct & resubmit':'Edit details'}
+                            </button>
+                          )}
+                        </div>
+
+                        {status!=='APPROVED'||activeBlackout ? (
+                          <button className="landing-secondary vendor-edit-full" onClick={e=>{e.stopPropagation();resetVehicleForm(car)}}>
+                            {status==='REJECTED'?'Correct & resubmit':status==='APPROVED'?'Edit details (off market)':'Edit details'}
+                          </button>
+                        ) : (
+                          <small className="vendor-edit-lock">Approved and on market — editing is available only while this vehicle is off market.</small>
+                        )}
+
+                        {car.rejectionReason&&<small className="vendor-review-note">Review: {car.rejectionReason}</small>}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
             {vendorVehicles.length>0 && <button className="landing-secondary vendor-add-another" onClick={()=>resetVehicleForm()}><Plus size={15}/> Add another vehicle</button>}
           </section>
 
           <section className="vendor-payouts-section">
             <div className="vendor-section-title"><div><h3>Payout history</h3></div><Banknote size={18}/></div>
-            {vendorPayouts.length ? <div className="vendor-payout-list">{vendorPayouts.map(p=><div className="vendor-payout-row" key={p.payoutId}><div><b>{p.carName}</b><span>{p.bookingId} · {dt(p.createdAt)} · Platform fee {Number(p.platformFeePercent).toFixed(2)}%</span></div><strong className="amount-credit">{money(p.vendorNetAmount)}</strong><span className={statusClass(p.status)}>{String(p.status).toUpperCase()}</span></div>)}</div> : <div className="vendor-no-payouts">No vendor payouts yet.</div>}
+            {vendorPayouts.length ? (
+              <div className="vendor-payout-list">
+                {vendorPayouts.map(p=>(
+                  <div className="vendor-payout-row" key={p.payoutId}>
+                    <div><b>{p.carName}</b><span>{p.bookingId} · {dt(p.createdAt)} · Platform fee {Number(p.platformFeePercent).toFixed(2)}%</span></div>
+                    <strong className="amount-credit">{money(p.vendorNetAmount)}</strong>
+                    <span className={statusClass(p.status)}>{String(p.status).toUpperCase()}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <div className="vendor-no-payouts">No vendor payouts yet.</div>}
           </section>
         </section>}
 
