@@ -416,3 +416,8 @@
 .danger-panel-form .text-danger-btn{white-space:nowrap;min-height:36px}
 @media(max-width:1000px){.attention-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.danger-panel{grid-template-columns:1fr}.danger-panel-form{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.attention-grid{grid-template-columns:1fr 1fr}.danger-panel-form{grid-template-columns:1fr}.danger-panel-form .text-danger-btn{width:100%}}
+
+.user-directory-filters{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(110px,.7fr) minmax(110px,.7fr) minmax(170px,1fr);gap:7px;align-items:center}
+.admin-user-search{min-width:0}
+@media(max-width:1050px){.user-directory-filters{grid-template-columns:1fr 1fr}.admin-user-search{grid-column:1 / -1}}
+@media(max-width:600px){.user-directory-filters{grid-template-columns:1fr}.admin-user-search{grid-column:auto}}
