@@ -356,8 +356,8 @@ export async function getRentalAdminBookings(page = 0, size = 25, status = 'ALL'
 export async function completeRentalBooking(bookingId: string): Promise<unknown> {
   return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/complete', { method: 'POST' });
 }
-export async function cancelRentalBooking(bookingId: string): Promise<unknown> {
-  return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/cancel', { method: 'POST' });
+export async function cancelRentalBooking(bookingId: string, reason: string): Promise<unknown> {
+  return api('/api/v1/car-rental/admin/bookings/' + encodeURIComponent(bookingId) + '/cancel', { method: 'POST', body: JSON.stringify({ reason }) });
 }
 
 export async function getRentalAdminPayouts(page = 0, size = 25, status = 'ALL'): Promise<import('./types').RentalAdminPayoutPageResponse> {
