@@ -29,15 +29,20 @@ class AuthService(
     @Transactional
     fun register(request: RegisterRequest): LoginResponse {
         val mobile = normalizeMobile(request.mobile)
+        val email = request.email?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+
         if (users.findByMobile(mobile).isPresent) {
             throw IllegalArgumentException("A user with this mobile number already exists")
+        }
+        if (email != null && users.findByEmailIgnoreCase(email).isPresent) {
+            throw IllegalArgumentException("A user with this email address already exists")
         }
 
         val user = users.save(
             UserEntity(
                 mobile = mobile,
                 name = request.name?.trim()?.takeIf { it.isNotBlank() },
-                email = request.email?.trim()?.lowercase()?.takeIf { it.isNotBlank() },
+                email = email,
                 passwordHash = passwordEncoder.encode(request.password),
                 role = "CLIENT",
                 active = true
