@@ -84,12 +84,12 @@ function StatusBadge({ value }: { value?: string }) {
   return <span className={`rental-status-badge ${meta.className}`}><Icon size={13} />{meta.label}</span>;
 }
 
-function imageUrl(value?: string | null) {
+function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith('/api/')) return API_BASE + raw;
-  return API_BASE + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+  const url = raw.startsWith('/api/') ? API_BASE + raw : API_BASE + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+  return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
 function PhotoTile({ src, alt, label, className = '' }: { src?: string | null; alt: string; label?: string; className?: string }) {
