@@ -155,13 +155,14 @@ function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function imageFromCar(car?: RentalCar, slot = 0) {
+function imageFromCar(car?: RentalCar, slot = 0, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(car?.imageUrl || '');
-  const values = raw.split(',').map(x => x.trim()).filter(Boolean);
+  const values = raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean);
   const value = values[slot] || '';
   if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
-  return base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  const url = base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  return url + '?variant=' + variant;
 }
 
 function bookingShareText(b: RentalBooking) {
