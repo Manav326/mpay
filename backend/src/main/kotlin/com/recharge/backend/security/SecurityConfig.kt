@@ -46,6 +46,8 @@ class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/forgot-password",
                     "/api/v1/auth/reset-password",
+                    "/api/v1/auth/otp/send",
+                    "/api/v1/auth/otp/verify",
                     "/api/v1/auth/portal-login",
                     "/api/v1/auth/admin-login",
                     "/api/v1/auth/manager-login",
