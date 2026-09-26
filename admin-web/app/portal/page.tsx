@@ -434,6 +434,7 @@ export default function Portal() {
   const [selectedRechargeDetail, setSelectedRechargeDetail] = useState<any>();
   const [selectedWithdrawalDetail, setSelectedWithdrawalDetail] = useState<any>();
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [commissionSummary, setCommissionSummary] = useState<any>();
@@ -1224,7 +1225,8 @@ export default function Portal() {
     }
     setBusy(true);
     try {
-      const method = vendor?.vendorId ? 'PUT' : 'POST';
+      const verifiedProfileEdit = String(vendor?.status || '').toUpperCase() === 'VERIFIED' && showVendorForm;
+      const method = verifiedProfileEdit ? 'PUT' : 'POST';
       const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method,body:JSON.stringify({
         vendorType: vendorForm.vendorType,
         fullName: vendorForm.fullName.trim(),
