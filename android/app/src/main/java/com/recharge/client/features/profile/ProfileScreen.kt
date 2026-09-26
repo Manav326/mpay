@@ -43,10 +43,11 @@ import java.math.BigDecimal
 fun ProfileScreen(
     state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
     onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
-    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, isVisible: Boolean
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) { onLoad(); onRefreshVendor() } }
     LaunchedEffect(state.saved) { if (state.saved) { editing = false; onProfileUpdated() } }
     val user = state.user
@@ -154,20 +155,12 @@ fun ProfileScreen(
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {
                         context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://mpay.thinkwithsujeet.in/privacy-policy")
-                            )
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://mpay.thinkwithsujeet.in/privacy-policy"))
                         )
                     }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                    ProfileActionRow(Icons.Default.Delete, "Delete account", "Request deletion of your mPay account and associated data") {
-                        context.startActivity(
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("https://mpay.thinkwithsujeet.in/delete-account")
-                            )
-                        )
+                    ProfileActionRow(Icons.Default.Delete, "Delete account", "Permanently delete your account and associated personal data") {
+                        showDeleteDialog = true
                     }
                 }
             }
@@ -183,7 +176,71 @@ fun ProfileScreen(
 
     if (editing) EditProfileDialog(user, state.saving, { if (!state.saving) editing = false }, onSave, onRemovePhoto, state.deletingImage)
 
+    if (showDeleteDialog) {
+        DeleteAccountDialog(
+            deleting = deletingAccount,
+            onDismiss = { if (!deletingAccount) showDeleteDialog = false },
+            onDelete = { password, confirmation ->
+                onDeleteAccount(password, confirmation) {
+                    showDeleteDialog = false
+                }
+            }
+        )
+    }
 
+
+}
+
+@Composable
+private fun DeleteAccountDialog(
+    deleting: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: (String, String) -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var confirmation by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete mPay account") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "This permanently signs you out and removes or redacts your personal account data. Financial records required for reconciliation or legal compliance may be retained in redacted form.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Current password") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                )
+                OutlinedTextField(
+                    value = confirmation,
+                    onValueChange = { confirmation = it.uppercase().take(6) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Type DELETE to confirm") },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onDelete(password, confirmation) },
+                enabled = !deleting && password.isNotBlank() && confirmation == "DELETE",
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.Error),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (deleting) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
+                else Text("Delete account")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !deleting) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
