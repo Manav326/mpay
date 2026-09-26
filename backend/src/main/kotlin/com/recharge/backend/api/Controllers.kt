@@ -228,6 +228,26 @@ class AuthController(
 
 
 @RestController
+@RequestMapping("/api/v1/account")
+class AccountController(
+    private val accountDeletionService: com.recharge.backend.service.AccountDeletionService
+) {
+    @PostMapping("/deletion")
+    fun delete(
+        authentication: Authentication,
+        @Valid @RequestBody request: AccountDeletionRequest
+    ): AccountDeletionResponse {
+        val userId = authentication.name.toLongOrNull()
+            ?: throw IllegalStateException("Invalid authenticated user")
+        accountDeletionService.deleteAccount(userId, request.password, request.confirmation)
+        return AccountDeletionResponse(
+            status = "DELETED",
+            message = "Your mPay account and associated personal data have been deleted or redacted."
+        )
+    }
+}
+
+@RestController
 @RequestMapping("/api/v1/profile")
 class ProfileController(private val profileService: ProfileService) {
     private fun authenticatedUserId(authentication: Authentication): Long =
