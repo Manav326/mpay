@@ -17,9 +17,9 @@ type Me = {
 };
 type RechargeItem = {
   transactionId?: string; clientRequestId?: string; mobileNumber?: string; recipientName?: string | null; operator?: string; circle?: string;
-  amount?: number; walletDebitAmount?: number; status?: string; createdAt?: string; updatedAt?: string; completedAt?: string | null;
+  planId?: string; amount?: number; walletDebitAmount?: number; status?: string; createdAt?: string; updatedAt?: string; completedAt?: string | null;
   planDescription?: string | null; planValidity?: string | null; provider?: string; providerReference?: string | null;
-  message?: string | null; clientCommission?: number;
+  providerOrderId?: string | null; walletLedgerRef?: string | null; message?: string | null; clientCommission?: number;
 };
 type WalletItem = {
   id?: string | number; type?: string; amount?: number; status?: string; referenceId?: string;
@@ -270,6 +270,70 @@ function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (te
   );
 }
 
+function RechargeHistoryWebCard({ item, onCopy }: { item: RechargeItem; onCopy: (text:string, message?:string)=>void }) {
+  const rawStatus = String(item.status || 'UNKNOWN').toUpperCase();
+  const status = rawStatus === 'RESERVED' ? 'PENDING' : rawStatus;
+  const copyTextValue = [
+    'Recharge history',
+    'Amount: ' + money(item.amount),
+    'Wallet debit: ' + money(item.walletDebitAmount),
+    'Mobile: ' + (item.mobileNumber || '—'),
+    ...(item.recipientName ? ['Contact name: ' + item.recipientName] : []),
+    'Operator: ' + webOperatorLabel(item.operator),
+    'Circle: ' + (item.circle || '—'),
+    'Plan ID: ' + (item.planId || '—'),
+    ...(item.planDescription ? ['Plan: ' + item.planDescription] : []),
+    ...(item.planValidity ? ['Validity: ' + item.planValidity] : []),
+    'Transaction ID: ' + (item.transactionId || '—'),
+    'Client Request ID: ' + (item.clientRequestId || '—'),
+    ...(item.providerReference ? ['Provider reference: ' + item.providerReference] : []),
+    ...(item.providerOrderId ? ['Provider order ID: ' + item.providerOrderId] : []),
+    ...(item.walletLedgerRef ? ['Wallet ledger reference: ' + item.walletLedgerRef] : []),
+    'Provider: ' + (item.provider || '—'),
+    'Status: ' + status,
+    ...(item.message ? ['Message: ' + item.message] : []),
+    'Date & time: ' + dt(item.completedAt || item.createdAt),
+    ...(status === 'SUCCESS' ? ['Commission earned: ' + money(item.clientCommission)] : [])
+  ].join('\n');
+  return (
+    <article className="recharge-history-card">
+      <div className="recharge-history-card-top">
+        <div className="recharge-history-card-main">
+          <strong>{money(item.amount)}</strong>
+          <span>{webOperatorLabel(item.operator)} · {item.mobileNumber || '—'}</span>
+          {item.recipientName && <b className="recharge-history-recipient">{item.recipientName}</b>}
+          {item.planDescription && <b>{item.planDescription}</b>}
+          {item.planValidity && <small>{item.planValidity}</small>}
+        </div>
+        <div className="recharge-history-card-actions">
+          <span className={statusClass(status)}>{status}</span>
+          <button className="copy-btn" onClick={()=>onCopy(copyTextValue,'Recharge details copied.')} title="Copy all recharge data">
+            <Copy size={14}/><span>Copy</span>
+          </button>
+        </div>
+      </div>
+      <div className="recharge-history-divider"/>
+      <div className="recharge-history-card-meta">
+        <div>
+          <span>{status === 'PENDING' || status === 'PROCESSING' ? 'Reserved' : 'Wallet debit'}</span>
+          <b>{money(item.walletDebitAmount)}</b>
+        </div>
+        <div><span>Transaction ID</span><b>{item.transactionId || '—'}</b></div>
+        <div><span>Reference</span><b>{item.clientRequestId || '—'}</b></div>
+        {item.providerReference && <div><span>Provider ref</span><b>{item.providerReference}</b></div>}
+      </div>
+      <div className="recharge-history-card-footer">
+        <span><CalendarDays size={14}/>{dt(item.completedAt || item.createdAt)}</span>
+        <div>
+          {status === 'SUCCESS' && <b className="amount-credit">Commission earned: {money(item.clientCommission)}</b>}
+          <span>{item.provider || '—'}</span>
+        </div>
+      </div>
+      {item.message && <p className="recharge-history-message">{item.message}</p>}
+    </article>
+  );
+}
+
 function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolean }) {
   if (!period) {
     return (
@@ -308,9 +372,16 @@ export default function Portal() {
   const [operatorCircle, setOperatorCircle] = useState('');
   const [plans, setPlans] = useState<any[]>([]);
   const [recharges, setRecharges] = useState<RechargeItem[]>([]);
-  const [historyKind, setHistoryKind] = useState('');
+  const [historyKind, setHistoryKind] = useState('ALL');
+  const [historyFilter, setHistoryFilter] = useState<'TODAY'|'LAST_7_DAYS'|'THIS_MONTH'|'CUSTOM'>('TODAY');
   const [historyFrom, setHistoryFrom] = useState(localDate());
   const [historyTo, setHistoryTo] = useState(localDate());
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyTotalItems, setHistoryTotalItems] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
+  const [historyRefreshing, setHistoryRefreshing] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [rechargeFunding, setRechargeFunding] = useState<'WALLET'|'RAZORPAY'|'PAYU'>('WALLET');
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
@@ -392,42 +463,87 @@ export default function Portal() {
   const walletAmountClass = (item: WalletItem) => walletSigned(item) < 0 ? 'amount-debit' : 'amount-credit';
   const walletAmountLabel = (item: WalletItem) => (walletSigned(item) < 0 ? '-' : '+') + money(Math.abs(Number(item.amount || 0)));
 
-  async function loadHistory() {
-    const requestSeq = ++historyLoadSeq.current;
-    if (historyFrom && historyTo && historyTo < historyFrom) {
+  async function loadHistory(
+    page = 0,
+    overrides?: { status?: string; from?: string; to?: string; size?: number }
+  ) {
+    const targetPage = Math.max(0, page);
+    const status = overrides?.status ?? historyKind;
+    const from = overrides?.from ?? historyFrom;
+    const to = overrides?.to ?? historyTo;
+    const size = overrides?.size ?? historyPageSize;
+    if (from && to && to < from) {
       setNotice('The history end date must be on or after the start date.');
       return;
     }
-    const rechargeParams = new URLSearchParams({ page:'0', size:'25' });
-    if (historyFrom) rechargeParams.set('from', historyFrom);
-    if (historyTo) rechargeParams.set('to', historyTo);
-    const walletParams = new URLSearchParams({ page:'0', size:'25' });
-    if (historyKind) walletParams.set('kind', historyKind);
-    if (historyFrom) walletParams.set('from', historyFrom);
-    if (historyTo) walletParams.set('to', historyTo);
-
-    const [rechargeResult, walletResult] = await Promise.allSettled([
-      api<any>('/api/v1/recharge/history?' + rechargeParams.toString()),
-      api<any>('/api/v1/wallet/history?' + walletParams.toString())
-    ]);
-
-    const messages:string[] = [];
-    if (requestSeq !== historyLoadSeq.current) return;
-
-    if (rechargeResult.status === 'fulfilled') {
-      const r = rechargeResult.value;
-      setRecharges(r?.items || r?.content || r || []);
-    } else {
-      messages.push(rechargeResult.reason?.message || 'Recharge history could not be loaded.');
+    setHistoryLoading(targetPage !== 0);
+    setHistoryRefreshing(targetPage === 0);
+    try {
+      const params = new URLSearchParams({
+        page: String(targetPage),
+        size: String(size),
+        from,
+        to
+      });
+      if (status && status !== 'ALL') params.set('status', status);
+      const r = await api<any>('/api/v1/recharge/history?' + params.toString());
+      const items = r?.items || r?.content || r || [];
+      setRecharges(items);
+      setHistoryPage(Number(r?.page ?? targetPage));
+      setHistoryTotalItems(Number(r?.totalItems ?? items.length));
+      setHistoryTotalPages(Number(r?.totalPages ?? (items.length ? 1 : 0)));
+      setHistoryKind(status || 'ALL');
+      setNotice('');
+    } catch (e:any) {
+      setNotice(e.message || 'Recharge history could not be loaded.');
+    } finally {
+      setHistoryLoading(false);
+      setHistoryRefreshing(false);
     }
-    if (walletResult.status === 'fulfilled') {
-      const w = walletResult.value;
-      setWalletHistory(w?.items || w?.content || w || []);
-    } else {
-      messages.push(walletResult.reason?.message || 'Wallet history could not be loaded.');
-    }
-    if (messages.length) setNotice(messages.join(' '));
   }
+
+  function applyHistoryRange(filter:'TODAY'|'LAST_7_DAYS'|'THIS_MONTH'|'CUSTOM') {
+    const today = new Date();
+    const todayValue = localDate(today);
+    if (filter === 'TODAY') {
+      setHistoryFilter('TODAY');
+      setHistoryFrom(todayValue);
+      setHistoryTo(todayValue);
+      setHistoryPage(0);
+      return;
+    }
+    if (filter === 'LAST_7_DAYS') {
+      const fromDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+      setHistoryFilter('LAST_7_DAYS');
+      setHistoryFrom(localDate(fromDate));
+      setHistoryTo(todayValue);
+      setHistoryPage(0);
+      return;
+    }
+    if (filter === 'THIS_MONTH') {
+      const fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      setHistoryFilter('THIS_MONTH');
+      setHistoryFrom(localDate(fromDate));
+      setHistoryTo(todayValue);
+      setHistoryPage(0);
+      return;
+    }
+    setHistoryFilter('CUSTOM');
+    setHistoryPage(0);
+  }
+
+  function changeHistoryStatus(status:string) {
+    const normalized = String(status || 'ALL').trim().toUpperCase() || 'ALL';
+    setHistoryKind(normalized);
+    setHistoryPage(0);
+  }
+
+  function changeHistoryPageSize(size:number) {
+    const normalized = [10,20,50].includes(size) ? size : 20;
+    setHistoryPageSize(normalized);
+    setHistoryPage(0);
+  }
+
 
   async function loadCommissionSummary() {
     try { setCommissionSummary(await api<any>('/api/v1/recharge/commission-summary')); } catch {}
@@ -1132,9 +1248,9 @@ export default function Portal() {
 
   useEffect(()=>{
     if(view==='history'){
-      void loadHistory();
+      void loadHistory(0);
     }
-  },[historyKind,historyFrom,historyTo]);
+  },[view, historyKind, historyFrom, historyTo]);
 
   useEffect(()=>{
     if(selectedVendorVehicle){
@@ -1600,14 +1716,135 @@ export default function Portal() {
         </section>
       </section>}
 
-      {view==='history' && <section className="portal-content">
-        <div className="portal-panel"><div className="panel-head"><div><h2>Recharge history</h2><p>Track submitted, pending, successful and failed recharges.</p></div><button className="landing-secondary" onClick={loadHistory}><RefreshCw size={15}/> Refresh</button></div>
-          <div className="history-date-filters"><label>From<input type="date" max={localDate()} value={historyFrom} onChange={e=>setHistoryFrom(e.target.value)}/></label><label>To<input type="date" max={localDate()} min={historyFrom || undefined} value={historyTo} onChange={e=>setHistoryTo(e.target.value)}/></label><button className="landing-secondary" onClick={()=>{setHistoryFrom(localDate());setHistoryTo(localDate());setHistoryKind('');}}>Clear filters</button></div>
-          {recharges.length ? <div className="history-list">{recharges.map((x,i)=><div className="history-row" key={String(x.transactionId || i)}>
-            <div><ReceiptText size={18}/><b>{x.mobileNumber || 'Recharge'} · {x.operator || '—'}</b><small>{x.planDescription || 'Plan'} · {x.transactionId || 'No reference'} · {dt(x.createdAt)}{x.provider ? ' · '+x.provider : ''}</small></div>
-            <strong className="amount-debit">{money(x.amount)}</strong>
-            <div className="history-actions"><span className={statusClass(x.status)}>{String(x.status || 'UNKNOWN').toUpperCase()}</span>{x.transactionId && <button className="copy-btn" onClick={()=>openWalletItem({id:x.transactionId,type:'RECHARGE',amount:x.amount,status:x.status,referenceId:x.transactionId,referenceType:'RECHARGE',provider:x.provider,createdAt:x.createdAt})}><Eye size={14}/><span>Details</span></button>}{x.transactionId && <button className="copy-btn" onClick={()=>copyText(x.transactionId || '','Transaction reference copied.')}><Copy size={14}/><span>Copy</span></button>}</div>
-          </div>)}</div> : <div className="empty-state"><History size={22}/><b>No recharge history yet</b><span>Your completed and pending recharges will appear here.</span></div>}
+      {view==='history' && <section className="portal-content recharge-history-page">
+        <div className="portal-panel recharge-history-panel">
+          <div className="panel-head recharge-history-head">
+            <div>
+              <span className="recharge-history-eyebrow">TRANSACTIONS</span>
+              <h2>Recharge history</h2>
+              <p>Review every recharge with the same status, date and pagination controls available in the Android app.</p>
+            </div>
+            <button className="landing-secondary recharge-refresh-button" onClick={()=>void loadHistory(0)} disabled={historyRefreshing}>
+              <RefreshCw size={15} className={historyRefreshing ? 'spin' : ''}/> {historyRefreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+
+          <div className="recharge-history-filters">
+            <div className="recharge-history-filter-group">
+              <span className="recharge-history-filter-label">Date range</span>
+              <div className="recharge-range-segmented">
+                {([
+                  ['TODAY','Today'],
+                  ['LAST_7_DAYS','7 days'],
+                  ['THIS_MONTH','Month'],
+                  ['CUSTOM','Custom']
+                ] as const).map(([value,label]) => (
+                  <button
+                    key={value}
+                    className={historyFilter===value ? 'selected' : ''}
+                    onClick={()=>applyHistoryRange(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="recharge-history-range-row">
+              <label>
+                <span>From</span>
+                <input
+                  type="date"
+                  max={localDate()}
+                  value={historyFrom}
+                  onChange={e=>{
+                    setHistoryFilter('CUSTOM');
+                    setHistoryFrom(e.target.value);
+                    setHistoryPage(0);
+                  }}
+                />
+              </label>
+              <span className="recharge-range-arrow">→</span>
+              <label>
+                <span>To</span>
+                <input
+                  type="date"
+                  max={localDate()}
+                  min={historyFrom || undefined}
+                  value={historyTo}
+                  onChange={e=>{
+                    setHistoryFilter('CUSTOM');
+                    setHistoryTo(e.target.value);
+                    setHistoryPage(0);
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="recharge-history-filter-group">
+              <span className="recharge-history-filter-label">Status</span>
+              <div className="recharge-status-chips">
+                {([
+                  ['ALL','All'],
+                  ['SUCCESS','Success'],
+                  ['PENDING','Pending'],
+                  ['FAILED','Failed']
+                ] as const).map(([value,label]) => (
+                  <button
+                    key={value}
+                    className={historyKind===value ? 'selected status-'+value.toLowerCase() : 'status-'+value.toLowerCase()}
+                    onClick={()=>changeHistoryStatus(value)}
+                  >
+                    <span className="recharge-status-dot"/> {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="recharge-history-summary">
+            <span>
+              {historyFrom && historyTo
+                ? new Date(historyFrom + 'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) +
+                  ' → ' +
+                  new Date(historyTo + 'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+                : 'Selected period'}
+            </span>
+            <b>{historyTotalItems} transaction{historyTotalItems===1?'':'s'}</b>
+          </div>
+
+          {notice && (
+            <div className="recharge-history-notice">
+              <span><ShieldCheck size={16}/>{notice}</span>
+            </div>
+          )}
+
+          {historyLoading && recharges.length === 0 ? (
+            <div className="recharge-history-loading">
+              <div className="recharge-history-skeleton"/><div className="recharge-history-skeleton"/><div className="recharge-history-skeleton"/>
+            </div>
+          ) : !recharges.length ? (
+            <div className="recharge-history-empty">
+              <span className="recharge-history-empty-icon"><History size={24}/></span>
+              <b>No recharge transactions</b>
+              <span>There are no recharge records for the selected period and status.</span>
+            </div>
+          ) : (
+            <div className="recharge-history-list">
+              {recharges.map((item,i) => <RechargeHistoryWebCard key={String(item.transactionId || item.clientRequestId || i)} item={item} onCopy={copyText}/>)}
+              {historyLoading && <div className="recharge-history-inline-loading"><span className="wallet-spinner"/></div>}
+            </div>
+          )}
+
+          <WebHistoryPagination
+            page={historyPage}
+            totalItems={historyTotalItems}
+            totalPages={historyTotalPages}
+            pageSize={historyPageSize}
+            onPageSizeChange={changeHistoryPageSize}
+            onPrevious={()=>void loadHistory(Math.max(0,historyPage-1))}
+            onNext={()=>void loadHistory(historyPage+1)}
+          />
         </div>
       </section>}
 
