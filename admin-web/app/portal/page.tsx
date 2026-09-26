@@ -1203,12 +1203,46 @@ export default function Portal() {
     finally{setBusy(false);}
   }
 
+  function validateVendorForm() {
+    const primary = String(vendorForm.payoutPrimaryMethod || '').toUpperCase();
+    if (!vendorForm.fullName.trim()) return 'Full name is required.';
+    if (!vendorForm.address.trim()) return 'Address is required.';
+    if (!vendorForm.city.trim()) return 'City is required.';
+    if (!vendorForm.state.trim()) return 'State is required.';
+    if (!vendorForm.pinCode.trim()) return 'PIN code is required.';
+    if (primary === 'UPI' && !vendorForm.payoutUpiId.trim()) return 'Payout UPI is required when UPI is selected as primary.';
+    if (primary === 'BANK' && (!vendorForm.bankAccountNumber.trim() || !vendorForm.bankIfsc.trim())) return 'Bank account and IFSC are required when Bank is selected as primary.';
+    return '';
+  }
+
   async function saveVendor() {
+    setVendorSubmitAttempted(true);
+    const validation = validateVendorForm();
+    if (validation) {
+      setNotice(validation);
+      return;
+    }
     setBusy(true);
     try {
       const method = vendor?.vendorId ? 'PUT' : 'POST';
-      const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method,body:JSON.stringify(vendorForm)});
-      setVendor(v); setShowVendorForm(false);
+      const v=await api<RentalVendor>('/api/v1/car-rental/vendor',{method,body:JSON.stringify({
+        vendorType: vendorForm.vendorType,
+        fullName: vendorForm.fullName.trim(),
+        businessName: vendorForm.businessName.trim() || null,
+        address: vendorForm.address.trim(),
+        city: vendorForm.city.trim(),
+        state: vendorForm.state.trim(),
+        pinCode: vendorForm.pinCode.trim(),
+        panNumber: vendorForm.panNumber.trim() || null,
+        payoutUpiId: vendorForm.payoutUpiId.trim() || null,
+        bankAccountNumber: vendorForm.bankAccountNumber.trim() || null,
+        bankIfsc: vendorForm.bankIfsc.trim() || null,
+        bankName: vendorForm.bankName.trim() || null,
+        payoutPrimaryMethod: vendorForm.payoutPrimaryMethod.trim() || null
+      })});
+      setVendor(v);
+      setShowVendorForm(false);
+      setVendorSubmitAttempted(false);
       setNotice(vendor?.vendorId ? 'Vendor profile updated.' : 'Vendor application submitted for admin verification.');
       await loadAccountData();
     } catch(e:any){setNotice(e.message || 'Unable to save vendor profile.');}
@@ -1222,48 +1256,180 @@ export default function Portal() {
       payoutUpiId: v.payoutUpiId || '', bankAccountNumber: v.bankAccountNumber || '', bankIfsc: v.bankIfsc || '',
       bankName: v.bankName || '', payoutPrimaryMethod: v.payoutPrimaryMethod || ''
     });
+    setVendorSubmitAttempted(false);
     setShowVendorForm(true);
   }
 
+  function openVendorOnboarding() {
+    setVendorForm({
+      vendorType: vendor?.vendorType || 'INDIVIDUAL', fullName: vendor?.fullName || '', businessName: vendor?.businessName || '',
+      address: vendor?.address || '', city: vendor?.city || '', state: vendor?.state || '', pinCode: vendor?.pinCode || '',
+      panNumber: vendor?.panNumber || '', payoutUpiId: vendor?.payoutUpiId || '', bankAccountNumber: vendor?.bankAccountNumber || '',
+      bankIfsc: vendor?.bankIfsc || '', bankName: vendor?.bankName || '', payoutPrimaryMethod: vendor?.payoutPrimaryMethod || ''
+    });
+    setVendorSubmitAttempted(false);
+    setAccountSection('vendor');
+  }
+
+  function rawVehiclePhotos(car?:RentalCar) {
+    return String(car?.imageUrl || '').split('|').map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
+  }
+
   function resetVehicleForm(car?:RentalCar) {
-    if(!car){
-      setVehicleEditId('');
-      setVehicleForm({...defaultVehicle,driver:{...defaultVehicle.driver}});
-    } else {
-      setVehicleEditId(String(car.id));
-      setVehicleForm({
-        name:car.name || '', category:car.category || 'SEDAN', seats:car.seats || 4, transmission:car.transmission || 'AUTOMATIC',
-        fuelType:car.fuelType || 'PETROL', manufacturingYear:car.manufacturingYear || new Date().getFullYear(),
+    const photos = rawVehiclePhotos(car);
+    setVehicleEditId(car ? String(car.id) : '');
+    setVehicleSubmitAttempted(false);
+    setVehicleForm({
+      ...(car ? {
+        name:car.name || '', category:car.category || 'Sedan', seats:car.seats || 5, transmission:car.transmission || 'Automatic',
+        fuelType:car.fuelType || 'Petrol', manufacturingYear:car.manufacturingYear || new Date().getFullYear(),
         registrationYear:car.registrationYear || new Date().getFullYear(), registrationNumber:car.registrationNumber || '',
         make:car.make || '', model:car.model || '', variant:car.variant || '', pickupAddress:car.pickupAddress || '',
         city:car.city || '', state:car.state || '', pricePerDay:car.pricePerDay || '',
         driver:{fullName:car.driverName || '',mobile:car.driverMobile || '',licenseNumber:car.driverLicenseNumber || '',
-          licenseExpiry:car.driverLicenseExpiry ? String(car.driverLicenseExpiry).slice(0,16) : '',address:car.driverAddress || ''}
+          licenseExpiry:car.driverLicenseExpiry ? String(car.driverLicenseExpiry).slice(0,10) : '',address:car.driverAddress || ''}
+      } : {
+        ...defaultVehicle,
+        category:'Sedan', seats:5, transmission:'Automatic', fuelType:'Petrol',
+        driver:{...defaultVehicle.driver,licenseExpiry:''}
+      })
+    });
+    setVehiclePhotoUrls(photos);
+    setVehiclePhotoFiles([null,null,null,null]);
+    setVehiclePhotoPreviews(photos.map(x=>x ? (x.startsWith('http') ? x : base + '/api/v1/car-rental/photos/' + x.replace(/^\\/+/,'')) : ''));
+    setDriverPhotoFile(null);
+    setDriverPhotoPreview(car?.driverPhotoUrl ? (car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl) : '');
+    setShowVehicleForm(true);
+    setAccountSection('vehicle');
+  }
+
+  function setVehiclePhotoFile(slot:number, file:File|null) {
+    setVehiclePhotoFiles(current => {
+      const next=[...current];
+      next[slot]=file;
+      return next;
+    });
+    setVehiclePhotoPreviews(current => {
+      const next=[...current];
+      next[slot]=file ? URL.createObjectURL(file) : '';
+      return next;
+    });
+    if(file) {
+      setVehiclePhotoUrls(current => {
+        const next=[...current];
+        next[slot]='';
+        return next;
       });
     }
-    setShowVehicleForm(true);
+  }
+
+  function setVehiclePhotoUrl(slot:number, value:string) {
+    setVehiclePhotoUrls(current => {
+      const next=[...current];
+      next[slot]=value;
+      return next;
+    });
+    if(value.trim()) {
+      setVehiclePhotoFiles(current => {
+        const next=[...current];
+        next[slot]=null;
+        return next;
+      });
+      setVehiclePhotoPreviews(current => {
+        const next=[...current];
+        next[slot]=value;
+        return next;
+      });
+    }
+  }
+
+  function validateVehicleForm() {
+    const currentYear=new Date().getFullYear();
+    const earliestYear=currentYear-20;
+    const manufacturing=Number(vehicleForm.manufacturingYear);
+    const registration=Number(vehicleForm.registrationYear);
+    const price=Number(vehicleForm.pricePerDay);
+    const mobile=normalizeIndianMobile(vehicleForm.driver.mobile);
+    const licenseExpiry=vehicleForm.driver.licenseExpiry ? new Date(vehicleForm.driver.licenseExpiry+'T00:00:00') : null;
+    const photosComplete=vehiclePhotoUrls.every((url,slot)=>Boolean(url.trim() || vehiclePhotoFiles[slot]));
+    if(!vehicleForm.name.trim()) return 'Vehicle name is required.';
+    if(!vehicleForm.make.trim()) return 'Make is required.';
+    if(!vehicleForm.model.trim()) return 'Model is required.';
+    if(!vehicleForm.registrationNumber.trim()) return 'Registration number is required.';
+    if(!vehicleForm.city.trim()) return 'City is required.';
+    if(!vehicleForm.state.trim()) return 'State is required.';
+    if(!Number.isInteger(manufacturing) || manufacturing < earliestYear || manufacturing > currentYear) return 'Manufacturing year must be within the last 20 years.';
+    if(!Number.isInteger(registration) || registration < manufacturing || registration > currentYear) return 'Registration year cannot be before manufacture year or after the current year.';
+    if(!(price>0)) return 'Enter a valid positive price with up to 2 decimals.';
+    if(!(Number(vehicleForm.seats) >= 2 && Number(vehicleForm.seats) <= 8)) return 'Seats must be between 2 and 8.';
+    if(!vehicleForm.driver.fullName.trim()) return 'Driver name is required.';
+    if(!/^\\d{10}$/.test(mobile)) return 'Driver mobile must contain exactly 10 digits.';
+    if(!vehicleForm.driver.licenseNumber.trim()) return 'Driving licence number is required.';
+    if(!licenseExpiry || licenseExpiry <= new Date(new Date().toDateString())) return 'Licence expiry must be a future date.';
+    if(!photosComplete) return 'Front, side, rear and interior vehicle photos are required.';
+    return '';
   }
 
   async function saveVehicle() {
+    setVehicleSubmitAttempted(true);
+    const validation=validateVehicleForm();
+    if(validation){setNotice(validation);return;}
     setBusy(true);
     try {
+      const rawImages=vehiclePhotoUrls.map((url,slot)=>vehiclePhotoFiles[slot] ? '' : url.trim()).join('|');
       const body={
-        ...vehicleForm,
+        name:vehicleForm.name.trim(),
+        category:vehicleForm.category,
         seats:Number(vehicleForm.seats),
+        transmission:vehicleForm.transmission,
+        fuelType:vehicleForm.fuelType,
         manufacturingYear:Number(vehicleForm.manufacturingYear),
         registrationYear:Number(vehicleForm.registrationYear),
+        registrationNumber:sanitizeRegistration(vehicleForm.registrationNumber.trim()),
+        make:sanitizeVehicleAlphaNumeric(vehicleForm.make.trim(),80),
+        model:sanitizeVehicleAlphaNumeric(vehicleForm.model.trim(),80),
+        variant:sanitizeVehicleAlphaNumeric(vehicleForm.variant.trim(),80) || null,
+        pickupAddress:vehicleForm.pickupAddress.trim(),
+        city:sanitizeVehicleAlphaNumeric(vehicleForm.city.trim(),100),
+        state:vehicleForm.state,
         pricePerDay:Number(vehicleForm.pricePerDay),
-        driver:{...vehicleForm.driver,licenseExpiry:vehicleForm.driver.licenseExpiry}
+        pickupLocation:null,
+        imageUrl:rawImages || null,
+        driver:{
+          fullName:sanitizeVehicleAlphaNumeric(vehicleForm.driver.fullName.trim(),120),
+          mobile:normalizeIndianMobile(vehicleForm.driver.mobile),
+          licenseNumber:sanitizeLicense(vehicleForm.driver.licenseNumber.trim()),
+          licenseExpiry:vehicleForm.driver.licenseExpiry,
+          address:vehicleForm.driver.address.trim() || null
+        }
       };
       const saved=await api<RentalCar>(
         vehicleEditId ? '/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(vehicleEditId) : '/api/v1/car-rental/vendor/vehicles',
         {method:vehicleEditId?'PUT':'POST',body:JSON.stringify(body)}
       );
-      setVendorVehicles(v=>vehicleEditId ? v.map(x=>x.id===saved.id?saved:x) : [saved,...v]);
-      setShowVehicleForm(false); setSelectedVendorVehicle(saved);
+      let latest=saved;
+      for(let slot=0;slot<vehiclePhotoFiles.length;slot++){
+        const file=vehiclePhotoFiles[slot];
+        if(file) {
+          const fd=new FormData(); fd.append('photo',file);
+          latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot,'PUT',fd);
+        }
+      }
+      if(driverPhotoFile && latest.driverId){
+        const fd=new FormData(); fd.append('photo',driverPhotoFile);
+        latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
+      }
+      setVendorVehicles(v=>vehicleEditId ? v.map(x=>x.id===latest.id?latest:x) : [latest,...v]);
+      setSelectedVendorVehicle(undefined);
+      setShowVehicleForm(false);
+      setVehicleSubmitAttempted(false);
+      setAccountSection('vendor');
       setNotice(vehicleEditId ? 'Vehicle resubmitted for admin review.' : 'Vehicle submitted for admin review.');
-    } catch(e:any){setNotice(e.message || 'Unable to save vehicle.');}
-    finally{setBusy(false);}
+      await loadAccountData();
+    } catch(e:any){
+      setNotice(e.message || 'Vehicle was saved, but one or more photos could not be uploaded.');
+      await loadAccountData();
+    } finally{setBusy(false);}
   }
 
   async function uploadVehicleSlot(carId:string,slot:number,file:File) {
