@@ -110,6 +110,8 @@ function vehiclePhotos(vehicle: any): string[] {
     .split('|')
     .map((value) => value.trim())
     .filter(Boolean)
+    .slice(0, 4)
+    .concat(['', '', '', ''])
     .slice(0, 4);
 }
 
