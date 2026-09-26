@@ -16,11 +16,11 @@ import java.time.Duration
 
 @Component
 class Way2ApiOtpDeliveryProvider(
-    @Value("@@{app.way2api.base-url}") private val baseUrl: String,
-    @Value("@@{app.way2api.api-key:}") private val apiKey: String,
-    @Value("@@{app.way2api.otp-path:/api/v1/aws/send_otp-pin}") private val otpPath: String,
-    @Value("@@{app.way2api.connect-timeout-ms:5000}") private val connectTimeoutMs: Long,
-    @Value("@@{app.way2api.otp-read-timeout-ms:15000}") private val readTimeoutMs: Long
+    @Value("\${app.way2api.base-url}") private val baseUrl: String,
+    @Value("\${app.way2api.api-key:}") private val apiKey: String,
+    @Value("\${app.way2api.otp-path:/api/v1/aws/send_otp-pin}") private val otpPath: String,
+    @Value("\${app.way2api.connect-timeout-ms:5000}") private val connectTimeoutMs: Long,
+    @Value("\${app.way2api.otp-read-timeout-ms:15000}") private val readTimeoutMs: Long
 ) : OtpDeliveryProvider {
     override val providerName: String = "way2api"
 
