@@ -41,7 +41,7 @@ export default function Page() {
   const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
   const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
   const [commissionRates, setCommissionRates] = useState<RoleCommissionRate[]>([]);
-  const [attention, setAttention] = useState<AdminAttention>({ pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingPayouts: 0 });
+  const [attention, setAttention] = useState<AdminAttention>({ pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingVehicleReviews: 0, pendingPayouts: 0 });
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
