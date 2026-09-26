@@ -49,6 +49,6 @@ export default function LandingPage(){
 
     <section className="landing-story" id="security"><div className="story-panel"><div><span>BUILT FOR TRUST</span><h2>Simple on the surface.<br/><em>Thoughtful underneath.</em></h2></div><div className="story-points"><p><b>01</b> Transaction states remain visible instead of hiding pending or failed activity.</p><p><b>02</b> Wallet availability and reserved amounts are presented separately for clarity.</p><p><b>03</b> Operational portals use role-based controls and a read-only customer view where appropriate.</p></div></div></section>
 
-    <footer className="landing-footer"><Brand/><span>© {new Date().getFullYear()} mPay. Digital payments, made clearer.</span><div><a href="/privacy-policy">Privacy Policy</a><a href="/admin/login">Admin portal</a><a href="/login">Login</a></div></footer>
+    <footer className="landing-footer"><Brand/><span>© {new Date().getFullYear()} mPay. Digital payments, made clearer.</span><div><a href="/privacy-policy">Privacy Policy</a><a href="/delete-account">Delete account</a><a href="/admin/login">Admin portal</a><a href="/login">Login</a></div></footer>
   </main>;
 }
