@@ -1,6 +1,7 @@
 package com.recharge.client.features.profile
 
 import android.net.Uri
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.RentalVendorResponse
 import com.recharge.client.core.theme.AppColors
@@ -44,7 +46,7 @@ fun ProfileScreen(
     onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
-    var showPolicies by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     LaunchedEffect(isVisible) { if (isVisible) { onLoad(); onRefreshVendor() } }
     LaunchedEffect(state.saved) { if (state.saved) { editing = false; onProfileUpdated() } }
     val user = state.user
@@ -150,8 +152,175 @@ fun ProfileScreen(
                     Text("Settings & policies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                     ProfileActionRow(Icons.Default.Settings, "Account settings", "Update your name, email and profile photo") { editing = true }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                    ProfileActionRow(Icons.Default.Description, "Terms & Privacy", "Review the basic rules for using mPay services") { showPolicies = true }
+                    ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {\n                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://mpay.thinkwithsujeet.in/privacy-policy")))\n                    }\n                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))\n                    ProfileActionRow(Icons.Default.Delete, "Delete account", "Request deletion of your mPay account and associated data") {\n                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://mpay.thinkwithsujeet.in/delete-account")))\n                    }\n                }
+            }
+        }
+        item {
+            OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.Error), shape = RoundedCornerShape(14.dp)) {
+                Icon(Icons.Default.Logout, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Logout", maxLines = 1, softWrap = false, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
+    if (editing) EditProfileDialog(user, state.saving, { if (!state.saving) editing = false }, onSave, onRemovePhoto, state.deletingImage)
+
+ge com.recharge.client.features.profile
+
+import android.net.Uri
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.recharge.client.core.model.CurrentUserResponse
+import com.recharge.client.core.model.RentalVendorResponse
+import com.recharge.client.core.theme.AppColors
+import com.recharge.client.core.ui.CopyableValue
+import com.recharge.client.core.ui.ProfileAvatar
+import com.recharge.client.core.ui.formatExactTimestamp
+import com.recharge.client.core.ui.formatMoney
+import com.recharge.client.core.ui.MpayStatusPill
+import com.recharge.client.core.viewmodel.ProfileUiState
+import java.math.BigDecimal
+
+@Composable
+fun ProfileScreen(
+    state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
+    onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, isVisible: Boolean
+) {
+    var editing by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    LaunchedEffect(isVisible) { if (isVisible) { onLoad(); onRefreshVendor() } }
+    LaunchedEffect(state.saved) { if (state.saved) { editing = false; onProfileUpdated() } }
+    val user = state.user
+
+    LazyColumn(
+        Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 18.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Profile", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color(0xFF172033))
+                Text("Your personal account, identity and mPay preferences", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)) {
+                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ProfileAvatar(user, 82.dp)
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(user?.name?.takeIf { it.isNotBlank() } ?: "Your name", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(user?.email?.takeIf { it.isNotBlank() } ?: "Add an email address", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(user?.mobile ?: "—", color = Color(0xFF475569), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                    }
+                    FilledTonalButton(onClick = { editing = true }, shape = RoundedCornerShape(13.dp)) {
+                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Edit", fontWeight = FontWeight.Bold)
+                    }
                 }
+            }
+        }
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Text("Account details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = AppColors.PrimaryDark)
+                    Text("Permanent account information and activity", style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+                    HorizontalDivider()
+                    CopyableValue("Account ID", user?.publicUserId.orEmpty())
+                    ProfileInfoRow("Account type", roleLabel(user?.role))
+                    ProfileInfoRow("Commission rate", formatMoney(user?.commissionRate ?: BigDecimal.ZERO) + "%")
+                    ProfileInfoRow("Joined", formatExactTimestamp(user?.createdAt))
+                    ProfileInfoRow("Last profile update", formatExactTimestamp(user?.profileUpdatedAt ?: user?.createdAt))
+                }
+            }
+        }
+        state.error?.let {
+            item {
+                Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Text(it, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
+            val hasVendorProfile = !vendor?.vendorId.isNullOrBlank()
+            val verified = hasVendorProfile && vendor?.status.equals("VERIFIED", true)
+            val vendorTitle = when {
+                verified -> "Rental Vendor Dashboard"
+                hasVendorProfile && vendor?.status.equals("REJECTED", true) -> "Rental Vendor Application"
+                hasVendorProfile && vendor?.status.equals("PENDING", true) -> "Vendor Application · Pending Verification"
+                hasVendorProfile -> "Rental Vendor Application"
+                else -> "Become a Vendor"
+            }
+            val vendorSubtitle = when {
+                verified -> "Business workspace: manage cars, availability, payouts and rental operations."
+                hasVendorProfile && vendor?.status.equals("REJECTED", true) -> "Review the rejection note and resubmit your vendor details."
+                hasVendorProfile && vendor?.status.equals("PENDING", true) -> "Your application is submitted and awaiting admin verification."
+                hasVendorProfile -> "Review your vendor application status."
+                else -> "List your chauffeur-driven car and manage it through the mPay marketplace."
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                onClick = onBecomeVendor,
+                colors = CardDefaults.cardColors(containerColor = if (verified) AppColors.VendorNavy else Color(0xFFFFF7E6)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(13.dp), color = if (verified) AppColors.VendorGold.copy(alpha = .16f) else AppColors.SurfaceWarm) {
+                        Icon(Icons.Default.DirectionsCar, null, tint = if (verified) AppColors.VendorGold else AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(vendorTitle, style = MaterialTheme.typography.titleLarge, color = if (verified) Color.White else AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
+                        Text(vendorSubtitle, color = if (verified) Color.White.copy(alpha = .74f) else AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        if (hasVendorProfile) MpayStatusPill(vendor?.status ?: "—")
+                    }
+                    Icon(Icons.Default.ChevronRight, "Open vendor", tint = if (verified) Color.White else AppColors.PrimaryDark)
+                }
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Text("Settings & policies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                    ProfileActionRow(Icons.Default.Settings, "Account settings", "Update your name, email and profile photo") { editing = true }
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                    ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {\n                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://mpay.thinkwithsujeet.in/privacy-policy")))\n                    }\n                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))\n                    ProfileActionRow(Icons.Default.Delete, "Delete account", "Request deletion of your mPay account and associated data") {\n                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://mpay.thinkwithsujeet.in/delete-account")))\n                    }\n                }
             }
         }
         item {
