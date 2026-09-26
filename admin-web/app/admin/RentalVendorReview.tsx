@@ -92,9 +92,9 @@ function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
-function PhotoTile({ src, alt, label, className = '' }: { src?: string | null; alt: string; label?: string; className?: string }) {
+function PhotoTile({ src, alt, label, className = '', variant = 'thumb' }: { src?: string | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large' }) {
   const [failed, setFailed] = useState(false);
-  const resolved = imageUrl(src);
+  const resolved = imageUrl(src, variant);
   return (
     <div className={`rental-photo-tile ${className}`}>
       {resolved && !failed ? <img src={resolved} alt={alt} onError={() => setFailed(true)} /> : <div className="rental-photo-fallback"><CarFront size={22} /><span>{label || 'Photo unavailable'}</span></div>}
@@ -722,6 +722,7 @@ function VehiclePhotoCarousel({
           alt={activePhoto ? `Vehicle photo ${safeIndex + 1}` : 'Vehicle'}
           label={activePhoto ? `Photo ${safeIndex + 1} of ${photos.length}` : 'Vehicle photo'}
           className="inspection-gallery-main"
+          variant="large"
         />
         {photos.length > 1 && (
           <>
