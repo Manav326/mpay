@@ -386,6 +386,54 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
   );
 }
 
+function WalletBalanceHero({
+  wallet,
+  loading,
+  onRefreshBalance,
+  onAddMoney,
+  onWithdraw
+}: {
+  wallet?: Wallet;
+  loading: boolean;
+  onRefreshBalance: () => void;
+  onAddMoney: () => void;
+  onWithdraw: () => void;
+}) {
+  return (
+    <section className="wallet-parity-hero">
+      <div className="wallet-parity-hero-main">
+        <div className="wallet-parity-hero-top">
+          <div className="wallet-parity-label"><WalletCards size={17}/><span>AVAILABLE BALANCE</span></div>
+          <button
+            className="wallet-parity-refresh"
+            onClick={onRefreshBalance}
+            disabled={loading}
+            title="Refresh balance"
+          >
+            <RefreshCw size={15}/>
+          </button>
+        </div>
+        <strong>{loading ? 'Loading…' : money(wallet?.availableBalance)}</strong>
+        <div className="wallet-parity-breakdown">
+          <span>Total <b>{money(wallet?.balance)}</b></span>
+          <span>Reserved <b>{money(wallet?.reservedBalance)}</b></span>
+        </div>
+        {Number(wallet?.reservedBalance || 0) > 0 &&
+          <p>{money(wallet?.reservedBalance)} reserved in pending transactions.</p>
+        }
+      </div>
+      <div className="wallet-parity-actions">
+        <button className="wallet-primary-btn" onClick={onAddMoney}>
+          <Plus size={16}/> Add Money
+        </button>
+        <button className="wallet-outline-btn" onClick={onWithdraw}>
+          <Send size={16}/> Withdraw to UPI
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'rental-booking'|'bookings'|'account'>('home');
@@ -1719,24 +1767,14 @@ export default function Portal() {
           </div>
         </section>
 
-        <section className="portal-wallet-hero android-wallet-hero">
-          <div className="portal-wallet-hero-top">
-            <div className="portal-wallet-label"><span className="portal-wallet-icon"><WalletCards size={17}/></span><span>MY WALLET</span></div>
-            <button className="android-wallet-refresh" onClick={()=>refreshWallet()} disabled={busy} title="Refresh balance"><RefreshCw size={15}/></button>
-          </div>
-          <div className="portal-wallet-copy">
-            <span>Available balance</span>
-            <strong>{money(wallet?.availableBalance)}</strong>
-          </div>
-          <div className="portal-wallet-breakdown">
-            <div><span>Total</span><b>{money(wallet?.balance)}</b></div>
-            <div><span>Reserved</span><b>{money(wallet?.reservedBalance)}</b></div>
-          </div>
-          {Number(wallet?.reservedBalance || 0) > 0 && <p className="android-wallet-reserved">{money(wallet?.reservedBalance)} reserved in pending transactions</p>}
-          <div className="portal-wallet-actions">
-            <button className="landing-primary" onClick={()=>setHomeActionModal('add')}><Plus size={15}/> Add Money</button>
-            <button className="landing-secondary" onClick={()=>setHomeActionModal('withdraw')}><Banknote size={15}/> Withdraw to UPI</button>
-          </div>
+        <WalletBalanceHero
+          wallet={wallet}
+          loading={busy}
+          onRefreshBalance={()=>void refreshWallet()}
+          onAddMoney={()=>setHomeActionModal('add')}
+          onWithdraw={()=>setHomeActionModal('withdraw')}
+        />
+
         </section>
 
         <section className="portal-home-section android-home-section">
@@ -1868,30 +1906,18 @@ export default function Portal() {
             <h2>Wallet</h2>
             <p>Balance, earnings and wallet activity</p>
           </div>
-          <button className="wallet-icon-action" onClick={()=>refreshWallet()} disabled={busy} title="Refresh balance">
-            <RefreshCw size={17}/>
-          </button>
+
         </div>
 
-        <section className="wallet-parity-hero">
-          <div className="wallet-parity-hero-main">
-            <div className="wallet-parity-label"><WalletCards size={17}/><span>AVAILABLE BALANCE</span></div>
-            <strong>{busy ? 'Loading…' : money(wallet?.availableBalance)}</strong>
-            <div className="wallet-parity-breakdown">
-              <span>Total <b>{money(wallet?.balance)}</b></span>
-              <span>Reserved <b>{money(wallet?.reservedBalance)}</b></span>
-            </div>
-            {Number(wallet?.reservedBalance || 0) > 0 &&
-              <p>₹{Number(wallet?.reservedBalance || 0).toLocaleString('en-IN',{minimumFractionDigits:2})} reserved in pending transactions.</p>
-            }
-          </div>
-          <div className="wallet-parity-actions">
-            <button className="wallet-primary-btn" onClick={()=>document.getElementById('wallet-add-money')?.scrollIntoView({behavior:'smooth',block:'center'})}>
-              <Plus size={16}/> Add Money
-            </button>
-            <button className="wallet-outline-btn" onClick={()=>{document.getElementById('wallet-withdraw')?.scrollIntoView({behavior:'smooth',block:'center'});}}>
-              <Send size={16}/> Withdraw to UPI
-            </button>
+        <WalletBalanceHero
+          wallet={wallet}
+          loading={busy}
+          onRefreshBalance={()=>void refreshWallet()}
+          onAddMoney={()=>document.getElementById('wallet-add-money')?.scrollIntoView({behavior:'smooth',block:'center'})}
+          onWithdraw={()=>document.getElementById('wallet-withdraw')?.scrollIntoView({behavior:'smooth',block:'center'})}
+        />
+
+>
           </div>
         </section>
 
