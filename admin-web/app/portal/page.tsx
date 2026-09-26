@@ -16,8 +16,8 @@ type Me = {
   profileImageVersion?: number | null; role: string; commissionRate?: number; createdAt?: string; profileUpdatedAt?: string | null;
 };
 type RechargeItem = {
-  transactionId?: string; clientRequestId?: string; mobileNumber?: string; operator?: string; circle?: string;
-  amount?: number; walletDebitAmount?: number; status?: string; createdAt?: string; updatedAt?: string;
+  transactionId?: string; clientRequestId?: string; mobileNumber?: string; recipientName?: string | null; operator?: string; circle?: string;
+  amount?: number; walletDebitAmount?: number; status?: string; createdAt?: string; updatedAt?: string; completedAt?: string | null;
   planDescription?: string | null; planValidity?: string | null; provider?: string; providerReference?: string | null;
   message?: string | null; completedAt?: string | null; clientCommission?: number;
 };
@@ -221,6 +221,7 @@ function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (te
     'Amount: ' + money(item.amount),
     'Wallet debit: ' + money(item.walletDebitAmount),
     'Mobile: ' + (item.mobileNumber || '—'),
+    ...(item.recipientName ? ['Contact name: ' + item.recipientName] : []),
     'Operator: ' + webOperatorLabel(item.operator),
     'Circle: ' + (item.circle || '—'),
     'Plan: ' + (item.planDescription || item.transactionId || '—'),
@@ -241,6 +242,7 @@ function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (te
           <div>
             <strong>{money(item.amount)}</strong>
             <span>{webOperatorLabel(item.operator)} · {item.mobileNumber || '—'}</span>
+            {item.recipientName && <b className="home-recharge-recipient">{item.recipientName}</b>}
             {item.planDescription && <b>{item.planDescription}</b>}
             {item.planValidity && <small>{item.planValidity}</small>}
           </div>
@@ -783,6 +785,7 @@ export default function Portal() {
           setNotice(purpose === 'recharge'
             ? ('Payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
             : 'Payment verified and wallet updated.');
+          if (purpose === 'wallet') setHomeActionModal(null);
         } catch(e:any) { setNotice(e.message || 'Payment verification failed.'); }
       },
       modal:{ ondismiss:()=>setNotice('Payment window closed.') }
@@ -803,6 +806,7 @@ export default function Portal() {
           setNotice(purpose === 'recharge'
             ? ('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.')
             : 'PayU payment verified and wallet updated.');
+          if (purpose === 'wallet') setHomeActionModal(null);
           return;
         }
       } catch {}
@@ -854,7 +858,7 @@ export default function Portal() {
       }
     } catch(e:any) { setNotice(e.message || 'Unable to start wallet top-up.'); return false; }
     finally { setBusy(false); }
-    return true;
+    return addMoneyProvider === 'mock';
   }
 
   async function withdrawMoney(): Promise<boolean> {
