@@ -542,6 +542,7 @@ export default function Portal() {
     const normalized = [10,20,50].includes(size) ? size : 20;
     setHistoryPageSize(normalized);
     setHistoryPage(0);
+    void loadHistory(0, { size: normalized });
   }
 
 
