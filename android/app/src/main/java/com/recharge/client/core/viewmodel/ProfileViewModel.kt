@@ -16,6 +16,7 @@ data class ProfileUiState(
     val loading: Boolean = false,
     val saving: Boolean = false,
     val deletingImage: Boolean = false,
+    val deletingAccount: Boolean = false,
     val error: String? = null,
     val saved: Boolean = false
 )
@@ -67,6 +68,24 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             }
 
             _state.value = ProfileUiState(user = latest ?: _state.value.user, saved = true)
+        }
+    }
+
+    fun deleteAccount(password: String, confirmation: String, onDeleted: () -> Unit) {
+        if (_state.value.deletingAccount) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(deletingAccount = true, error = null)
+            repository.deleteAccount(password, confirmation)
+                .onSuccess {
+                    _state.value = ProfileUiState()
+                    onDeleted()
+                }
+                .onFailure { e ->
+                    _state.value = _state.value.copy(
+                        deletingAccount = false,
+                        error = e.message ?: "Unable to delete your account."
+                    )
+                }
         }
     }
 
