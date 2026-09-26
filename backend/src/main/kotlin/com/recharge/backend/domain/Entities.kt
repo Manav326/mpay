@@ -18,6 +18,7 @@ class UserEntity(
     @Column(nullable = false) var passwordHash: String = "",
     @Column(nullable = false) var role: String = "CLIENT",
     @Column(nullable = false) var active: Boolean = true,
+    @Column(name = "mobile_verified_at") var mobileVerifiedAt: Instant? = null,
     @Column(name = "deleted_at") var deletedAt: Instant? = null,
     @Column(nullable = false) var createdAt: Instant = Instant.now()
 )
@@ -118,12 +119,20 @@ class RoleCommissionRateEntity(
 @Table(name = "password_reset_otps")
 class PasswordResetOtpEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
-    @Column(nullable = false, unique = true, length = 10) var mobile: String = "",
+    @Column(nullable = false, length = 10) var mobile: String = "",
+    @Column(nullable = false, length = 32) var purpose: String = "PASSWORD_RESET",
     @Column(name = "otp_hash", nullable = true, length = 100) var otpHash: String? = null,
     @Column(name = "verification_sid", length = 34) var verificationSid: String? = null,
     @Column(name = "expires_at", nullable = false) var expiresAt: Instant = Instant.now(),
     @Column(nullable = false) var attempts: Int = 0,
     @Column(name = "used_at") var usedAt: Instant? = null,
+    @Column(name = "last_sent_at") var lastSentAt: Instant? = null,
+    @Column(name = "send_window_started_at") var sendWindowStartedAt: Instant? = null,
+    @Column(name = "send_count", nullable = false) var sendCount: Int = 0,
+    @Column(name = "provider_order_id", length = 150) var providerOrderId: String? = null,
+    @Column(name = "verification_token_hash", length = 64) var verificationTokenHash: String? = null,
+    @Column(name = "verification_token_expires_at") var verificationTokenExpiresAt: Instant? = null,
+    @Column(name = "verified_at") var verifiedAt: Instant? = null,
     @Column(nullable = false) var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.now()
 )

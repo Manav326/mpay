@@ -23,7 +23,8 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val jwtService: JwtService,
     private val commissionRateService: CommissionRateService,
-    private val roleAccessService: RoleAccessService
+    private val roleAccessService: RoleAccessService,
+    private val otpService: OtpService
 ) {
 
     @Transactional
@@ -38,6 +39,10 @@ class AuthService(
             throw IllegalArgumentException("A user with this email address already exists")
         }
 
+        request.mobileVerificationToken?.trim()?.takeIf { it.isNotBlank() }?.let { token ->
+            otpService.consumeRegistrationVerification(mobile, token)
+        }
+
         val user = users.save(
             UserEntity(
                 mobile = mobile,
@@ -45,7 +50,8 @@ class AuthService(
                 email = email,
                 passwordHash = passwordEncoder.encode(request.password),
                 role = "CLIENT",
-                active = true
+                active = true,
+                mobileVerifiedAt = request.mobileVerificationToken?.trim()?.takeIf { it.isNotBlank() }?.let { java.time.Instant.now() }
             )
         )
 
@@ -118,6 +124,7 @@ class AuthService(
             email = user.email,
             profileImageUrl = imageUrl,
             profileImageVersion = version,
+            mobileVerified = user.mobileVerifiedAt != null,
             role = user.role,
             commissionRate = commissionRateService.rateForRole(user.role),
             createdAt = user.createdAt,
@@ -132,7 +139,8 @@ class AuthService(
             refreshToken = jwtService.createRefreshToken(userId, user.mobile, user.role),
             userId = userId,
             role = user.role,
-            permissions = roleAccessService.permissionsFor(user.role)
+            permissions = roleAccessService.permissionsFor(user.role),
+            mobileVerified = user.mobileVerifiedAt != null
         )
     }
 

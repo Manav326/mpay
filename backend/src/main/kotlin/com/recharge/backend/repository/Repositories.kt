@@ -233,7 +233,7 @@ interface PaymentOrderRepository : JpaRepository<PaymentOrderEntity, Long> {
 
 
 interface PasswordResetOtpRepository : JpaRepository<com.recharge.backend.domain.PasswordResetOtpEntity, Long> {
-    fun findByMobile(mobile: String): java.util.Optional<com.recharge.backend.domain.PasswordResetOtpEntity>
+    fun findByMobileAndPurpose(mobile: String, purpose: String): java.util.Optional<com.recharge.backend.domain.PasswordResetOtpEntity>
 }
 
 

@@ -193,6 +193,7 @@ class ClientController(
 class AuthController(
     private val authService: AuthService,
     private val passwordResetService: com.recharge.backend.service.PasswordResetService,
+    private val otpService: com.recharge.backend.service.OtpService,
     private val roleAccessService: com.recharge.backend.service.RoleAccessService
 ) {
     @PostMapping("/register")
@@ -215,6 +216,24 @@ class AuthController(
 
     @PostMapping("/refresh")
     fun refresh(@Valid @RequestBody request: RefreshTokenRequest): LoginResponse = authService.refresh(request)
+
+    @PostMapping("/otp/send")
+    fun sendOtp(@Valid @RequestBody request: OtpSendRequest): OtpSendResponse {
+        val purpose = com.recharge.backend.service.OtpPurpose.parse(request.purpose)
+        return otpService.send(
+            mobileInput = request.mobile,
+            purpose = purpose,
+            allowUnknownUser = false
+        )
+    }
+
+    @PostMapping("/otp/verify")
+    fun verifyOtp(@Valid @RequestBody request: OtpVerifyRequest): OtpVerifyResponse =
+        otpService.verify(
+            mobileInput = request.mobile,
+            purpose = com.recharge.backend.service.OtpPurpose.parse(request.purpose),
+            otp = request.otp
+        )
 
     @PostMapping("/forgot-password")
     fun forgotPassword(@Valid @RequestBody request: ForgotPasswordRequest): ForgotPasswordResponse =

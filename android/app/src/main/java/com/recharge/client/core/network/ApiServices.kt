@@ -31,6 +31,12 @@ interface AuthApi {
     @POST("api/v1/auth/refresh")
     suspend fun refresh(@Body request: RefreshTokenRequest): Response<LoginResponse>
 
+    @POST("api/v1/auth/otp/send")
+    suspend fun sendOtp(@Body request: OtpSendRequest): Response<OtpSendResponse>
+
+    @POST("api/v1/auth/otp/verify")
+    suspend fun verifyOtp(@Body request: OtpVerifyRequest): Response<OtpVerifyResponse>
+
     @POST("api/v1/auth/forgot-password")
     suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<ForgotPasswordResponse>
 

@@ -33,17 +33,24 @@ app:
     access-token-minutes: 30
     refresh-token-days: 30
   auth:
+    otp:
+      provider: ${MPAY_AUTH_OTP_PROVIDER:way2api}
+      ttl-seconds: ${MPAY_AUTH_OTP_TTL_SECONDS:600}
+      resend-cooldown-seconds: ${MPAY_AUTH_OTP_RESEND_COOLDOWN_SECONDS:60}
+      max-sends-per-hour: ${MPAY_AUTH_OTP_MAX_SENDS_PER_HOUR:5}
+      verification-token-ttl-seconds: ${MPAY_AUTH_OTP_VERIFICATION_TOKEN_TTL_SECONDS:600}
     password-reset:
       otp-ttl-seconds: 600
-      provider: mock
+      provider: way2api
       twilio:
-        enabled: true
+        enabled: false
   commission:
     company-percent: 1.0
     client-percent: 1.0
   way2api:
     base-url: https://app.way2api.com
     operator-check-path: /api/v1/operator-circle/check
+    otp-path: ${MPAY_WAY2API_OTP_PATH:/api/v1/aws/send_otp-pin}
     r-offer-path: /api/v1/mobile/r-offer
     recharge-plans-path: /api/v1/mobile/recharge-plans
     connect-timeout-ms: ${MPAY_WAY2API_CONNECT_TIMEOUT_MS:5000}

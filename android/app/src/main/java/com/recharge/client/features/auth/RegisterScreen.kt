@@ -1,34 +1,19 @@
 package com.recharge.client.features.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -36,19 +21,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.size
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.viewmodel.AuthUiState
+import com.recharge.client.core.viewmodel.RegistrationOtpUiState
+import kotlinx.coroutines.delay
 
 @Composable
 fun RegisterScreen(
     authState: AuthUiState,
-    onRegister: (String, String, String, String) -> Unit,
+    registrationOtpState: RegistrationOtpUiState,
+    onRegister: (String, String, String, String, String?) -> Unit,
+    onSendOtp: (String) -> Unit,
+    onVerifyOtp: (String, String) -> Unit,
+    onClearOtp: () -> Unit,
     onBack: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
@@ -56,7 +45,25 @@ fun RegisterScreen(
     var mobile by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
+    var otp by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var otpMode by remember { mutableStateOf(false) }
+    var resendRemaining by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(registrationOtpState) {
+        val sent = registrationOtpState as? RegistrationOtpUiState.Sent
+        if (sent != null) resendRemaining = sent.resendAfterSeconds.toInt()
+    }
+
+    LaunchedEffect(resendRemaining) {
+        if (resendRemaining > 0) {
+            delay(1000)
+            resendRemaining -= 1
+        }
+    }
+
+    val verificationToken = (registrationOtpState as? RegistrationOtpUiState.Verified)?.verificationToken
+    val otpError = (registrationOtpState as? RegistrationOtpUiState.Error)?.message
 
     val localError = when {
         email.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Enter a valid email address"
@@ -133,17 +140,129 @@ fun RegisterScreen(
         OutlinedTextField(
             value = mobile,
             onValueChange = { value ->
-                if (value.length <= 10 && value.all(Char::isDigit)) mobile = value
+                if (value.length <= 10 && value.all(Char::isDigit)) {
+                    if (value != mobile && otpMode) {
+                        otpMode = false
+                        otp = ""
+                        onClearOtp()
+                    }
+                    mobile = value
+                }
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Mobile number") },
             placeholder = { Text("10-digit mobile number") },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
             singleLine = true,
+            enabled = !otpMode || verificationToken == null,
             shape = RoundedCornerShape(16.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             colors = AuthFieldColors()
         )
+
+        Spacer(Modifier.height(8.dp))
+
+        if (verificationToken != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.Success.copy(alpha = 0.09f)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.CheckCircle, null, tint = AppColors.Success)
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Mobile number verified", fontWeight = FontWeight.SemiBold)
+                        Text("This number will be saved as verified.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    TextButton(onClick = {
+                        otpMode = false
+                        otp = ""
+                        onClearOtp()
+                    }) { Text("Change") }
+                }
+            }
+        } else if (!otpMode) {
+            OutlinedButton(
+                onClick = {
+                    otpMode = true
+                    otp = ""
+                    onSendOtp(mobile)
+                },
+                enabled = mobile.length == 10 && registrationOtpState !is RegistrationOtpUiState.Sending,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                if (registrationOtpState is RegistrationOtpUiState.Sending) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                } else {
+                    Text("Verify mobile number")
+                }
+            }
+            Text(
+                "Optional. You can also create your account without verifying your mobile now.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppColors.TextSecondary,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        } else {
+            Text("Verify your mobile", fontWeight = FontWeight.SemiBold)
+            Text("Enter the 6-digit OTP sent to your mobile number.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(8.dp))
+            val sent = registrationOtpState as? RegistrationOtpUiState.Sent
+            if (sent?.deliveryMode.equals("mock", ignoreCase = true) && !sent?.demoOtp.isNullOrBlank()) {
+                Text("Development OTP: " + sent?.demoOtp.orEmpty(), color = AppColors.Success, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+            }
+            OutlinedTextField(
+                value = otp,
+                onValueChange = { value -> if (value.length <= 6 && value.all(Char::isDigit)) otp = value },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("OTP") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                colors = AuthFieldColors(),
+                shape = RoundedCornerShape(16.dp)
+            )
+            otpError?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { onVerifyOtp(mobile, otp) },
+                    enabled = otp.length == 6 && registrationOtpState !is RegistrationOtpUiState.Verifying,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    if (registrationOtpState is RegistrationOtpUiState.Verifying) {
+                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp), color = Color.White)
+                    } else Text("Verify OTP")
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(
+                    onClick = { otp = ""; onSendOtp(mobile) },
+                    enabled = resendRemaining == 0 && registrationOtpState !is RegistrationOtpUiState.Sending
+                ) {
+                    Text(if (resendRemaining > 0) "Resend " + resendRemaining + "s" else "Resend")
+                }
+            }
+            TextButton(
+                onClick = {
+                    otpMode = false
+                    otp = ""
+                    onClearOtp()
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) { Text("Skip verification") }
+        }
+
         Spacer(Modifier.height(10.dp))
 
         OutlinedTextField(
@@ -194,7 +313,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(14.dp))
 
         Button(
-            onClick = { onRegister(name.trim(), email.trim(), mobile, password) },
+            onClick = { onRegister(name.trim(), email.trim(), mobile, password, verificationToken) },
             enabled = authState !is AuthUiState.Loading &&
                 name.isNotBlank() &&
                 (email.isBlank() || android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) &&
