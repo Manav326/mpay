@@ -1775,8 +1775,6 @@ export default function Portal() {
           onWithdraw={()=>setHomeActionModal('withdraw')}
         />
 
-        </section>
-
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
             <div><span>QUICK ACTIONS</span><h2>Quick actions</h2></div>
@@ -1906,7 +1904,6 @@ export default function Portal() {
             <h2>Wallet</h2>
             <p>Balance, earnings and wallet activity</p>
           </div>
-
         </div>
 
         <WalletBalanceHero
@@ -1916,10 +1913,6 @@ export default function Portal() {
           onAddMoney={()=>document.getElementById('wallet-add-money')?.scrollIntoView({behavior:'smooth',block:'center'})}
           onWithdraw={()=>document.getElementById('wallet-withdraw')?.scrollIntoView({behavior:'smooth',block:'center'})}
         />
-
->
-          </div>
-        </section>
 
         <div className="wallet-parity-action-grid">
           <div className="portal-panel wallet-parity-card" id="wallet-add-money">
