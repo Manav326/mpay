@@ -39,6 +39,9 @@ interface AuthApi {
 }
 
 interface ClientApi {
+    @POST("api/v1/account/deletion")
+    suspend fun deleteAccount(@Body request: AccountDeletionRequest): Response<AccountDeletionResponse>
+
     @GET("api/v1/me")
     suspend fun me(): Response<CurrentUserResponse>
 
