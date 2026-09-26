@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, History, Home, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Smartphone, Trash2, Upload, UserRound, WalletCards, X
+  Plus, ReceiptText, RefreshCw, Save, ShieldCheck, Smartphone, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
