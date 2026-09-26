@@ -386,6 +386,112 @@ function HomeEarningsPeriod({ period, isToday }: { period?: any; isToday: boolea
   );
 }
 
+function MpayServiceShowcase({ view }: { view: string }) {
+  const active = view === 'wallet' ? 'wallet' : view === 'recharge' ? 'recharge' : view.startsWith('rental') || view === 'bookings' ? 'rental' : 'ecosystem';
+  const headline =
+    active === 'wallet' ? 'Your money, always ready.' :
+    active === 'recharge' ? 'Recharge in seconds.' :
+    active === 'rental' ? 'Move with chauffeur-driven mobility.' :
+    'One wallet. Recharge. Mobility.';
+
+  return (
+    <section className="mpay-service-showcase" aria-label="mPay services">
+      <div className="mpay-showcase-ambient ambient-one" />
+      <div className="mpay-showcase-ambient ambient-two" />
+      <svg className="mpay-showcase-routes" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+        <path className="route route-wallet" d="M70 84 C 250 18, 355 18, 600 60" />
+        <path className="route route-recharge" d="M600 60 C 755 18, 880 18, 1090 74" />
+        <path className="route route-rental" d="M145 94 C 365 118, 855 118, 1055 84" />
+        <circle className="route-pulse pulse-one" cx="0" cy="0" r="3.5" />
+        <circle className="route-pulse pulse-two" cx="0" cy="0" r="3" />
+        <circle className="route-pulse pulse-three" cx="0" cy="0" r="3" />
+      </svg>
+
+      <div className="mpay-showcase-copy">
+        <span>THE mPAY ECOSYSTEM</span>
+        <strong>{headline}</strong>
+        <small>Designed for everyday money, instant recharge and chauffeur-driven mobility.</small>
+      </div>
+
+      <div className="mpay-showcase-services">
+        <div className={'mpay-showcase-node ' + (active === 'wallet' ? 'is-active' : '') + ' service-wallet'}>
+          <span className="mpay-showcase-node-icon"><WalletCards size={16} /></span>
+          <span><b>Wallet</b><small>Money ready</small></span>
+        </div>
+
+        <div className={'mpay-showcase-core ' + (active === 'ecosystem' ? 'is-active' : '')}>
+          <span className="mpay-showcase-core-ring" />
+          <div className="mpay-showcase-core-mark">
+            <CircleDollarSign size={20} />
+            <b>mPay</b>
+          </div>
+          <small>one ecosystem</small>
+        </div>
+
+        <div className={'mpay-showcase-node ' + (active === 'recharge' ? 'is-active' : '') + ' service-recharge'}>
+          <span className="mpay-showcase-node-icon"><Smartphone size={16} /></span>
+          <span><b>Recharge</b><small>In seconds</small></span>
+        </div>
+
+        <div className={'mpay-showcase-node ' + (active === 'rental' ? 'is-active' : '') + ' service-rental'}>
+          <span className="mpay-showcase-node-icon"><Car size={16} /></span>
+          <span><b>Car Rental</b><small>With a driver</small></span>
+        </div>
+      </div>
+
+      <div className="mpay-showcase-badge"><ShieldCheck size={13} /><span>Built for simple, connected everyday journeys</span></div>
+    </section>
+  );
+}
+
+function WalletBalanceHero({
+  wallet,
+  loading,
+  onRefreshBalance,
+  onAddMoney,
+  onWithdraw
+}: {
+  wallet?: Wallet;
+  loading: boolean;
+  onRefreshBalance: () => void;
+  onAddMoney: () => void;
+  onWithdraw: () => void;
+}) {
+  return (
+    <section className="wallet-parity-hero">
+      <div className="wallet-parity-hero-main">
+        <div className="wallet-parity-hero-top">
+          <div className="wallet-parity-label"><WalletCards size={17}/><span>AVAILABLE BALANCE</span></div>
+          <button
+            className="wallet-parity-refresh"
+            onClick={onRefreshBalance}
+            disabled={loading}
+            title="Refresh balance"
+          >
+            <RefreshCw size={15}/>
+          </button>
+        </div>
+        <strong>{loading ? 'Loading…' : money(wallet?.availableBalance)}</strong>
+        <div className="wallet-parity-breakdown">
+          <span>Total <b>{money(wallet?.balance)}</b></span>
+          <span>Reserved <b>{money(wallet?.reservedBalance)}</b></span>
+        </div>
+        {Number(wallet?.reservedBalance || 0) > 0 &&
+          <p>{money(wallet?.reservedBalance)} reserved in pending transactions.</p>
+        }
+      </div>
+      <div className="wallet-parity-actions">
+        <button className="wallet-primary-btn" onClick={onAddMoney}>
+          <Plus size={16}/> Add Money
+        </button>
+        <button className="wallet-outline-btn" onClick={onWithdraw}>
+          <Send size={16}/> Withdraw to UPI
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
   const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'rental-booking'|'bookings'|'account'>('home');
@@ -1697,13 +1803,14 @@ export default function Portal() {
 
     <main className="portal-main">
       <header className="portal-topbar">
-        <button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={19}/></button>
-        <div><span>mPay personal workspace</span><h1>{
+        <button className="icon-btn mobile-only portal-mobile-menu" onClick={()=>setDrawer(true)}><Menu size={19}/></button>
+        <div className="portal-topbar-copy"><span>mPay personal workspace</span><h1>{
           view==='home'?'Good to see you.':view==='recharge'?'Mobile recharge':view==='wallet'?'Your wallet':
           view==='history'?'Transaction history':view==='marketplace'?'Marketplace':view==='rental'?'Marketplace · Car Rental':
           view==='rental-booking'?'Book with driver':view==='bookings'?'My Bookings':'Your account'
         }</h1></div>
-        <div className="portal-avatar">{pendingProfileImagePreview ? <img src={pendingProfileImagePreview} alt="Profile"/> : profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
+        <MpayServiceShowcase view={view} />
+        <div className="portal-avatar portal-topbar-avatar">{pendingProfileImagePreview ? <img src={pendingProfileImagePreview} alt="Profile"/> : profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
 
       {notice && <div className="portal-notice">{notice}<button onClick={()=>setNotice('')}><X size={14}/></button></div>}
@@ -1719,25 +1826,13 @@ export default function Portal() {
           </div>
         </section>
 
-        <section className="portal-wallet-hero android-wallet-hero">
-          <div className="portal-wallet-hero-top">
-            <div className="portal-wallet-label"><span className="portal-wallet-icon"><WalletCards size={17}/></span><span>MY WALLET</span></div>
-            <button className="android-wallet-refresh" onClick={()=>refreshWallet()} disabled={busy} title="Refresh balance"><RefreshCw size={15}/></button>
-          </div>
-          <div className="portal-wallet-copy">
-            <span>Available balance</span>
-            <strong>{money(wallet?.availableBalance)}</strong>
-          </div>
-          <div className="portal-wallet-breakdown">
-            <div><span>Total</span><b>{money(wallet?.balance)}</b></div>
-            <div><span>Reserved</span><b>{money(wallet?.reservedBalance)}</b></div>
-          </div>
-          {Number(wallet?.reservedBalance || 0) > 0 && <p className="android-wallet-reserved">{money(wallet?.reservedBalance)} reserved in pending transactions</p>}
-          <div className="portal-wallet-actions">
-            <button className="landing-primary" onClick={()=>setHomeActionModal('add')}><Plus size={15}/> Add Money</button>
-            <button className="landing-secondary" onClick={()=>setHomeActionModal('withdraw')}><Banknote size={15}/> Withdraw to UPI</button>
-          </div>
-        </section>
+        <WalletBalanceHero
+          wallet={wallet}
+          loading={busy}
+          onRefreshBalance={()=>void refreshWallet()}
+          onAddMoney={()=>setHomeActionModal('add')}
+          onWithdraw={()=>setHomeActionModal('withdraw')}
+        />
 
         <section className="portal-home-section android-home-section">
           <div className="portal-home-section-head">
@@ -1868,32 +1963,15 @@ export default function Portal() {
             <h2>Wallet</h2>
             <p>Balance, earnings and wallet activity</p>
           </div>
-          <button className="wallet-icon-action" onClick={()=>refreshWallet()} disabled={busy} title="Refresh balance">
-            <RefreshCw size={17}/>
-          </button>
         </div>
 
-        <section className="wallet-parity-hero">
-          <div className="wallet-parity-hero-main">
-            <div className="wallet-parity-label"><WalletCards size={17}/><span>AVAILABLE BALANCE</span></div>
-            <strong>{busy ? 'Loading…' : money(wallet?.availableBalance)}</strong>
-            <div className="wallet-parity-breakdown">
-              <span>Total <b>{money(wallet?.balance)}</b></span>
-              <span>Reserved <b>{money(wallet?.reservedBalance)}</b></span>
-            </div>
-            {Number(wallet?.reservedBalance || 0) > 0 &&
-              <p>₹{Number(wallet?.reservedBalance || 0).toLocaleString('en-IN',{minimumFractionDigits:2})} reserved in pending transactions.</p>
-            }
-          </div>
-          <div className="wallet-parity-actions">
-            <button className="wallet-primary-btn" onClick={()=>document.getElementById('wallet-add-money')?.scrollIntoView({behavior:'smooth',block:'center'})}>
-              <Plus size={16}/> Add Money
-            </button>
-            <button className="wallet-outline-btn" onClick={()=>{document.getElementById('wallet-withdraw')?.scrollIntoView({behavior:'smooth',block:'center'});}}>
-              <Send size={16}/> Withdraw to UPI
-            </button>
-          </div>
-        </section>
+        <WalletBalanceHero
+          wallet={wallet}
+          loading={busy}
+          onRefreshBalance={()=>void refreshWallet()}
+          onAddMoney={()=>document.getElementById('wallet-add-money')?.scrollIntoView({behavior:'smooth',block:'center'})}
+          onWithdraw={()=>document.getElementById('wallet-withdraw')?.scrollIntoView({behavior:'smooth',block:'center'})}
+        />
 
         <div className="wallet-parity-action-grid">
           <div className="portal-panel wallet-parity-card" id="wallet-add-money">
