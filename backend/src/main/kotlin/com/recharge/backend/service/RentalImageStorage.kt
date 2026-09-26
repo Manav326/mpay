@@ -67,6 +67,7 @@ class LocalRentalImageStorage(
         }
         val key = "rental_driver_${driverId}_${UUID.randomUUID()}.$ext"
         Files.write(resolve(key), file.bytes)
+        runCatching { ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB) }
         return key
     }
 
