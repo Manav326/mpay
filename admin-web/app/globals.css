@@ -3088,6 +3088,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   background:#fff;
 }
 .rental-booking-car-image{
+  position:relative;
   height:155px;
   border-radius:13px;
   overflow:hidden;
@@ -3233,6 +3234,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   box-shadow:0 8px 24px rgba(58,43,18,.055);
 }
 .rental-booking-card-image{
+  position:relative;
   height:160px;
   background:#f3eee5;
   display:grid;
