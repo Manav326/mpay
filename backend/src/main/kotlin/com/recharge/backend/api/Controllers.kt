@@ -281,7 +281,7 @@ class ProfileController(private val profileService: ProfileService) {
     ): ResponseEntity<org.springframework.core.io.Resource> {
         val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
         val stored = profileService.image(authenticatedUserId(authentication), selectedVariant)
-        val etag = ""${stored.key}:${selectedVariant.name}:${stored.lastModified.toEpochMilli()}:${stored.size}""
+        val etag = stored.key + ":" + selectedVariant.name + ":" + stored.lastModified.toEpochMilli() + ":" + stored.size
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
             .contentLength(stored.size)
