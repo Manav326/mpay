@@ -113,7 +113,7 @@ try {
 
         if (Get-Command gh -ErrorAction SilentlyContinue) {
             Write-Host "Finding the latest Android artifact build for this branch..." -ForegroundColor Yellow
-            $runJson = gh run list --workflow $workflow --branch $Branch --limit 30 --json databaseId,status,conclusion,headSha,createdAt,event
+            $runJson = gh run list --workflow $workflow --branch $Branch --limit 50 --json databaseId,status,conclusion,headSha,createdAt,event
             if ($LASTEXITCODE -ne 0) {
                 throw "Could not query GitHub Actions runs."
             }
@@ -129,13 +129,65 @@ try {
                 Sort-Object createdAt -Descending |
                 Select-Object -First 1
 
+            if (-not $run -and -not $ForceDownload) {
+                $candidate = $runs |
+                    Where-Object {
+                        $_.status -eq "completed" -and
+                        $_.conclusion -eq "success"
+                    } |
+                    Sort-Object createdAt -Descending |
+                    Select-Object -First 1
+
+                if ($candidate) {
+                    Write-Host "No exact Android build exists for $headSha." -ForegroundColor Yellow
+                    Write-Host "Checking whether the latest successful Android build can safely be reused..." -ForegroundColor Yellow
+
+                    $compareUrl = "repos/Manav326/mpay/compare/$($candidate.headSha)...$headSha"
+                    $compareJson = gh api $compareUrl
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Could not compare the current commit with the existing Android build commit $($candidate.headSha)."
+                    }
+
+                    $compare = $compareJson | ConvertFrom-Json
+                    $changedFiles = @($compare.files | ForEach-Object { $_.filename })
+                    $unsafeChanges = @(
+                        $changedFiles | Where-Object {
+                            $_ -like "android/*" -or
+                            $_ -eq ".github/workflows/android-apk.yml"
+                        }
+                    )
+
+                    if (
+                        $compare.status -eq "ahead" -and
+                        $unsafeChanges.Count -eq 0
+                    ) {
+                        $run = $candidate
+                        Write-Host "Safe reuse confirmed." -ForegroundColor Green
+                        Write-Host "Existing Android build : $($candidate.headSha)" -ForegroundColor Green
+                        Write-Host "Current commit         : $headSha" -ForegroundColor Green
+                        if ($changedFiles.Count -gt 0) {
+                            Write-Host "Changes since Android build (non-Android): $($changedFiles.Count) file(s)" -ForegroundColor Green
+                        } else {
+                            Write-Host "No files changed since the Android build." -ForegroundColor Green
+                        }
+                    } else {
+                        if ($unsafeChanges.Count -gt 0) {
+                            Write-Host "Android-related changes detected since the last successful Android build:" -ForegroundColor Red
+                            $unsafeChanges | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+                        }
+                        throw "No exact successful Android build exists for $headSha, and an older APK cannot be safely reused."
+                    }
+                } else {
+                    throw "No successful Android Actions run exists for branch $Branch."
+                }
+            }
+
             if (-not $run) {
                 throw "No successful Android Actions run exists for branch $Branch at commit $headSha."
             }
 
             $runId = [string]$run.databaseId
             $artifactZip = $null
-        } else {
             if ([string]::IsNullOrWhiteSpace($githubToken)) {
                 throw "GitHub CLI (gh) is not installed and no GitHub token could be obtained from GH_TOKEN, GITHUB_TOKEN, or Git Credential Manager. Install gh from https://cli.github.com/ and run 'gh auth login', or configure a GitHub token in one of those supported locations."
             }
@@ -165,12 +217,65 @@ try {
                 Sort-Object created_at -Descending |
                 Select-Object -First 1
 
+            if (-not $run -and -not $ForceDownload) {
+                $candidate = $runsResponse.workflow_runs |
+                    Where-Object {
+                        $_.status -eq "completed" -and
+                        $_.conclusion -eq "success"
+                    } |
+                    Sort-Object created_at -Descending |
+                    Select-Object -First 1
+
+                if ($candidate) {
+                    Write-Host "No exact Android build exists for $headSha." -ForegroundColor Yellow
+                    Write-Host "Checking whether the latest successful Android build can safely be reused..." -ForegroundColor Yellow
+
+                    $compareUrl = "https://api.github.com/repos/Manav326/mpay/compare/$($candidate.head_sha)...$headSha"
+                    try {
+                        $compare = Invoke-RestMethod -Uri $compareUrl -Headers $apiHeaders -Method Get
+                    } catch {
+                        throw "Could not compare the current commit with the existing Android build commit $($candidate.head_sha). $($_.Exception.Message)"
+                    }
+
+                    $changedFiles = @($compare.files | ForEach-Object { $_.filename })
+                    $unsafeChanges = @(
+                        $changedFiles | Where-Object {
+                            $_ -like "android/*" -or
+                            $_ -eq ".github/workflows/android-apk.yml"
+                        }
+                    )
+
+                    if (
+                        $compare.status -eq "ahead" -and
+                        $unsafeChanges.Count -eq 0
+                    ) {
+                        $run = $candidate
+                        Write-Host "Safe reuse confirmed." -ForegroundColor Green
+                        Write-Host "Existing Android build : $($candidate.head_sha)" -ForegroundColor Green
+                        Write-Host "Current commit         : $headSha" -ForegroundColor Green
+                        if ($changedFiles.Count -gt 0) {
+                            Write-Host "Changes since Android build (non-Android): $($changedFiles.Count) file(s)" -ForegroundColor Green
+                        } else {
+                            Write-Host "No files changed since the Android build." -ForegroundColor Green
+                        }
+                    } else {
+                        if ($unsafeChanges.Count -gt 0) {
+                            Write-Host "Android-related changes detected since the last successful Android build:" -ForegroundColor Red
+                            $unsafeChanges | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+                        }
+                        throw "No exact successful Android build exists for $headSha, and an older APK cannot be safely reused."
+                    }
+                } else {
+                    throw "No successful Android Actions run exists for branch $Branch."
+                }
+            }
+
             if (-not $run) {
                 throw "No successful Android Actions run exists for branch $Branch at commit $headSha."
             }
 
             $runId = [string]$run.id
-            Write-Host "Found successful Android Actions run $runId for commit $headSha." -ForegroundColor Green
+            Write-Host "Found usable successful Android Actions run $runId (build commit $($run.head_sha))." -ForegroundColor Green
 
             $artifactsUrl = "https://api.github.com/repos/Manav326/mpay/actions/runs/$runId/artifacts?per_page=100"
             try {
