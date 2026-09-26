@@ -390,3 +390,29 @@
 .deletion-callout a:hover,.privacy-card a:hover{text-decoration:underline}
 .privacy-card ol{margin:8px 0 18px;padding-left:22px}
 .privacy-card ol li{margin:7px 0}
+
+
+/* Premium operational attention and customer account-security surfaces */
+.attention-panel{margin-top:14px}
+.attention-count{display:inline-flex;align-items:center;padding:6px 9px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:10px;font-weight:800;background:#fff}
+.attention-count.active{border-color:#f1d49a;background:#fff7e6;color:#8a5a08}
+.attention-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.attention-card{border:1px solid var(--border);background:#fff;border-radius:14px;padding:13px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px;box-shadow:0 5px 18px rgba(47,37,28,.035);transition:.16s ease}
+.attention-card:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 9px 24px rgba(47,37,28,.07);border-color:#ead6ad}
+.attention-card:disabled{cursor:default;opacity:.62}
+.attention-card>b{font-size:21px;line-height:1}
+.attention-card>span{font-size:11px;font-weight:800;color:var(--text)}
+.attention-card>small{font-size:9px;color:var(--muted)}
+.account-security-panel{margin-top:14px}
+.account-security-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.account-security-links a{text-decoration:none}
+.danger-panel{margin-top:14px;border:1px solid #efc7c3;background:#fff8f7;border-radius:15px;padding:14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,1fr);gap:16px;align-items:end}
+.danger-panel>div:first-child b,.danger-panel>div:first-child span{display:block}
+.danger-panel>div:first-child b{font-size:12px}
+.danger-panel>div:first-child span{font-size:10px;line-height:1.55;color:#7b615d;margin-top:4px}
+.danger-panel-form{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.danger-panel-form label{display:flex;flex-direction:column;gap:4px;font-size:9px;color:var(--muted);font-weight:800}
+.danger-panel-form input{min-height:36px}
+.danger-panel-form .text-danger-btn{white-space:nowrap;min-height:36px}
+@media(max-width:1000px){.attention-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.danger-panel{grid-template-columns:1fr}.danger-panel-form{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.attention-grid{grid-template-columns:1fr 1fr}.danger-panel-form{grid-template-columns:1fr}.danger-panel-form .text-danger-btn{width:100%}}
