@@ -1690,16 +1690,11 @@ export default function Portal() {
     });
     setVehiclePhotoPreviews(current => {
       const next=[...current];
-      next[slot]=file ? URL.createObjectURL(file) : '';
+      next[slot]=file
+        ? URL.createObjectURL(file)
+        : (vehiclePhotoUrls[slot] ? rentalPhotoClientUrl(vehiclePhotoUrls[slot]) : '');
       return next;
     });
-    if(file) {
-      setVehiclePhotoUrls(current => {
-        const next=[...current];
-        next[slot]='';
-        return next;
-      });
-    }
   }
 
   function handleVehiclePhotoSelection(slot:number, file:File|null) {
