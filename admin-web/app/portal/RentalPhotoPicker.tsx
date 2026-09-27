@@ -176,7 +176,7 @@ export default function RentalPhotoPicker({
             <span className="photo-picker-source-icon"><Link2 size={18} /></span>
             <span>
               <b>Image URL</b>
-              <small>Paste a direct public image link</small>
+              <small>Direct JPG, PNG or WebP · up to 5 MB</small>
             </span>
           </button>
         </div>
@@ -271,7 +271,7 @@ export default function RentalPhotoPicker({
 
             {urlState === 'idle' && (
               <div className="photo-picker-url-help">
-                Paste a direct image URL. The image must load successfully before it can be used.
+                Paste a direct public image URL. Web pages, file pages (for example Wikipedia/Commons), private links and images over 5 MB are not accepted.
               </div>
             )}
           </div>

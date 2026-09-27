@@ -1,7 +1,5 @@
 package com.recharge.client.features.rental
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -45,35 +43,16 @@ private fun validPhotoUrl(value: String): Boolean =
 fun RentalPhotoPickerDialog(
     title: String,
     currentPreview: String?,
+    deviceUri: String?,
+    onLaunchDevicePicker: () -> Unit,
+    onDevicePicked: (String?) -> Unit,
     onDismiss: () -> Unit,
     onUse: (RentalPhotoCandidate) -> Unit
 ) {
     var source by remember { mutableStateOf<RentalPhotoPickerSource?>(null) }
-    var deviceUri by remember { mutableStateOf<String?>(null) }
     var urlInput by remember { mutableStateOf("") }
     var checkedUrl by remember { mutableStateOf<String?>(null) }
     var urlState by remember { mutableStateOf(RentalUrlState.IDLE) }
-
-    val deviceLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        deviceUri = uri?.toString()
-    }
-
-    fun launchDevicePicker() {
-        deviceLauncher.launch(
-            androidx.activity.result.PickVisualMediaRequest(
-                PickVisualMedia.ImageOnly
-            )
-        )
-    }
-
-    LaunchedEffect(source) {
-        if (source == RentalPhotoPickerSource.DEVICE) {
-            withFrameNanos { }
-            launchDevicePicker()
-        }
-    }
 
     LaunchedEffect(source, urlInput) {
         if (source != RentalPhotoPickerSource.URL) {
@@ -150,11 +129,9 @@ fun RentalPhotoPickerDialog(
                         title = "From device",
                         subtitle = "Choose a photo",
                         onClick = {
-                            if (source == RentalPhotoPickerSource.DEVICE) {
-                                launchDevicePicker()
-                            } else {
-                                source = RentalPhotoPickerSource.DEVICE
-                            }
+                            source = RentalPhotoPickerSource.DEVICE
+                            onDevicePicked(null)
+                            onLaunchDevicePicker()
                         }
                     )
                     SourceChoice(
@@ -165,7 +142,7 @@ fun RentalPhotoPickerDialog(
                         subtitle = "Paste a direct image link",
                         onClick = {
                             source = RentalPhotoPickerSource.URL
-                            deviceUri = null
+                            onDevicePicked(null)
                         }
                     )
                 }
@@ -249,7 +226,7 @@ fun RentalPhotoPickerDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
-                            RentalUrlState.IDLE -> InfoBlock("Paste a direct public image URL. The image must load successfully before it can be used.")
+                            RentalUrlState.IDLE -> InfoBlock("Paste a direct public JPG, PNG or WebP image URL. Web pages such as Wikipedia file pages are not accepted; the downloaded image must be 5 MB or smaller.")
                         }
                     }
 
