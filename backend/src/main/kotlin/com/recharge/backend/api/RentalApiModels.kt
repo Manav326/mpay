@@ -261,6 +261,12 @@ data class RentalVehicleUpdateRequest(
     @field:Valid val driver: RentalDriverRequest
 )
 
+data class RentalPhotoUrlImportRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    @field:jakarta.validation.constraints.Size(max = 2048)
+    val url: String
+)
+
 data class RentalBookingQuoteRequest(
     @field:NotBlank val carId: String,
     @field:NotBlank val pickupLocation: String,
