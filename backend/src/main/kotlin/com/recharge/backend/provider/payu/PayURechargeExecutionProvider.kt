@@ -37,13 +37,13 @@ class PayURechargeExecutionProvider(
         check(properties.agentId.isNotBlank()) { "PayU agentId is not configured" }
 
         val metadata = request.plan.providerMetadata
-        val existingBillerId = metadata["billerId"]?.takeIf { it.isNotBlank() }
-        if (existingBillerId != null) return request
+        val candidateBillerId = metadata["billerId"]
+            ?.takeIf { it.isNotBlank() }
+            ?: metadata["operatorId"]?.takeIf { it.isNotBlank() }
 
-        val candidateOperatorId = metadata["operatorId"]?.takeIf { it.isNotBlank() }
         val billerId = billerDirectory.resolveBillerId(
             operator = request.operator,
-            candidateBillerId = candidateOperatorId
+            candidateBillerId = candidateBillerId
         ) ?: throw PayUIntegrationException(
             "PayU billerId could not be resolved for " + request.operator.uppercase() + " recharge"
         )
