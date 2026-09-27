@@ -345,12 +345,12 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     repository.uploadRentalDriverPhoto(
                         current.driverId,
                         android.net.Uri.parse(candidate.value)
-                    ).getOrThrow()
+                    )
                 RentalPhotoCandidateSource.URL ->
                     repository.importRentalDriverPhotoFromUrl(
                         current.driverId,
                         candidate.value
-                    ).getOrThrow()
+                    )
             }
         }
     } catch (e: CancellationException) {
@@ -363,7 +363,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         carId: String,
         candidates: Map<Int, RentalPhotoCandidate>
     ): Result<RentalCarResponse> = try {
-        var current = _state.value.vendorCars.firstOrNull { it.id == carId }
+        var current: RentalCarResponse? = _state.value.vendorCars.firstOrNull { it.id == carId }
         candidates.toSortedMap().forEach { (slot, candidate) ->
             current = when (candidate.source) {
                 RentalPhotoCandidateSource.DEVICE ->
