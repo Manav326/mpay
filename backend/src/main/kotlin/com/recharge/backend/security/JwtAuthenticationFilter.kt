@@ -23,34 +23,32 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain
     ) {
         val header = request.getHeader(HttpHeaders.AUTHORIZATION)
-        if (header.isNullOrBlank() || !header.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response)
-            return
+
+        if (!header.isNullOrBlank() && header.startsWith("Bearer ")) {
+            val token = header.removePrefix("Bearer ").trim()
+            try {
+                val claims = jwtService.parseAndValidate(token)
+                if (jwtService.isAccessToken(claims)) {
+                    val userId = claims.subject.toLongOrNull()
+                        ?: throw IllegalArgumentException("Invalid JWT subject")
+                    val user = users.findById(userId).orElse(null)
+                    if (user != null && user.active) {
+                        val authorities = listOf(SimpleGrantedAuthority("ROLE_" + user.role))
+                        SecurityContextHolder.getContext().authentication =
+                            UsernamePasswordAuthenticationToken(userId.toString(), null, authorities)
+                    } else {
+                        SecurityContextHolder.clearContext()
+                    }
+                } else {
+                    SecurityContextHolder.clearContext()
+                }
+            } catch (_: Exception) {
+                SecurityContextHolder.clearContext()
+            }
         }
 
-        val token = header.removePrefix("Bearer ").trim()
-        try {
-            val claims = jwtService.parseAndValidate(token)
-            if (!jwtService.isAccessToken(claims)) {
-                filterChain.doFilter(request, response)
-                return
-            }
-
-            val userId = claims.subject.toLongOrNull()
-                ?: throw IllegalArgumentException("Invalid JWT subject")
-            val user = users.findById(userId).orElse(null)
-            if (user == null || !user.active) {
-                filterChain.doFilter(request, response)
-                return
-            }
-
-            val authorities = listOf(SimpleGrantedAuthority("ROLE_${user.role}"))
-            SecurityContextHolder.getContext().authentication =
-                UsernamePasswordAuthenticationToken(userId.toString(), null, authorities)
-            filterChain.doFilter(request, response)
-        } catch (_: Exception) {
-            SecurityContextHolder.clearContext()
-            filterChain.doFilter(request, response)
-        }
+        // Authentication errors are handled locally. Application/controller exceptions
+        // must propagate normally, and the request must never be executed twice.
+        filterChain.doFilter(request, response)
     }
 }

@@ -21,11 +21,11 @@ class WithdrawalPersistenceService(
         providerName: String,
         clientRequestId: String
     ): WalletWithdrawalEntity {
-        withdrawals.findByUserIdAndClientRequestId(userId, clientRequestId).orElse(null)?.let { return it }
+        withdrawals.findLockedByUserIdAndClientRequestId(userId, clientRequestId).orElse(null)?.let { return it }
 
         wallet.reserve(userId, amount)
 
-        withdrawals.findByUserIdAndClientRequestId(userId, clientRequestId).orElse(null)?.let {
+        withdrawals.findLockedByUserIdAndClientRequestId(userId, clientRequestId).orElse(null)?.let {
             wallet.releaseReservation(userId, amount)
             return it
         }
