@@ -1213,7 +1213,7 @@ class RentalService(
             bookingId = b.bookingId, carName = car?.name ?: "Car", driverName = driver?.fullName ?: "Driver",
             driverMobile = driver?.mobile,
             driverPhotoUrl = rentalPhotoService.driverPhoto(driver?.photoUrl)?.url,
-            driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl),
+            driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)?.toApiResponse(),
             carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
             carPhotos = rentalPhotoService.vehiclePhotos(car?.imageUrl).toApiResponses(),
             pickup = b.pickupLocation, drop = b.dropLocation,
