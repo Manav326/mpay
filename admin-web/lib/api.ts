@@ -5,6 +5,27 @@ import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
 
+function normalizeDisplayValue<T>(value: T): T {
+  if (typeof value === 'string') {
+    return value
+      .replace(/\\+(?:r)?n/g, ' ')
+      .replace(/\\+r/g, ' ')
+      .replace(/\r?\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() as T;
+  }
+  if (Array.isArray(value)) return value.map(item => normalizeDisplayValue(item)) as T;
+  if (value && typeof value === 'object') {
+    const copy: Record<string, unknown> = {};
+    Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+      copy[key] = normalizeDisplayValue(item);
+    });
+    return copy as T;
+  }
+  return value;
+}
+
+
 const adminWebSession = {
   accessKey: 'mpay_admin_token',
   refreshKey: 'mpay_admin_refresh_token',
