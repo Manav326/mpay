@@ -48,7 +48,7 @@ class WithdrawalService(
             if (requestedProvider.isNotBlank() && !entity.providerName.equals(requestedProvider, true)) {
                 throw IllegalArgumentException("Client request id already belongs to ${entity.providerName} withdrawal")
             }
-            return responseFor(entity)
+            return responseFor(autoSettleMockIfNeeded(entity))
         }
 
         val provider = resolveProvider(requestedProvider)
@@ -144,7 +144,7 @@ class WithdrawalService(
         require(size in 1..50) { "Page size must be between 1 and 50" }
         val pageData = withdrawals.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
         return WithdrawalHistoryResponse(
-            items = pageData.content.map {
+            items = pageData.content.map { autoSettleMockIfNeeded(it) }.map {
                 WithdrawalHistoryItem(
                     withdrawalId = it.withdrawalId,
                     clientRequestId = it.clientRequestId,
@@ -173,7 +173,7 @@ class WithdrawalService(
         val entity = withdrawals.findByWithdrawalId(withdrawalId.trim())
             .orElseThrow { IllegalArgumentException("Withdrawal not found") }
         require(entity.userId == userId) { "Withdrawal not found" }
-        return responseFor(entity)
+        return responseFor(autoSettleMockIfNeeded(entity))
     }
 
     fun handleWebhook(
@@ -209,6 +209,20 @@ class WithdrawalService(
                 message
             )
         }
+    }
+
+    private fun autoSettleMockIfNeeded(entity: WalletWithdrawalEntity): WalletWithdrawalEntity {
+        if (!entity.providerName.equals("mock", true) || entity.status !in setOf("PENDING", "PROCESSING")) {
+            return entity
+        }
+
+        return persistence.markSucceeded(
+            withdrawalId = entity.withdrawalId,
+            providerName = "mock",
+            providerReference = entity.providerReference ?: "mock_" + entity.withdrawalId,
+            providerStatus = entity.providerStatus ?: "PROCESSED",
+            message = "Mock withdrawal completed successfully"
+        )
     }
 
     private fun resolveProvider(requestedName: String): WithdrawalProvider {
