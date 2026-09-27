@@ -122,7 +122,7 @@ export default function UserLogin() {
         {notice && <div className="alert">{notice}</div>}
         <button className="primary" disabled={busy || mobile.length !== 10 || !password}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
-      <button type="button" className="link-btn" onClick={() => { setMode('forgot'); setNotice(''); }}>Forgot password?</button>
+      <button type="button" className="link-btn forgot-password-btn" onClick={() => { setMode('forgot'); setNotice(''); }}>Forgot password?</button>
       <a className="auth-alt-link" href="/signup"><UserPlus size={15} /> New to mPay? Create an account</a>
     </> : <>
       <div className="admin-login-copy"><div className="secure-badge"><ShieldCheck size={15} /> Secure recovery</div><h1>Reset your password.</h1><p>We’ll send a one-time code to your registered mobile number.</p></div>
