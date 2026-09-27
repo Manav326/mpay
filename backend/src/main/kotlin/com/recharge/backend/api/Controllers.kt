@@ -450,6 +450,13 @@ class AdminFinancialController(
     fun refreshRecharge(authentication: Authentication, @PathVariable transactionId: String): RechargeTransactionStatusResponse =
         service.refreshRecharge(currentUser(authentication), transactionId)
 
+    @PostMapping("/recharges/{transactionId}/resolve-pre-submission-failure")
+    fun resolvePreSubmissionFailure(
+        authentication: Authentication,
+        @PathVariable transactionId: String
+    ): RechargeTransactionStatusResponse =
+        service.resolveConfirmedPreSubmissionFailure(currentUser(authentication), transactionId)
+
     @GetMapping("/withdrawals")
     fun withdrawals(
         authentication: Authentication,
