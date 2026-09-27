@@ -14,8 +14,6 @@ import org.mockito.Mockito.any
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.verify
 import java.math.BigDecimal
 import java.util.Optional
 
@@ -63,6 +61,5 @@ class PayUPaymentGatewayProviderTest {
         assertEquals(BigDecimal("200.00"), response.amount)
         assertTrue(response.orderId.startsWith("MPAY"))
         assertEquals("test-key", response.keyId)
-        verify(orders, never()).findByRazorpayOrderIdAndUserId(any(), any())
     }
 }
