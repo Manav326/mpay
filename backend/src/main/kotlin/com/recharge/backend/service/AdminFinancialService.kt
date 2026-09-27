@@ -161,6 +161,9 @@ class AdminFinancialService(
         require(tx.message?.contains("PayU biller/operator id is missing for recharge", ignoreCase = false) == true) {
             "Recharge does not contain the confirmed historical pre-submission failure evidence"
         }
+        require(tx.walletLedgerRef.isNullOrBlank()) {
+            "Recharge already has a wallet ledger reference; no historical release is permitted"
+        }
         require(!walletLedger.existsByExternalRef(tx.transactionId)) {
             "Recharge already has a wallet ledger entry; no historical release is permitted"
         }
