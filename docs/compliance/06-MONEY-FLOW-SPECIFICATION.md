@@ -5,47 +5,58 @@ Status: Target architecture; implementation must follow legal/provider sign-off.
 
 ## 1. Target operating model
 
-mPay will operate as a customer-facing consumer-services platform for mobile recharge and chauffeur-driven rental services. PayU/other appropriately authorised payment infrastructure will be used for customer payments. mPay earns contractual service/platform commissions or fees from underlying service transactions. The reusable stored-value component must operate through an appropriately regulated wallet/payment structure.
+mPay will operate as a customer-facing consumer-services platform for mobile recharge and chauffeur-driven rental services.
 
-mPay should not treat its own database balance as an independently issued stored-value instrument.
+The selected production intent is that the eventual mPay company itself will operate the customer-facing stored-value/wallet arrangement, maintain customer balances and support on-demand withdrawal of unused value.
+
+This is a target regulatory architecture, not a claim that mPay is currently authorised to issue PPIs or operate a payment system. The exact authorisation/licensing route, safeguarding/settlement structure and permitted activities must be confirmed before production.
+
+PayU/other appropriately authorised payment infrastructure will be used for customer payments where permitted. mPay earns contractual service/platform commissions or fees from underlying service transactions.
 
 ## 2. Add Money
 
-Target:
+Target conceptual flow:
 
-Customer -> mPay -> regulated payment/PPI partner -> regulated settlement/safeguarding structure -> payment confirmation -> mPay transaction state.
+Customer -> authorised payment infrastructure -> authorised settlement/safeguarding structure -> mPay wallet/value account -> service availability.
 
-Only after authoritative provider confirmation should service availability be updated.
+Only after authoritative provider confirmation should customer value become available.
 
-If a regulated partner provides/holds the actual wallet or stored value, mPay's database should mirror the authorised balance/transaction state rather than represent itself as the issuer. If the eventual company seeks direct PPI/payment-system authorisation, the implementation must instead satisfy that authorisation's safeguarding, KYC, limits, reconciliation and governance requirements.
+The engineering model must keep payment confirmation separate from value posting. A provider-side payment cannot be undone by an application database rollback.
 
 ## 3. Wallet use
 
-Customer value is used for:
+Customer value is intended for:
 
 - mobile recharge;
 - mPay rental booking;
-- other explicitly approved services only.
+- other explicitly approved services;
+- on-demand withdrawal of unused value, subject to the final authorised structure and applicable limits/controls.
 
-The platform must identify whether each spend is a customer payment to mPay, a payment through the regulated partner, or a transfer from a partner-operated wallet.
+The wallet domain must distinguish customer value from mPay revenue, vendor payable and provider payable.
 
 ## 4. Withdrawal
 
 Target:
 
-Customer withdrawal request -> authentication/risk checks -> regulated payout/wallet partner -> provider confirmation -> final transaction state.
+Customer withdrawal request -> authentication/risk/KYC checks -> authorised payout mechanism -> provider confirmation -> wallet value finalisation -> reconciliation.
 
-The withdrawal must not be treated as an unrestricted transfer from an mPay operating account.
+The withdrawal must not be treated as an unrestricted transfer from an mPay operating account merely because the current implementation can technically initiate a payout.
 
-Before production, the regulated structure/partner contract must expressly support the intended payout/cash-out use. mPay's ordinary operating account must not be treated as an unrestricted substitute for the regulated customer-value arrangement.
+The final payout mechanism, customer limits, safeguarding and reconciliation requirements must be compatible with the authorisation/licensing structure.
 
 ## 5. Rental
 
 Target commercial model:
 
-Customer -> mPay checkout/payment arrangement -> gross rental consideration -> service fulfilment by independent vendor -> vendor payable ₹900 on a ₹1,000 example -> mPay service/platform revenue ₹100, subject to final GST/accounting treatment.
+Customer -> mPay checkout/payment/value arrangement -> gross rental consideration -> service fulfilment by independent vendor -> vendor payable -> mPay service/platform revenue.
 
-The actual regulated collection/settlement path must be chosen with the payment partner and legal/tax adviser.
+Illustrative example:
+
+- customer charge: ₹1,000;
+- vendor payable: ₹900;
+- mPay contractual service/platform fee: ₹100;
+
+subject to final contractual, GST and accounting treatment.
 
 mPay must have:
 
@@ -61,7 +72,12 @@ mPay must have:
 
 Initial phase:
 
-Customer -> regulated payment/wallet arrangement -> mPay recharge service -> authorised recharge provider -> telecom/biller -> final provider status.
+Customer -> authorised payment/wallet arrangement -> mPay recharge service -> authorised recharge provider -> telecom/biller -> final provider status.
+
+Current business answer:
+
+- Way2API is used for plan/catalogue information.
+- PayU is intended for actual recharge execution/payment.
 
 Future BBPS phase:
 
@@ -72,13 +88,17 @@ mPay must first establish its exact BBPS role through an authorised participant/
 The system must maintain separate concepts for:
 
 - customer funds/value;
+- customer reserved value;
 - service revenue;
 - platform fee;
 - vendor payable;
+- recharge-provider payable;
 - payment-provider fees;
 - refunds;
 - chargebacks/disputes;
 - operational adjustments.
+
+Customer value must never be silently converted into platform revenue.
 
 ## 8. Non-negotiable invariants
 
@@ -93,7 +113,7 @@ The system must maintain separate concepts for:
 9. Vendor payable and platform fee are separately identifiable.
 10. Every completed financial transaction can be reconstructed from event history.
 
-## 9. Current pre-incorporation restriction
+## 9. Pre-incorporation restriction
 
 Until incorporation and payment-provider KYC/contract alignment are complete, the existing personal-name PayU/Razorpay setup must be treated as development/pre-production infrastructure. It should not be used as evidence of the final production regulatory structure.
 
@@ -101,11 +121,15 @@ Until incorporation and payment-provider KYC/contract alignment are complete, th
 
 Production launch of the persistent withdrawable wallet requires written confirmation of:
 
+- the exact authorisation/licensing route available to the eventual mPay company;
 - who legally issues/provides the stored value;
 - who holds/safeguards customer funds;
-- which regulated entity performs collection and payout;
-- whether the intended use is permitted under the partner's licence/authorisation;
+- the permitted bank/current-account/settlement arrangement;
+- which regulated entities perform collection and payout;
+- whether the intended recharge/rental/withdrawal uses are permitted;
 - applicable KYC/AML/customer-protection obligations;
-- refund/dispute/grievance responsibility.
+- transaction and balance limits;
+- refund/dispute/grievance responsibility;
+- required audit/reporting/security controls.
 
-Until these are answered, engineering should preserve the service abstraction so the regulated partner can be substituted without redesigning the consumer product.
+Until these are answered, engineering should implement the wallet behind a stable domain abstraction and must not treat the current account as a substitute for the final regulated customer-value arrangement.
