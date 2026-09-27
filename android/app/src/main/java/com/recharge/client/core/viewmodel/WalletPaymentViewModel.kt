@@ -12,6 +12,7 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 sealed interface PaymentUiState {
@@ -87,21 +88,57 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
 
         _state.value = PaymentUiState.Verifying
         viewModelScope.launch {
-            repository.verifyPayment(
-                VerifyPaymentRequest(
-                    provider = provider,
-                    paymentId = paymentId?.takeIf { it.isNotBlank() },
-                    orderId = orderId,
-                    signature = signature?.takeIf { it.isNotBlank() }
+            repeat(if (provider.equals("payu", true)) PAYU_STATUS_ATTEMPTS else 1) { attempt ->
+                val result = repository.verifyPayment(
+                    VerifyPaymentRequest(
+                        provider = provider,
+                        paymentId = paymentId?.takeIf { it.isNotBlank() },
+                        orderId = orderId,
+                        signature = signature?.takeIf { it.isNotBlank() }
+                    )
                 )
-            ).onSuccess {
-                _state.value = PaymentUiState.Success("Payment successful. Wallet is being updated.")
-            }.onFailure {
+
+                if (result.isSuccess) {
+                    val response = result.getOrThrow()
+                    if (response.status.equals("CAPTURED", true)) {
+                        _state.value = PaymentUiState.Success("Payment successful. Wallet has been updated.")
+                        return@launch
+                    }
+
+                    if (response.status.equals("PENDING", true) && provider.equals("payu", true)) {
+                        if (attempt < PAYU_STATUS_ATTEMPTS - 1) {
+                            delay(PAYU_STATUS_INTERVAL_MS)
+                            return@repeat
+                        }
+                        _state.value = PaymentUiState.Error(
+                            "PayU has received the payment, but final confirmation is still pending. Refresh the wallet after a moment."
+                        )
+                        return@launch
+                    }
+
+                    _state.value = PaymentUiState.Error(
+                        response.message ?: "Payment verification did not complete."
+                    )
+                    return@launch
+                }
+
+                val failure = result.exceptionOrNull()
+                if (provider.equals("payu", true) && attempt < PAYU_STATUS_ATTEMPTS - 1) {
+                    delay(PAYU_STATUS_INTERVAL_MS)
+                    return@repeat
+                }
+
                 _state.value = PaymentUiState.Error(
-                    it.message ?: "Payment was received but verification failed. Please refresh your wallet."
+                    failure?.message ?: "Payment was received but verification failed. Please refresh your wallet."
                 )
+                return@launch
             }
         }
+    }
+
+    private companion object {
+        const val PAYU_STATUS_ATTEMPTS = 24
+        const val PAYU_STATUS_INTERVAL_MS = 5_000L
     }
 
     fun generatePayUHash(
