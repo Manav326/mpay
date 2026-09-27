@@ -332,7 +332,7 @@ data class WalletHistoryResponse(
 
 data class WithdrawMoneyRequest(
     @field:DecimalMin("1.00") val amount: BigDecimal,
-    val provider: String = "razorpay",
+    val provider: String = "mock",
     @field:NotBlank @field:Size(max = 100) val clientRequestId: String,
     @field:NotBlank
     @field:Size(max = 254)

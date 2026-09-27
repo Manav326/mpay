@@ -35,6 +35,33 @@ class WithdrawalServiceTest {
 
 
     @Test
+    fun blankProviderUsesMockFirstWhenDefaultOrderStartsWithMock() {
+        val pending = withdrawal("WDR-DEFAULT-MOCK", "REQ-DEFAULT-MOCK", "PENDING", provider = "mock", upiId = "test@mockupi")
+        val success = withdrawal("WDR-DEFAULT-MOCK", "REQ-DEFAULT-MOCK", "SUCCESS", provider = "mock", upiId = "test@mockupi")
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.empty<WalletWithdrawalEntity>()).`when`(withdrawals)
+            .findByUserIdAndClientRequestId(42L, "REQ-DEFAULT-MOCK")
+        Mockito.doReturn(pending).`when`(persistence).createOrGetPending(
+            42L, BigDecimal("10.00"), "test@mockupi", "mock", "REQ-DEFAULT-MOCK"
+        )
+        mock.result = WithdrawalProviderResult("SUCCESS", "mock_WDR-DEFAULT-MOCK", "completed", "PROCESSED")
+        Mockito.doReturn(success).`when`(persistence).markSucceeded(
+            "WDR-DEFAULT-MOCK", "mock", "mock_WDR-DEFAULT-MOCK", "PROCESSED", "completed"
+        )
+        Mockito.doReturn(WalletSnapshot(BigDecimal("1000.00"), BigDecimal.ZERO, BigDecimal("1000.00")))
+            .`when`(wallet).getWalletSnapshot(42L)
+
+        val response = service.withdraw(42L, BigDecimal("10.00"), "", "REQ-DEFAULT-MOCK", "test@mockupi")
+
+        assertEquals("SUCCESS", response.status)
+        assertEquals("mock", response.provider)
+        assertEquals(1, mock.initiateCalls)
+        assertEquals(0, razorpay.initiateCalls)
+        assertEquals(0, payu.initiateCalls)
+    }
+
+    @Test
     fun mockProviderCanCompleteWithdrawal() {
         val pending = withdrawal("WDR-MOCK", "REQ-MOCK", "PENDING", upiId = "test@mockupi")
         val success = withdrawal("WDR-MOCK", "REQ-MOCK", "SUCCESS", provider = "mock", upiId = "test@mockupi")
