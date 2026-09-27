@@ -135,6 +135,47 @@ class WithdrawalServiceTest {
     }
 
     @Test
+    fun existingPendingMockWithdrawalIsAutomaticallyCompleted() {
+        val pending = withdrawal("WDR-MOCK-PENDING", "REQ-MOCK-PENDING", "PENDING", provider = "mock", upiId = "test@mockupi")
+        val success = withdrawal("WDR-MOCK-PENDING", "REQ-MOCK-PENDING", "SUCCESS", provider = "mock", upiId = "test@mockupi")
+        val user = user(42L)
+        Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(Optional.of(pending)).`when`(withdrawals).findByUserIdAndClientRequestId(42L, "REQ-MOCK-PENDING")
+        Mockito.doReturn(success).`when`(persistence).markSucceeded(
+            "WDR-MOCK-PENDING", "mock", "mock_WDR-MOCK-PENDING", "PROCESSED", "Mock withdrawal completed successfully"
+        )
+        Mockito.doReturn(WalletSnapshot(BigDecimal("750.00"), BigDecimal.ZERO, BigDecimal("750.00")))
+            .`when`(wallet).getWalletSnapshot(42L)
+
+        val response = service.withdraw(42L, BigDecimal("250.00"), "mock", "REQ-MOCK-PENDING", "test@mockupi")
+
+        assertEquals("SUCCESS", response.status)
+        assertEquals("WDR-MOCK-PENDING", response.withdrawalId)
+        Mockito.verify(persistence).markSucceeded(
+            "WDR-MOCK-PENDING", "mock", "mock_WDR-MOCK-PENDING", "PROCESSED", "Mock withdrawal completed successfully"
+        )
+        assertEquals(0, mock.initiateCalls)
+    }
+
+    @Test
+    fun withdrawalHistoryAutomaticallyCompletesPendingMockWithdrawal() {
+        val pending = withdrawal("WDR-MOCK-HISTORY", "REQ-MOCK-HISTORY", "PENDING", provider = "mock", upiId = "test@mockupi")
+        val success = withdrawal("WDR-MOCK-HISTORY", "REQ-MOCK-HISTORY", "SUCCESS", provider = "mock", upiId = "test@mockupi")
+        Mockito.doReturn(PageImpl(listOf(pending), PageRequest.of(0, 20), 1))
+            .`when`(withdrawals).findByUserIdOrderByCreatedAtDesc(42L, PageRequest.of(0, 20))
+        Mockito.doReturn(success).`when`(persistence).markSucceeded(
+            "WDR-MOCK-HISTORY", "mock", "mock_WDR-MOCK-HISTORY", "PROCESSED", "Mock withdrawal completed successfully"
+        )
+
+        val response = service.history(42L, 0, 20)
+
+        assertEquals("SUCCESS", response.items.single().status)
+        assertEquals("mock", response.items.single().provider)
+        Mockito.verify(persistence).markSucceeded(
+            "WDR-MOCK-HISTORY", "mock", "mock_WDR-MOCK-HISTORY", "PROCESSED", "Mock withdrawal completed successfully"
+        )
+    }
+    @Test
     fun configuredProviderIsUsedAndProcessingResponseIsReturned() {
         val pending = withdrawal("WDR-2", "REQ-2", "PENDING")
         val processing = withdrawal("WDR-2", "REQ-2", "PROCESSING")
