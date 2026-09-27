@@ -252,8 +252,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     fun resubmitVehicle(
         carId: String,
         request: RentalVehicleUpdateRequest,
-        galleryPhotos: Map<Int, String>,
-        driverPhotoUri: String?,
+        photoChanges: RentalVehiclePhotoChanges,
         onDone: () -> Unit
     ) {
         if (_state.value.saving) return
@@ -264,9 +263,9 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     _state.value = _state.value.copy(
                         vendorCars = _state.value.vendorCars.map { if (it.id == updated.id) updated else it }
                     )
-                    uploadRentalVehiclePhotos(carId, galleryPhotos)
-                        .onSuccess {
-                            uploadDriverPhotoIfNeeded(updated, driverPhotoUri)
+                    uploadRentalVehiclePhotos(carId, photoChanges.vehiclePhotos)
+                        .onSuccess { photoUpdated ->
+                            uploadDriverPhotoIfNeeded(photoUpdated, photoChanges.driverPhoto)
                                 .onSuccess { driverUpdated ->
                                     _state.value = _state.value.copy(
                                         vendorCars = _state.value.vendorCars.map { if (it.id == driverUpdated.id) driverUpdated else it },
@@ -284,7 +283,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                         .onFailure {
                             _state.value = _state.value.copy(
                                 saving = false,
-                                error = it.message ?: "Vehicle submitted, but one or more photos could not be uploaded"
+                                error = it.message ?: "Vehicle submitted, but one or more photos could not be saved"
                             )
                         }
                 }
@@ -294,8 +293,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun onboardVehicle(
         request: RentalVehicleOnboardingRequest,
-        galleryPhotos: Map<Int, String>,
-        driverPhotoUri: String?,
+        photoChanges: RentalVehiclePhotoChanges,
         onDone: () -> Unit
     ) {
         if (_state.value.saving) return
@@ -304,9 +302,9 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
             repository.onboardRentalVehicle(request)
                 .onSuccess { created ->
                     _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + created)
-                    uploadRentalVehiclePhotos(created.id, galleryPhotos)
-                        .onSuccess {
-                            uploadDriverPhotoIfNeeded(created, driverPhotoUri)
+                    uploadRentalVehiclePhotos(created.id, photoChanges.vehiclePhotos)
+                        .onSuccess { photoUpdated ->
+                            uploadDriverPhotoIfNeeded(photoUpdated, photoChanges.driverPhoto)
                                 .onSuccess { driverUpdated ->
                                     _state.value = _state.value.copy(
                                         vendorCars = _state.value.vendorCars.map { if (it.id == driverUpdated.id) driverUpdated else it },
@@ -324,7 +322,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                         .onFailure {
                             _state.value = _state.value.copy(
                                 saving = false,
-                                error = it.message ?: "Vehicle created, but one or more photos could not be uploaded"
+                                error = it.message ?: "Vehicle created, but one or more photos could not be saved"
                             )
                         }
                 }
@@ -334,22 +332,26 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     private suspend fun uploadDriverPhotoIfNeeded(
         current: RentalCarResponse,
-        photoUri: String?
+        candidate: RentalPhotoCandidate?
     ): Result<RentalCarResponse> = try {
-        if (photoUri.isNullOrBlank()) {
-            // Vehicle-photo uploads may have already updated the in-memory car.
-            // Preserve that newer aggregate instead of reverting to the original create/update response.
+        if (candidate == null) {
             Result.success(
                 _state.value.vendorCars.firstOrNull { it.id == current.id } ?: current
             )
         } else {
             require(!current.driverId.isNullOrBlank()) { "Vehicle driver id is missing" }
-            Result.success(
-                repository.uploadRentalDriverPhoto(
-                    current.driverId,
-                    android.net.Uri.parse(photoUri)
-                ).getOrThrow()
-            )
+            when (candidate.source) {
+                RentalPhotoCandidateSource.DEVICE ->
+                    repository.uploadRentalDriverPhoto(
+                        current.driverId,
+                        android.net.Uri.parse(candidate.value)
+                    ).getOrThrow()
+                RentalPhotoCandidateSource.URL ->
+                    repository.importRentalDriverPhotoFromUrl(
+                        current.driverId,
+                        candidate.value
+                    ).getOrThrow()
+            }
         }
     } catch (e: CancellationException) {
         throw e
@@ -359,17 +361,26 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     private suspend fun uploadRentalVehiclePhotos(
         carId: String,
-        galleryPhotos: Map<Int, String>
-    ): Result<Unit> = try {
-        galleryPhotos.toSortedMap().forEach { (slot, uri) ->
-            val uploaded = repository.uploadRentalVehiclePhoto(
-                carId, slot, android.net.Uri.parse(uri)
-            ).getOrThrow()
+        candidates: Map<Int, RentalPhotoCandidate>
+    ): Result<RentalCarResponse> = try {
+        var current = _state.value.vendorCars.firstOrNull { it.id == carId }
+        candidates.toSortedMap().forEach { (slot, candidate) ->
+            current = when (candidate.source) {
+                RentalPhotoCandidateSource.DEVICE ->
+                    repository.uploadRentalVehiclePhoto(
+                        carId, slot, android.net.Uri.parse(candidate.value)
+                    ).getOrThrow()
+                RentalPhotoCandidateSource.URL ->
+                    repository.importRentalVehiclePhotoFromUrl(
+                        carId, slot, candidate.value
+                    ).getOrThrow()
+            }
             _state.value = _state.value.copy(
-                vendorCars = _state.value.vendorCars.map { if (it.id == uploaded.id) uploaded else it }
+                vendorCars = _state.value.vendorCars.map { if (it.id == current!!.id) current!! else it }
             )
         }
-        Result.success(Unit)
+        Result.success(current ?: _state.value.vendorCars.firstOrNull { it.id == carId }
+            ?: error("Vehicle not found after photo update"))
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
