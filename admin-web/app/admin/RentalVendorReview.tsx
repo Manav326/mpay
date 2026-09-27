@@ -84,26 +84,32 @@ function StatusBadge({ value }: { value?: string }) {
   return <span className={`rental-status-badge ${meta.className}`}><Icon size={13} />{meta.label}</span>;
 }
 
+type RentalPhotoResource = {
+  slot?: number | null;
+  url: string;
+  thumbnailUrl: string;
+  largeUrl: string;
+};
+
 function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^https?:\/\//i.test(raw)) return raw;
   const url = raw.startsWith('/api/') ? API_BASE + raw : API_BASE + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+  if (raw.includes('variant=')) return url;
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
-function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priority = false }: { src?: string | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large'; priority?: boolean }) {
-  const [failed, setFailed] = useState(false);
-  const resolved = imageUrl(src, variant);
-  return (
-    <div className={`rental-photo-tile ${className}`}>
-      {resolved && !failed ? <img src={resolved} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async" fetchPriority={priority ? 'high' : 'auto'} onError={() => setFailed(true)} /> : <div className="rental-photo-fallback"><CarFront size={22} /><span>{label || 'Photo unavailable'}</span></div>}
-      {label && !failed && <span className="rental-photo-label">{label}</span>}
-    </div>
-  );
-}
-
 function vehiclePhotos(vehicle: any): string[] {
+  if (Array.isArray(vehicle?.photos) && vehicle.photos.length) {
+    return [...vehicle.photos]
+      .sort((a: RentalPhotoResource, b: RentalPhotoResource) => (a.slot ?? 0) - (b.slot ?? 0))
+      .map((photo: RentalPhotoResource) => photo.url)
+      .filter(Boolean)
+      .slice(0, 4)
+      .concat(['', '', '', ''])
+      .slice(0, 4);
+  }
   return String(vehicle?.imageUrl || '')
     .replace(/\\n/g, '|')
     .replace(/\r?\n/g, '|')
@@ -510,7 +516,9 @@ export default function RentalVendorReview() {
                   photos={vehiclePhotos(modal.vehicle)}
                   activeIndex={Math.min(inspectionPhotoIndex, Math.max(vehiclePhotos(modal.vehicle).length - 1, 0))}
                   onPrev={() => setInspectionPhotoIndex((current) => {
-                    const photos = vehiclePhotos(modal.vehicle);
+                    const photos = Array.isArray(modal.vehicle?.photos) && modal.vehicle.photos.length
+                      ? [...modal.vehicle.photos].sort((a:any,b:any)=>(a.slot ?? 0)-(b.slot ?? 0))
+                      : vehiclePhotos(modal.vehicle).map((value:string) => value ? { url:value } : null);
                     return photos.length ? (current - 1 + photos.length) % photos.length : 0;
                   })}
                   onNext={() => setInspectionPhotoIndex((current) => {
