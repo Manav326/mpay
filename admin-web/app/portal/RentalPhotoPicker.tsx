@@ -92,18 +92,19 @@ export default function RentalPhotoPicker({
   }, [url, source]);
 
   function chooseSource(next: Exclude<PickerSource, null>) {
-    setSource(next);
     if (next === 'device') {
       setUrl('');
       setCheckedUrl('');
       setUrlPreview('');
       setUrlState('idle');
-      window.setTimeout(() => fileInput.current?.click(), 0);
+      // Keep the native file chooser inside the original user gesture.
+      fileInput.current?.click();
     } else {
       if (devicePreview.startsWith('blob:')) URL.revokeObjectURL(devicePreview);
       setSelectedFile(null);
       setDevicePreview('');
     }
+    setSource(next);
   }
 
   function handleFile(file?: File) {
