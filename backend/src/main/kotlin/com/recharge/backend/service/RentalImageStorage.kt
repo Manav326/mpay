@@ -22,6 +22,7 @@ interface RentalImageStorage {
     fun save(carId: Long, slot: Int, file: MultipartFile): String
     fun save(carId: Long, slot: Int, bytes: ByteArray, contentType: String): String
     fun saveDriverPhoto(driverId: Long, file: MultipartFile): String
+    fun saveDriverPhoto(driverId: Long, bytes: ByteArray, contentType: String): String
     fun load(key: String, variant: ImageVariant = ImageVariant.THUMB): StoredImage?
     fun delete(key: String?)
 }
@@ -61,18 +62,23 @@ class LocalRentalImageStorage(
 
     override fun saveDriverPhoto(driverId: Long, file: MultipartFile): String {
         require(!file.isEmpty) { "Driver photo is empty" }
-
         val contentType = file.contentType?.lowercase().orEmpty()
-        require(contentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
-        require(file.size <= MAX_BYTES) { "Driver photo must be 5 MB or smaller" }
+        return saveDriverPhoto(driverId, file.bytes, contentType)
+    }
 
-        val ext = when (contentType) {
+    override fun saveDriverPhoto(driverId: Long, bytes: ByteArray, contentType: String): String {
+        require(bytes.isNotEmpty()) { "Driver photo is empty" }
+        require(bytes.size.toLong() <= MAX_BYTES) { "Driver photo must be 5 MB or smaller" }
+        val normalizedContentType = contentType.trim().lowercase()
+        require(normalizedContentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
+
+        val ext = when (normalizedContentType) {
             "image/png" -> "png"
             "image/webp" -> "webp"
             else -> "jpg"
         }
-        val key = "rental_driver_${driverId}_${UUID.randomUUID()}.$ext"
-        Files.write(resolve(key), file.bytes)
+        val key = "rental_driver_" + driverId + "_" + UUID.randomUUID() + "." + ext
+        Files.write(resolve(key), bytes)
         runCatching { ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB) }
         return key
     }
