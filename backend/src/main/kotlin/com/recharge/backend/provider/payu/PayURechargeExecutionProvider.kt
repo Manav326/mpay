@@ -17,6 +17,7 @@ import java.util.UUID
 class PayURechargeExecutionProvider(
     private val properties: PayUProperties,
     private val auth: PayUAuthService,
+    private val billerDirectory: PayUBillerDirectory,
     private val objectMapper: ObjectMapper
 ) : RechargeExecutionProvider {
 
@@ -31,15 +32,38 @@ class PayURechargeExecutionProvider(
 
     override fun supportsOperator(operator: String): Boolean = operator.isNotBlank()
 
-    override fun recharge(request: ProviderRechargeRequest): ProviderRechargeResult {
+    override fun prepareBeforeSubmission(request: ProviderRechargeRequest): ProviderRechargeRequest {
         check(auth.isConfigured()) { "PayU BBPS credentials are not configured" }
         check(properties.agentId.isNotBlank()) { "PayU agentId is not configured" }
 
-        val refId = payURefId()
         val metadata = request.plan.providerMetadata
-        val billerId = metadata["billerId"]?.takeIf { it.isNotBlank() }
+        val candidateBillerId = metadata["billerId"]?.takeIf { it.isNotBlank() }
             ?: metadata["operatorId"]?.takeIf { it.isNotBlank() }
-            ?: throw PayUIntegrationException("PayU biller/operator id is missing for recharge")
+
+        val billerId = billerDirectory.resolveBillerId(request.operator, candidateBillerId)
+            ?: throw PayUIntegrationException(
+                "PayU billerId could not be resolved for " + request.operator.uppercase() + " recharge"
+            )
+
+        auth.getAccessToken("create_transactions")
+
+        return request.copy(
+            plan = request.plan.copy(providerMetadata = metadata + ("billerId" to billerId))
+        )
+    }
+
+    override fun validateBeforeSubmission(request: ProviderRechargeRequest) {
+        check(auth.isConfigured()) { "PayU BBPS credentials are not configured" }
+        check(properties.agentId.isNotBlank()) { "PayU agentId is not configured" }
+        requireBillerId(request)
+    }
+
+    override fun recharge(request: ProviderRechargeRequest): ProviderRechargeResult {
+        validateBeforeSubmission(request)
+
+        val refId = payURefId()
+        val billerId = requireBillerId(request)
+        val metadata = request.plan.providerMetadata
 
         val paymentDetails = mutableMapOf<String, Any?>(
             "paymentMode" to properties.paymentMode
@@ -158,6 +182,10 @@ class PayURechargeExecutionProvider(
             ProviderRechargeResult("FAILED", providerReference, message ?: "PayU recharge request failed.")
         }
     }
+
+    private fun requireBillerId(request: ProviderRechargeRequest): String =
+        request.plan.providerMetadata["billerId"]?.takeIf { it.isNotBlank() }
+            ?: throw PayUIntegrationException("PayU billerId is missing for recharge")
 
     private fun payURefId(): String =
         ("MPAY" + UUID.randomUUID().toString().replace("-", "")).take(34)
