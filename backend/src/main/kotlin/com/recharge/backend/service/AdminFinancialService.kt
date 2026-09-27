@@ -16,7 +16,8 @@ class AdminFinancialService(
     private val walletLedger: WalletTransactionRepository,
     private val users: UserRepository,
     private val roleAccess: RoleAccessService,
-    private val rechargeService: RechargeService
+    private val rechargeService: RechargeService,
+    private val walletService: WalletService
 ) {
     fun recharges(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialRechargePageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
