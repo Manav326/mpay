@@ -89,6 +89,14 @@ class RentalController(
         @RequestPart("photo") photo: MultipartFile
     ): RentalCarResponse = rentalService.uploadDriverPhoto(userId(authentication), driverId, photo)
 
+    @PostMapping("/vendor/drivers/{driverId}/photo/import-url")
+    fun importDriverPhotoFromUrl(
+        authentication: Authentication,
+        @PathVariable driverId: Long,
+        @Valid @RequestBody request: RentalPhotoUrlImportRequest
+    ): RentalCarResponse =
+        rentalService.importDriverPhotoFromUrl(userId(authentication), driverId, request.url)
+
     @PutMapping(
         "/vendor/vehicles/{carId}/photos/{slot}",
         consumes = [MediaType.MULTIPART_FORM_DATA_VALUE]
