@@ -516,9 +516,7 @@ export default function RentalVendorReview() {
                   photos={vehiclePhotos(modal.vehicle)}
                   activeIndex={Math.min(inspectionPhotoIndex, Math.max(vehiclePhotos(modal.vehicle).length - 1, 0))}
                   onPrev={() => setInspectionPhotoIndex((current) => {
-                    const photos = Array.isArray(modal.vehicle?.photos) && modal.vehicle.photos.length
-                      ? [...modal.vehicle.photos].sort((a:any,b:any)=>(a.slot ?? 0)-(b.slot ?? 0))
-                      : vehiclePhotos(modal.vehicle).map((value:string) => value ? { url:value } : null);
+                    const photos = vehiclePhotos(modal.vehicle);
                     return photos.length ? (current - 1 + photos.length) % photos.length : 0;
                   })}
                   onNext={() => setInspectionPhotoIndex((current) => {
