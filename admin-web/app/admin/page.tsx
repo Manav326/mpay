@@ -10,6 +10,7 @@ import RentalVendorReview from './RentalVendorReview';
 import RentalBookingActions from './RentalBookingActions';
 import RentalPayouts from './RentalPayouts';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
+import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -42,6 +43,16 @@ export default function Page() {
   const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
   const [commissionRates, setCommissionRates] = useState<RoleCommissionRate[]>([]);
   const [attention, setAttention] = useState<AdminAttention>({ pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingVehicleReviews: 0, pendingPayouts: 0 });
+
+  useEffect(()=>{
+    startWebSessionRefresh({
+      accessKey: 'mpay_admin_token',
+      refreshKey: 'mpay_admin_refresh_token',
+      sessionKey: 'mpay_admin_session',
+      redirectPath: '/admin',
+    });
+    return () => {};
+  },[]);
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
@@ -91,7 +102,7 @@ export default function Page() {
 
   async function doLogin(e: React.FormEvent){ e.preventDefault(); setBusy(true); setNotice(''); try { const r = await login(mobile, password, selectedPortalRole); const s={token:r.accessToken, refreshToken:r.refreshToken, role:r.role, name:r.name||r.role, permissions:r.permissions||[]}; localStorage.setItem('mpay_admin_session', JSON.stringify(s)); localStorage.setItem('mpay_admin_token', r.accessToken); setSession(s); } catch(err:any){ setNotice(err.message||'Login failed'); } finally { setBusy(false); } }
   async function doReset(e: React.FormEvent){ e.preventDefault(); setBusy(true); try { if(!resetRequested){ await requestPasswordReset(mobile); setResetRequested(true); setNotice('OTP requested. Enter the OTP sent to the registered mobile number.'); } else { await resetPassword(mobile, otp, newPassword); setNotice('Password reset successful. You can now sign in.'); setLoginState('login'); setResetRequested(false); setOtp(''); setNewPassword(''); } } catch(err:any){ setNotice(err.message||'Reset failed'); } finally { setBusy(false); } }
-  function logout(){ localStorage.removeItem('mpay_admin_session'); localStorage.removeItem('mpay_admin_token'); setSession(null); }
+  function logout(){ logoutWebSession({ accessKey: 'mpay_admin_token', refreshKey: 'mpay_admin_refresh_token', sessionKey: 'mpay_admin_session', redirectPath: '/admin' }); setSession(null); }
 
   if(!session) return <AuthScreen resetRequested={resetRequested} setResetRequested={setResetRequested} state={loginState} setState={setLoginState} mobile={mobile} setMobile={setMobile} password={password} setPassword={setPassword} otp={otp} setOtp={setOtp} newPassword={newPassword} setNewPassword={setNewPassword} busy={busy} notice={notice} onLogin={doLogin} onReset={doReset} portalRoles={portalRoles} selectedPortalRole={selectedPortalRole} setSelectedPortalRole={setSelectedPortalRole}/>;
 
