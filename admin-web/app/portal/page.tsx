@@ -31,10 +31,16 @@ type WithdrawalItem = {
   providerReference?: string; providerStatus?: string; failureReason?: string; walletLedgerRef?: string; message?: string | null;
   createdAt?: string; updatedAt?: string; completedAt?: string;
 };
+type RentalPhoto = {
+  slot?: number | null;
+  url: string;
+  thumbnailUrl: string;
+  largeUrl: string;
+};
 type RentalCar = {
   id: string; name: string; category: string; seats: number; transmission: string; fuelType?: string;
-  registrationYear?: number; city?: string; pickupAddress?: string; imageUrl?: string; pricePerDay: number;
-  driverId?: string; driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
+  registrationYear?: number; city?: string; pickupAddress?: string; imageUrl?: string; photos?: RentalPhoto[]; pricePerDay: number;
+  driverId?: string; driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverPhoto?: RentalPhoto | null; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
   make?: string; model?: string; variant?: string; manufacturingYear?: number; registrationNumber?: string;
   state?: string; driverLicenseNumber?: string; driverLicenseExpiry?: string; driverAddress?: string;
 };
@@ -43,7 +49,7 @@ type RentalQuote = {
   startDate: string; endDate: string; days: number; pricePerDay: number; total: number;
 };
 type RentalBooking = {
-  bookingId: string; carName: string; driverName?: string; driverMobile?: string; driverPhotoUrl?: string; carImageUrl?: string;
+  bookingId: string; carName: string; driverName?: string; driverMobile?: string; driverPhotoUrl?: string; driverPhoto?: RentalPhoto | null; carImageUrl?: string; carPhotos?: RentalPhoto[];
   pickup: string; drop: string; startDate: string; endDate: string; total: number; paymentMethod?: string; status: string; createdAt?: string;
   pickupLatitude?: number | null; pickupLongitude?: number | null; pickupPlaceId?: string | null;
   dropLatitude?: number | null; dropLongitude?: number | null; dropPlaceId?: string | null;
@@ -155,15 +161,29 @@ function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thumb' | 'large' = 'thumb') {
+function rentalPhotoClientUrl(value?: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return raw.startsWith('/api/') ? base + raw : base + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+}
+
+function imageFromCar(
+  car?: Pick<RentalCar, 'imageUrl' | 'photos'>,
+  slot = 0,
+  variant: 'thumb' | 'large' = 'thumb'
+) {
+  const photo = car?.photos?.find(item => (item.slot ?? -1) === slot) || car?.photos?.[slot];
+  if (photo) {
+    return rentalPhotoClientUrl(variant === 'large' ? photo.largeUrl : photo.thumbnailUrl);
+  }
+
   const raw = String(car?.imageUrl || '');
   const values = raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean);
   const value = values[slot] || '';
   if (!value) return '';
-  if (/^https?:\/\//i.test(value)) return value;
-  const url = value.startsWith('/api/')
-    ? base + value
-    : base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  const url = rentalPhotoClientUrl(value);
+  if (!url || /^https?:\/\//i.test(value)) return url;
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
@@ -222,7 +242,7 @@ function useRentalViewport(
 }
 
 function useRentalPhotoUrls(
-  car?: Pick<RentalCar, 'imageUrl'>,
+  car?: Pick<RentalCar, 'imageUrl' | 'photos'>,
   variant: 'thumb' | 'large' = 'thumb',
   active = true
 ): string[] | null {
@@ -336,7 +356,14 @@ function RentalDetailsPhotoGallery({
   );
 }
 
-function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
+function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl' | 'photos'>): string[] {
+  if (car?.photos?.length) {
+    return [...car.photos]
+      .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+      .map(photo => photo.url)
+      .filter(Boolean)
+      .slice(0, 4);
+  }
   const raw = String(car?.imageUrl || '');
   return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4);
 }
@@ -1607,7 +1634,15 @@ export default function Portal() {
   }
 
   function rawVehiclePhotos(car?:RentalCar) {
-    return String(car?.imageUrl || '').replace(/\\n/g,'|').split('|').map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
+    if (car?.photos?.length) {
+      return [...car.photos]
+        .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+        .slice(0, 4)
+        .map(photo => photo.url)
+        .concat(['','','',''])
+        .slice(0,4);
+    }
+    return String(car?.imageUrl || '').replace(/\\n/g,'|').split(/[|,]/).map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
   }
 
   function resetVehicleForm(car?:RentalCar) {
@@ -1631,9 +1666,18 @@ export default function Portal() {
     });
     setVehiclePhotoUrls(photos);
     setVehiclePhotoFiles([null,null,null,null]);
-    setVehiclePhotoPreviews(photos.map(x=>x ? (x.startsWith('http') ? x : base + '/api/v1/car-rental/photos/' + x.replace(/^\/+/,'')) : ''));
+    setVehiclePhotoPreviews(
+      car?.photos?.length
+        ? [...car.photos]
+            .sort((a,b)=>(a.slot ?? 0)-(b.slot ?? 0))
+            .slice(0,4)
+            .map(photo => rentalPhotoClientUrl(photo.largeUrl))
+            .concat(['','','',''])
+            .slice(0,4)
+        : photos.map(x=>x ? imageFromCar(car, photos.indexOf(x), 'large') : '')
+    );
     setDriverPhotoFile(null);
-    setDriverPhotoPreview(car?.driverPhotoUrl ? (car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl) : '');
+    setDriverPhotoPreview(car?.driverPhoto?.largeUrl ? rentalPhotoClientUrl(car.driverPhoto.largeUrl) : (car?.driverPhotoUrl ? rentalPhotoClientUrl(car.driverPhotoUrl) : ''));
     setShowVehicleForm(true);
     setAccountSection('vehicle');
   }
@@ -1653,26 +1697,6 @@ export default function Portal() {
       setVehiclePhotoUrls(current => {
         const next=[...current];
         next[slot]='';
-        return next;
-      });
-    }
-  }
-
-  function setVehiclePhotoUrl(slot:number, value:string) {
-    setVehiclePhotoUrls(current => {
-      const next=[...current];
-      next[slot]=value;
-      return next;
-    });
-    if(value.trim()) {
-      setVehiclePhotoFiles(current => {
-        const next=[...current];
-        next[slot]=null;
-        return next;
-      });
-      setVehiclePhotoPreviews(current => {
-        const next=[...current];
-        next[slot]=value;
         return next;
       });
     }
@@ -1744,7 +1768,6 @@ export default function Portal() {
     if(validation){setNotice(validation);return;}
     setBusy(true);
     try {
-      const rawImages=vehiclePhotoUrls.map((url,slot)=>vehiclePhotoFiles[slot] ? '' : url.trim()).join('|');
       const body={
         name:vehicleForm.name.trim(),
         category:vehicleForm.category,
@@ -1762,7 +1785,6 @@ export default function Portal() {
         state:vehicleForm.state,
         pricePerDay:Number(vehicleForm.pricePerDay),
         pickupLocation:null,
-        imageUrl:rawImages || null,
         driver:{
           fullName:sanitizeVehicleAlphaNumeric(vehicleForm.driver.fullName.trim(),120),
           mobile:normalizeIndianMobile(vehicleForm.driver.mobile),
@@ -2692,7 +2714,7 @@ export default function Portal() {
                 return <article className="rental-booking-card" key={b.bookingId}>
                   <div className="rental-booking-card-image">
                     <VehicleFourPhotoGallery
-                       car={{ name: b.carName, imageUrl: b.carImageUrl }}
+                       car={{ name: b.carName, imageUrl: b.carImageUrl, photos: b.carPhotos }}
                        priority={false}
                      />
                   </div>
@@ -3059,18 +3081,30 @@ export default function Portal() {
 
           <section className="vehicle-form-card">
             <div className="vehicle-form-step-head"><span>2</span><div><b>Vehicle photos</b><small>All four photos are mandatory</small></div></div>
-            <p className="vehicle-form-description">Use an image URL or a photo from your device for each slot. Device photos must be JPG, PNG or WebP and 5 MB or smaller.</p>
+            <p className="vehicle-form-description">Existing photos are stored by mPay and loaded from the backend. Choose a new device photo only when you want to replace a slot.</p>
             <div className="vehicle-photo-form-grid">
               {['Front photo','Side photo','Rear photo','Interior photo'].map((label,slot)=>{
                 const selectedFile=vehiclePhotoFiles[slot];
                 const preview=vehiclePhotoPreviews[slot];
-                const rawUrl=vehiclePhotoUrls[slot];
-                const complete=Boolean(selectedFile || rawUrl.trim());
+                const currentRef=vehiclePhotoUrls[slot];
+                const complete=Boolean(selectedFile || currentRef.trim());
                 return <div className={'vehicle-photo-form-card '+(complete?'complete':'incomplete')} key={label}>
                   <div className="vehicle-photo-preview">{preview ? <img src={preview} alt={label}/> : <Car size={24}/>}</div>
                   <b>{label}</b>
-                  {selectedFile ? <><small>Photo selected from device</small><button type="button" className="landing-secondary compact" onClick={()=>{setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});setVehiclePhotoPreviews(v=>{const n=[...v];n[slot]='';return n})}}>Use image URL instead</button></> :
-                  <><input value={rawUrl} placeholder={label+' image URL'} onChange={e=>setVehiclePhotoUrl(slot,e.target.value)}/><label className="photo-file-button landing-secondary compact"><Camera size={13}/> Choose from device<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleVehiclePhotoSelection(slot,e.target.files?.[0]||null)}/></label></>}
+                  {selectedFile ? <>
+                    <small>New photo selected from device</small>
+                    <button type="button" className="landing-secondary compact" onClick={()=>{
+                      setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});
+                      setVehiclePhotoPreviews(v=>{
+                        const n=[...v];
+                        n[slot]=currentRef ? imageFromCar({imageUrl:vehiclePhotoUrls.join('|')},slot,'large') : '';
+                        return n;
+                      });
+                    }}>{currentRef ? 'Keep current photo' : 'Choose another photo'}</button>
+                  </> : <>
+                    <small>{currentRef ? 'Photo stored by mPay' : 'No photo selected yet'}</small>
+                    <label className="photo-file-button landing-secondary compact"><Camera size={13}/> {currentRef ? 'Replace photo' : 'Choose from device'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleVehiclePhotoSelection(slot,e.target.files?.[0]||null)}/></label>
+                  </>}
                   {vehicleSubmitAttempted&&!complete&&<small className="field-error">This photo is required</small>}
                 </div>
               })}
