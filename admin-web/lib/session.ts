@@ -7,9 +7,8 @@ export type WebSessionConfig = {
 
 type RefreshResult = 'refreshed' | 'invalid' | 'unavailable';
 
-let refreshPromise: Promise<RefreshResult> | null = null;
-let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-let activeConfig: WebSessionConfig | null = null;
+const refreshPromises = new Map<string, Promise<RefreshResult>>();
+const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function readToken(config: WebSessionConfig): string | null {
   if (typeof window === 'undefined') return null;
@@ -60,25 +59,11 @@ function tokenExpiryMillis(token: string): number | null {
     const payload = token.split('.')[1];
     if (!payload) return null;
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = decodeURIComponent(
-      atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=').replace(/./g, (char, index) => {
-        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-        const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='));
-        return '%' + ('00' + binary.charCodeAt(index).toString(16)).slice(-2);
-      }))
-    );
-    const payloadData = JSON.parse(json);
-    return Number(payloadData.exp) * 1000;
+    const json = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='));
+    const exp = Number(JSON.parse(json).exp);
+    return Number.isFinite(exp) && exp > 0 ? exp * 1000 : null;
   } catch {
-    try {
-      const payload = token.split('.')[1];
-      if (!payload) return null;
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const json = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='));
-      return Number(JSON.parse(json).exp) * 1000;
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
@@ -95,14 +80,15 @@ export function redirectToLogin(config: WebSessionConfig): never {
 }
 
 export async function refreshWebSession(config: WebSessionConfig): Promise<RefreshResult> {
-  if (refreshPromise) return refreshPromise;
+  const existing = refreshPromises.get(config.accessKey);
+  if (existing) return existing;
 
   const refreshToken = readRefreshToken(config);
   if (!refreshToken) return 'invalid';
 
-  refreshPromise = (async () => {
+  const promise = (async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\\/$/, '') || 'http://localhost:8080';
       const response = await fetch(baseUrl + '/api/v1/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,16 +106,22 @@ export async function refreshWebSession(config: WebSessionConfig): Promise<Refre
     } catch {
       return 'unavailable';
     } finally {
-      refreshPromise = null;
+      refreshPromises.delete(config.accessKey);
     }
   })();
 
-  return refreshPromise;
+  refreshPromises.set(config.accessKey, promise);
+  return promise;
 }
 
 function scheduleNext(config: WebSessionConfig, delayMs: number): void {
-  if (refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(() => void renewBeforeExpiry(config), Math.max(1000, delayMs));
+  const existing = refreshTimers.get(config.accessKey);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    refreshTimers.delete(config.accessKey);
+    void renewBeforeExpiry(config);
+  }, Math.max(1000, delayMs));
+  refreshTimers.set(config.accessKey, timer);
 }
 
 async function renewBeforeExpiry(config: WebSessionConfig): Promise<void> {
@@ -142,9 +134,8 @@ async function renewBeforeExpiry(config: WebSessionConfig): Promise<void> {
     return;
   }
 
-  const now = Date.now();
   const refreshLead = 2 * 60 * 1000;
-  const delay = expiry - now - refreshLead;
+  const delay = expiry - Date.now() - refreshLead;
 
   if (delay > 0) {
     scheduleNext(config, delay);
@@ -158,31 +149,31 @@ async function renewBeforeExpiry(config: WebSessionConfig): Promise<void> {
   }
 
   if (result === 'unavailable') {
-    // A temporary network/backend problem must not log out an active user.
-    // Retry shortly; the normal 401 path remains the final fallback.
     scheduleNext(config, 30 * 1000);
     return;
   }
 
   const refreshedToken = readToken(config);
   const refreshedExpiry = refreshedToken ? tokenExpiryMillis(refreshedToken) : null;
-  scheduleNext(config, refreshedExpiry ? Math.max(30 * 1000, refreshedExpiry - Date.now() - refreshLead) : 5 * 60 * 1000);
+  scheduleNext(config, refreshedExpiry
+    ? Math.max(30 * 1000, refreshedExpiry - Date.now() - refreshLead)
+    : 5 * 60 * 1000);
 }
 
 export function startWebSessionRefresh(config: WebSessionConfig): void {
   if (typeof window === 'undefined') return;
-  activeConfig = config;
-  if (refreshTimer) clearTimeout(refreshTimer);
+  const existing = refreshTimers.get(config.accessKey);
+  if (existing) clearTimeout(existing);
   void renewBeforeExpiry(config);
 }
 
-export function stopWebSessionRefresh(): void {
-  if (refreshTimer) clearTimeout(refreshTimer);
-  refreshTimer = null;
-  activeConfig = null;
+export function stopWebSessionRefresh(config: WebSessionConfig): void {
+  const existing = refreshTimers.get(config.accessKey);
+  if (existing) clearTimeout(existing);
+  refreshTimers.delete(config.accessKey);
 }
 
 export function logoutWebSession(config: WebSessionConfig): void {
-  stopWebSessionRefresh();
+  stopWebSessionRefresh(config);
   clearSession(config);
 }
