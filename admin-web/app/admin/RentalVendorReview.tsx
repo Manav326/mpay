@@ -106,7 +106,7 @@ function rentalPhotoResourceUrl(value?: RentalPhotoValue | null, variant: 'thumb
   if (value && typeof value === 'object') {
     return variant === 'large' ? value.largeUrl : value.thumbnailUrl;
   }
-  return imageUrl(value, variant);
+  return imageUrl(typeof value === 'string' ? value : '', variant);
 }
 
 function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priority = false }: { src?: RentalPhotoValue | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large'; priority?: boolean }) {
