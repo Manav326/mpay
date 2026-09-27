@@ -9,6 +9,7 @@ import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.repository.WalletWithdrawalRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 
 @Service
@@ -20,6 +21,8 @@ class WithdrawalService(
     private val properties: com.recharge.backend.config.WithdrawalProperties,
     private val persistence: WithdrawalPersistenceService
 ) {
+    private val log = LoggerFactory.getLogger(WithdrawalService::class.java)
+
     fun withdraw(
         userId: Long,
         amount: BigDecimal,
@@ -27,6 +30,7 @@ class WithdrawalService(
         clientRequestId: String,
         upiId: String
     ): WithdrawMoneyResponse {
+        log.info("WITHDRAW_TRACE service_enter user={} amount={} provider={}", userId, amount, providerName)
         val normalizedAmount = amount.setScale(2)
         require(normalizedAmount >= BigDecimal("1.00")) { "Minimum withdrawal amount is ₹1" }
 
@@ -41,8 +45,10 @@ class WithdrawalService(
         require(normalizedRequestId.length <= 100) { "Client request id is too long" }
 
         val user = users.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
+        log.info("WITHDRAW_TRACE user_loaded user={}", userId)
 
         val existing = withdrawals.findByUserIdAndClientRequestId(userId, normalizedRequestId)
+        log.info("WITHDRAW_TRACE idempotency_checked user={} existing={}", userId, existing.isPresent)
         if (existing.isPresent) {
             val entity = existing.get()
             if (requestedProvider.isNotBlank() && !entity.providerName.equals(requestedProvider, true)) {
@@ -52,7 +58,9 @@ class WithdrawalService(
         }
 
         val provider = resolveProvider(requestedProvider)
+        log.info("WITHDRAW_TRACE provider_resolved user={} provider={} configured={}", userId, provider.providerName, provider.isConfigured())
 
+        log.info("WITHDRAW_TRACE persistence_create_enter user={} amount={} provider={}", userId, normalizedAmount, provider.providerName)
         val saved = persistence.createOrGetPending(
             userId = userId,
             amount = normalizedAmount,
@@ -61,10 +69,12 @@ class WithdrawalService(
             clientRequestId = normalizedRequestId
         )
 
+        log.info("WITHDRAW_TRACE persistence_create_exit user={} withdrawalId={} status={}", userId, saved.withdrawalId, saved.status)
         if (saved.status != "PENDING") {
             return responseFor(saved)
         }
 
+        log.info("WITHDRAW_TRACE provider_initiate_enter user={} withdrawalId={} provider={}", userId, saved.withdrawalId, provider.providerName)
         val result = try {
             provider.initiate(
                 WithdrawalProviderRequest(
@@ -114,6 +124,7 @@ class WithdrawalService(
             return responseFor(processing)
         }
 
+        log.info("WITHDRAW_TRACE provider_initiate_exit user={} withdrawalId={} status={}", userId, saved.withdrawalId, result.status)
         val finalEntity = when (result.status.uppercase()) {
             "SUCCESS" -> persistence.markSucceeded(
                 saved.withdrawalId,
@@ -136,6 +147,7 @@ class WithdrawalService(
             )
         }
 
+        log.info("WITHDRAW_TRACE service_exit user={} withdrawalId={} status={}", userId, finalEntity.withdrawalId, finalEntity.status)
         return responseFor(finalEntity)
     }
 
@@ -226,6 +238,7 @@ class WithdrawalService(
     }
 
     private fun resolveProvider(requestedName: String): WithdrawalProvider {
+        log.info("WITHDRAW_TRACE resolve_provider requested={}", requestedName)
         val requested = requestedName.trim()
         if (requested.isNotBlank()) {
             return providers.firstOrNull {
