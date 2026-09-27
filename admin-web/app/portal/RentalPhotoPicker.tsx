@@ -37,6 +37,7 @@ export default function RentalPhotoPicker({
   const [checkedUrl, setCheckedUrl] = useState('');
   const [urlState, setUrlState] = useState<'idle'|'checking'|'loading'|'ready'|'error'>('idle');
   const [urlPreview, setUrlPreview] = useState('');
+  const [fileError, setFileError] = useState('');
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function RentalPhotoPicker({
         setUrlState('error');
       };
       image.src = normalized;
-    }, 400);
+    }, 250);
 
     return () => window.clearTimeout(timer);
   }, [url, source]);
@@ -109,14 +110,19 @@ export default function RentalPhotoPicker({
     if (!file) return;
 
     if (!ALLOWED_TYPES.has(file.type)) {
-      window.alert('Please choose a JPG, PNG or WebP image.');
+      setFileError('Please choose a JPG, PNG or WebP image.');
+      setSelectedFile(null);
+      setDevicePreview('');
       return;
     }
     if (file.size > MAX_BYTES) {
-      window.alert('Photo must be 5 MB or smaller.');
+      setFileError('Photo must be 5 MB or smaller.');
+      setSelectedFile(null);
+      setDevicePreview('');
       return;
     }
 
+    setFileError('');
     if (devicePreview.startsWith('blob:')) URL.revokeObjectURL(devicePreview);
     setSelectedFile(file);
     setDevicePreview(URL.createObjectURL(file));
@@ -197,6 +203,12 @@ export default function RentalPhotoPicker({
 
         {source === 'device' && (
           <div className="photo-picker-candidate">
+            {fileError && (
+              <div className="photo-picker-result error">
+                <AlertCircle size={16} />
+                <span>{fileError}</span>
+              </div>
+            )}
             {candidatePreview ? (
               <>
                 <img src={candidatePreview} alt="Selected replacement" />
