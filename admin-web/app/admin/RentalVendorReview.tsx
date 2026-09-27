@@ -768,7 +768,7 @@ function VehiclePhotoCarousel({
         <div className="inspection-gallery-thumbs">
           {photos.map((photo, index) => (
             <button
-              key={photo + index}
+              key={index}
               type="button"
               className={`inspection-gallery-thumb ${index === safeIndex ? 'active' : ''}`}
               onClick={() => onSelect(index)}
