@@ -69,7 +69,7 @@ app:
     mock:
       enabled: ${MPAY_PAYMENT_MOCK_ENABLED:true}
   withdrawal:
-    provider-order: ${MPAY_WITHDRAWAL_PROVIDER_ORDER:razorpay,payu,mock}
+    provider-order: ${MPAY_WITHDRAWAL_PROVIDER_ORDER:mock,razorpay,payu}
     mock:
       enabled: ${MPAY_WITHDRAWAL_MOCK_ENABLED:true}
   razorpay:
