@@ -32,6 +32,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1882,8 +1885,20 @@ fun RentalVehicleOnboardingScreen(
 
     var pickerTarget by remember { mutableStateOf<Int?>(null) }
     var pickerTitle by remember { mutableStateOf("") }
+    var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
+
+    val devicePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        pickedDeviceUri = uri?.toString()
+    }
+
+    LaunchedEffect(pickerTarget) {
+        pickedDeviceUri = null
+    }
 
     fun openPhotoPicker(slot: Int, title: String) {
+        pickedDeviceUri = null
         pickerTarget = slot
         pickerTitle = title
     }
@@ -2204,6 +2219,13 @@ fun RentalVehicleOnboardingScreen(
                             ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
                         else -> null
                     },
+                    deviceUri = pickedDeviceUri,
+                    onLaunchDevicePicker = {
+                        devicePickerLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    onDevicePicked = { uri -> pickedDeviceUri = uri },
                     onDismiss = { pickerTarget = null },
                     onUse = { candidate ->
                         if (target in 0..3) {
