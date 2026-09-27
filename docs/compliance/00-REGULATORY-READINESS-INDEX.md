@@ -31,7 +31,7 @@ Until the legal structure is confirmed, mPay should be engineered toward these p
 
 1. mPay is a technology/service platform, not an unlicensed deposit-taking or payment-system operator.
 2. Customer money must be held/settled by the appropriately regulated payment partner/entity wherever regulation requires it.
-3. If mPay wants to issue its own stored-value wallet and permit cross-service use and withdrawal, the required RBI authorisation/regulated-partner structure must be obtained before production use.
+3. mPay's target business model is a customer-facing service platform with reusable wallet value; the stored-value/payment layer must operate only through an appropriately regulated structure. Whether that is an authorised partner or direct authorisation by the eventual company is a legal/provider decision before production.
 4. Every payment must have a traceable lifecycle: customer instruction -> provider transaction -> provider confirmation -> mPay transaction state -> service fulfilment -> settlement/refund/reversal.
 5. A successful customer debit must never be treated as equivalent to a successful mPay credit without server-side verification.
 6. Internal wallet records are an accounting/transaction representation; they must never be used to imply that mPay is legally entitled to hold customer funds unless the legal structure permits it.
@@ -84,7 +84,7 @@ This is a material compliance/reconciliation issue and is tracked in the technic
 - Current PayU/Razorpay accounts are in the founder's individual name; these are not the target permanent production structure.
 - Customer Add Money is intended to settle to the company's current account after incorporation and provider re-onboarding/approval.
 - The intended wallet permits loading, persistent balance, spending on recharge/rental and withdrawal of unused balance.
-- The intended regulatory model is Option A: mPay itself intends to operate the stored-value wallet, subject to RBI authorisation and the applicable regulated structure.
+- The intended business model is Option A: mPay is the customer-facing service platform for recharge and chauffeur-driven rental, using PayU/other appropriately authorised payment infrastructure and earning contractual service/platform fees. The reusable stored-value component will use an appropriately regulated wallet/payment structure.
 - Rental vendors are independent third parties; mPay is intended to be the customer-facing contracting/supplying party, with vendor settlement governed by vendor agreements.
 - Current recharge route is PayU; BBPS is a future planned route and mPay currently has no BBPS relationship.
 
