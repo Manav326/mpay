@@ -139,6 +139,46 @@ class AdminFinancialService(
         return rechargeService.transaction(tx.userId, tx.transactionId)
     }
 
+    @Transactional
+    fun resolveConfirmedPreSubmissionFailure(viewer: UserEntity, transactionId: String): RechargeTransactionStatusResponse {
+        roleAccess.requirePermission(viewer, "MANAGE_RECHARGE_OPERATIONS")
+
+        val tx = recharges.findByTransactionId(transactionId)
+            .orElseThrow { IllegalArgumentException("Recharge transaction not found") }
+        val target = users.findById(tx.userId)
+            .orElseThrow { IllegalArgumentException("Recharge user not found") }
+        roleAccess.requireCanView(viewer, target)
+
+        require(tx.status.equals("PENDING", ignoreCase = true)) {
+            "Only PENDING recharge transactions can be reconciled"
+        }
+        require(tx.providerName.equals("payu", ignoreCase = true)) {
+            "Only PayU pre-submission failures can be reconciled by this operation"
+        }
+        require(tx.providerReference.isNullOrBlank()) {
+            "Recharge already has a provider reference; external outcome must be reconciled instead"
+        }
+        require(tx.message?.contains("PayU biller/operator id is missing for recharge", ignoreCase = false) == true) {
+            "Recharge does not contain the confirmed historical pre-submission failure evidence"
+        }
+        require(!walletLedger.existsByExternalRef(tx.transactionId)) {
+            "Recharge already has a wallet ledger entry; no historical release is permitted"
+        }
+
+        walletService.releaseReservation(tx.userId, tx.walletDebitAmount)
+
+        val originalMessage = tx.message
+        val now = java.time.Instant.now()
+        tx.status = "FAILED"
+        tx.completedAt = now
+        tx.updatedAt = now
+        tx.message = originalMessage + " [Historical reconciliation: confirmed pre-submission failure; wallet reservation released.]"
+        recharges.save(tx)
+
+        return rechargeService.transaction(tx.userId, tx.transactionId)
+    }
+
+
     private fun visibleUserIds(viewer: UserEntity): Set<Long> =
         users.findAllByRoleIn(roleAccess.visibleRolesFor(viewer.role).toList())
             .mapNotNull { it.id }
