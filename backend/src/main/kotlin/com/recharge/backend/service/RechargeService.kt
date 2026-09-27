@@ -133,8 +133,10 @@ class RechargeService(
             plan = selectedPlan.copy(amount = amount)
         )
 
-        try {
-            provider.validateBeforeSubmission(providerRequest)
+        val preparedProviderRequest = try {
+            val prepared = provider.prepareBeforeSubmission(providerRequest)
+            provider.validateBeforeSubmission(prepared)
+            prepared
         } catch (ex: Exception) {
             val failed = workflow.recordPreSubmissionFailure(
                 userId = userId,
@@ -152,7 +154,7 @@ class RechargeService(
         val reserved = workflow.reserve(
             userId = userId,
             request = requestData,
-            plan = selectedPlan.copy(amount = amount),
+            plan = preparedProviderRequest.plan,
             providerName = provider.providerName,
             companyCommission = companyCommission,
             clientCommission = clientCommission,
@@ -162,7 +164,7 @@ class RechargeService(
         if (reserved.transactionId != transactionId) return toResponse(reserved)
 
         val providerResult = try {
-            provider.recharge(providerRequest.copy(transactionId = reserved.transactionId))
+            provider.recharge(preparedProviderRequest.copy(transactionId = reserved.transactionId))
         } catch (ex: Exception) {
             workflow.markProviderPending(
                 transactionId = reserved.transactionId,

@@ -17,6 +17,7 @@ import java.util.UUID
 class PayURechargeExecutionProvider(
     private val properties: PayUProperties,
     private val auth: PayUAuthService,
+    private val billerDirectory: PayUBillerDirectory,
     private val objectMapper: ObjectMapper
 ) : RechargeExecutionProvider {
 
@@ -30,6 +31,29 @@ class PayURechargeExecutionProvider(
         .build()
 
     override fun supportsOperator(operator: String): Boolean = operator.isNotBlank()
+
+    override fun prepareBeforeSubmission(request: ProviderRechargeRequest): ProviderRechargeRequest {
+        check(auth.isConfigured()) { "PayU BBPS credentials are not configured" }
+        check(properties.agentId.isNotBlank()) { "PayU agentId is not configured" }
+
+        val metadata = request.plan.providerMetadata
+        val existingBillerId = metadata["billerId"]?.takeIf { it.isNotBlank() }
+        if (existingBillerId != null) return request
+
+        val candidateOperatorId = metadata["operatorId"]?.takeIf { it.isNotBlank() }
+        val billerId = billerDirectory.resolveBillerId(
+            operator = request.operator,
+            candidateBillerId = candidateOperatorId
+        ) ?: throw PayUIntegrationException(
+            "PayU billerId could not be resolved for " + request.operator.uppercase() + " recharge"
+        )
+
+        return request.copy(
+            plan = request.plan.copy(
+                providerMetadata = metadata + ("billerId" to billerId)
+            )
+        )
+    }
 
     override fun validateBeforeSubmission(request: ProviderRechargeRequest) {
         check(auth.isConfigured()) { "PayU BBPS credentials are not configured" }
@@ -165,8 +189,7 @@ class PayURechargeExecutionProvider(
     private fun requireBillerId(request: ProviderRechargeRequest): String {
         val metadata = request.plan.providerMetadata
         return metadata["billerId"]?.takeIf { it.isNotBlank() }
-            ?: metadata["operatorId"]?.takeIf { it.isNotBlank() }
-            ?: throw PayUIntegrationException("PayU biller/operator id is missing for recharge")
+            ?: throw PayUIntegrationException("PayU billerId is missing for recharge")
     }
 
     private fun payURefId(): String =
