@@ -1,8 +1,8 @@
 package com.recharge.backend.service
 
-import com.recharge.backend.domain.RechargeOfferCacheEntity
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.recharge.backend.provider.RechargePlan
+import com.recharge.backend.domain.RechargeOfferCacheEntity
 import com.recharge.backend.repository.RechargeOfferCacheRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -42,27 +42,29 @@ class JpaRechargeOfferCacheStore(
         fetchedAt: Instant,
         expiresAt: Instant
     ) {
-        repository.deleteByCacheKey(cacheKey)
-        repository.saveAll(
-            offers.map { plan ->
-                RechargeOfferCacheEntity(
-                    cacheKey = cacheKey,
-                    offerId = plan.id,
-                    mobileNumber = mobileNumber,
-                    operator = operator.uppercase(),
-                    circle = circle,
-                    amount = plan.amount.setScale(2),
-                    validity = plan.validity,
-                    description = plan.description,
-                    providerReference = plan.providerReference,
-                    providerOrderId = plan.providerOrderId,
-                    providerLogDescription = plan.providerLogDescription,
-                    providerMetadata = if (plan.providerMetadata.isEmpty()) null else objectMapper.writeValueAsString(plan.providerMetadata),
-                    fetchedAt = fetchedAt,
-                    expiresAt = expiresAt
-                )
-            }
-        )
+        offers.forEach { plan ->
+            repository.upsert(
+                cacheKey = cacheKey,
+                offerId = plan.id,
+                mobileNumber = mobileNumber,
+                operator = operator.uppercase(),
+                circle = circle,
+                amount = plan.amount.setScale(2),
+                validity = plan.validity,
+                description = plan.description,
+                providerReference = plan.providerReference,
+                providerOrderId = plan.providerOrderId,
+                providerLogDescription = plan.providerLogDescription,
+                providerMetadata = if (plan.providerMetadata.isEmpty()) null else objectMapper.writeValueAsString(plan.providerMetadata),
+                fetchedAt = fetchedAt,
+                expiresAt = expiresAt
+            )
+        }
+
+        // Entries from the previous refresh are already expired when replace() is called.
+        // Remove only those expired rows so concurrent refreshes cannot delete each other's
+        // newly-upserted offers.
+        repository.deleteExpiredByCacheKey(cacheKey, fetchedAt)
     }
 
     private fun toPlan(row: RechargeOfferCacheEntity): RechargePlan = RechargePlan(
