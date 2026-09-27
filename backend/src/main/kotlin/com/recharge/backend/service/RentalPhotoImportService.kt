@@ -9,6 +9,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.Locale
 import javax.imageio.ImageIO
 
 data class ImportedRentalImage(
@@ -47,6 +48,17 @@ class RentalPhotoImportService {
 
                 if (response.statusCode() !in 200..299) {
                     throw IllegalArgumentException("The image URL could not be loaded (HTTP ${response.statusCode()})")
+                }
+
+                val declaredContentType = response.headers().firstValue("Content-Type")
+                    .orElse("")
+                    .substringBefore(';')
+                    .trim()
+                    .lowercase(Locale.ROOT)
+                if (declaredContentType == "text/html" || declaredContentType == "application/xhtml+xml") {
+                    throw IllegalArgumentException(
+                        "This URL opens a webpage, not an image. Use the direct image URL instead."
+                    )
                 }
 
                 val declaredLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L)
@@ -114,6 +126,19 @@ class RentalPhotoImportService {
             val reader = ImageIO.getImageReaders(it).asSequence().firstOrNull()
                 ?: throw IllegalArgumentException("The URL does not contain a supported image")
             val format = reader.formatName.lowercase()
+            reader.setInput(input, true, true)
+            val width = runCatching { reader.getWidth(0) }.getOrElse {
+                reader.dispose()
+                throw IllegalArgumentException("The image dimensions could not be read")
+            }
+            val height = runCatching { reader.getHeight(0) }.getOrElse {
+                reader.dispose()
+                throw IllegalArgumentException("The image dimensions could not be read")
+            }
+            val pixels = width.toLong() * height.toLong()
+            require(width > 0 && height > 0 && pixels <= MAX_PIXELS) {
+                "The image dimensions are too large. Use an image of 25 megapixels or less."
+            }
             reader.dispose()
             val contentType = when (format) {
                 "jpeg", "jpg" -> "image/jpeg"
@@ -131,6 +156,7 @@ class RentalPhotoImportService {
     companion object {
         private const val MAX_BYTES = 5L * 1024L * 1024L
         private const val MAX_REDIRECTS = 3
+        private const val MAX_PIXELS = 25_000_000L
         private const val USER_AGENT = "mPay-RentalPhotoImporter/1.0"
         private val REQUEST_TIMEOUT = Duration.ofSeconds(12)
     }
