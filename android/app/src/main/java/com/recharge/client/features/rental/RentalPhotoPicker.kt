@@ -71,7 +71,7 @@ fun RentalPhotoPickerDialog(
             normalized.isBlank() -> RentalUrlState.IDLE
             !validPhotoUrl(normalized) -> RentalUrlState.ERROR
             else -> {
-                delay(400)
+                delay(250)
                 checkedUrl = normalized
                 RentalUrlState.CHECKING
             }
