@@ -2355,7 +2355,7 @@ private fun RentalVehicleDetailsDialog(
                         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Vehicle photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                rentalPhotoSlots(car.imageUrl).forEach { photo ->
+                                rentalPhotoSlots(car.imageUrl, car.photos).forEach { photo ->
                                     RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1.05f))
                                 }
                             }
@@ -2704,7 +2704,7 @@ fun RentalBookingScreen(
                     Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                    RentalVehicleGallery(car.imageUrl, car.photos, modifier = Modifier.fillMaxWidth())
                     Column(
                         Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
