@@ -289,6 +289,24 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun importRentalVehiclePhotoFromUrl(
+        carId: String,
+        slot: Int,
+        url: String
+    ): Result<com.recharge.client.core.model.RentalCarResponse> = apiCall {
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+        require(url.trim().startsWith("http://") || url.trim().startsWith("https://")) {
+            "Please enter a valid image URL."
+        }
+        val response = api.importRentalVehiclePhotoFromUrl(
+            carId,
+            slot,
+            RentalPhotoUrlImportRequest(url.trim())
+        )
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun uploadRentalVehiclePhoto(
         carId: String,
         slot: Int,
