@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.payu.checkoutpro.PayUCheckoutPro;
-import com.payu.checkoutpro.PayUCheckoutProConfig;
+import com.payu.checkoutpro.models.PayUCheckoutProConfig;
 import com.payu.ui.model.listeners.PayUCheckoutProListener;
 import com.payu.checkoutpro.utils.PayUCheckoutProConstants;
 import com.payu.base.models.PayUPaymentParams;
