@@ -42,7 +42,7 @@ class RentalPhotoService {
         }
     }
 
-    private fun photoReferences(value: String?): List<String> =
+    fun references(value: String?): List<String> =
         value.orEmpty()
             .replace("\\n", "|")
             .split(Regex("[|,]"))
@@ -90,7 +90,7 @@ class RentalPhotoService {
     }
 
     private fun variantUrl(url: String, variant: String): String =
-        url + if (url.contains("?")) "&" else "?" + "variant=" + variant
+        url + (if (url.contains("?")) "&" else "?") + "variant=" + variant
 
     companion object {
         const val RENTAL_PHOTO_URL_PREFIX = "/api/v1/car-rental/photos/"
