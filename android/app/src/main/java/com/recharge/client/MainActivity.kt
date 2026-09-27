@@ -676,7 +676,10 @@ private fun AppNavHost(
                 rentalViewModel.state.collectAsState().value,
                 rentalViewModel::onboardVendor,
                 onBack = { nav.popBackStack() },
-                onAddVehicle = { nav.navigate("rental-vehicle") },
+                onAddVehicle = {
+                    nav.currentBackStackEntry?.savedStateHandle?.remove<String>("rental_edit_car_id")
+                    nav.navigate("rental-vehicle")
+                },
                 onRefreshVehicles = rentalViewModel::loadVendorVehicles,
                 onRefreshPayouts = rentalViewModel::loadVendorPayouts,
                 onAddVehicleWithCar = { car ->
@@ -731,7 +734,10 @@ private fun AppNavHost(
                 onSubmit = { request, photoChanges, onDone ->
                     rentalViewModel.onboardVehicle(request, photoChanges, onDone)
                 },
-                onBack = { nav.popBackStack() },
+                onBack = {
+                    nav.previousBackStackEntry?.savedStateHandle?.remove<String>("rental_edit_car_id")
+                    nav.popBackStack()
+                },
                 editingCar = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_edit_car_id")?.let { id ->
                     rentalViewModel.state.collectAsState().value.vendorCars.firstOrNull { it.id == id }
                 },
