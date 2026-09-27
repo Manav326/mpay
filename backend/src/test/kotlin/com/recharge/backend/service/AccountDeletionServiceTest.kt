@@ -56,11 +56,16 @@ class AccountDeletionServiceTest {
         assertEquals(null, user.email)
         assertEquals(null, user.profileImageKey)
         assertEquals(null, user.profileImageContentType)
+        assertEquals(null, user.mobileVerifiedAt)
         assertEquals("redacted-password-hash", user.passwordHash)
         assertNotEquals("8527419630", user.mobile)
         assertEquals("DELETED", user.role)
 
         Mockito.verify(profileImageStorage).delete("profile-18.jpg")
+        Mockito.verify(entityManager).createNativeQuery(
+            "delete from recharge_offer_cache where mobile_number = :mobile"
+        )
+        Mockito.verify(query, Mockito.atLeastOnce()).setParameter("mobile", "8527419630")
         Mockito.verify(users).save(user)
     }
 
