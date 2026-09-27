@@ -77,3 +77,15 @@ These are engineering observations, not a statement that the legal structure is 
 The current PaymentSettlementService recharge path credits the internal wallet and then invokes RechargeService within a Spring transaction. This requires a dedicated failure/reconciliation design because the external recharge provider is outside the database transaction boundary. A database rollback cannot automatically undo an external provider-side recharge.
 
 This is a material compliance/reconciliation issue and is tracked in the technical controls dossier.
+
+## 8. Business decisions recorded on 2026-09-27
+
+- mPay intends to be operated by an Indian incorporated company (not yet incorporated).
+- Current PayU/Razorpay accounts are in the founder's individual name; these are not the target permanent production structure.
+- Customer Add Money is intended to settle to the company's current account after incorporation and provider re-onboarding/approval.
+- The intended wallet permits loading, persistent balance, spending on recharge/rental and withdrawal of unused balance.
+- The intended regulatory model is Option A: mPay itself intends to operate the stored-value wallet, subject to RBI authorisation and the applicable regulated structure.
+- Rental vendors are independent third parties; mPay is intended to be the customer-facing contracting/supplying party, with vendor settlement governed by vendor agreements.
+- Current recharge route is PayU; BBPS is a future planned route and mPay currently has no BBPS relationship.
+
+**Important:** These decisions do not establish regulatory authorisation. They define the target business model against which legal classification and technical controls will be designed.
