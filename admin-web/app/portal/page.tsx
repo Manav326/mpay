@@ -1305,24 +1305,81 @@ export default function Portal() {
 
   async function launchPayU(order:any, purpose:'wallet'|'recharge') {
     const p=order.checkoutParams || {};
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action=String(p.pgAction || (String(p.isProduction)==='true' ? 'https://secure.payu.in/_payment' : 'https://test.payu.in/_payment'));
-    form.target='_blank';
-    const fields:any = {
-      key:order.keyId, txnid:order.orderId, amount:Number(order.amount).toFixed(2), productinfo:p.productInfo || 'mPay wallet',
-      firstname:p.firstName || me?.name || 'mPay', email:p.email || me?.email || ((me?.mobile || '') + '@mpay.local'),
-      phone:p.phone || me?.mobile || '', surl:p.surl, furl:p.furl, hash:p.paymentHash
+    const script = String(p.isProduction)==='true'
+      ? 'https://jssdk.payu.in/bolt/bolt.min.js'
+      : 'https://jssdk-uat.payu.in/bolt/bolt.min.js';
+    await ensureScript(script);
+
+    const bolt=(window as any).bolt;
+    if(!bolt || typeof bolt.launch !== 'function') {
+      throw new Error('PayU checkout is unavailable.');
+    }
+
+    const orderId=String(order.orderId);
+    const data:any = {
+      key:order.keyId,
+      txnid:orderId,
+      amount:Number(order.amount).toFixed(2),
+      productinfo:p.productInfo || 'mPay wallet',
+      firstname:p.firstName || me?.name || 'mPay',
+      email:p.email || me?.email || ((me?.mobile || '') + '@mpay.local'),
+      phone:p.phone || me?.mobile || '',
+      surl:p.surl,
+      furl:p.furl,
+      hash:p.paymentHash
     };
-    Object.entries(fields).forEach(([k,v])=>{
-      if(v !== undefined && v !== null && String(v).trim() !== ''){
-        const input=document.createElement('input'); input.type='hidden'; input.name=k; input.value=String(v); form.appendChild(input);
+
+    const verifyAndRefresh=async()=>{
+      try {
+        const verified=await api<any>('/api/v1/payments/verify',{
+          method:'POST',
+          body:JSON.stringify({
+            provider:'payu',
+            orderId,
+            paymentId:undefined,
+            signature:undefined
+          })
+        });
+        await refreshWallet();
+        await loadWalletHistory(0);
+        await loadWithdrawals(0);
+        if(purpose === 'recharge') {
+          await loadHistory();
+          setNotice('PayU payment verified. Recharge status: ' + String(verified.rechargeStatus || verified.status || 'submitted') + '.');
+          setView('history');
+        } else {
+          setNotice('PayU payment verified and wallet updated.');
+          setHomeActionModal(null);
+          setAddMoneyAmount('');
+        }
+        return true;
+      } catch(e:any) {
+        return false;
       }
-    });
-    document.body.appendChild(form); form.submit(); form.remove();
-    setNotice('PayU checkout opened in a new tab. mPay will verify the payment while the checkout is completed.');
-    const orderId=order.orderId;
-    void monitorPayUVerification(orderId,purpose);
+    };
+
+    const responseHandler=async(response:any)=>{
+      const responseStatus=String(response?.status || '').toLowerCase();
+      if(responseStatus === 'success') {
+        if(!(await verifyAndRefresh())) {
+          void monitorPayUVerification(orderId,purpose);
+          setNotice('PayU completed the payment. mPay is confirming it with PayU…');
+        }
+        return;
+      }
+      if(responseStatus === 'pending') {
+        void monitorPayUVerification(orderId,purpose);
+        setNotice('PayU payment is pending confirmation.');
+        return;
+      }
+      setNotice(String(response?.error_Message || response?.field9 || 'PayU payment was not completed.'));
+    };
+
+    const catchException=(error:any)=>{
+      setNotice(typeof error === 'string' ? error : (error?.message || 'Unable to complete PayU payment.'));
+    };
+
+    bolt.launch(data,responseHandler,catchException);
   }
 
   async function addMoney(): Promise<boolean> {
