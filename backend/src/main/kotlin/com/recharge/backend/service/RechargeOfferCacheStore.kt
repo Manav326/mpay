@@ -2,6 +2,7 @@ package com.recharge.backend.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.recharge.backend.provider.RechargePlan
+import com.recharge.backend.domain.RechargeOfferCacheEntity
 import com.recharge.backend.repository.RechargeOfferCacheRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
