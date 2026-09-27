@@ -28,6 +28,7 @@ class RentalService(
     private val rentalPaymentRepository: RentalPaymentRepository,
     private val rentalPayouts: RentalPayoutService,
     private val rentalImageStorage: RentalImageStorage,
+    private val rentalPhotoService: RentalPhotoService,
     private val vendorReviews: RentalVendorReviewRepository,
     private val carReviews: RentalCarReviewRepository
 ) {
@@ -231,7 +232,7 @@ class RentalService(
                 pickupPlaceId = request.pickupLocation?.placeId?.trim()?.takeIf { it.isNotBlank() },
                 city = request.city.trim(),
                 state = request.state.trim(),
-                imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() },
+                imageUrl = rentalPhotoService.normalizeStoredReferences(request.imageUrl),
                 approvalStatus = "PENDING_REVIEW"
             )
         )
@@ -294,7 +295,9 @@ class RentalService(
         }
         car.city = request.city.trim()
         car.state = request.state.trim()
-        car.imageUrl = request.imageUrl?.trim()?.takeIf { it.isNotBlank() }
+        if (request.imageUrl != null) {
+            car.imageUrl = rentalPhotoService.normalizeStoredReferences(request.imageUrl)
+        }
         car.approvalStatus = "PENDING_REVIEW"
         car.rejectionReason = null
         car.active = false
@@ -593,14 +596,15 @@ class RentalService(
         require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
         prepareVehicleForEdit(car, "PHOTO_UPDATED", userId)
 
-        val slots = rentalPhotoSlots(car.imageUrl)
+        val existing = rentalPhotoService.references(car.imageUrl)
+        val slots = MutableList(4) { index -> existing.getOrNull(index).orEmpty() }
         val oldValue = slots[slot]
         val oldStoredKey = oldValue
-            .removePrefix(RENTAL_PHOTO_URL_PREFIX)
-            .takeIf { oldValue.startsWith(RENTAL_PHOTO_URL_PREFIX) }
+            .removePrefix(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX)
+            .takeIf { oldValue.startsWith(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX) }
 
         val newKey = rentalImageStorage.save(carId, slot, photo)
-        slots[slot] = RENTAL_PHOTO_URL_PREFIX + newKey
+        slots[slot] = RentalPhotoService.RENTAL_PHOTO_URL_PREFIX + newKey
         val combined = slots.joinToString("|").takeIf { slots.any { it.isNotBlank() } }
         require(combined == null || combined.length <= 500) {
             rentalImageStorage.delete(newKey)
@@ -636,7 +640,7 @@ class RentalService(
             .takeIf { oldValue.startsWith(RENTAL_PHOTO_URL_PREFIX) }
         val newKey = rentalImageStorage.saveDriverPhoto(driverId, photo)
         try {
-            driver.photoUrl = RENTAL_PHOTO_URL_PREFIX + newKey
+            driver.photoUrl = RentalPhotoService.RENTAL_PHOTO_URL_PREFIX + newKey
             driver.updatedAt = Instant.now()
             drivers.save(driver)
         } catch (error: Exception) {
@@ -1068,17 +1072,10 @@ class RentalService(
         return vendor
     }
 
-    private fun rentalPhotoSlots(imageUrl: String?): MutableList<String> {
-        val values = imageUrl.orEmpty()
-            .replace("\n", "|")
-            .split("|")
-            .take(4)
-            .map { it.trim() }
-        return MutableList(4) { index -> values.getOrNull(index).orEmpty() }
-    }
-
     private fun toPublicCarResponse(car: RentalCarEntity): RentalPublicCarResponse {
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
+        val photos = rentalPhotoService.vehiclePhotos(car.imageUrl)
+        val driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)
         return RentalPublicCarResponse(
             id = requireNotNull(car.id).toString(),
             name = car.name,
@@ -1093,9 +1090,11 @@ class RentalService(
             pickupLongitude = car.pickupLongitude,
             pickupPlaceId = car.pickupPlaceId,
             imageUrl = car.imageUrl,
+            photos = photos,
             pricePerDay = car.pricePerDay.setScale(2),
             driverName = driver?.fullName ?: "Driver assigned",
-            driverPhotoUrl = rentalPhotoDisplayUrl(driver?.photoUrl),
+            driverPhotoUrl = driverPhoto?.url,
+            driverPhoto = driverPhoto,
             driverRating = null,
             make = car.make,
             model = car.model,
@@ -1107,32 +1106,25 @@ class RentalService(
 
     private fun toCarResponse(car: RentalCarEntity): RentalCarResponse {
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
+        val photos = rentalPhotoService.vehiclePhotos(car.imageUrl)
+        val driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)
         return RentalCarResponse(
             id = requireNotNull(car.id).toString(), name = car.name, category = car.category,
             seats = car.seats, transmission = car.transmission, fuelType = car.fuelType,
             registrationYear = car.registrationYear, city = car.city, pickupAddress = car.pickupAddress,
             pickupLatitude = car.pickupLatitude, pickupLongitude = car.pickupLongitude, pickupPlaceId = car.pickupPlaceId,
-            imageUrl = car.imageUrl, pricePerDay = car.pricePerDay.setScale(2),
+            imageUrl = car.imageUrl, photos = photos, pricePerDay = car.pricePerDay.setScale(2),
             driverId = driver?.id?.toString(),
             driverName = driver?.fullName ?: "Driver assigned",
             driverMobile = driver?.mobile,
-            driverPhotoUrl = rentalPhotoDisplayUrl(driver?.photoUrl),
+            driverPhotoUrl = driverPhoto?.url,
+            driverPhoto = driverPhoto,
             approvalStatus = car.approvalStatus, rejectionReason = car.rejectionReason,
             make = car.make, model = car.model, variant = car.variant,
             manufacturingYear = car.manufacturingYear, registrationNumber = car.registrationNumber,
             state = car.state, driverLicenseNumber = driver?.licenseNumber,
             driverLicenseExpiry = driver?.licenseExpiry, driverAddress = driver?.address
         )
-    }
-
-    private fun rentalPhotoDisplayUrl(value: String?): String? {
-        val trimmed = value?.trim().orEmpty()
-        if (trimmed.isBlank()) return null
-        return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            trimmed
-        } else {
-            RENTAL_PHOTO_URL_PREFIX + trimmed.removePrefix(RENTAL_PHOTO_URL_PREFIX)
-        }
     }
 
     private fun maskLastFour(value: String?): String? {
@@ -1157,15 +1149,14 @@ class RentalService(
         return raw.first() + "*".repeat((at - 1).coerceAtLeast(3)) + raw.substring(at)
     }
 
-    companion object {
-        private const val RENTAL_PHOTO_URL_PREFIX = "/api/v1/car-rental/photos/"
-    }
-
     private fun toBookingResponse(b: RentalBookingEntity, car: RentalCarEntity?, driver: RentalDriverEntity?) =
         RentalBookingResponse(
             bookingId = b.bookingId, carName = car?.name ?: "Car", driverName = driver?.fullName ?: "Driver",
-            driverMobile = driver?.mobile, driverPhotoUrl = driver?.photoUrl,
+            driverMobile = driver?.mobile,
+            driverPhotoUrl = rentalPhotoService.driverPhoto(driver?.photoUrl)?.url,
+            driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl),
             carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
+            carPhotos = rentalPhotoService.vehiclePhotos(car?.imageUrl),
             pickup = b.pickupLocation, drop = b.dropLocation,
             pickupLatitude = b.pickupLatitude, pickupLongitude = b.pickupLongitude, pickupPlaceId = b.pickupPlaceId,
             dropLatitude = b.dropLatitude, dropLongitude = b.dropLongitude, dropPlaceId = b.dropPlaceId,
