@@ -2252,9 +2252,6 @@ fun RentalVehicleOnboardingScreen(
                             ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
                         else -> null
                     },
-                    deviceUri = null,
-                    onLaunchDevicePicker = { },
-                    onDevicePicked = { _ -> },
                     onDismiss = { pickerTarget = null },
                     onUse = { candidate ->
                         if (target in 0..3) {
