@@ -1288,17 +1288,26 @@ export default function Portal() {
       const order=await api<any>('/api/v1/payments/orders',{method:'POST',body:JSON.stringify({
         amount, provider:addMoneyProvider, clientRequestId:crypto.randomUUID(), purpose:'ADD_MONEY'
       })});
-      if(addMoneyProvider==='mock'){
+      const returnedProvider=String(order?.provider || '').trim().toLowerCase();
+      if(returnedProvider !== addMoneyProvider){
+        throw new Error(
+          'Payment provider mismatch. Requested ' + addMoneyProvider +
+          ' but server returned ' + (returnedProvider || 'unknown') + '.'
+        );
+      }
+      if(returnedProvider==='mock'){
         await api<any>('/api/v1/payments/verify',{method:'POST',body:JSON.stringify({provider:'mock',orderId:order.orderId})});
         await refreshWallet();
         setAddMoneyAmount('');
         setNotice('Mock wallet top-up completed.');
         await loadWalletHistory(0);
         await loadWithdrawals(0);
-      } else if(addMoneyProvider==='razorpay') {
+      } else if(returnedProvider==='razorpay') {
         await launchRazorpay(order,'wallet');
-      } else {
+      } else if(returnedProvider==='payu') {
         await launchPayU(order,'wallet');
+      } else {
+        throw new Error('Unsupported payment provider returned by server.');
       }
     } catch(e:any) { setNotice(e.message || 'Unable to start wallet top-up.'); return false; }
     finally { setBusy(false); }

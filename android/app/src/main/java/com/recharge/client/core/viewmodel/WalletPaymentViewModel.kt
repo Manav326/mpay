@@ -7,6 +7,7 @@ import com.recharge.client.core.model.PaymentOrderResponse
 import com.recharge.client.core.model.VerifyPaymentRequest
 import com.recharge.client.core.repository.ClientRepository
 import java.math.BigDecimal
+import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.cancelChildren
@@ -34,6 +35,11 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun createOrder(amountText: String, provider: String = "razorpay") {
+        val requestedProvider = provider.trim().lowercase(Locale.ROOT)
+        if (requestedProvider !in setOf("mock", "razorpay", "payu")) {
+            _state.value = PaymentUiState.Error("Unsupported payment provider")
+            return
+        }
         if (_state.value is PaymentUiState.CreatingOrder || _state.value is PaymentUiState.Verifying) return
         val amount = amountText.toBigDecimalOrNull()
         if (amount == null || amount <= BigDecimal.ZERO) {
@@ -54,9 +60,14 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
             repository.createPaymentOrder(
                 amount = amount.setScale(2),
                 clientRequestId = "ANDROID-${UUID.randomUUID()}",
-                provider = provider
+                provider = requestedProvider
             ).onSuccess {
-                if (it.orderId.isBlank() || it.keyId.isBlank()) {
+                val returnedProvider = it.provider.trim().lowercase(Locale.ROOT)
+                if (returnedProvider != requestedProvider) {
+                    _state.value = PaymentUiState.Error(
+                        "Payment provider mismatch. Requested $requestedProvider but server returned $returnedProvider."
+                    )
+                } else if (it.orderId.isBlank() || it.keyId.isBlank()) {
                     _state.value = PaymentUiState.Error("Payment order response is incomplete")
                 } else {
                     _state.value = PaymentUiState.OrderCreated(it)
