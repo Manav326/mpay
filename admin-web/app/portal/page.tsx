@@ -1863,7 +1863,7 @@ export default function Portal() {
           fullName:sanitizeVehicleAlphaNumeric(vehicleForm.driver.fullName.trim(),120),
           mobile:normalizeIndianMobile(vehicleForm.driver.mobile),
           licenseNumber:sanitizeLicense(vehicleForm.driver.licenseNumber.trim()),
-          licenseExpiry:vehicleForm.driver.licenseExpiry,
+          licenseExpiry:vehicleForm.driver.licenseExpiry ? vehicleForm.driver.licenseExpiry + 'T23:59:59' : '',
           address:vehicleForm.driver.address.trim() || null
         }
       };
