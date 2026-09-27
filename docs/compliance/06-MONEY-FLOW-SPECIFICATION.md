@@ -5,7 +5,7 @@ Status: Target architecture; implementation must follow legal/provider sign-off.
 
 ## 1. Target operating model
 
-mPay will operate as a consumer-services technology platform. The regulated payment/wallet layer should be provided by an appropriately authorised/regulated partner.
+mPay will operate as a customer-facing consumer-services platform for mobile recharge and chauffeur-driven rental services. PayU/other appropriately authorised payment infrastructure will be used for customer payments. mPay earns contractual service/platform commissions or fees from underlying service transactions. The reusable stored-value component must operate through an appropriately regulated wallet/payment structure.
 
 mPay should not treat its own database balance as an independently issued stored-value instrument.
 
@@ -17,7 +17,7 @@ Customer -> mPay -> regulated payment/PPI partner -> regulated settlement/safegu
 
 Only after authoritative provider confirmation should service availability be updated.
 
-If the partner provides the actual wallet/stored value, mPay's database should mirror the authorised balance/transaction state rather than represent itself as the issuer.
+If a regulated partner provides/holds the actual wallet or stored value, mPay's database should mirror the authorised balance/transaction state rather than represent itself as the issuer. If the eventual company seeks direct PPI/payment-system authorisation, the implementation must instead satisfy that authorisation's safeguarding, KYC, limits, reconciliation and governance requirements.
 
 ## 3. Wallet use
 
@@ -37,7 +37,7 @@ Customer withdrawal request -> authentication/risk checks -> regulated payout/wa
 
 The withdrawal must not be treated as an unrestricted transfer from an mPay operating account.
 
-Before production, the partner contract must expressly support the intended payout/cash-out use.
+Before production, the regulated structure/partner contract must expressly support the intended payout/cash-out use. mPay's ordinary operating account must not be treated as an unrestricted substitute for the regulated customer-value arrangement.
 
 ## 5. Rental
 
