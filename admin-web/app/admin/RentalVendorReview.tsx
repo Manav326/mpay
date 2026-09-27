@@ -100,6 +100,17 @@ function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
+function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priority = false }: { src?: string | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large'; priority?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const resolved = imageUrl(src, variant);
+  return (
+    <div className={`rental-photo-tile ${className}`}>
+      {resolved && !failed ? <img src={resolved} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async" fetchPriority={priority ? 'high' : 'auto'} onError={() => setFailed(true)} /> : <div className="rental-photo-fallback"><CarFront size={22} /><span>{label || 'Photo unavailable'}</span></div>}
+      {label && !failed && <span className="rental-photo-label">{label}</span>}
+    </div>
+  );
+}
+
 function vehiclePhotos(vehicle: any): string[] {
   if (Array.isArray(vehicle?.photos) && vehicle.photos.length) {
     return [...vehicle.photos]
