@@ -170,6 +170,57 @@ interface RechargeOfferCacheRepository : JpaRepository<RechargeOfferCacheEntity,
     fun findByCacheKeyAndExpiresAtAfterOrderByAmountAsc(cacheKey: String, now: Instant): List<RechargeOfferCacheEntity>
     fun findByCacheKeyAndOfferIdAndExpiresAtAfter(cacheKey: String, offerId: String, now: Instant): Optional<RechargeOfferCacheEntity>
     fun deleteByCacheKey(cacheKey: String): Long
+
+    @Modifying
+    @Query(
+        value = """
+            INSERT INTO recharge_offer_cache (
+                cache_key, offer_id, mobile_number, operator, circle, amount,
+                validity, description, provider_reference, provider_order_id,
+                provider_log_description, provider_metadata, fetched_at, expires_at
+            ) VALUES (
+                :cacheKey, :offerId, :mobileNumber, :operator, :circle, :amount,
+                :validity, :description, :providerReference, :providerOrderId,
+                :providerLogDescription, :providerMetadata, :fetchedAt, :expiresAt
+            )
+            ON CONFLICT (cache_key, offer_id) DO UPDATE SET
+                mobile_number = EXCLUDED.mobile_number,
+                operator = EXCLUDED.operator,
+                circle = EXCLUDED.circle,
+                amount = EXCLUDED.amount,
+                validity = EXCLUDED.validity,
+                description = EXCLUDED.description,
+                provider_reference = EXCLUDED.provider_reference,
+                provider_order_id = EXCLUDED.provider_order_id,
+                provider_log_description = EXCLUDED.provider_log_description,
+                provider_metadata = EXCLUDED.provider_metadata,
+                fetched_at = EXCLUDED.fetched_at,
+                expires_at = EXCLUDED.expires_at
+        """,
+        nativeQuery = true
+    )
+    fun upsert(
+        @Param("cacheKey") cacheKey: String,
+        @Param("offerId") offerId: String,
+        @Param("mobileNumber") mobileNumber: String,
+        @Param("operator") operator: String,
+        @Param("circle") circle: String,
+        @Param("amount") amount: BigDecimal,
+        @Param("validity") validity: String?,
+        @Param("description") description: String?,
+        @Param("providerReference") providerReference: String?,
+        @Param("providerOrderId") providerOrderId: String?,
+        @Param("providerLogDescription") providerLogDescription: String?,
+        @Param("providerMetadata") providerMetadata: String?,
+        @Param("fetchedAt") fetchedAt: Instant,
+        @Param("expiresAt") expiresAt: Instant
+    ): Int
+
+    @Modifying
+    @Query(
+        "delete from RechargeOfferCacheEntity r where r.cacheKey = :cacheKey and r.expiresAt < :before"
+    )
+    fun deleteExpiredByCacheKey(@Param("cacheKey") cacheKey: String, @Param("before") before: Instant): Int
 }
 
 interface PaymentOrderRepository : JpaRepository<PaymentOrderEntity, Long> {
