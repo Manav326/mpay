@@ -95,6 +95,21 @@ data class RentalPhotoUrlImportRequest(
     val url: String
 )
 
+enum class RentalPhotoCandidateSource {
+    DEVICE,
+    URL
+}
+
+data class RentalPhotoCandidate(
+    val source: RentalPhotoCandidateSource,
+    val value: String
+)
+
+data class RentalVehiclePhotoChanges(
+    val vehiclePhotos: Map<Int, RentalPhotoCandidate> = emptyMap(),
+    val driverPhoto: RentalPhotoCandidate? = null
+)
+
 data class RentalPhotoResource(
     val slot: Int? = null,
     val url: String,
