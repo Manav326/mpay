@@ -2616,7 +2616,7 @@ export default function Portal() {
                           <span>{car.seats} seats</span><span>{car.transmission}</span><span>{car.fuelType || 'Fuel —'}</span>
                         </div>
                         <div className="rental-market-driver">
-                          <span className="rental-driver-avatar">{car.driverPhotoUrl ? <img src={car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl} alt=""/> : <UserRound size={15}/>}</span>
+                          <span className="rental-driver-avatar">{(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl) ? <img src={rentalPhotoClientUrl(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl)} alt=""/> : <UserRound size={15}/>}</span>
                           <span><b>{car.driverName}</b><small>Chauffeur</small></span>
                           {car.driverRating != null && <span className="rental-driver-rating">★ {Number(car.driverRating).toFixed(1)}</span>}
                         </div>
@@ -2656,7 +2656,7 @@ export default function Portal() {
               <div className="rental-booking-car-copy">
                 <div className="rental-booking-car-title"><div><b>{rentalBookingCar.name}</b><small>{[rentalBookingCar.make,rentalBookingCar.model,rentalBookingCar.variant].filter(Boolean).join(' ') || rentalBookingCar.category}</small></div><strong>{money(rentalBookingCar.pricePerDay)}<em>/day</em></strong></div>
                 <div className="rental-booking-car-driver">
-                  <span className="rental-driver-avatar">{rentalBookingCar.driverPhotoUrl ? <img src={rentalBookingCar.driverPhotoUrl.startsWith('http') ? rentalBookingCar.driverPhotoUrl : base + rentalBookingCar.driverPhotoUrl} alt=""/> : <UserRound size={15}/>}</span>
+                  <span className="rental-driver-avatar">{(rentalBookingCar.driverPhoto?.thumbnailUrl || rentalBookingCar.driverPhotoUrl) ? <img src={rentalPhotoClientUrl(rentalBookingCar.driverPhoto?.thumbnailUrl || rentalBookingCar.driverPhotoUrl)} alt=""/> : <UserRound size={15}/>}</span>
                   <span><b>{rentalBookingCar.driverName}</b><small>{rentalBookingCar.driverMobile || 'Chauffeur'}</small></span>
                   {rentalBookingCar.driverRating != null && <span className="rental-driver-rating">★ {Number(rentalBookingCar.driverRating).toFixed(1)}</span>}
                 </div>
@@ -3013,7 +3013,7 @@ export default function Portal() {
                         <div className="vendor-driver-inline">
                           <span>{car.driverName}</span>
                           <small>{car.driverMobile||'—'}</small>
-                          {car.driverPhotoUrl&&<img src={car.driverPhotoUrl.startsWith('http')?car.driverPhotoUrl:base+car.driverPhotoUrl} alt=""/>}
+                          {(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl)&&<img src={rentalPhotoClientUrl(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl)} alt=""/>}
                         </div>
                         <div className="vendor-vehicle-badges">
                           <span className={'status-pill status-'+statusTone}>{status.replace(/_/g,' ')}</span>
@@ -3258,7 +3258,7 @@ export default function Portal() {
             <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot,'large');return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)} loading="eager" decoding="async" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>})}</div>
             <div className="vendor-detail-status-row"><span className={statusClass(selectedVendorVehicle.approvalStatus)}>{String(selectedVendorVehicle.approvalStatus||'PENDING').toUpperCase()}</span>{selectedVendorVehicle.rejectionReason&&<span className="vendor-review-note">{selectedVendorVehicle.rejectionReason}</span>}</div>
             <div className="detail-grid-web"><span>Make / model <b>{[selectedVendorVehicle.make,selectedVendorVehicle.model,selectedVendorVehicle.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Category / seats <b>{selectedVendorVehicle.category} / {selectedVendorVehicle.seats}</b></span><span>Transmission / fuel <b>{selectedVendorVehicle.transmission} / {selectedVendorVehicle.fuelType||'—'}</b></span><span>Manufacturing year <b>{selectedVendorVehicle.manufacturingYear||'—'}</b></span><span>Registration year <b>{selectedVendorVehicle.registrationYear||'—'}</b></span><span>Price per day <b>{money(selectedVendorVehicle.pricePerDay)}</b></span><span>Registration number <b>{selectedVendorVehicle.registrationNumber||'—'}</b></span><span>Pickup address <b>{selectedVendorVehicle.pickupAddress||'—'}</b></span><span>City / state <b>{selectedVendorVehicle.city||'—'} / {selectedVendorVehicle.state||'—'}</b></span></div>
-            <div className="driver-profile-card"><div className="driver-profile-photo">{selectedVendorVehicle.driverPhotoUrl?<img src={selectedVendorVehicle.driverPhotoUrl.startsWith('http')?selectedVendorVehicle.driverPhotoUrl:base+selectedVendorVehicle.driverPhotoUrl} alt="Driver"/>:<UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName||'Driver'}</b><span>{selectedVendorVehicle.driverMobile||'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber||'Licence not provided'}</small><small>{selectedVendorVehicle.driverLicenseExpiry?date(selectedVendorVehicle.driverLicenseExpiry):'Licence expiry not provided'}</small></div></div>
+            <div className="driver-profile-card"><div className="driver-profile-photo">{(selectedVendorVehicle.driverPhoto?.largeUrl || selectedVendorVehicle.driverPhotoUrl)?<img src={rentalPhotoClientUrl(selectedVendorVehicle.driverPhoto?.largeUrl || selectedVendorVehicle.driverPhotoUrl)} alt="Driver"/>:<UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName||'Driver'}</b><span>{selectedVendorVehicle.driverMobile||'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber||'Licence not provided'}</small><small>{selectedVendorVehicle.driverLicenseExpiry?date(selectedVendorVehicle.driverLicenseExpiry):'Licence expiry not provided'}</small></div></div>
             <div className="form-actions"><button className="landing-secondary" onClick={()=>setSelectedVendorVehicle(undefined)}>Close details</button>{String(selectedVendorVehicle.approvalStatus||'').toUpperCase()!=='APPROVED' || vendorVehicles.some(x=>x.id===selectedVendorVehicle.id && vehicleUnavailability.some(u=>u.carId===x.id && u.startDate<=localDate() && u.endDate>=localDate())) ? <button className="landing-primary" onClick={()=>{const car=selectedVendorVehicle;setSelectedVendorVehicle(undefined);resetVehicleForm(car)}}>Edit details</button>:null}</div>
           </div>
         </div>}
@@ -3325,7 +3325,7 @@ export default function Portal() {
             </div>
 
             <div className="rental-public-driver-card">
-              <span className="rental-driver-avatar large">{rentalDetails.driverPhotoUrl ? <img src={rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl} alt={rentalDetails.driverName}/> : <UserRound size={20}/>}</span>
+              <span className="rental-driver-avatar large">{(rentalDetails.driverPhoto?.largeUrl || rentalDetails.driverPhotoUrl) ? <img src={rentalPhotoClientUrl(rentalDetails.driverPhoto?.largeUrl || rentalDetails.driverPhotoUrl)} alt={rentalDetails.driverName}/> : <UserRound size={20}/>}</span>
               <div><small>Chauffeur</small><b>{rentalDetails.driverName}</b>{rentalDetails.driverMobile && <span>{rentalDetails.driverMobile}</span>}{rentalDetails.driverRating != null && <span className="rental-driver-rating">★ {Number(rentalDetails.driverRating).toFixed(1)}</span>}</div>
             </div>
 
