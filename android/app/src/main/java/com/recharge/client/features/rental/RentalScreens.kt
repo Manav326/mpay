@@ -1730,6 +1730,7 @@ private fun VehiclePhotoField(
     value: String,
     candidate: RentalPhotoCandidate?,
     onChangePhoto: () -> Unit,
+    onUseUrl: () -> Unit,
     onKeepCurrent: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1776,20 +1777,28 @@ private fun VehiclePhotoField(
                 style = MaterialTheme.typography.labelSmall,
                 color = AppColors.TextSecondary
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 OutlinedButton(
                     onClick = onChangePhoto,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1.2f),
                     contentPadding = PaddingValues(vertical = 7.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text(if (hasCandidate || value.isNotBlank()) "Change photo" else "Choose photo", style = MaterialTheme.typography.labelSmall)
                 }
+                TextButton(
+                    onClick = onUseUrl,
+                    modifier = Modifier.weight(.75f),
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 7.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("URL", style = MaterialTheme.typography.labelSmall)
+                }
                 if (hasCandidate) {
                     TextButton(
                         onClick = onKeepCurrent,
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(vertical = 7.dp)
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 7.dp)
                     ) {
                         Text(if (value.isNotBlank()) "Keep current" else "Clear", style = MaterialTheme.typography.labelSmall)
                     }
@@ -1885,20 +1894,32 @@ fun RentalVehicleOnboardingScreen(
 
     var pickerTarget by remember { mutableStateOf<Int?>(null) }
     var pickerTitle by remember { mutableStateOf("") }
-    var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
+    var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
+        ActivityResultContracts.GetContent()
     ) { uri ->
-        pickedDeviceUri = uri?.toString()
+        val target = devicePickerTarget
+        devicePickerTarget = null
+        if (uri != null && target != null) {
+            val candidate = RentalPhotoCandidate(
+                RentalPhotoCandidateSource.DEVICE,
+                uri.toString()
+            )
+            if (target in 0..3) {
+                form.pendingPhotos[target].value = candidate
+            } else if (target == 4) {
+                form.driverPhoto = candidate
+            }
+        }
     }
 
-    LaunchedEffect(pickerTarget) {
-        pickedDeviceUri = null
+    fun openDevicePicker(slot: Int) {
+        devicePickerTarget = slot
+        devicePickerLauncher.launch("image/*")
     }
 
-    fun openPhotoPicker(slot: Int, title: String) {
-        pickedDeviceUri = null
+    fun openUrlPicker(slot: Int, title: String) {
         pickerTarget = slot
         pickerTitle = title
     }
@@ -2071,13 +2092,15 @@ fun RentalVehicleOnboardingScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
                             "Front photo", form.photoFront, form.pendingPhotos[0].value,
-                            { openPhotoPicker(0, "Change front photo") },
+                            { openDevicePicker(0) },
+                            { openUrlPicker(0, "Use image URL for front photo") },
                             { form.pendingPhotos[0].value = null },
                             Modifier.weight(1f)
                         )
                         VehiclePhotoField(
                             "Side photo", form.photoSide, form.pendingPhotos[1].value,
-                            { openPhotoPicker(1, "Change side photo") },
+                            { openDevicePicker(1) },
+                            { openUrlPicker(1, "Use image URL for side photo") },
                             { form.pendingPhotos[1].value = null },
                             Modifier.weight(1f)
                         )
@@ -2085,13 +2108,15 @@ fun RentalVehicleOnboardingScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
                             "Rear photo", form.photoRear, form.pendingPhotos[2].value,
-                            { openPhotoPicker(2, "Change rear photo") },
+                            { openDevicePicker(2) },
+                            { openUrlPicker(2, "Use image URL for rear photo") },
                             { form.pendingPhotos[2].value = null },
                             Modifier.weight(1f)
                         )
                         VehiclePhotoField(
                             "Interior photo", form.photoInterior, form.pendingPhotos[3].value,
-                            { openPhotoPicker(3, "Change interior photo") },
+                            { openDevicePicker(3) },
+                            { openUrlPicker(3, "Use image URL for interior photo") },
                             { form.pendingPhotos[3].value = null },
                             Modifier.weight(1f)
                         )
@@ -2147,12 +2172,21 @@ fun RentalVehicleOnboardingScreen(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text("Driver photo", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                                 Text("Passport-style square photo", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                OutlinedButton(
-                                    onClick = { openPhotoPicker(4, "Change driver photo") },
-                                    contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Text(if (form.driverPhoto != null || editingCar?.driverPhoto?.url != null || !editingCar?.driverPhotoUrl.isNullOrBlank()) "Change photo" else "Add photo", style = MaterialTheme.typography.labelSmall)
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    OutlinedButton(
+                                        onClick = { openDevicePicker(4) },
+                                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(if (form.driverPhoto != null || editingCar?.driverPhoto?.url != null || !editingCar?.driverPhotoUrl.isNullOrBlank()) "Change photo" else "Add photo", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                    TextButton(
+                                        onClick = { openUrlPicker(4, "Use image URL for driver photo") },
+                                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text("URL", style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
                             }
                         }
@@ -2219,13 +2253,9 @@ fun RentalVehicleOnboardingScreen(
                             ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
                         else -> null
                     },
-                    deviceUri = pickedDeviceUri,
-                    onLaunchDevicePicker = {
-                        devicePickerLauncher.launch(
-                            androidx.activity.result.PickVisualMediaRequest(PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    onDevicePicked = { uri -> pickedDeviceUri = uri },
+                    deviceUri = null,
+                    onLaunchDevicePicker = { },
+                    onDevicePicked = { _ -> },
                     onDismiss = { pickerTarget = null },
                     onUse = { candidate ->
                         if (target in 0..3) {
