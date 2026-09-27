@@ -2296,8 +2296,7 @@ fun RentalVehicleOnboardingScreen(
                                 imageUrl = null,
                                 driver = driver
                             ),
-                            galleryPhotos,
-                            form.driverPhotoUri,
+                            photoChanges,
                             onBack
                         )
                     }
