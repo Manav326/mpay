@@ -103,7 +103,7 @@ app:
     wallet-name: PAYU
     pg-name: other
     initiating-channel: AGT
-    pg-verify-url: https://test.payu.in/merchant/postservice?form=2
+    pg-verify-url: https://test.payu.in/merchant/postservice.php?form=2
     pg-success-url: https://cbjs.payu.in/sdk/success
     pg-failure-url: https://cbjs.payu.in/sdk/failure
     pg-production: false
