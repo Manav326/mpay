@@ -636,8 +636,8 @@ class RentalService(
         prepareVehicleForEdit(car, "DRIVER_PHOTO_UPDATED", userId)
 
         val oldValue = driver.photoUrl.orEmpty()
-        val oldStoredKey = oldValue.removePrefix(RENTAL_PHOTO_URL_PREFIX)
-            .takeIf { oldValue.startsWith(RENTAL_PHOTO_URL_PREFIX) }
+        val oldStoredKey = oldValue.removePrefix(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX)
+            .takeIf { oldValue.startsWith(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX) }
         val newKey = rentalImageStorage.saveDriverPhoto(driverId, photo)
         try {
             driver.photoUrl = RentalPhotoService.RENTAL_PHOTO_URL_PREFIX + newKey
