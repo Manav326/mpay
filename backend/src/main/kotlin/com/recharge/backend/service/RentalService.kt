@@ -1125,10 +1125,16 @@ class RentalService(
         return vendor
     }
 
+    private fun RentalPhotoResource.toApiResponse(): RentalPhotoResponse =
+        RentalPhotoResponse(slot = slot, url = url, thumbnailUrl = thumbnailUrl, largeUrl = largeUrl)
+
+    private fun List<RentalPhotoResource>.toApiResponses(): List<RentalPhotoResponse> =
+        map { it.toApiResponse() }
+
     private fun toPublicCarResponse(car: RentalCarEntity): RentalPublicCarResponse {
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
-        val photos = rentalPhotoService.vehiclePhotos(car.imageUrl)
-        val driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)
+        val photos = rentalPhotoService.vehiclePhotos(car.imageUrl).toApiResponses()
+        val driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)?.toApiResponse()
         return RentalPublicCarResponse(
             id = requireNotNull(car.id).toString(),
             name = car.name,
@@ -1159,8 +1165,8 @@ class RentalService(
 
     private fun toCarResponse(car: RentalCarEntity): RentalCarResponse {
         val driver = car.driverId?.let { drivers.findById(it).orElse(null) }
-        val photos = rentalPhotoService.vehiclePhotos(car.imageUrl)
-        val driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)
+        val photos = rentalPhotoService.vehiclePhotos(car.imageUrl).toApiResponses()
+        val driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl)?.toApiResponse()
         return RentalCarResponse(
             id = requireNotNull(car.id).toString(), name = car.name, category = car.category,
             seats = car.seats, transmission = car.transmission, fuelType = car.fuelType,
@@ -1209,7 +1215,7 @@ class RentalService(
             driverPhotoUrl = rentalPhotoService.driverPhoto(driver?.photoUrl)?.url,
             driverPhoto = rentalPhotoService.driverPhoto(driver?.photoUrl),
             carImageUrl = car?.imageUrl?.takeIf { it.isNotBlank() },
-            carPhotos = rentalPhotoService.vehiclePhotos(car?.imageUrl),
+            carPhotos = rentalPhotoService.vehiclePhotos(car?.imageUrl).toApiResponses(),
             pickup = b.pickupLocation, drop = b.dropLocation,
             pickupLatitude = b.pickupLatitude, pickupLongitude = b.pickupLongitude, pickupPlaceId = b.pickupPlaceId,
             dropLatitude = b.dropLatitude, dropLongitude = b.dropLongitude, dropPlaceId = b.dropPlaceId,
