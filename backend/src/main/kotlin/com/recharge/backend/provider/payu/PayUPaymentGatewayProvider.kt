@@ -151,6 +151,8 @@ class PayUPaymentGatewayProvider(
         val firstName = user.name?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "mPay"
         val email = user.email?.trim()?.takeIf { it.isNotBlank() } ?: "${phone}@mpay.local"
 
+        val productInfo = if (order.purpose.equals("RECHARGE", true)) "mPay Mobile Recharge" else "mPay Wallet Top-up"
+
         return CreatePaymentOrderResponse(
             provider = providerName,
             orderId = order.razorpayOrderId,
@@ -158,7 +160,7 @@ class PayUPaymentGatewayProvider(
             currency = order.currency,
             keyId = properties.effectivePgKey(),
             checkoutParams = mapOf(
-                "productInfo" to "mPay wallet",
+                "productInfo" to productInfo,
                 "firstName" to firstName,
                 "email" to email,
                 "phone" to phone,
@@ -178,7 +180,8 @@ class PayUPaymentGatewayProvider(
         firstName: String,
         email: String
     ): String {
-        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|mPay wallet|$firstName|$email|||||||||||${properties.effectivePgSalt()}"
+        val productInfo = if (order.purpose.equals("RECHARGE", true)) "mPay Mobile Recharge" else "mPay Wallet Top-up"
+        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|$productInfo|$firstName|$email|||||||||||${properties.effectivePgSalt()}"
         return sha512(data)
     }
     private fun findTransaction(statusResponse: JsonNode, txnId: String): JsonNode {
