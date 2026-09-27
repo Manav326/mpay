@@ -91,6 +91,13 @@ data class RentalVehicleOnboardingRequest(
     val driver: RentalDriverRequest
 )
 
+data class RentalPhotoResource(
+    val slot: Int? = null,
+    val url: String,
+    val thumbnailUrl: String,
+    val largeUrl: String
+)
+
 data class RentalCarResponse(
     val id: String,
     val name: String,
@@ -102,11 +109,13 @@ data class RentalCarResponse(
     val city: String?,
     val pickupAddress: String?,
     val imageUrl: String?,
+    val photos: List<RentalPhotoResource> = emptyList(),
     val pricePerDay: BigDecimal,
     val driverId: String? = null,
     val driverName: String,
     val driverMobile: String? = null,
     val driverPhotoUrl: String? = null,
+    val driverPhoto: RentalPhotoResource? = null,
     val driverRating: BigDecimal? = null,
     val pickupLatitude: Double? = null,
     val pickupLongitude: Double? = null,
@@ -186,7 +195,9 @@ data class RentalBookingResponse(
     val driverName: String,
     val driverMobile: String? = null,
     val driverPhotoUrl: String? = null,
+    val driverPhoto: RentalPhotoResource? = null,
     val carImageUrl: String? = null,
+    val carPhotos: List<RentalPhotoResource> = emptyList(),
     val pickup: String,
     val drop: String,
     val pickupLatitude: Double? = null,
