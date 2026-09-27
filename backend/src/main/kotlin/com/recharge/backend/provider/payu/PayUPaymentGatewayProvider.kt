@@ -85,11 +85,20 @@ class PayUPaymentGatewayProvider(
         require(order.providerName.equals(providerName, true)) { "Payment order belongs to another gateway" }
 
         if (order.status == "CAPTURED") {
-            return paymentSettlementService.responseForCaptured(userId, order)
+            // Re-run the idempotent settlement so older orders that were marked captured
+            // before settlement completed can repair any missing wallet ledger entry.
+            return paymentSettlementService.settleCaptured(
+                userId = userId,
+                order = order,
+                externalPaymentReference = order.razorpayPaymentId?.takeIf { it.isNotBlank() } ?: txnId
+            )
         }
 
         val statusResponse = verifyWithPayU(txnId)
-        val transaction = statusResponse.path("transaction_details").path(txnId)
+        require(statusResponse.path("status").asInt() == 1) {
+            statusResponse.path("msg").asText().ifBlank { "PayU verification request failed" }
+        }
+        val transaction = findTransaction(statusResponse, txnId)
         val status = transaction.path("status").asText().lowercase()
 
         if (status != "success") {
@@ -108,17 +117,19 @@ class PayUPaymentGatewayProvider(
 
         val paymentReference = transaction.path("mihpayid").asText().takeIf { it.isNotBlank() } ?: txnId
 
+        val settled = paymentSettlementService.settleCaptured(
+            userId = userId,
+            order = order,
+            externalPaymentReference = paymentReference
+        )
+
         order.status = "CAPTURED"
         order.razorpayPaymentId = paymentReference
         order.razorpaySignature = request.signature
         order.verifiedAt = Instant.now()
         orders.save(order)
 
-        return paymentSettlementService.settleCaptured(
-            userId = userId,
-            order = order,
-            externalPaymentReference = paymentReference
-        )
+        return settled
     }
 
     fun generateHash(hashName: String, hashString: String, postSalt: String? = null, hashType: String? = null): String {
@@ -140,6 +151,8 @@ class PayUPaymentGatewayProvider(
         val firstName = user.name?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "mPay"
         val email = user.email?.trim()?.takeIf { it.isNotBlank() } ?: "${phone}@mpay.local"
 
+        val productInfo = if (order.purpose.equals("RECHARGE", true)) "mPay Mobile Recharge" else "mPay Wallet Top-up"
+
         return CreatePaymentOrderResponse(
             provider = providerName,
             orderId = order.razorpayOrderId,
@@ -147,7 +160,7 @@ class PayUPaymentGatewayProvider(
             currency = order.currency,
             keyId = properties.effectivePgKey(),
             checkoutParams = mapOf(
-                "productInfo" to "mPay wallet",
+                "productInfo" to productInfo,
                 "firstName" to firstName,
                 "email" to email,
                 "phone" to phone,
@@ -167,15 +180,29 @@ class PayUPaymentGatewayProvider(
         firstName: String,
         email: String
     ): String {
-        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|mPay wallet|$firstName|$email|||||||||||${properties.effectivePgSalt()}"
+        val productInfo = if (order.purpose.equals("RECHARGE", true)) "mPay Mobile Recharge" else "mPay Wallet Top-up"
+        val data = "${properties.effectivePgKey()}|${order.razorpayOrderId}|${order.amount.toPlainString()}|$productInfo|$firstName|$email|||||||||||${properties.effectivePgSalt()}"
         return sha512(data)
     }
+    private fun findTransaction(statusResponse: JsonNode, txnId: String): JsonNode {
+        val details = statusResponse.path("transaction_details")
+        if (details.isObject) {
+            val direct = details.path(txnId)
+            if (!direct.isMissingNode && direct.isObject) return direct
+            val byTxnId = details.fields().asSequence()
+                .map { it.value }
+                .firstOrNull { node -> node.path("txnid").asText().equals(txnId, true) }
+            if (byTxnId != null) return byTxnId
+        }
+        throw IllegalArgumentException("PayU verification response did not contain transaction $txnId")
+    }
+
     private fun verifyWithPayU(txnId: String): JsonNode {
         val hash = sha512("${properties.effectivePgKey()}|verify_payment|$txnId|${properties.effectivePgSalt()}")
         val encoded = "key=${enc(properties.effectivePgKey())}&command=verify_payment&var1=${enc(txnId)}&hash=${enc(hash)}"
         return RestClient.builder().build()
             .post()
-            .uri(properties.pgVerifyUrl)
+            .uri(properties.pgVerifyUrl + if (properties.pgVerifyUrl.contains("?")) "" else "?form=2")
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
             .body(encoded)
             .retrieve()
