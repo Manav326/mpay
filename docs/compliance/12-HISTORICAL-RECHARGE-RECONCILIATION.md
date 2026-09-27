@@ -177,6 +177,36 @@ That action must be atomic with respect to the wallet reservation and transactio
 
 No bulk release should be implemented until the per-transaction evidence has been reviewed.
 
+## Production reconciliation record — 2026-09-27
+
+The evidence review identified seven historical `PENDING` PayU recharge transactions as confirmed pre-submission failures. The live PostgreSQL database used by the `main` deployment was then reconciled directly, without changing the Git `main` branch.
+
+The seven reconciled transaction IDs were:
+
+- `RTX-1790000559805-825c86b5` — wallet debit reservation ₹25.74
+- `RTX-1790000971996-097236b1` — ₹395.01
+- `RTX-1790003344483-8ecb0af1` — ₹1,088.01
+- `RTX-1790063934370-c5704b1b` — ₹3,959.01
+- `RTX-1790131035110-a8f2b493` — ₹1,088.01
+- `RTX-1790140439073-4f00cbfe` — ₹3,959.01
+- `RTX-1790184651662-6ad33616` — ₹3,959.01
+
+Total reservation released: **₹14,473.80**.
+
+Production verification after the reconciliation showed:
+
+- all seven transactions have status `FAILED`;
+- all seven have no `provider_reference`;
+- all seven have no `wallet_ledger_ref`;
+- total wallet `reserved_balance` is **₹0.00**;
+- zero wallets have a positive reservation.
+
+No recharge debit ledger entry was created for these seven transactions because the evidence established that the failures occurred before external submission.
+
+The reconciliation was performed directly against the production PostgreSQL database. It did **not** deploy or execute the new reconciliation endpoint from `compliance/regulatory-readiness`, and it did **not** modify the Git `main` branch.
+
+The failed command tail that attempted to query a temporary table after `COMMIT` produced a PostgreSQL relation-not-found error; this did not roll back the transaction. The subsequent independent production queries confirmed the seven `FAILED` states and zero remaining reservations.
+
 ## Current implementation state
 
 The new forward path prevents this failure class from being created again:
