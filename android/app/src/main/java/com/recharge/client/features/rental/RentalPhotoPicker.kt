@@ -1,13 +1,11 @@
 package com.recharge.client.features.rental
 
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,13 +41,10 @@ private fun validPhotoUrl(value: String): Boolean =
 fun RentalPhotoPickerDialog(
     title: String,
     currentPreview: String?,
-    deviceUri: String?,
-    onLaunchDevicePicker: () -> Unit,
-    onDevicePicked: (String?) -> Unit,
     onDismiss: () -> Unit,
     onUse: (RentalPhotoCandidate) -> Unit
 ) {
-    var source by remember { mutableStateOf<RentalPhotoPickerSource?>(null) }
+    var source by remember { mutableStateOf<RentalPhotoPickerSource?>(RentalPhotoPickerSource.URL) }
     var urlInput by remember { mutableStateOf("") }
     var checkedUrl by remember { mutableStateOf<String?>(null) }
     var urlState by remember { mutableStateOf(RentalUrlState.IDLE) }
@@ -118,54 +113,14 @@ fun RentalPhotoPickerDialog(
                     }
                 }
 
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    SourceChoice(
-                        modifier = Modifier.weight(1f),
-                        selected = source == RentalPhotoPickerSource.DEVICE,
-                        icon = { Icon(Icons.Default.PhotoCamera, null) },
-                        title = "From device",
-                        subtitle = "Choose a photo",
-                        onClick = {
-                            source = RentalPhotoPickerSource.DEVICE
-                            onDevicePicked(null)
-                            onLaunchDevicePicker()
-                        }
-                    )
-                    SourceChoice(
-                        modifier = Modifier.weight(1f),
-                        selected = source == RentalPhotoPickerSource.URL,
-                        icon = { Icon(Icons.Default.Link, null) },
-                        title = "Image URL",
-                        subtitle = "Paste a direct image link",
-                        onClick = {
-                            source = RentalPhotoPickerSource.URL
-                            onDevicePicked(null)
-                        }
-                    )
-                }
+                PickerStatus(
+                    icon = Icons.Default.Link,
+                    text = "Paste a direct public image URL.",
+                    color = Color(0xFF5B4E42)
+                )
 
                 when (source) {
-                    RentalPhotoPickerSource.DEVICE -> {
-                        deviceUri?.let { uri ->
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(180.dp)
-                                    .clip(RoundedCornerShape(15.dp)),
-                                contentScale = ContentScale.Crop
-                            )
-                            PickerStatus(
-                                icon = Icons.Default.CheckCircle,
-                                text = "Photo selected from your device.",
-                                color = Color(0xFF16733C)
-                            )
-                        } ?: InfoBlock("Choose a photo from your device to preview it here.")
-                    }
+                    RentalPhotoPickerSource.DEVICE -> Unit
 
                     RentalPhotoPickerSource.URL -> {
                         OutlinedTextField(
@@ -249,15 +204,7 @@ fun RentalPhotoPickerDialog(
                     Button(
                         onClick = {
                             when (source) {
-                                RentalPhotoPickerSource.DEVICE ->
-                                    deviceUri?.let {
-                                        onUse(
-                                            RentalPhotoCandidate(
-                                                RentalPhotoCandidateSource.DEVICE,
-                                                it
-                                            )
-                                        )
-                                    }
+                                RentalPhotoPickerSource.DEVICE -> Unit
                                 RentalPhotoPickerSource.URL ->
                                     checkedUrl?.takeIf { urlState == RentalUrlState.READY }?.let {
                                         onUse(
@@ -270,11 +217,9 @@ fun RentalPhotoPickerDialog(
                                 null -> Unit
                             }
                         },
-                        enabled = when (source) {
-                            RentalPhotoPickerSource.DEVICE -> deviceUri != null
-                            RentalPhotoPickerSource.URL -> urlState == RentalUrlState.READY && checkedUrl != null
-                            null -> false
-                        },
+                        enabled = source == RentalPhotoPickerSource.URL &&
+                            urlState == RentalUrlState.READY &&
+                            checkedUrl != null,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
