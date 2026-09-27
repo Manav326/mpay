@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
+import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
@@ -791,8 +792,12 @@ export default function Portal() {
   const [offMarketOpenId, setOffMarketOpenId] = useState('');
   const [vehiclePhotoFiles, setVehiclePhotoFiles] = useState<(File|null)[]>([null,null,null,null]);
   const [vehiclePhotoPreviews, setVehiclePhotoPreviews] = useState<string[]>(['','','','']);
+  const [vehiclePhotoUrlCandidates, setVehiclePhotoUrlCandidates] = useState<string[]>(['','','','']);
   const [driverPhotoFile, setDriverPhotoFile] = useState<File|null>(null);
+  const [driverPhotoUrlCandidate, setDriverPhotoUrlCandidate] = useState('');
   const [driverPhotoPreview, setDriverPhotoPreview] = useState('');
+  const [driverPhotoStoredPreview, setDriverPhotoStoredPreview] = useState('');
+  const [photoPickerTarget, setPhotoPickerTarget] = useState<{ kind:'vehicle'; slot:number; title:string }|{ kind:'driver'; title:string }>();
 
   const [vendorForm, setVendorForm] = useState({
     vendorType: 'INDIVIDUAL', fullName: '', businessName: '', address: '', city: '', state: '', pinCode: '',
@@ -1666,18 +1671,23 @@ export default function Portal() {
     });
     setVehiclePhotoUrls(photos);
     setVehiclePhotoFiles([null,null,null,null]);
-    setVehiclePhotoPreviews(
-      car?.photos?.length
-        ? [...car.photos]
-            .sort((a,b)=>(a.slot ?? 0)-(b.slot ?? 0))
-            .slice(0,4)
-            .map(photo => rentalPhotoClientUrl(photo.largeUrl))
-            .concat(['','','',''])
-            .slice(0,4)
-        : photos.map(x=>x ? imageFromCar(car, photos.indexOf(x), 'large') : '')
-    );
+    setVehiclePhotoUrlCandidates(['','','','']);
+    const storedVehiclePreviews = car?.photos?.length
+      ? [...car.photos]
+          .sort((a,b)=>(a.slot ?? 0)-(b.slot ?? 0))
+          .slice(0,4)
+          .map(photo => rentalPhotoClientUrl(photo.largeUrl))
+          .concat(['','','',''])
+          .slice(0,4)
+      : photos.map((x,index) => x ? imageFromCar(car, index, 'large') : '');
+    setVehiclePhotoPreviews(storedVehiclePreviews);
     setDriverPhotoFile(null);
-    setDriverPhotoPreview(car?.driverPhoto?.largeUrl ? rentalPhotoClientUrl(car.driverPhoto.largeUrl) : (car?.driverPhotoUrl ? rentalPhotoClientUrl(car.driverPhotoUrl) : ''));
+    setDriverPhotoUrlCandidate('');
+    const storedDriverPreview = car?.driverPhoto?.largeUrl
+      ? rentalPhotoClientUrl(car.driverPhoto.largeUrl)
+      : (car?.driverPhotoUrl ? rentalPhotoClientUrl(car.driverPhotoUrl) : '');
+    setDriverPhotoStoredPreview(storedDriverPreview);
+    setDriverPhotoPreview(storedDriverPreview);
     setShowVehicleForm(true);
     setAccountSection('vehicle');
   }
@@ -1697,32 +1707,46 @@ export default function Portal() {
     });
   }
 
-  function handleVehiclePhotoSelection(slot:number, file:File|null) {
-    if(!file) return;
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
-      setNotice('Please select a JPG, PNG or WebP vehicle photo.');
-      return;
-    }
-    if(file.size > 5 * 1024 * 1024){
-      setNotice('Vehicle photo must be 5 MB or smaller.');
-      return;
-    }
-    setVehiclePhotoFile(slot,file);
-  }
+  function applyPhotoPickerResult(result: RentalPhotoPickerResult) {
+    if (!photoPickerTarget) return;
 
-  function handleDriverPhotoSelection(file:File|null) {
-    if(!file) return;
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
-      setNotice('Please select a JPG, PNG or WebP driver photo.');
-      return;
+    if (photoPickerTarget.kind === 'vehicle') {
+      const slot = photoPickerTarget.slot;
+      if (result.source === 'device') {
+        setVehiclePhotoFile(slot, result.file);
+        setVehiclePhotoUrlCandidates(current => {
+          const next = [...current];
+          next[slot] = '';
+          return next;
+        });
+      } else {
+        setVehiclePhotoFiles(current => {
+          const next = [...current];
+          next[slot] = null;
+          return next;
+        });
+        setVehiclePhotoUrlCandidates(current => {
+          const next = [...current];
+          next[slot] = result.url;
+          return next;
+        });
+        setVehiclePhotoPreviews(current => {
+          const next = [...current];
+          next[slot] = result.url;
+          return next;
+        });
+      }
+    } else if (result.source === 'device') {
+      setDriverPhotoFile(result.file);
+      setDriverPhotoUrlCandidate('');
+      setDriverPhotoPreview(URL.createObjectURL(result.file));
+    } else {
+      setDriverPhotoFile(null);
+      setDriverPhotoUrlCandidate(result.url);
+      setDriverPhotoPreview(result.url);
     }
-    if(file.size > 5 * 1024 * 1024){
-      setNotice('Driver photo must be 5 MB or smaller.');
-      return;
-    }
-    const preview=URL.createObjectURL(file);
-    setDriverPhotoFile(file);
-    setDriverPhotoPreview(preview);
+
+    setPhotoPickerTarget(undefined);
   }
 
   useEffect(() => () => {
@@ -1738,7 +1762,7 @@ export default function Portal() {
     const price=Number(vehicleForm.pricePerDay);
     const mobile=normalizeIndianMobile(vehicleForm.driver.mobile);
     const licenseExpiry=vehicleForm.driver.licenseExpiry ? new Date(vehicleForm.driver.licenseExpiry+'T00:00:00') : null;
-    const photosComplete=vehiclePhotoUrls.every((url,slot)=>Boolean(url.trim() || vehiclePhotoFiles[slot]));
+    const photosComplete=vehiclePhotoUrls.every((url,slot)=>Boolean(url.trim() || vehiclePhotoFiles[slot] || vehiclePhotoUrlCandidates[slot].trim()));
     if(!vehicleForm.name.trim()) return 'Vehicle name is required.';
     if(!vehicleForm.make.trim()) return 'Make is required.';
     if(!vehicleForm.model.trim()) return 'Model is required.';
@@ -1795,14 +1819,27 @@ export default function Portal() {
       let latest=saved;
       for(let slot=0;slot<vehiclePhotoFiles.length;slot++){
         const file=vehiclePhotoFiles[slot];
+        const urlCandidate=vehiclePhotoUrlCandidates[slot].trim();
         if(file) {
           const fd=new FormData(); fd.append('photo',file);
           latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot,'PUT',fd);
+        } else if(urlCandidate) {
+          latest=await api<RentalCar>(
+            '/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot+'/import-url',
+            {method:'POST',body:JSON.stringify({url:urlCandidate})}
+          );
         }
       }
-      if(driverPhotoFile && latest.driverId){
-        const fd=new FormData(); fd.append('photo',driverPhotoFile);
-        latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
+      if(latest.driverId){
+        if(driverPhotoFile){
+          const fd=new FormData(); fd.append('photo',driverPhotoFile);
+          latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
+        } else if(driverPhotoUrlCandidate.trim()) {
+          latest=await api<RentalCar>(
+            '/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo/import-url',
+            {method:'POST',body:JSON.stringify({url:driverPhotoUrlCandidate.trim()})}
+          );
+        }
       }
       setVendorVehicles(v=>vehicleEditId ? v.map(x=>x.id===latest.id?latest:x) : [latest,...v]);
       setSelectedVendorVehicle(undefined);
