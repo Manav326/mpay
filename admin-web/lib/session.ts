@@ -88,7 +88,7 @@ export async function refreshWebSession(config: WebSessionConfig): Promise<Refre
 
   const promise = (async () => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\\/$/, '') || 'http://localhost:8080';
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
       const response = await fetch(baseUrl + '/api/v1/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
