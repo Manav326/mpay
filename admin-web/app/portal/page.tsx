@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
+import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
@@ -31,10 +32,16 @@ type WithdrawalItem = {
   providerReference?: string; providerStatus?: string; failureReason?: string; walletLedgerRef?: string; message?: string | null;
   createdAt?: string; updatedAt?: string; completedAt?: string;
 };
+type RentalPhoto = {
+  slot?: number | null;
+  url: string;
+  thumbnailUrl: string;
+  largeUrl: string;
+};
 type RentalCar = {
   id: string; name: string; category: string; seats: number; transmission: string; fuelType?: string;
-  registrationYear?: number; city?: string; pickupAddress?: string; imageUrl?: string; pricePerDay: number;
-  driverId?: string; driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
+  registrationYear?: number; city?: string; pickupAddress?: string; imageUrl?: string; photos?: RentalPhoto[]; pricePerDay: number;
+  driverId?: string; driverName: string; driverMobile?: string; driverPhotoUrl?: string; driverPhoto?: RentalPhoto | null; driverRating?: number; approvalStatus?: string; rejectionReason?: string;
   make?: string; model?: string; variant?: string; manufacturingYear?: number; registrationNumber?: string;
   state?: string; driverLicenseNumber?: string; driverLicenseExpiry?: string; driverAddress?: string;
 };
@@ -43,7 +50,7 @@ type RentalQuote = {
   startDate: string; endDate: string; days: number; pricePerDay: number; total: number;
 };
 type RentalBooking = {
-  bookingId: string; carName: string; driverName?: string; driverMobile?: string; driverPhotoUrl?: string; carImageUrl?: string;
+  bookingId: string; carName: string; driverName?: string; driverMobile?: string; driverPhotoUrl?: string; driverPhoto?: RentalPhoto | null; carImageUrl?: string; carPhotos?: RentalPhoto[];
   pickup: string; drop: string; startDate: string; endDate: string; total: number; paymentMethod?: string; status: string; createdAt?: string;
   pickupLatitude?: number | null; pickupLongitude?: number | null; pickupPlaceId?: string | null;
   dropLatitude?: number | null; dropLongitude?: number | null; dropPlaceId?: string | null;
@@ -155,15 +162,29 @@ function statusClass(value?: string) {
   return 'status-pill status-' + String(value || 'UNKNOWN').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thumb' | 'large' = 'thumb') {
+function rentalPhotoClientUrl(value?: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return raw.startsWith('/api/') ? base + raw : base + '/api/v1/car-rental/photos/' + raw.replace(/^\/+/, '');
+}
+
+function imageFromCar(
+  car?: Pick<RentalCar, 'imageUrl' | 'photos'>,
+  slot = 0,
+  variant: 'thumb' | 'large' = 'thumb'
+) {
+  const photo = car?.photos?.find(item => (item.slot ?? -1) === slot) || car?.photos?.[slot];
+  if (photo) {
+    return rentalPhotoClientUrl(variant === 'large' ? photo.largeUrl : photo.thumbnailUrl);
+  }
+
   const raw = String(car?.imageUrl || '');
   const values = raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean);
   const value = values[slot] || '';
   if (!value) return '';
-  if (/^https?:\/\//i.test(value)) return value;
-  const url = value.startsWith('/api/')
-    ? base + value
-    : base + '/api/v1/car-rental/photos/' + value.replace(/^\/+/, '');
+  const url = rentalPhotoClientUrl(value);
+  if (!url || /^https?:\/\//i.test(value)) return url;
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
@@ -222,7 +243,7 @@ function useRentalViewport(
 }
 
 function useRentalPhotoUrls(
-  car?: Pick<RentalCar, 'imageUrl'>,
+  car?: Pick<RentalCar, 'imageUrl' | 'photos'>,
   variant: 'thumb' | 'large' = 'thumb',
   active = true
 ): string[] | null {
@@ -271,7 +292,7 @@ function VehicleFourPhotoGallery({
   priority = false,
   className = '',
 }: {
-  car?: Pick<RentalCar, 'imageUrl' | 'name'>;
+  car?: Pick<RentalCar, 'imageUrl' | 'photos' | 'name'>;
   priority?: boolean;
   className?: string;
 }) {
@@ -314,7 +335,7 @@ function VehicleFourPhotoGallery({
 function RentalDetailsPhotoGallery({
   car,
 }: {
-  car: Pick<RentalCar, 'imageUrl' | 'name'>;
+  car: Pick<RentalCar, 'imageUrl' | 'photos' | 'name'>;
 }) {
   const photos = useRentalPhotoUrls(car, 'large', true);
   if (!photos || !photos.length) return null;
@@ -336,7 +357,14 @@ function RentalDetailsPhotoGallery({
   );
 }
 
-function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
+function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl' | 'photos'>): string[] {
+  if (car?.photos?.length) {
+    return [...car.photos]
+      .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+      .map(photo => photo.url)
+      .filter(Boolean)
+      .slice(0, 4);
+  }
   const raw = String(car?.imageUrl || '');
   return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4);
 }
@@ -764,8 +792,12 @@ export default function Portal() {
   const [offMarketOpenId, setOffMarketOpenId] = useState('');
   const [vehiclePhotoFiles, setVehiclePhotoFiles] = useState<(File|null)[]>([null,null,null,null]);
   const [vehiclePhotoPreviews, setVehiclePhotoPreviews] = useState<string[]>(['','','','']);
+  const [vehiclePhotoUrlCandidates, setVehiclePhotoUrlCandidates] = useState<string[]>(['','','','']);
   const [driverPhotoFile, setDriverPhotoFile] = useState<File|null>(null);
+  const [driverPhotoUrlCandidate, setDriverPhotoUrlCandidate] = useState('');
   const [driverPhotoPreview, setDriverPhotoPreview] = useState('');
+  const [driverPhotoStoredPreview, setDriverPhotoStoredPreview] = useState('');
+  const [photoPickerTarget, setPhotoPickerTarget] = useState<{ kind:'vehicle'; slot:number; title:string }|{ kind:'driver'; title:string }>();
 
   const [vendorForm, setVendorForm] = useState({
     vendorType: 'INDIVIDUAL', fullName: '', businessName: '', address: '', city: '', state: '', pinCode: '',
@@ -1607,7 +1639,15 @@ export default function Portal() {
   }
 
   function rawVehiclePhotos(car?:RentalCar) {
-    return String(car?.imageUrl || '').replace(/\\n/g,'|').split('|').map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
+    if (car?.photos?.length) {
+      return [...car.photos]
+        .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+        .slice(0, 4)
+        .map(photo => photo.url)
+        .concat(['','','',''])
+        .slice(0,4);
+    }
+    return String(car?.imageUrl || '').replace(/\\n/g,'|').split(/[|,]/).map(x=>x.trim()).filter(Boolean).slice(0,4).concat(['','','','']).slice(0,4);
   }
 
   function resetVehicleForm(car?:RentalCar) {
@@ -1631,9 +1671,23 @@ export default function Portal() {
     });
     setVehiclePhotoUrls(photos);
     setVehiclePhotoFiles([null,null,null,null]);
-    setVehiclePhotoPreviews(photos.map(x=>x ? (x.startsWith('http') ? x : base + '/api/v1/car-rental/photos/' + x.replace(/^\/+/,'')) : ''));
+    setVehiclePhotoUrlCandidates(['','','','']);
+    const storedVehiclePreviews = car?.photos?.length
+      ? [...car.photos]
+          .sort((a,b)=>(a.slot ?? 0)-(b.slot ?? 0))
+          .slice(0,4)
+          .map(photo => rentalPhotoClientUrl(photo.largeUrl))
+          .concat(['','','',''])
+          .slice(0,4)
+      : photos.map((x,index) => x ? imageFromCar(car, index, 'large') : '');
+    setVehiclePhotoPreviews(storedVehiclePreviews);
     setDriverPhotoFile(null);
-    setDriverPhotoPreview(car?.driverPhotoUrl ? (car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl) : '');
+    setDriverPhotoUrlCandidate('');
+    const storedDriverPreview = car?.driverPhoto?.largeUrl
+      ? rentalPhotoClientUrl(car.driverPhoto.largeUrl)
+      : (car?.driverPhotoUrl ? rentalPhotoClientUrl(car.driverPhotoUrl) : '');
+    setDriverPhotoStoredPreview(storedDriverPreview);
+    setDriverPhotoPreview(storedDriverPreview);
     setShowVehicleForm(true);
     setAccountSection('vehicle');
   }
@@ -1646,64 +1700,53 @@ export default function Portal() {
     });
     setVehiclePhotoPreviews(current => {
       const next=[...current];
-      next[slot]=file ? URL.createObjectURL(file) : '';
+      next[slot]=file
+        ? URL.createObjectURL(file)
+        : (vehiclePhotoUrls[slot] ? rentalPhotoClientUrl(vehiclePhotoUrls[slot]) : '');
       return next;
     });
-    if(file) {
-      setVehiclePhotoUrls(current => {
-        const next=[...current];
-        next[slot]='';
-        return next;
-      });
-    }
   }
 
-  function setVehiclePhotoUrl(slot:number, value:string) {
-    setVehiclePhotoUrls(current => {
-      const next=[...current];
-      next[slot]=value;
-      return next;
-    });
-    if(value.trim()) {
-      setVehiclePhotoFiles(current => {
-        const next=[...current];
-        next[slot]=null;
-        return next;
-      });
-      setVehiclePhotoPreviews(current => {
-        const next=[...current];
-        next[slot]=value;
-        return next;
-      });
-    }
-  }
+  function applyPhotoPickerResult(result: RentalPhotoPickerResult) {
+    if (!photoPickerTarget) return;
 
-  function handleVehiclePhotoSelection(slot:number, file:File|null) {
-    if(!file) return;
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
-      setNotice('Please select a JPG, PNG or WebP vehicle photo.');
-      return;
+    if (photoPickerTarget.kind === 'vehicle') {
+      const slot = photoPickerTarget.slot;
+      if (result.source === 'device') {
+        setVehiclePhotoFile(slot, result.file);
+        setVehiclePhotoUrlCandidates(current => {
+          const next = [...current];
+          next[slot] = '';
+          return next;
+        });
+      } else {
+        setVehiclePhotoFiles(current => {
+          const next = [...current];
+          next[slot] = null;
+          return next;
+        });
+        setVehiclePhotoUrlCandidates(current => {
+          const next = [...current];
+          next[slot] = result.url;
+          return next;
+        });
+        setVehiclePhotoPreviews(current => {
+          const next = [...current];
+          next[slot] = result.url;
+          return next;
+        });
+      }
+    } else if (result.source === 'device') {
+      setDriverPhotoFile(result.file);
+      setDriverPhotoUrlCandidate('');
+      setDriverPhotoPreview(URL.createObjectURL(result.file));
+    } else {
+      setDriverPhotoFile(null);
+      setDriverPhotoUrlCandidate(result.url);
+      setDriverPhotoPreview(result.url);
     }
-    if(file.size > 5 * 1024 * 1024){
-      setNotice('Vehicle photo must be 5 MB or smaller.');
-      return;
-    }
-    setVehiclePhotoFile(slot,file);
-  }
 
-  function handleDriverPhotoSelection(file:File|null) {
-    if(!file) return;
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
-      setNotice('Please select a JPG, PNG or WebP driver photo.');
-      return;
-    }
-    if(file.size > 5 * 1024 * 1024){
-      setNotice('Driver photo must be 5 MB or smaller.');
-      return;
-    }
-    const preview=URL.createObjectURL(file);
-    setDriverPhotoFile(file);
-    setDriverPhotoPreview(preview);
+    setPhotoPickerTarget(undefined);
   }
 
   useEffect(() => () => {
@@ -1719,7 +1762,7 @@ export default function Portal() {
     const price=Number(vehicleForm.pricePerDay);
     const mobile=normalizeIndianMobile(vehicleForm.driver.mobile);
     const licenseExpiry=vehicleForm.driver.licenseExpiry ? new Date(vehicleForm.driver.licenseExpiry+'T00:00:00') : null;
-    const photosComplete=vehiclePhotoUrls.every((url,slot)=>Boolean(url.trim() || vehiclePhotoFiles[slot]));
+    const photosComplete=vehiclePhotoUrls.every((url,slot)=>Boolean(url.trim() || vehiclePhotoFiles[slot] || vehiclePhotoUrlCandidates[slot].trim()));
     if(!vehicleForm.name.trim()) return 'Vehicle name is required.';
     if(!vehicleForm.make.trim()) return 'Make is required.';
     if(!vehicleForm.model.trim()) return 'Model is required.';
@@ -1744,7 +1787,6 @@ export default function Portal() {
     if(validation){setNotice(validation);return;}
     setBusy(true);
     try {
-      const rawImages=vehiclePhotoUrls.map((url,slot)=>vehiclePhotoFiles[slot] ? '' : url.trim()).join('|');
       const body={
         name:vehicleForm.name.trim(),
         category:vehicleForm.category,
@@ -1762,7 +1804,6 @@ export default function Portal() {
         state:vehicleForm.state,
         pricePerDay:Number(vehicleForm.pricePerDay),
         pickupLocation:null,
-        imageUrl:rawImages || null,
         driver:{
           fullName:sanitizeVehicleAlphaNumeric(vehicleForm.driver.fullName.trim(),120),
           mobile:normalizeIndianMobile(vehicleForm.driver.mobile),
@@ -1778,14 +1819,27 @@ export default function Portal() {
       let latest=saved;
       for(let slot=0;slot<vehiclePhotoFiles.length;slot++){
         const file=vehiclePhotoFiles[slot];
+        const urlCandidate=vehiclePhotoUrlCandidates[slot].trim();
         if(file) {
           const fd=new FormData(); fd.append('photo',file);
           latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot,'PUT',fd);
+        } else if(urlCandidate) {
+          latest=await api<RentalCar>(
+            '/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot+'/import-url',
+            {method:'POST',body:JSON.stringify({url:urlCandidate})}
+          );
         }
       }
-      if(driverPhotoFile && latest.driverId){
-        const fd=new FormData(); fd.append('photo',driverPhotoFile);
-        latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
+      if(latest.driverId){
+        if(driverPhotoFile){
+          const fd=new FormData(); fd.append('photo',driverPhotoFile);
+          latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
+        } else if(driverPhotoUrlCandidate.trim()) {
+          latest=await api<RentalCar>(
+            '/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo/import-url',
+            {method:'POST',body:JSON.stringify({url:driverPhotoUrlCandidate.trim()})}
+          );
+        }
       }
       setVendorVehicles(v=>vehicleEditId ? v.map(x=>x.id===latest.id?latest:x) : [latest,...v]);
       setSelectedVendorVehicle(undefined);
@@ -2562,7 +2616,7 @@ export default function Portal() {
                           <span>{car.seats} seats</span><span>{car.transmission}</span><span>{car.fuelType || 'Fuel —'}</span>
                         </div>
                         <div className="rental-market-driver">
-                          <span className="rental-driver-avatar">{car.driverPhotoUrl ? <img src={car.driverPhotoUrl.startsWith('http') ? car.driverPhotoUrl : base + car.driverPhotoUrl} alt=""/> : <UserRound size={15}/>}</span>
+                          <span className="rental-driver-avatar">{(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl) ? <img src={rentalPhotoClientUrl(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl)} alt=""/> : <UserRound size={15}/>}</span>
                           <span><b>{car.driverName}</b><small>Chauffeur</small></span>
                           {car.driverRating != null && <span className="rental-driver-rating">★ {Number(car.driverRating).toFixed(1)}</span>}
                         </div>
@@ -2602,7 +2656,7 @@ export default function Portal() {
               <div className="rental-booking-car-copy">
                 <div className="rental-booking-car-title"><div><b>{rentalBookingCar.name}</b><small>{[rentalBookingCar.make,rentalBookingCar.model,rentalBookingCar.variant].filter(Boolean).join(' ') || rentalBookingCar.category}</small></div><strong>{money(rentalBookingCar.pricePerDay)}<em>/day</em></strong></div>
                 <div className="rental-booking-car-driver">
-                  <span className="rental-driver-avatar">{rentalBookingCar.driverPhotoUrl ? <img src={rentalBookingCar.driverPhotoUrl.startsWith('http') ? rentalBookingCar.driverPhotoUrl : base + rentalBookingCar.driverPhotoUrl} alt=""/> : <UserRound size={15}/>}</span>
+                  <span className="rental-driver-avatar">{(rentalBookingCar.driverPhoto?.thumbnailUrl || rentalBookingCar.driverPhotoUrl) ? <img src={rentalPhotoClientUrl(rentalBookingCar.driverPhoto?.thumbnailUrl || rentalBookingCar.driverPhotoUrl)} alt=""/> : <UserRound size={15}/>}</span>
                   <span><b>{rentalBookingCar.driverName}</b><small>{rentalBookingCar.driverMobile || 'Chauffeur'}</small></span>
                   {rentalBookingCar.driverRating != null && <span className="rental-driver-rating">★ {Number(rentalBookingCar.driverRating).toFixed(1)}</span>}
                 </div>
@@ -2692,7 +2746,7 @@ export default function Portal() {
                 return <article className="rental-booking-card" key={b.bookingId}>
                   <div className="rental-booking-card-image">
                     <VehicleFourPhotoGallery
-                       car={{ name: b.carName, imageUrl: b.carImageUrl }}
+                       car={{ name: b.carName, imageUrl: b.carImageUrl, photos: b.carPhotos }}
                        priority={false}
                      />
                   </div>
@@ -2959,7 +3013,7 @@ export default function Portal() {
                         <div className="vendor-driver-inline">
                           <span>{car.driverName}</span>
                           <small>{car.driverMobile||'—'}</small>
-                          {car.driverPhotoUrl&&<img src={car.driverPhotoUrl.startsWith('http')?car.driverPhotoUrl:base+car.driverPhotoUrl} alt=""/>}
+                          {(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl)&&<img src={rentalPhotoClientUrl(car.driverPhoto?.thumbnailUrl || car.driverPhotoUrl)} alt=""/>}
                         </div>
                         <div className="vendor-vehicle-badges">
                           <span className={'status-pill status-'+statusTone}>{status.replace(/_/g,' ')}</span>
@@ -3059,18 +3113,35 @@ export default function Portal() {
 
           <section className="vehicle-form-card">
             <div className="vehicle-form-step-head"><span>2</span><div><b>Vehicle photos</b><small>All four photos are mandatory</small></div></div>
-            <p className="vehicle-form-description">Use an image URL or a photo from your device for each slot. Device photos must be JPG, PNG or WebP and 5 MB or smaller.</p>
+            <p className="vehicle-form-description">Existing photos are shown without exposing their URLs. Choose Change photo only when you want to replace a slot.</p>
             <div className="vehicle-photo-form-grid">
               {['Front photo','Side photo','Rear photo','Interior photo'].map((label,slot)=>{
                 const selectedFile=vehiclePhotoFiles[slot];
+                const urlCandidate=vehiclePhotoUrlCandidates[slot];
                 const preview=vehiclePhotoPreviews[slot];
-                const rawUrl=vehiclePhotoUrls[slot];
-                const complete=Boolean(selectedFile || rawUrl.trim());
+                const currentRef=vehiclePhotoUrls[slot];
+                const complete=Boolean(selectedFile || urlCandidate.trim() || currentRef.trim());
+                const hasNewPhoto=Boolean(selectedFile || urlCandidate.trim());
                 return <div className={'vehicle-photo-form-card '+(complete?'complete':'incomplete')} key={label}>
                   <div className="vehicle-photo-preview">{preview ? <img src={preview} alt={label}/> : <Car size={24}/>}</div>
                   <b>{label}</b>
-                  {selectedFile ? <><small>Photo selected from device</small><button type="button" className="landing-secondary compact" onClick={()=>{setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});setVehiclePhotoPreviews(v=>{const n=[...v];n[slot]='';return n})}}>Use image URL instead</button></> :
-                  <><input value={rawUrl} placeholder={label+' image URL'} onChange={e=>setVehiclePhotoUrl(slot,e.target.value)}/><label className="photo-file-button landing-secondary compact"><Camera size={13}/> Choose from device<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleVehiclePhotoSelection(slot,e.target.files?.[0]||null)}/></label></>}
+                  <small>{hasNewPhoto ? (selectedFile ? 'New photo selected from device' : 'New photo selected from image URL') : currentRef ? 'Photo stored by mPay' : 'No photo selected yet'}</small>
+                  <button
+                    type="button"
+                    className="landing-secondary compact"
+                    onClick={()=>setPhotoPickerTarget({kind:'vehicle',slot,title:'Change '+label.toLowerCase()})}
+                  >
+                    <Camera size={13}/> {hasNewPhoto || currentRef ? 'Change photo' : 'Choose photo'}
+                  </button>
+                  {hasNewPhoto && <button type="button" className="photo-picker-keep-current" onClick={()=>{
+                    setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});
+                    setVehiclePhotoUrlCandidates(v=>{const n=[...v];n[slot]='';return n});
+                    setVehiclePhotoPreviews(v=>{
+                      const n=[...v];
+                      n[slot]=currentRef ? imageFromCar({imageUrl:vehiclePhotoUrls.join('|')},slot,'large') : '';
+                      return n;
+                    });
+                  }}>Keep current photo</button>}
                   {vehicleSubmitAttempted&&!complete&&<small className="field-error">This photo is required</small>}
                 </div>
               })}
@@ -3082,7 +3153,18 @@ export default function Portal() {
             <div className="vehicle-form-step-head"><span>3</span><div><b>Driver details</b><small>The chauffeur assigned to this vehicle</small></div></div>
             <div className="driver-form-photo-row">
               <div className="driver-photo-preview">{driverPhotoPreview?<img src={driverPhotoPreview} alt="Driver"/>:<UserRound size={25}/>}</div>
-              <div><b>Driver photo</b><small>Passport-style square photo</small><label className="photo-file-button landing-secondary compact"><Camera size={13}/> {driverPhotoFile?'Change':'Add'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleDriverPhotoSelection(e.target.files?.[0]||null)}/></label></div>
+              <div>
+                <b>Driver photo</b>
+                <small>{driverPhotoFile ? 'New photo selected from device' : driverPhotoUrlCandidate ? 'New photo selected from image URL' : driverPhotoStoredPreview ? 'Photo stored by mPay' : 'Passport-style square photo'}</small>
+                <button type="button" className="photo-file-button landing-secondary compact" onClick={()=>setPhotoPickerTarget({kind:'driver',title:driverPhotoStoredPreview?'Change driver photo':'Add driver photo'})}>
+                  <Camera size={13}/> {driverPhotoFile||driverPhotoUrlCandidate||driverPhotoStoredPreview?'Change photo':'Add photo'}
+                </button>
+                {(driverPhotoFile||driverPhotoUrlCandidate) && <button type="button" className="photo-picker-keep-current" onClick={()=>{
+                  setDriverPhotoFile(null);
+                  setDriverPhotoUrlCandidate('');
+                  setDriverPhotoPreview(driverPhotoStoredPreview);
+                }}>Keep current photo</button>}
+              </div>
             </div>
             <div className="vehicle-form-grid-web">
               <label>Driver full name<input value={vehicleForm.driver.fullName} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,fullName:sanitizeVehicleAlphaNumeric(e.target.value,120)}})}/>{vehicleSubmitAttempted&&!vehicleForm.driver.fullName.trim()&&<small className="field-error">Driver name is required</small>}</label>
@@ -3100,6 +3182,24 @@ export default function Portal() {
             <button className="landing-primary" disabled={busy} onClick={saveVehicle}>{busy ? 'Submitting…' : vehicleEditId ? 'Resubmit vehicle for review' : 'Submit vehicle for review'}</button>
           </div>
         </section>}
+
+        {photoPickerTarget && (
+          <RentalPhotoPicker
+            title={photoPickerTarget.title}
+            currentPreview={
+              photoPickerTarget.kind === 'vehicle'
+                ? (() => {
+                    const ref = vehiclePhotoUrls[photoPickerTarget.slot];
+                    return ref
+                      ? imageFromCar({ imageUrl: vehiclePhotoUrls.join('|') }, photoPickerTarget.slot, 'large')
+                      : '';
+                  })()
+                : driverPhotoStoredPreview
+            }
+            onCancel={()=>setPhotoPickerTarget(undefined)}
+            onUse={applyPhotoPickerResult}
+          />
+        )}
 
         {editingProfile && <div className="modal-backdrop" onClick={()=>!busy&&setEditingProfile(false)}>
           <div className="portal-modal small-modal profile-edit-modal" onClick={e=>e.stopPropagation()}>
@@ -3158,7 +3258,7 @@ export default function Portal() {
             <div className="vehicle-gallery">{[0,1,2,3].map(slot=>{const src=imageFromCar(selectedVendorVehicle,slot,'large');return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={'Vehicle '+(slot+1)} loading="eager" decoding="async" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>})}</div>
             <div className="vendor-detail-status-row"><span className={statusClass(selectedVendorVehicle.approvalStatus)}>{String(selectedVendorVehicle.approvalStatus||'PENDING').toUpperCase()}</span>{selectedVendorVehicle.rejectionReason&&<span className="vendor-review-note">{selectedVendorVehicle.rejectionReason}</span>}</div>
             <div className="detail-grid-web"><span>Make / model <b>{[selectedVendorVehicle.make,selectedVendorVehicle.model,selectedVendorVehicle.variant].filter(Boolean).join(' ')||'—'}</b></span><span>Category / seats <b>{selectedVendorVehicle.category} / {selectedVendorVehicle.seats}</b></span><span>Transmission / fuel <b>{selectedVendorVehicle.transmission} / {selectedVendorVehicle.fuelType||'—'}</b></span><span>Manufacturing year <b>{selectedVendorVehicle.manufacturingYear||'—'}</b></span><span>Registration year <b>{selectedVendorVehicle.registrationYear||'—'}</b></span><span>Price per day <b>{money(selectedVendorVehicle.pricePerDay)}</b></span><span>Registration number <b>{selectedVendorVehicle.registrationNumber||'—'}</b></span><span>Pickup address <b>{selectedVendorVehicle.pickupAddress||'—'}</b></span><span>City / state <b>{selectedVendorVehicle.city||'—'} / {selectedVendorVehicle.state||'—'}</b></span></div>
-            <div className="driver-profile-card"><div className="driver-profile-photo">{selectedVendorVehicle.driverPhotoUrl?<img src={selectedVendorVehicle.driverPhotoUrl.startsWith('http')?selectedVendorVehicle.driverPhotoUrl:base+selectedVendorVehicle.driverPhotoUrl} alt="Driver"/>:<UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName||'Driver'}</b><span>{selectedVendorVehicle.driverMobile||'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber||'Licence not provided'}</small><small>{selectedVendorVehicle.driverLicenseExpiry?date(selectedVendorVehicle.driverLicenseExpiry):'Licence expiry not provided'}</small></div></div>
+            <div className="driver-profile-card"><div className="driver-profile-photo">{(selectedVendorVehicle.driverPhoto?.largeUrl || selectedVendorVehicle.driverPhotoUrl)?<img src={rentalPhotoClientUrl(selectedVendorVehicle.driverPhoto?.largeUrl || selectedVendorVehicle.driverPhotoUrl)} alt="Driver"/>:<UserRound size={22}/>}</div><div><b>{selectedVendorVehicle.driverName||'Driver'}</b><span>{selectedVendorVehicle.driverMobile||'Mobile not provided'}</span><small>{selectedVendorVehicle.driverLicenseNumber||'Licence not provided'}</small><small>{selectedVendorVehicle.driverLicenseExpiry?date(selectedVendorVehicle.driverLicenseExpiry):'Licence expiry not provided'}</small></div></div>
             <div className="form-actions"><button className="landing-secondary" onClick={()=>setSelectedVendorVehicle(undefined)}>Close details</button>{String(selectedVendorVehicle.approvalStatus||'').toUpperCase()!=='APPROVED' || vendorVehicles.some(x=>x.id===selectedVendorVehicle.id && vehicleUnavailability.some(u=>u.carId===x.id && u.startDate<=localDate() && u.endDate>=localDate())) ? <button className="landing-primary" onClick={()=>{const car=selectedVendorVehicle;setSelectedVendorVehicle(undefined);resetVehicleForm(car)}}>Edit details</button>:null}</div>
           </div>
         </div>}
@@ -3225,7 +3325,7 @@ export default function Portal() {
             </div>
 
             <div className="rental-public-driver-card">
-              <span className="rental-driver-avatar large">{rentalDetails.driverPhotoUrl ? <img src={rentalDetails.driverPhotoUrl.startsWith('http') ? rentalDetails.driverPhotoUrl : base + rentalDetails.driverPhotoUrl} alt={rentalDetails.driverName}/> : <UserRound size={20}/>}</span>
+              <span className="rental-driver-avatar large">{(rentalDetails.driverPhoto?.largeUrl || rentalDetails.driverPhotoUrl) ? <img src={rentalPhotoClientUrl(rentalDetails.driverPhoto?.largeUrl || rentalDetails.driverPhotoUrl)} alt={rentalDetails.driverName}/> : <UserRound size={20}/>}</span>
               <div><small>Chauffeur</small><b>{rentalDetails.driverName}</b>{rentalDetails.driverMobile && <span>{rentalDetails.driverMobile}</span>}{rentalDetails.driverRating != null && <span className="rental-driver-rating">★ {Number(rentalDetails.driverRating).toFixed(1)}</span>}</div>
             </div>
 

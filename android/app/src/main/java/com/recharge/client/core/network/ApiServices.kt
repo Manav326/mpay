@@ -90,12 +90,25 @@ interface ClientApi {
         @Part photo: MultipartBody.Part
     ): Response<RentalCarResponse>
 
+    @POST("api/v1/car-rental/vendor/drivers/{driverId}/photo/import-url")
+    suspend fun importRentalDriverPhotoFromUrl(
+        @retrofit2.http.Path("driverId") driverId: String,
+        @Body request: RentalPhotoUrlImportRequest
+    ): Response<RentalCarResponse>
+
     @Multipart
     @PUT("api/v1/car-rental/vendor/vehicles/{carId}/photos/{slot}")
     suspend fun uploadRentalVehiclePhoto(
         @retrofit2.http.Path("carId") carId: String,
         @retrofit2.http.Path("slot") slot: Int,
         @Part photo: MultipartBody.Part
+    ): Response<RentalCarResponse>
+
+    @POST("api/v1/car-rental/vendor/vehicles/{carId}/photos/{slot}/import-url")
+    suspend fun importRentalVehiclePhotoFromUrl(
+        @retrofit2.http.Path("carId") carId: String,
+        @retrofit2.http.Path("slot") slot: Int,
+        @Body request: RentalPhotoUrlImportRequest
     ): Response<RentalCarResponse>
 
     @PUT("api/v1/car-rental/vendor/vehicles/{carId}")

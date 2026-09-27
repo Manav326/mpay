@@ -15,6 +15,7 @@ import com.recharge.client.core.model.RechargeRequest
 import com.recharge.client.core.model.RechargeResponse
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
 import com.recharge.client.core.model.RentalVendorUpdateRequest
+import com.recharge.client.core.model.RentalPhotoUrlImportRequest
 import com.recharge.client.core.model.RechargeHistoryResponse
 import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.VerifyPaymentRequest
@@ -270,6 +271,22 @@ class ClientRepository(context: Context) {
     }
 
 
+    suspend fun importRentalDriverPhotoFromUrl(
+        driverId: String,
+        url: String
+    ): Result<com.recharge.client.core.model.RentalCarResponse> = apiCall {
+        val normalized = url.trim()
+        require(normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            "Please enter a valid image URL."
+        }
+        val response = api.importRentalDriverPhotoFromUrl(
+            driverId,
+            RentalPhotoUrlImportRequest(normalized)
+        )
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun uploadRentalDriverPhoto(
         driverId: String,
         uri: Uri
@@ -285,6 +302,24 @@ class ClientRepository(context: Context) {
         val body = bytes.toRequestBody(mime.toMediaType())
         val part = MultipartBody.Part.createFormData("photo", "driver-photo", body)
         val response = api.uploadRentalDriverPhoto(driverId, part)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun importRentalVehiclePhotoFromUrl(
+        carId: String,
+        slot: Int,
+        url: String
+    ): Result<com.recharge.client.core.model.RentalCarResponse> = apiCall {
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+        require(url.trim().startsWith("http://") || url.trim().startsWith("https://")) {
+            "Please enter a valid image URL."
+        }
+        val response = api.importRentalVehiclePhotoFromUrl(
+            carId,
+            slot,
+            RentalPhotoUrlImportRequest(url.trim())
+        )
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }

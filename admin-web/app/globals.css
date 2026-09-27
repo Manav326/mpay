@@ -3591,6 +3591,91 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .vehicle-form-description{margin:-3px 0 10px;color:#7e7468;font-size:10px}
 .vehicle-form-helper{margin-top:10px;color:#7e7468;font-size:9px}
 .vehicle-photo-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.photo-picker-backdrop{
+  position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:18px;
+  background:rgba(35,29,24,.42);backdrop-filter:blur(8px)
+}
+.photo-picker-modal{
+  position:relative;width:min(620px,100%);max-height:min(92vh,760px);overflow:auto;
+  padding:22px;border:1px solid #e8dfd4;border-radius:22px;background:#fff;
+  box-shadow:0 28px 80px rgba(31,25,20,.22)
+}
+.photo-picker-close{
+  position:absolute;top:14px;right:14px;width:34px;height:34px;border:1px solid #e7ded3;
+  border-radius:10px;background:#fff;color:#6f665d;display:grid;place-items:center;cursor:pointer
+}
+.photo-picker-header{padding-right:42px;margin-bottom:14px}
+.photo-picker-kicker{display:block;margin-bottom:4px;color:#a66a16;font-size:8px;font-weight:900;letter-spacing:.16em}
+.photo-picker-header h2{margin:0;color:#2e2924;font-size:20px}
+.photo-picker-header p{margin:5px 0 0;color:#7b7269;font-size:10px;line-height:1.5}
+.photo-picker-current{
+  display:grid;grid-template-columns:1fr 112px;align-items:center;gap:12px;padding:10px;
+  border:1px solid #eee6dc;border-radius:14px;background:#fbf9f6;margin-bottom:12px
+}
+.photo-picker-current>div{display:flex;flex-direction:column;gap:2px}
+.photo-picker-current span{font-size:10px;font-weight:800;color:#494039}
+.photo-picker-current small{font-size:9px;color:#8a8178}
+.photo-picker-current img{width:112px;height:76px;object-fit:cover;border-radius:10px;background:#eee8e0}
+.photo-picker-source-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.photo-picker-source{
+  display:flex;align-items:center;gap:10px;padding:12px;text-align:left;border:1px solid #e6ddd2;
+  border-radius:14px;background:#fcfaf7;color:#332d27;cursor:pointer
+}
+.photo-picker-source:hover{border-color:#d6c7b6;transform:translateY(-1px)}
+.photo-picker-source.selected{border-color:#d29a48;background:#fff8ea;box-shadow:0 0 0 2px rgba(210,154,72,.12)}
+.photo-picker-source-icon{
+  width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:10px;
+  background:#f2eadf;color:#8c5d1f
+}
+.photo-picker-source span:last-child{display:flex;flex-direction:column;gap:2px}
+.photo-picker-source b{font-size:10px}
+.photo-picker-source small{font-size:8px;color:#82786f;line-height:1.4}
+.photo-picker-empty{
+  min-height:100px;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;
+  border:1px dashed #dfd5c8;border-radius:14px;background:#fcfaf7;color:#8b8177
+}
+.photo-picker-empty div{display:flex;flex-direction:column;gap:2px}
+.photo-picker-empty b{color:#534a42;font-size:10px}
+.photo-picker-empty span{font-size:9px}
+.photo-picker-candidate{margin-top:12px}
+.photo-picker-candidate>img,.photo-picker-url-preview{
+  display:block;width:100%;height:245px;object-fit:cover;border-radius:15px;background:#f1ece5
+}
+.photo-picker-dropzone{
+  width:100%;min-height:150px;border:1px dashed #dbcdbd;border-radius:14px;background:#fcfaf7;
+  display:grid;place-items:center;align-content:center;gap:5px;color:#8a7d70;cursor:pointer
+}
+.photo-picker-dropzone b{font-size:11px;color:#4e443b}
+.photo-picker-dropzone span{font-size:9px}
+.photo-picker-url-field{display:flex;flex-direction:column;gap:6px}
+.photo-picker-url-field>span{font-size:9px;font-weight:800;color:#655c54}
+.photo-picker-url-field input{
+  width:100%;min-height:42px;padding:0 12px;border:1px solid #ddd3c7;border-radius:11px;
+  background:#fff;color:#332d27;font-size:10px;outline:0
+}
+.photo-picker-url-field input:focus{border-color:#d29a48;box-shadow:0 0 0 3px rgba(210,154,72,.10)}
+.photo-picker-result{
+  display:flex;align-items:flex-start;gap:7px;margin-top:9px;padding:9px 10px;border-radius:10px;font-size:9px;line-height:1.45
+}
+.photo-picker-result.ready{background:#f0faf3;color:#16733c}
+.photo-picker-result.error{background:#fff2ef;color:#b42318}
+.photo-picker-result.loading{background:#f8f5f1;color:#746c63}
+.photo-picker-spin{animation:photo-picker-spin .9s linear infinite}
+@keyframes photo-picker-spin{to{transform:rotate(360deg)}}
+.photo-picker-url-help{margin-top:9px;padding:9px 10px;border-radius:10px;background:#f8f5f1;color:#746c63;font-size:9px;line-height:1.45}
+.photo-picker-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.photo-picker-footnote{margin:10px 1px 0;color:#948a80;font-size:8px;line-height:1.45;text-align:center}
+.photo-picker-keep-current{
+  display:block;margin-top:5px;padding:0;border:0;background:none;color:#7b6653;font-size:8px;font-weight:800;
+  cursor:pointer
+}
+@media (max-width:640px){
+  .photo-picker-backdrop{padding:10px}
+  .photo-picker-modal{padding:16px;border-radius:19px}
+  .photo-picker-current{grid-template-columns:1fr 92px}
+  .photo-picker-current img{width:92px;height:68px}
+  .photo-picker-candidate>img,.photo-picker-url-preview{height:205px}
+}
 .vehicle-photo-form-card{
   padding:9px;border:1px solid #ebe3d8;border-radius:14px;background:#faf8f3
 }

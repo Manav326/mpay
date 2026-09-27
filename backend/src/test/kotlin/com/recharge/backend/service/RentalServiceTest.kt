@@ -34,9 +34,15 @@ class RentalServiceTest {
     private val rentalPaymentRepository = Mockito.mock(RentalPaymentRepository::class.java)
     private val rentalPayouts = Mockito.mock(RentalPayoutService::class.java)
     private val rentalImageStorage = Mockito.mock(RentalImageStorage::class.java)
+    private val rentalPhotoService = Mockito.mock(RentalPhotoService::class.java)
+    private val rentalPhotoImportService = Mockito.mock(RentalPhotoImportService::class.java)
     private val vendorReviews = Mockito.mock(RentalVendorReviewRepository::class.java)
     private val carReviews = Mockito.mock(RentalCarReviewRepository::class.java)
-    private val service = RentalService(vendors, drivers, cars, bookings, vehicleUnavailability, users, rentalPayments, rentalPaymentRepository, rentalPayouts, rentalImageStorage, vendorReviews, carReviews)
+    private val service = RentalService(
+        vendors, drivers, cars, bookings, vehicleUnavailability, users, rentalPayments,
+        rentalPaymentRepository, rentalPayouts, rentalImageStorage, rentalPhotoService,
+        rentalPhotoImportService, vendorReviews, carReviews
+    )
 
     @Test
     fun bookingTotalIsCalculatedServerSideAndRentalPaymentIsUsed() {

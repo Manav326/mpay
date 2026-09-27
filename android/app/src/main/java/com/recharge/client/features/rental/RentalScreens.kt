@@ -3,7 +3,6 @@ package com.recharge.client.features.rental
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
-import android.net.Uri
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -13,8 +12,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -92,7 +89,22 @@ private fun formatRentalBookingDateTime(value: String): String =
     runCatching { LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME).format(rentalBookingDisplayFormatter) }
         .getOrElse { value }
 
-private fun rentalPhotoSlots(imageUrl: String?): List<String> {
+private fun rentalPhotoSlots(
+    imageUrl: String?,
+    photos: List<RentalPhotoResource> = emptyList(),
+    variant: String? = null
+): List<String> {
+    if (photos.isNotEmpty()) {
+        return List(4) { index ->
+            photos.firstOrNull { it.slot == index }?.let { photo ->
+                when (variant) {
+                    "thumb" -> photo.thumbnailUrl
+                    "large" -> photo.largeUrl
+                    else -> photo.url
+                }
+            }.orEmpty()
+        }
+    }
     val values = imageUrl.orEmpty()
         .replace("\\n", "|")
         .split("|")
@@ -108,6 +120,7 @@ private fun rentalPhotoDisplayUrl(value: String?, variant: String = "thumb"): St
         return trimmed
     }
     val base = ApiConfig.BASE_URL.trimEnd('/') + "/" + trimmed.trimStart('/')
+    if (base.contains("variant=")) return base
     val separator = if (base.contains("?")) "&" else "?"
     return base + separator + "variant=" + variant
 }
@@ -840,7 +853,7 @@ fun RentalVendorOnboardingScreen(
                                     Modifier.fillMaxWidth().padding(9.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    RentalVehicleGallery(car.imageUrl, loadThumbnails = true, mainVariant = "thumb")
+                                    RentalVehicleGallery(car.imageUrl, car.photos, loadThumbnails = true, mainVariant = "thumb")
                                     Text(car.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(
                                         car.category + " • " + car.seats + " seats",
@@ -1208,13 +1221,15 @@ private fun RentalCarImageTile(
 @Composable
 private fun RentalVehicleGallery(
     imageUrl: String?,
+    photos: List<RentalPhotoResource> = emptyList(),
     driverPhotoUrl: String? = null,
     modifier: Modifier = Modifier,
     loadThumbnails: Boolean = true,
     mainVariant: String = "large"
 ) {
-    val urls = rentalPhotoSlots(imageUrl)
-    var focusedIndex by remember(urls.joinToString("|")) { mutableIntStateOf(0) }
+    val mainUrls = rentalPhotoSlots(imageUrl, photos, mainVariant)
+    val thumbnailUrls = rentalPhotoSlots(imageUrl, photos, "thumb")
+    var focusedIndex by remember(mainUrls.joinToString("|")) { mutableIntStateOf(0) }
     val orderedSmall = (0..3).filter { it != focusedIndex }
 
     Box(modifier) {
@@ -1223,7 +1238,7 @@ private fun RentalVehicleGallery(
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             RentalCarImageTile(
-                urls[focusedIndex],
+                mainUrls[focusedIndex],
                 Modifier.fillMaxWidth().aspectRatio(1.75f),
                 variant = mainVariant
             )
@@ -1234,7 +1249,7 @@ private fun RentalVehicleGallery(
                 ) {
                     orderedSmall.take(3).forEach { index ->
                         RentalCarImageTile(
-                            urls[index],
+                            thumbnailUrls[index],
                             Modifier
                                 .weight(1f)
                                 .aspectRatio(1.55f)
@@ -1278,7 +1293,7 @@ private fun RentalPublicCarDetailsDialog(
             ) {
                 item {
                     Box(Modifier.fillMaxWidth()) {
-                        RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                        RentalVehicleGallery(car.imageUrl, car.photos, modifier = Modifier.fillMaxWidth())
                         Surface(
                             Modifier.align(Alignment.TopStart).padding(8.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -1577,7 +1592,7 @@ fun CarRentalMarketplaceScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box {
-                                RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth(), loadThumbnails = true, mainVariant = "thumb")
+                                RentalVehicleGallery(car.imageUrl, car.photos, modifier = Modifier.fillMaxWidth(), loadThumbnails = true, mainVariant = "thumb")
                                 Surface(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp),
                                     shape = RoundedCornerShape(9.dp),
@@ -1707,14 +1722,13 @@ fun CarRentalMarketplaceScreen(
 private fun VehiclePhotoField(
     title: String,
     value: String,
-    galleryUri: String?,
-    onValueChange: (String) -> Unit,
-    onPickGallery: () -> Unit,
-    onClearGallery: () -> Unit,
+    candidate: RentalPhotoCandidate?,
+    onChangePhoto: () -> Unit,
+    onKeepCurrent: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val gallerySelected = galleryUri != null
-    val preview = galleryUri ?: value.takeIf { it.isNotBlank() }
+    val preview = candidate?.value ?: value.takeIf { it.isNotBlank() }
+    val hasCandidate = candidate != null
 
     Card(modifier = modifier, shape = RoundedCornerShape(14.dp)) {
         Column(
@@ -1726,7 +1740,7 @@ private fun VehiclePhotoField(
                     .fillMaxWidth()
                     .height(86.dp)
                     .clip(RoundedCornerShape(9.dp))
-                    .clickable(enabled = !gallerySelected, onClick = onPickGallery)
+                    .clickable(onClick = onChangePhoto)
             ) {
                 RentalCarImageTile(preview, Modifier.fillMaxSize())
                 Surface(
@@ -1735,46 +1749,44 @@ private fun VehiclePhotoField(
                     color = Color.Black.copy(alpha = .62f)
                 ) {
                     Text(
-                        if (gallerySelected) "Device photo" else "Choose photo",
+                        when {
+                            hasCandidate -> "New photo"
+                            value.isNotBlank() -> "Current photo"
+                            else -> "Choose photo"
+                        },
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
                     )
                 }
             }
-            if (gallerySelected) {
-                Text(
-                    "Photo selected from device",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AppColors.TextSecondary
-                )
+            Text(
+                when {
+                    candidate?.source == RentalPhotoCandidateSource.URL -> "New photo selected from image URL"
+                    candidate?.source == RentalPhotoCandidateSource.DEVICE -> "New photo selected from device"
+                    value.isNotBlank() -> "Photo stored by mPay. Choose Change photo to replace it."
+                    else -> "Choose a photo from your device or use a direct image URL."
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = AppColors.TextSecondary
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 OutlinedButton(
-                    onClick = onClearGallery,
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onChangePhoto,
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(vertical = 7.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Use image URL instead", style = MaterialTheme.typography.labelSmall)
+                    Text(if (hasCandidate || value.isNotBlank()) "Change photo" else "Choose photo", style = MaterialTheme.typography.labelSmall)
                 }
-            } else {
-                VendorField(
-                    "$title image URL",
-                    value,
-                    modifier = Modifier.fillMaxWidth(),
-                    onValueChange = onValueChange
-                )
-                Text(
-                    "Or choose a photo from your device.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AppColors.TextSecondary
-                )
-                OutlinedButton(
-                    onClick = onPickGallery,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 7.dp),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Choose from device", style = MaterialTheme.typography.labelSmall)
+                if (hasCandidate) {
+                    TextButton(
+                        onClick = onKeepCurrent,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 7.dp)
+                    ) {
+                        Text(if (value.isNotBlank()) "Keep current" else "Clear", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
         }
@@ -1782,7 +1794,11 @@ private fun VehiclePhotoField(
 }
 
 private class RentalVehicleFormState(car: RentalCarResponse?) {
-    private val existingPhotos = rentalPhotoSlots(car?.imageUrl)
+    private val existingPhotos = if (car?.photos?.isNotEmpty() == true) {
+        rentalPhotoSlots(car.imageUrl, car.photos)
+    } else {
+        rentalPhotoSlots(car?.imageUrl)
+    }
 
     var name by mutableStateOf(car?.name.orEmpty())
     var make by mutableStateOf(car?.make.orEmpty())
@@ -1813,26 +1829,23 @@ private class RentalVehicleFormState(car: RentalCarResponse?) {
     var photoSide by mutableStateOf(existingPhotos.getOrNull(1).orEmpty())
     var photoRear by mutableStateOf(existingPhotos.getOrNull(2).orEmpty())
     var photoInterior by mutableStateOf(existingPhotos.getOrNull(3).orEmpty())
-    var galleryFront by mutableStateOf<String?>(null)
-    var gallerySide by mutableStateOf<String?>(null)
-    var galleryRear by mutableStateOf<String?>(null)
-    var galleryInterior by mutableStateOf<String?>(null)
+    val pendingPhotos = List(4) { mutableStateOf<RentalPhotoCandidate?>(null) }
     var driverName by mutableStateOf(car?.driverName.orEmpty())
     var driverMobile by mutableStateOf(car?.driverMobile.orEmpty())
     var licenseNumber by mutableStateOf(car?.driverLicenseNumber.orEmpty())
     var licenseExpiry by mutableStateOf(car?.driverLicenseExpiry.orEmpty())
     var driverAddress by mutableStateOf(car?.driverAddress.orEmpty())
-    var driverPhotoUri by mutableStateOf<String?>(null)
+    var driverPhoto by mutableStateOf<RentalPhotoCandidate?>(null)
     var submitAttempted by mutableStateOf(false)
 }
 
 @Composable
 fun RentalVehicleOnboardingScreen(
     state: RentalUiState,
-    onSubmit: (RentalVehicleOnboardingRequest, Map<Int, String>, String?, () -> Unit) -> Unit,
+    onSubmit: (RentalVehicleOnboardingRequest, RentalVehiclePhotoChanges, () -> Unit) -> Unit,
     onBack: () -> Unit,
     editingCar: RentalCarResponse? = null,
-    onResubmit: ((String, RentalVehicleUpdateRequest, Map<Int, String>, String?, () -> Unit) -> Unit)? = null
+    onResubmit: ((String, RentalVehicleUpdateRequest, RentalVehiclePhotoChanges, () -> Unit) -> Unit)? = null
 ) {
     val form = remember(editingCar?.id) { RentalVehicleFormState(editingCar) }
 
@@ -1855,33 +1868,21 @@ fun RentalVehicleOnboardingScreen(
         }
     }
 
-    val combinedPhotos = listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)
-        .map { it.trim() }
-        .joinToString("|")
-        .takeIf { listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior).any { it.isNotBlank() } }
+    val photoChanges = RentalVehiclePhotoChanges(
+        vehiclePhotos = form.pendingPhotos
+            .mapIndexedNotNull { index, state ->
+                state.value?.let { index to it }
+            }
+            .toMap(),
+        driverPhoto = form.driverPhoto
+    )
 
-    val galleryPhotos = listOf(form.galleryFront, form.gallerySide, form.galleryRear, form.galleryInterior)
-        .mapIndexedNotNull { index, uri -> uri?.let { index to it } }
-        .toMap()
+    var pickerTarget by remember { mutableStateOf<Int?>(null) }
+    var pickerTitle by remember { mutableStateOf("") }
 
-    val frontGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        form.galleryFront = uri?.toString()
-        if (uri != null) form.photoFront = ""
-    }
-    val sideGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        form.gallerySide = uri?.toString()
-        if (uri != null) form.photoSide = ""
-    }
-    val rearGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        form.galleryRear = uri?.toString()
-        if (uri != null) form.photoRear = ""
-    }
-    val interiorGalleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        form.galleryInterior = uri?.toString()
-        if (uri != null) form.photoInterior = ""
-    }
-    val driverPhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        form.driverPhotoUri = uri?.toString()
+    fun openPhotoPicker(slot: Int, title: String) {
+        pickerTarget = slot
+        pickerTitle = title
     }
 
     LazyColumn(
@@ -2037,55 +2038,43 @@ fun RentalVehicleOnboardingScreen(
                 ) {
                     Text("Vehicle photos", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "All four vehicle photos are mandatory. Use an image URL or a photo from your device for each slot.",
+                        "All four vehicle photos are mandatory. Existing photos stay unchanged until you choose a replacement.",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
-                            "Front photo", form.photoFront, form.galleryFront,
-                            { form.photoFront = it },
-                            {
-                                frontGalleryLauncher.launch("image/*")
-                            },
-                            { form.galleryFront = null },
+                            "Front photo", form.photoFront, form.pendingPhotos[0].value,
+                            { openPhotoPicker(0, "Change front photo") },
+                            { form.pendingPhotos[0].value = null },
                             Modifier.weight(1f)
                         )
                         VehiclePhotoField(
-                            "Side photo", form.photoSide, form.gallerySide,
-                            { form.photoSide = it },
-                            {
-                                sideGalleryLauncher.launch("image/*")
-                            },
-                            { form.gallerySide = null },
+                            "Side photo", form.photoSide, form.pendingPhotos[1].value,
+                            { openPhotoPicker(1, "Change side photo") },
+                            { form.pendingPhotos[1].value = null },
                             Modifier.weight(1f)
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         VehiclePhotoField(
-                            "Rear photo", form.photoRear, form.galleryRear,
-                            { form.photoRear = it },
-                            {
-                                rearGalleryLauncher.launch("image/*")
-                            },
-                            { form.galleryRear = null },
+                            "Rear photo", form.photoRear, form.pendingPhotos[2].value,
+                            { openPhotoPicker(2, "Change rear photo") },
+                            { form.pendingPhotos[2].value = null },
                             Modifier.weight(1f)
                         )
                         VehiclePhotoField(
-                            "Interior photo", form.photoInterior, form.galleryInterior,
-                            { form.photoInterior = it },
-                            {
-                                interiorGalleryLauncher.launch("image/*")
-                            },
-                            { form.galleryInterior = null },
+                            "Interior photo", form.photoInterior, form.pendingPhotos[3].value,
+                            { openPhotoPicker(3, "Change interior photo") },
+                            { form.pendingPhotos[3].value = null },
                             Modifier.weight(1f)
                         )
                     }
                     val vehiclePhotosComplete = listOf(
-                        form.photoFront.isNotBlank() || form.galleryFront != null,
-                        form.photoSide.isNotBlank() || form.gallerySide != null,
-                        form.photoRear.isNotBlank() || form.galleryRear != null,
-                        form.photoInterior.isNotBlank() || form.galleryInterior != null
+                        form.photoFront.isNotBlank() || form.pendingPhotos[0].value != null,
+                        form.photoSide.isNotBlank() || form.pendingPhotos[1].value != null,
+                        form.photoRear.isNotBlank() || form.pendingPhotos[2].value != null,
+                        form.photoInterior.isNotBlank() || form.pendingPhotos[3].value != null
                     ).all { it }
                     if (form.submitAttempted && !vehiclePhotosComplete) {
                         Text(
@@ -2124,7 +2113,7 @@ fun RentalVehicleOnboardingScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             RentalCarImageTile(
-                                form.driverPhotoUri ?: editingCar?.driverPhotoUrl,
+                                form.driverPhoto?.value ?: editingCar?.driverPhoto?.thumbnailUrl ?: editingCar?.driverPhotoUrl,
                                 Modifier
                                     .size(82.dp)
                                     .clip(RoundedCornerShape(topEnd = 17.dp, topStart = 7.dp, bottomEnd = 7.dp, bottomStart = 7.dp))
@@ -2133,11 +2122,11 @@ fun RentalVehicleOnboardingScreen(
                                 Text("Driver photo", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
                                 Text("Passport-style square photo", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                                 OutlinedButton(
-                                    onClick = { driverPhotoLauncher.launch("image/*") },
+                                    onClick = { openPhotoPicker(4, "Change driver photo") },
                                     contentPadding = PaddingValues(horizontal = 9.dp, vertical = 6.dp),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
-                                    Text(if (form.driverPhotoUri != null) "Change" else "Add", style = MaterialTheme.typography.labelSmall)
+                                    Text(if (form.driverPhoto != null || editingCar?.driverPhoto?.url != null || !editingCar?.driverPhotoUrl.isNullOrBlank()) "Change photo" else "Add photo", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
@@ -2191,14 +2180,41 @@ fun RentalVehicleOnboardingScreen(
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
 
         item {
+            pickerTarget?.let { target ->
+                RentalPhotoPickerDialog(
+                    title = pickerTitle,
+                    currentPreview = when {
+                        target in 0..3 -> form.pendingPhotos[target].value?.value
+                            ?: listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)[target]
+                                .takeIf { it.isNotBlank() }
+                                ?.let { rentalPhotoDisplayUrl(it, "large") }
+                        target == 4 -> form.driverPhoto?.value
+                            ?: editingCar?.driverPhoto?.largeUrl
+                            ?: editingCar?.driverPhotoUrl
+                        else -> null
+                    },
+                    onDismiss = { pickerTarget = null },
+                    onUse = { candidate ->
+                        if (target in 0..3) {
+                            form.pendingPhotos[target].value = candidate
+                        } else if (target == 4) {
+                            form.driverPhoto = candidate
+                        }
+                        pickerTarget = null
+                    }
+                )
+            }
+        }
+
+        item {
             val manufacturing = form.manufacturingYear.toIntOrNull()
             val registration = form.registrationYear.toIntOrNull()
             val normalizedDriverMobile = normalizeIndianMobile(form.driverMobile)
             val vehiclePhotosComplete = listOf(
-                form.photoFront.isNotBlank() || form.galleryFront != null,
-                form.photoSide.isNotBlank() || form.gallerySide != null,
-                form.photoRear.isNotBlank() || form.galleryRear != null,
-                form.photoInterior.isNotBlank() || form.galleryInterior != null
+                form.photoFront.isNotBlank() || form.pendingPhotos[0].value != null,
+                form.photoSide.isNotBlank() || form.pendingPhotos[1].value != null,
+                form.photoRear.isNotBlank() || form.pendingPhotos[2].value != null,
+                form.photoInterior.isNotBlank() || form.pendingPhotos[3].value != null
             ).all { it }
             val licenseExpiryDate = runCatching {
                 LocalDate.parse(form.licenseExpiry.take(10), rentalDateFormatter)
@@ -2252,11 +2268,10 @@ fun RentalVehicleOnboardingScreen(
                                 state = form.stateName.trim(),
                                 pricePerDay = form.pricePerDay.toBigDecimal(),
                                 pickupLocation = null,
-                                imageUrl = combinedPhotos,
+                                imageUrl = null,
                                 driver = driver
                             ),
-                            galleryPhotos,
-                            form.driverPhotoUri,
+                            photoChanges,
                             onBack
                         )
                     } else {
@@ -2278,11 +2293,10 @@ fun RentalVehicleOnboardingScreen(
                                 state = form.stateName.trim(),
                                 pricePerDay = form.pricePerDay.toBigDecimal(),
                                 pickupLocation = null,
-                                imageUrl = combinedPhotos,
+                                imageUrl = null,
                                 driver = driver
                             ),
-                            galleryPhotos,
-                            form.driverPhotoUri,
+                            photoChanges,
                             onBack
                         )
                     }
@@ -2341,7 +2355,7 @@ private fun RentalVehicleDetailsDialog(
                         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Vehicle photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                rentalPhotoSlots(car.imageUrl).forEach { photo ->
+                                rentalPhotoSlots(car.imageUrl, car.photos).forEach { photo ->
                                     RentalCarImageTile(photo, Modifier.weight(1f).aspectRatio(1.05f))
                                 }
                             }
@@ -2690,7 +2704,7 @@ fun RentalBookingScreen(
                     Modifier.fillMaxWidth().padding(9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    RentalVehicleGallery(car.imageUrl, modifier = Modifier.fillMaxWidth())
+                    RentalVehicleGallery(car.imageUrl, car.photos, modifier = Modifier.fillMaxWidth())
                     Column(
                         Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -3036,6 +3050,7 @@ fun RentalMyBookingsScreen(
                         ) {
                             RentalVehicleGallery(
                                 booking.carImageUrl,
+                                booking.carPhotos,
                                 modifier = Modifier.fillMaxWidth(),
                                 loadThumbnails = true,
                                 mainVariant = "thumb"
@@ -3122,7 +3137,7 @@ fun RentalMyBookingsScreen(
                                         }
                                     }
                                     RentalCarImageTile(
-                                        booking.driverPhotoUrl,
+                                        booking.driverPhoto?.thumbnailUrl ?: booking.driverPhotoUrl,
                                         Modifier
                                             .size(42.dp)
                                             .clip(RoundedCornerShape(10.dp))
