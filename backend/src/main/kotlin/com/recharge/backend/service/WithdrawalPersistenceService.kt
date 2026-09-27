@@ -3,6 +3,7 @@ package com.recharge.backend.service
 import com.recharge.backend.domain.WalletWithdrawalEntity
 import com.recharge.backend.repository.WalletWithdrawalRepository
 import org.springframework.stereotype.Service
+import org.slf4j.LoggerFactory
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.time.Instant
@@ -13,6 +14,8 @@ class WithdrawalPersistenceService(
     private val withdrawals: WalletWithdrawalRepository,
     private val wallet: WalletService
 ) {
+    private val log = LoggerFactory.getLogger(WithdrawalPersistenceService::class.java)
+
     @Transactional
     fun createOrGetPending(
         userId: Long,
@@ -21,16 +24,19 @@ class WithdrawalPersistenceService(
         providerName: String,
         clientRequestId: String
     ): WalletWithdrawalEntity {
+        log.info("WITHDRAW_TRACE persistence_enter user={} amount={} provider={}", userId, amount, providerName)
         withdrawals.findByUserIdAndClientRequestId(userId, clientRequestId).orElse(null)?.let { return it }
 
+        log.info("WITHDRAW_TRACE reserve_enter user={} amount={}", userId, amount)
         wallet.reserve(userId, amount)
+        log.info("WITHDRAW_TRACE reserve_exit user={} amount={}", userId, amount)
 
         withdrawals.findByUserIdAndClientRequestId(userId, clientRequestId).orElse(null)?.let {
             wallet.releaseReservation(userId, amount)
             return it
         }
 
-        return withdrawals.save(
+        val saved = withdrawals.save(
             WalletWithdrawalEntity(
                 withdrawalId = "WDR-" + UUID.randomUUID().toString().replace("-", "").take(24).uppercase(),
                 clientRequestId = clientRequestId,
@@ -41,6 +47,8 @@ class WithdrawalPersistenceService(
                 status = "PENDING"
             )
         )
+        log.info("WITHDRAW_TRACE withdrawal_saved withdrawalId={} user={} status={}", saved.withdrawalId, userId, saved.status)
+        return saved
     }
 
     @Transactional
