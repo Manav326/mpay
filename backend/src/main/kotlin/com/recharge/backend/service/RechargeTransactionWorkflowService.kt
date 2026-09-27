@@ -54,6 +54,49 @@ class RechargeTransactionWorkflowService(
     }
 
     @Transactional
+    fun recordPreSubmissionFailure(
+        userId: Long,
+        request: RechargeRequestData,
+        plan: RechargePlan,
+        providerName: String,
+        companyCommission: BigDecimal,
+        clientCommission: BigDecimal,
+        walletDebitAmount: BigDecimal,
+        message: String
+    ): RechargeTransactionEntity {
+        val existing = repository.findByClientRequestIdAndUserId(request.clientRequestId, userId).orElse(null)
+        if (existing != null) return existing
+
+        val now = Instant.now()
+        return repository.save(
+            RechargeTransactionEntity(
+                transactionId = request.transactionId,
+                clientRequestId = request.clientRequestId,
+                userId = userId,
+                mobileNumber = request.mobileNumber,
+                recipientName = request.recipientName,
+                operator = request.operator,
+                circle = request.circle,
+                planId = plan.id,
+                planDescription = plan.description,
+                planValidity = plan.validity,
+                amount = plan.amount,
+                companyCommission = companyCommission,
+                clientCommission = clientCommission,
+                walletDebitAmount = walletDebitAmount.max(BigDecimal.ZERO).setScale(2),
+                status = "FAILED",
+                providerName = providerName,
+                providerReference = null,
+                providerOrderId = plan.providerOrderId,
+                completedAt = now,
+                message = message,
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+    }
+
+    @Transactional
     fun applyProviderResult(
         transactionId: String,
         resultStatus: String,
