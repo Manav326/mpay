@@ -34,6 +34,7 @@ class PayUPaymentGatewayProvider(
     override fun isConfigured(): Boolean =
         properties.effectivePgKey().isNotBlank() && properties.effectivePgSalt().isNotBlank()
 
+    @Transactional
     override fun createWalletOrder(userId: Long, request: CreatePaymentOrderRequest): CreatePaymentOrderResponse {
         check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
         val amount = request.amount.setScale(2)
@@ -52,7 +53,7 @@ class PayUPaymentGatewayProvider(
         val email = user.email?.trim()?.takeIf { it.isNotBlank() } ?: "${phone}@mpay.local"
         val txnId = "MPAY" + UUID.randomUUID().toString().replace("-", "").take(20)
 
-        orders.save(
+        val order = orders.save(
             PaymentOrderEntity(
                 clientRequestId = request.clientRequestId.trim(),
                 userId = userId,
@@ -70,7 +71,7 @@ class PayUPaymentGatewayProvider(
             )
         )
 
-        return responseFor(userId, orders.findByRazorpayOrderIdAndUserId(txnId, userId).orElseThrow())
+        return responseFor(userId, order)
     }
 
     @Transactional
