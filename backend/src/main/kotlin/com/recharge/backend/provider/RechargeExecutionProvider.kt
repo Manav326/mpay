@@ -5,6 +5,9 @@ interface RechargeExecutionProvider {
     fun isConfigured(): Boolean = true
     fun supportsOperator(operator: String): Boolean = true
 
+    /** Validate all provider prerequisites before any wallet reservation or external submission. */
+    fun validateBeforeSubmission(request: ProviderRechargeRequest) {}
+
     fun recharge(request: ProviderRechargeRequest): ProviderRechargeResult
 
     fun getStatus(transactionReference: String): ProviderRechargeResult? = null
