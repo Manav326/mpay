@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.access.AccessDeniedException
 import java.time.LocalDate
 import org.springframework.web.bind.annotation.*
+import org.slf4j.LoggerFactory
 
 @RestController
 @RequestMapping("/api/v1")
@@ -30,6 +31,7 @@ class ClientController(
     private val rechargeRepository: RechargeTransactionRepository,
     private val withdrawalService: com.recharge.backend.service.WithdrawalService
 ) {
+    private val log = LoggerFactory.getLogger(ClientController::class.java)
     private fun authenticatedUserId(authentication: Authentication): Long =
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
 
@@ -163,14 +165,24 @@ class ClientController(
         return null
     }
     @PostMapping("/wallet/withdraw")
-    fun withdraw(authentication: Authentication, @Valid @RequestBody request: WithdrawMoneyRequest): WithdrawMoneyResponse =
-        withdrawalService.withdraw(
+    fun withdraw(authentication: Authentication, @Valid @RequestBody request: WithdrawMoneyRequest): WithdrawMoneyResponse {
+        log.info(
+            "WITHDRAW_TRACE controller_enter user={} amount={} provider={}",
+            authentication.name, request.amount, request.provider
+        )
+        val response = withdrawalService.withdraw(
             userId = authenticatedUserId(authentication),
             amount = request.amount,
             providerName = request.provider,
             clientRequestId = request.clientRequestId,
             upiId = request.upiId
         )
+        log.info(
+            "WITHDRAW_TRACE controller_exit user={} status={} provider={}",
+            authentication.name, response.status, response.provider
+        )
+        return response
+    }
 
     @GetMapping("/wallet/withdrawals")
     fun withdrawalHistory(
