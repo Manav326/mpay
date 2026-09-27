@@ -34,7 +34,6 @@ import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1886,15 +1885,36 @@ fun RentalVehicleOnboardingScreen(
     var pickerTarget by remember { mutableStateOf<Int?>(null) }
     var pickerTitle by remember { mutableStateOf("") }
     var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
+    var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
+        ActivityResultContracts.GetContent()
     ) { uri ->
+        val target = devicePickerTarget
+        devicePickerTarget = null
         pickedDeviceUri = uri?.toString()
+        if (uri != null && target != null) {
+            val candidate = RentalPhotoCandidate(
+                RentalPhotoCandidateSource.DEVICE,
+                uri.toString()
+            )
+            if (target in 0..3) {
+                form.pendingPhotos[target].value = candidate
+            } else if (target == 4) {
+                form.driverPhoto = candidate
+            }
+        }
     }
 
     LaunchedEffect(pickerTarget) {
         pickedDeviceUri = null
+    }
+
+    LaunchedEffect(devicePickerTarget) {
+        if (devicePickerTarget != null) {
+            kotlinx.coroutines.yield()
+            devicePickerLauncher.launch("image/*")
+        }
     }
 
     fun openPhotoPicker(slot: Int, title: String) {
@@ -2221,9 +2241,8 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
-                        devicePickerLauncher.launch(
-                            androidx.activity.result.PickVisualMediaRequest(PickVisualMedia.ImageOnly)
-                        )
+                        devicePickerTarget = target
+                        pickerTarget = null
                     },
                     onDevicePicked = { uri -> pickedDeviceUri = uri },
                     onDismiss = { pickerTarget = null },
