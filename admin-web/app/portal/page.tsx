@@ -3113,30 +3113,35 @@ export default function Portal() {
 
           <section className="vehicle-form-card">
             <div className="vehicle-form-step-head"><span>2</span><div><b>Vehicle photos</b><small>All four photos are mandatory</small></div></div>
-            <p className="vehicle-form-description">Existing photos are stored by mPay and loaded from the backend. Choose a new device photo only when you want to replace a slot.</p>
+            <p className="vehicle-form-description">Existing photos are shown without exposing their URLs. Choose Change photo only when you want to replace a slot.</p>
             <div className="vehicle-photo-form-grid">
               {['Front photo','Side photo','Rear photo','Interior photo'].map((label,slot)=>{
                 const selectedFile=vehiclePhotoFiles[slot];
+                const urlCandidate=vehiclePhotoUrlCandidates[slot];
                 const preview=vehiclePhotoPreviews[slot];
                 const currentRef=vehiclePhotoUrls[slot];
-                const complete=Boolean(selectedFile || currentRef.trim());
+                const complete=Boolean(selectedFile || urlCandidate.trim() || currentRef.trim());
+                const hasNewPhoto=Boolean(selectedFile || urlCandidate.trim());
                 return <div className={'vehicle-photo-form-card '+(complete?'complete':'incomplete')} key={label}>
                   <div className="vehicle-photo-preview">{preview ? <img src={preview} alt={label}/> : <Car size={24}/>}</div>
                   <b>{label}</b>
-                  {selectedFile ? <>
-                    <small>New photo selected from device</small>
-                    <button type="button" className="landing-secondary compact" onClick={()=>{
-                      setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});
-                      setVehiclePhotoPreviews(v=>{
-                        const n=[...v];
-                        n[slot]=currentRef ? imageFromCar({imageUrl:vehiclePhotoUrls.join('|')},slot,'large') : '';
-                        return n;
-                      });
-                    }}>{currentRef ? 'Keep current photo' : 'Choose another photo'}</button>
-                  </> : <>
-                    <small>{currentRef ? 'Photo stored by mPay' : 'No photo selected yet'}</small>
-                    <label className="photo-file-button landing-secondary compact"><Camera size={13}/> {currentRef ? 'Replace photo' : 'Choose from device'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleVehiclePhotoSelection(slot,e.target.files?.[0]||null)}/></label>
-                  </>}
+                  <small>{hasNewPhoto ? (selectedFile ? 'New photo selected from device' : 'New photo selected from image URL') : currentRef ? 'Photo stored by mPay' : 'No photo selected yet'}</small>
+                  <button
+                    type="button"
+                    className="landing-secondary compact"
+                    onClick={()=>setPhotoPickerTarget({kind:'vehicle',slot,title:'Change '+label.toLowerCase()})}
+                  >
+                    <Camera size={13}/> {hasNewPhoto || currentRef ? 'Change photo' : 'Choose photo'}
+                  </button>
+                  {hasNewPhoto && <button type="button" className="photo-picker-keep-current" onClick={()=>{
+                    setVehiclePhotoFiles(v=>{const n=[...v];n[slot]=null;return n});
+                    setVehiclePhotoUrlCandidates(v=>{const n=[...v];n[slot]='';return n});
+                    setVehiclePhotoPreviews(v=>{
+                      const n=[...v];
+                      n[slot]=currentRef ? imageFromCar({imageUrl:vehiclePhotoUrls.join('|')},slot,'large') : '';
+                      return n;
+                    });
+                  }}>Keep current photo</button>}
                   {vehicleSubmitAttempted&&!complete&&<small className="field-error">This photo is required</small>}
                 </div>
               })}
@@ -3148,7 +3153,18 @@ export default function Portal() {
             <div className="vehicle-form-step-head"><span>3</span><div><b>Driver details</b><small>The chauffeur assigned to this vehicle</small></div></div>
             <div className="driver-form-photo-row">
               <div className="driver-photo-preview">{driverPhotoPreview?<img src={driverPhotoPreview} alt="Driver"/>:<UserRound size={25}/>}</div>
-              <div><b>Driver photo</b><small>Passport-style square photo</small><label className="photo-file-button landing-secondary compact"><Camera size={13}/> {driverPhotoFile?'Change':'Add'}<input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>handleDriverPhotoSelection(e.target.files?.[0]||null)}/></label></div>
+              <div>
+                <b>Driver photo</b>
+                <small>{driverPhotoFile ? 'New photo selected from device' : driverPhotoUrlCandidate ? 'New photo selected from image URL' : driverPhotoStoredPreview ? 'Photo stored by mPay' : 'Passport-style square photo'}</small>
+                <button type="button" className="photo-file-button landing-secondary compact" onClick={()=>setPhotoPickerTarget({kind:'driver',title:driverPhotoStoredPreview?'Change driver photo':'Add driver photo'})}>
+                  <Camera size={13}/> {driverPhotoFile||driverPhotoUrlCandidate||driverPhotoStoredPreview?'Change photo':'Add photo'}
+                </button>
+                {(driverPhotoFile||driverPhotoUrlCandidate) && <button type="button" className="photo-picker-keep-current" onClick={()=>{
+                  setDriverPhotoFile(null);
+                  setDriverPhotoUrlCandidate('');
+                  setDriverPhotoPreview(driverPhotoStoredPreview);
+                }}>Keep current photo</button>}
+              </div>
             </div>
             <div className="vehicle-form-grid-web">
               <label>Driver full name<input value={vehicleForm.driver.fullName} onChange={e=>setVehicleForm({...vehicleForm,driver:{...vehicleForm.driver,fullName:sanitizeVehicleAlphaNumeric(e.target.value,120)}})}/>{vehicleSubmitAttempted&&!vehicleForm.driver.fullName.trim()&&<small className="field-error">Driver name is required</small>}</label>
@@ -3166,6 +3182,24 @@ export default function Portal() {
             <button className="landing-primary" disabled={busy} onClick={saveVehicle}>{busy ? 'Submitting…' : vehicleEditId ? 'Resubmit vehicle for review' : 'Submit vehicle for review'}</button>
           </div>
         </section>}
+
+        {photoPickerTarget && (
+          <RentalPhotoPicker
+            title={photoPickerTarget.title}
+            currentPreview={
+              photoPickerTarget.kind === 'vehicle'
+                ? (() => {
+                    const ref = vehiclePhotoUrls[photoPickerTarget.slot];
+                    return ref
+                      ? imageFromCar({ imageUrl: vehiclePhotoUrls.join('|') }, photoPickerTarget.slot, 'large')
+                      : '';
+                  })()
+                : driverPhotoStoredPreview
+            }
+            onCancel={()=>setPhotoPickerTarget(undefined)}
+            onUse={applyPhotoPickerResult}
+          />
+        )}
 
         {editingProfile && <div className="modal-backdrop" onClick={()=>!busy&&setEditingProfile(false)}>
           <div className="portal-modal small-modal profile-edit-modal" onClick={e=>e.stopPropagation()}>
