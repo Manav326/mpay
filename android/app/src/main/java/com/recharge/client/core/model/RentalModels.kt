@@ -91,6 +91,10 @@ data class RentalVehicleOnboardingRequest(
     val driver: RentalDriverRequest
 )
 
+data class RentalPhotoUrlImportRequest(
+    val url: String
+)
+
 data class RentalPhotoResource(
     val slot: Int? = null,
     val url: String,
