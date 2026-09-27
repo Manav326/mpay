@@ -46,6 +46,9 @@ Until the legal structure is confirmed, mPay should be engineered toward these p
 6. 06-MONEY-FLOW-SPECIFICATION.md — canonical money-flow state machine.
 7. 07-INCIDENT-AND-RECONCILIATION-RUNBOOK.md — operational response to mismatches, duplicates, pending and reversals.
 8. 08-LEGAL-POLICY-CHECKLIST.md — website/app disclosures and contractual documents.
+9. 09-ACTUAL-MONEY-FLOW-AS-IS.md — repository-derived current money flow.
+10. 10-TARGET-STORED-VALUE-AUTHORIZATION-ARCHITECTURE.md — direct-authorisation target for the mPay wallet.
+11. 11-TARGET-FINANCIAL-DOMAIN-MODEL.md — production-authorisation-first ledger, state and reconciliation model.
 
 ## 5. Change-control rule
 
