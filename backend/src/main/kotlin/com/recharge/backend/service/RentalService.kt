@@ -29,6 +29,7 @@ class RentalService(
     private val rentalPayouts: RentalPayoutService,
     private val rentalImageStorage: RentalImageStorage,
     private val rentalPhotoService: RentalPhotoService,
+    private val rentalPhotoImportService: RentalPhotoImportService,
     private val vendorReviews: RentalVendorReviewRepository,
     private val carReviews: RentalCarReviewRepository
 ) {
@@ -596,6 +597,36 @@ class RentalService(
         require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
         prepareVehicleForEdit(car, "PHOTO_UPDATED", userId)
 
+        val newKey = rentalImageStorage.save(carId, slot, photo)
+        return replaceVehiclePhotoReference(car, slot, newKey)
+    }
+
+    @Transactional
+    fun importVehiclePhotoFromUrl(
+        userId: Long,
+        carId: Long,
+        slot: Int,
+        url: String
+    ): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+
+        val car = cars.findByIdForUpdate(carId)
+            .orElseThrow { IllegalArgumentException("Vehicle not found") }
+        require(car.vendorId == vendorId) { "Vehicle does not belong to this vendor" }
+        prepareVehicleForEdit(car, "PHOTO_UPDATED", userId)
+
+        val imported = rentalPhotoImportService.importFromUrl(url)
+        val newKey = rentalImageStorage.save(carId, slot, imported.bytes, imported.contentType)
+        return replaceVehiclePhotoReference(car, slot, newKey)
+    }
+
+    private fun replaceVehiclePhotoReference(
+        car: RentalCarEntity,
+        slot: Int,
+        newKey: String
+    ): RentalCarResponse {
         val existing = rentalPhotoService.references(car.imageUrl)
         val slots = MutableList(4) { index -> existing.getOrNull(index).orEmpty() }
         val oldValue = slots[slot]
@@ -603,12 +634,11 @@ class RentalService(
             .removePrefix(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX)
             .takeIf { oldValue.startsWith(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX) }
 
-        val newKey = rentalImageStorage.save(carId, slot, photo)
         slots[slot] = RentalPhotoService.RENTAL_PHOTO_URL_PREFIX + newKey
         val combined = slots.joinToString("|").takeIf { slots.any { it.isNotBlank() } }
-        require(combined == null || combined.length <= 500) {
+        if (combined != null && combined.length > 500) {
             rentalImageStorage.delete(newKey)
-            "Vehicle photo references exceed the maximum supported length"
+            throw IllegalArgumentException("Vehicle photo references exceed the maximum supported length")
         }
 
         try {
