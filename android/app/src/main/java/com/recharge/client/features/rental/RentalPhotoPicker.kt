@@ -2,6 +2,7 @@ package com.recharge.client.features.rental
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,9 +55,24 @@ fun RentalPhotoPickerDialog(
     var urlState by remember { mutableStateOf(RentalUrlState.IDLE) }
 
     val deviceLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         deviceUri = uri?.toString()
+    }
+
+    fun launchDevicePicker() {
+        deviceLauncher.launch(
+            androidx.activity.result.PickVisualMediaRequest(
+                PickVisualMedia.ImageOnly
+            )
+        )
+    }
+
+    LaunchedEffect(source) {
+        if (source == RentalPhotoPickerSource.DEVICE) {
+            withFrameNanos { }
+            launchDevicePicker()
+        }
     }
 
     LaunchedEffect(source, urlInput) {
@@ -134,8 +150,11 @@ fun RentalPhotoPickerDialog(
                         title = "From device",
                         subtitle = "Choose a photo",
                         onClick = {
-                            source = RentalPhotoPickerSource.DEVICE
-                            deviceLauncher.launch("image/*")
+                            if (source == RentalPhotoPickerSource.DEVICE) {
+                                launchDevicePicker()
+                            } else {
+                                source = RentalPhotoPickerSource.DEVICE
+                            }
                         }
                     )
                     SourceChoice(

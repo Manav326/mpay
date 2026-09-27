@@ -197,6 +197,9 @@ private val rentalVehicleTextPattern = Regex("""[^\\p{L}0-9 .&'()\\-]""")
 private val rentalVehicleAlphaNumericPattern = Regex("""[^\p{L}0-9 ]""")
 private val rentalRegistrationPattern = Regex("""[^A-Za-z0-9 -]""")
 private val rentalLicensePattern = Regex("""[^A-Za-z0-9 -]""")
+private val rentalRegistrationValidationPattern = Regex("""^[A-Za-z0-9][A-Za-z0-9 -]{0,31}$""")
+private val rentalCityValidationPattern = Regex("""^[\p{L}][\p{L} .'\-]{1,99}$""")
+private val rentalLicenseValidationPattern = Regex("""^[A-Za-z0-9][A-Za-z0-9 -]{0,63}$""")
 
 private fun sanitizeVehicleText(value: String, maxLength: Int = 120): String =
     rentalVehicleTextPattern.replace(value, "").take(maxLength)
@@ -1927,7 +1930,7 @@ fun RentalVehicleOnboardingScreen(
                             form.name,
                             modifier = Modifier.weight(1f),
                             filter = { sanitizeVehicleAlphaNumeric(it, 120) },
-                            error = if (form.submitAttempted && form.name.isBlank()) "Vehicle name is required" else null,
+                            error = if (form.submitAttempted && form.name.trim().length < 2) "Vehicle name must contain at least 2 characters" else null,
                             helper = "Letters, numbers and spaces only.",
                             onValueChange = { form.name = it }
                         )
@@ -1936,7 +1939,7 @@ fun RentalVehicleOnboardingScreen(
                             form.make,
                             modifier = Modifier.weight(1f),
                             filter = { sanitizeVehicleAlphaNumeric(it, 80) },
-                            error = if (form.submitAttempted && form.make.isBlank()) "Make is required" else null,
+                            error = if (form.submitAttempted && form.make.trim().length < 2) "Make must contain at least 2 characters" else null,
                             onValueChange = { form.make = it }
                         )
                     }
@@ -1946,7 +1949,7 @@ fun RentalVehicleOnboardingScreen(
                             form.model,
                             modifier = Modifier.weight(1f),
                             filter = { sanitizeVehicleAlphaNumeric(it, 80) },
-                            error = if (form.submitAttempted && form.model.isBlank()) "Model is required" else null,
+                            error = if (form.submitAttempted && form.model.trim().length < 2) "Model must contain at least 2 characters" else null,
                             onValueChange = { form.model = it }
                         )
                         VendorField(
@@ -2006,7 +2009,7 @@ fun RentalVehicleOnboardingScreen(
                             form.city,
                             modifier = Modifier.weight(1f),
                             filter = { sanitizeVehicleAlphaNumeric(it, 100) },
-                            error = if (form.submitAttempted && form.city.isBlank()) "City is required" else null,
+                            error = if (form.submitAttempted && !rentalCityValidationPattern.matches(form.city.trim())) "Enter a valid city name" else null,
                             onValueChange = { form.city = it }
                         )
                         VendorSelectField(
@@ -2017,6 +2020,14 @@ fun RentalVehicleOnboardingScreen(
                             onValueChange = { form.stateName = it }
                         )
                     }
+                    VendorField(
+                        "Pickup address",
+                        form.pickupAddress,
+                        filter = ::sanitizeRentalLocation,
+                        error = if (form.submitAttempted && form.pickupAddress.trim().isBlank()) "Pickup address is required" else null,
+                        helper = "The address customers will use as the vehicle pickup point.",
+                        onValueChange = { form.pickupAddress = it }
+                    )
                     VendorField(
                         "Price per day (₹)",
                         form.pricePerDay,
@@ -2137,7 +2148,7 @@ fun RentalVehicleOnboardingScreen(
                             form.driverName,
                             modifier = Modifier.weight(1f),
                             filter = { sanitizeVehicleAlphaNumeric(it, 120) },
-                            error = if (form.submitAttempted && form.driverName.isBlank()) "Driver name is required" else null,
+                            error = if (form.submitAttempted && form.driverName.trim().length < 2) "Driver name must contain at least 2 characters" else null,
                             onValueChange = { form.driverName = it }
                         )
                         VendorField(
@@ -2155,7 +2166,7 @@ fun RentalVehicleOnboardingScreen(
                         "Driving licence no.",
                         form.licenseNumber,
                         filter = ::sanitizeLicense,
-                        error = if (form.submitAttempted && form.licenseNumber.isBlank()) "Driving licence number is required" else null,
+                        error = if (form.submitAttempted && !rentalLicenseValidationPattern.matches(form.licenseNumber.trim())) "Enter a valid driving licence number" else null,
                         helper = "Use the licence number exactly as printed.",
                         onValueChange = { form.licenseNumber = it }
                     )
@@ -2189,8 +2200,8 @@ fun RentalVehicleOnboardingScreen(
                                 .takeIf { it.isNotBlank() }
                                 ?.let { rentalPhotoDisplayUrl(it, "large") }
                         target == 4 -> form.driverPhoto?.value
-                            ?: editingCar?.driverPhoto?.largeUrl
-                            ?: editingCar?.driverPhotoUrl
+                            ?: editingCar?.driverPhoto?.largeUrl?.let { rentalPhotoDisplayUrl(it, "large") }
+                            ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
                         else -> null
                     },
                     onDismiss = { pickerTarget = null },
@@ -2219,15 +2230,16 @@ fun RentalVehicleOnboardingScreen(
             val licenseExpiryDate = runCatching {
                 LocalDate.parse(form.licenseExpiry.take(10), rentalDateFormatter)
             }.getOrNull()
-            val valid = form.name.trim().isNotBlank() &&
-                form.make.trim().isNotBlank() &&
-                form.model.trim().isNotBlank() &&
-                form.registrationNumber.trim().isNotBlank() &&
-                form.city.trim().isNotBlank() &&
+            val valid = form.name.trim().length >= 2 &&
+                form.make.trim().length >= 2 &&
+                form.model.trim().length >= 2 &&
+                rentalRegistrationValidationPattern.matches(form.registrationNumber.trim()) &&
+                rentalCityValidationPattern.matches(form.city.trim()) &&
                 form.stateName.trim().isNotBlank() &&
-                form.driverName.trim().isNotBlank() &&
+                form.pickupAddress.trim().isNotBlank() &&
+                form.driverName.trim().length >= 2 &&
                 normalizedDriverMobile.matches(Regex("[0-9]{10}")) &&
-                form.licenseNumber.trim().isNotBlank() &&
+                rentalLicenseValidationPattern.matches(form.licenseNumber.trim()) &&
                 licenseExpiryDate?.isAfter(LocalDate.now()) == true &&
                 form.pricePerDay.trim().toBigDecimalOrNull()?.let { it > BigDecimal.ZERO } == true &&
                 form.seats.toIntOrNull()?.let { it in 2..8 } == true &&

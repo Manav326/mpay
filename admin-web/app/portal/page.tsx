@@ -1670,7 +1670,7 @@ export default function Portal() {
         registrationYear:car.registrationYear || new Date().getFullYear(), registrationNumber:car.registrationNumber || '',
         make:car.make || '', model:car.model || '', variant:car.variant || '', pickupAddress:car.pickupAddress || '',
         city:car.city || '', state:car.state || '', pricePerDay:car.pricePerDay || '',
-        driver:{fullName:car.driverName || '',mobile:car.driverMobile || '',licenseNumber:car.driverLicenseNumber || '',
+        driver:{fullName:car.driverName || '',mobile:normalizeIndianMobile(car.driverMobile || ''),licenseNumber:car.driverLicenseNumber || '',
           licenseExpiry:car.driverLicenseExpiry ? String(car.driverLicenseExpiry).slice(0,10) : '',address:car.driverAddress || ''}
       } : {
         ...defaultVehicle,
@@ -1772,19 +1772,20 @@ export default function Portal() {
     const mobile=normalizeIndianMobile(vehicleForm.driver.mobile);
     const licenseExpiry=vehicleForm.driver.licenseExpiry ? new Date(vehicleForm.driver.licenseExpiry+'T00:00:00') : null;
     const photosComplete=vehiclePhotoUrls.every((url,slot)=>Boolean(url.trim() || vehiclePhotoFiles[slot] || vehiclePhotoUrlCandidates[slot].trim()));
-    if(!vehicleForm.name.trim()) return 'Vehicle name is required.';
-    if(!vehicleForm.make.trim()) return 'Make is required.';
-    if(!vehicleForm.model.trim()) return 'Model is required.';
-    if(!vehicleForm.registrationNumber.trim()) return 'Registration number is required.';
-    if(!vehicleForm.city.trim()) return 'City is required.';
+    if(vehicleForm.name.trim().length < 2) return 'Vehicle name must contain at least 2 characters.';
+    if(vehicleForm.make.trim().length < 2) return 'Make must contain at least 2 characters.';
+    if(vehicleForm.model.trim().length < 2) return 'Model must contain at least 2 characters.';
+    if(!/^[A-Za-z0-9][A-Za-z0-9 -]{0,31}$/.test(sanitizeRegistration(vehicleForm.registrationNumber.trim()))) return 'Enter a valid registration number.';
+    if(!/^[\p{L}][\p{L} .'-]{1,99}$/u.test(vehicleForm.city.trim())) return 'Enter a valid city name.';
     if(!vehicleForm.state.trim()) return 'State is required.';
+    if(!vehicleForm.pickupAddress.trim()) return 'Pickup address is required.';
     if(!Number.isInteger(manufacturing) || manufacturing < earliestYear || manufacturing > currentYear) return 'Manufacturing year must be within the last 20 years.';
     if(!Number.isInteger(registration) || registration < manufacturing || registration > currentYear) return 'Registration year cannot be before manufacture year or after the current year.';
     if(!/^\d+(\.\d{1,2})?$/.test(String(vehicleForm.pricePerDay).trim()) || !(price>0)) return 'Enter a valid positive price with up to 2 decimals.';
     if(!(Number(vehicleForm.seats) >= 2 && Number(vehicleForm.seats) <= 8)) return 'Seats must be between 2 and 8.';
-    if(!vehicleForm.driver.fullName.trim()) return 'Driver name is required.';
-    if(!/^\\d{10}$/.test(mobile)) return 'Driver mobile must contain exactly 10 digits.';
-    if(!vehicleForm.driver.licenseNumber.trim()) return 'Driving licence number is required.';
+    if(vehicleForm.driver.fullName.trim().length < 2) return 'Driver name must contain at least 2 characters.';
+    if(!/^[0-9]{10}$/.test(mobile)) return 'Driver mobile must contain exactly 10 digits.';
+    if(!/^[A-Za-z0-9][A-Za-z0-9 -]{0,63}$/.test(sanitizeLicense(vehicleForm.driver.licenseNumber.trim()))) return 'Enter a valid driving licence number.';
     if(!licenseExpiry || licenseExpiry <= new Date(new Date().toDateString())) return 'Licence expiry must be a future date.';
     if(!photosComplete) return 'Front, side, rear and interior vehicle photos are required.';
     return '';
@@ -3100,9 +3101,9 @@ export default function Portal() {
           <section className="vehicle-form-card">
             <div className="vehicle-form-step-head"><span>1</span><div><b>Vehicle details</b><small>Identity, specifications and daily price</small></div></div>
             <div className="vehicle-form-grid-web">
-              <label>Vehicle name<input value={vehicleForm.name} onChange={e=>setVehicleForm({...vehicleForm,name:sanitizeVehicleAlphaNumeric(e.target.value,120)})}/>{vehicleSubmitAttempted&&!vehicleForm.name.trim()&&<small className="field-error">Vehicle name is required</small>}</label>
-              <label>Make<input value={vehicleForm.make} onChange={e=>setVehicleForm({...vehicleForm,make:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/>{vehicleSubmitAttempted&&!vehicleForm.make.trim()&&<small className="field-error">Make is required</small>}</label>
-              <label>Model<input value={vehicleForm.model} onChange={e=>setVehicleForm({...vehicleForm,model:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/>{vehicleSubmitAttempted&&!vehicleForm.model.trim()&&<small className="field-error">Model is required</small>}</label>
+              <label>Vehicle name<input value={vehicleForm.name} onChange={e=>setVehicleForm({...vehicleForm,name:sanitizeVehicleAlphaNumeric(e.target.value,120)})}/>{vehicleSubmitAttempted&&vehicleForm.name.trim().length<2&&<small className="field-error">Vehicle name must contain at least 2 characters</small>}</label>
+              <label>Make<input value={vehicleForm.make} onChange={e=>setVehicleForm({...vehicleForm,make:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/>{vehicleSubmitAttempted&&vehicleForm.make.trim().length<2&&<small className="field-error">Make must contain at least 2 characters</small>}</label>
+              <label>Model<input value={vehicleForm.model} onChange={e=>setVehicleForm({...vehicleForm,model:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/>{vehicleSubmitAttempted&&vehicleForm.model.trim().length<2&&<small className="field-error">Model must contain at least 2 characters</small>}</label>
               <label>Variant <em>(optional)</em><input value={vehicleForm.variant} onChange={e=>setVehicleForm({...vehicleForm,variant:sanitizeVehicleAlphaNumeric(e.target.value,80)})}/></label>
               <label>Category<select value={vehicleForm.category} onChange={e=>setVehicleForm({...vehicleForm,category:e.target.value})}>{['Sedan','SUV','Hatchback','MUV','Luxury','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Seats<select value={String(vehicleForm.seats)} onChange={e=>setVehicleForm({...vehicleForm,seats:Number(e.target.value)})}>{Array.from({length:7},(_,i)=>i+2).map(x=><option key={x}>{x}</option>)}</select></label>
@@ -3112,9 +3113,10 @@ export default function Portal() {
                 <option value="">Select</option>{Array.from({length:21},(_,i)=>new Date().getFullYear()-20+i).map(x=><option key={x}>{x}</option>)}</select></label>
               <label>Registration year<select value={String(vehicleForm.registrationYear||'')} onChange={e=>setVehicleForm({...vehicleForm,registrationYear:Number(e.target.value)})}>
                 <option value="">Select</option>{Array.from({length:Math.max(1,new Date().getFullYear()-Number(vehicleForm.manufacturingYear||new Date().getFullYear()-20)+1)},(_,i)=>Number(vehicleForm.manufacturingYear||new Date().getFullYear()-20)+i).map(x=><option key={x}>{x}</option>)}</select></label>
-              <label>Registration number<input value={vehicleForm.registrationNumber} onChange={e=>setVehicleForm({...vehicleForm,registrationNumber:sanitizeRegistration(e.target.value)})}/>{vehicleSubmitAttempted&&!vehicleForm.registrationNumber.trim()&&<small className="field-error">Registration number is required</small>}</label>
-              <label>City<input value={vehicleForm.city} onChange={e=>setVehicleForm({...vehicleForm,city:sanitizeVehicleAlphaNumeric(e.target.value,100)})}/>{vehicleSubmitAttempted&&!vehicleForm.city.trim()&&<small className="field-error">City is required</small>}</label>
+              <label>Registration number<input value={vehicleForm.registrationNumber} onChange={e=>setVehicleForm({...vehicleForm,registrationNumber:sanitizeRegistration(e.target.value)})}/>{vehicleSubmitAttempted&&!/^[A-Za-z0-9][A-Za-z0-9 -]{0,31}$/.test(sanitizeRegistration(vehicleForm.registrationNumber.trim()))&&<small className="field-error">Enter a valid registration number</small>}</label>
+              <label>City<input value={vehicleForm.city} onChange={e=>setVehicleForm({...vehicleForm,city:sanitizeVehicleAlphaNumeric(e.target.value,100)})}/>{vehicleSubmitAttempted&&!/^[\p{L}][\p{L} .'-]{1,99}$/u.test(vehicleForm.city.trim())&&<small className="field-error">Enter a valid city name</small>}</label>
               <label>State<select value={vehicleForm.state} onChange={e=>setVehicleForm({...vehicleForm,state:e.target.value})}><option value="">Select state</option>{indianStatesAndUt.map(x=><option key={x}>{x}</option>)}</select>{vehicleSubmitAttempted&&!vehicleForm.state.trim()&&<small className="field-error">State is required</small>}</label>
+              <label className="vendor-field-wide">Pickup address<input value={vehicleForm.pickupAddress} onChange={e=>setVehicleForm({...vehicleForm,pickupAddress:e.target.value.slice(0,300)})}/>{vehicleSubmitAttempted&&!vehicleForm.pickupAddress.trim()&&<small className="field-error">Pickup address is required</small>}<small>Use the address where customers should start the rental.</small></label>
               <label>Price per day (₹)<input inputMode="decimal" value={vehicleForm.pricePerDay} onChange={e=>setVehicleForm({...vehicleForm,pricePerDay:sanitizeDecimal(e.target.value)})}/>{vehicleSubmitAttempted && validateVehicleForm().includes('price')&&<small className="field-error">Enter a valid positive price with up to 2 decimals</small>}<small>Price charged per 24-hour rental day.</small></label>
             </div>
             <div className="vehicle-form-helper">Vehicle age is limited to 20 years; registration year cannot be before manufacture year.</div>
