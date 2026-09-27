@@ -48,6 +48,11 @@ class PayURechargeExecutionProvider(
             "PayU billerId could not be resolved for " + request.operator.uppercase() + " recharge"
         )
 
+        // Token acquisition is deliberately part of the pre-submission phase.
+        // A missing create_transactions scope must never cause a wallet reservation
+        // followed by an artificial PENDING state.
+        auth.getAccessToken("create_transactions")
+
         return request.copy(
             plan = request.plan.copy(
                 providerMetadata = metadata + ("billerId" to billerId)
