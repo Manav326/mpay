@@ -36,11 +36,13 @@ import com.recharge.client.core.cache.ProfileCacheStore
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
+import com.google.gson.Gson
 import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class ClientRepository(context: Context) {
+    private val gson = Gson()
     private suspend fun <T> apiCall(block: suspend () -> T): Result<T> =
         try {
             Result.success(block())
@@ -220,7 +222,8 @@ class ClientRepository(context: Context) {
             clientRequestId = UUID.randomUUID().toString(),
             upiId = upiId.trim()
         )
-        val response = api.withdraw(request)
+        val body = gson.toJson(request).toRequestBody("application/json".toMediaType())
+        val response = api.withdraw(body)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
     }
