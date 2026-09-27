@@ -31,16 +31,23 @@ interface WalletRepository : JpaRepository<WalletEntity, Long> {
 }
 
 interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findByUserIdAndClientRequestId(userId: Long, clientRequestId: String): Optional<WalletWithdrawalEntity>
 
+    @Query("""
+        select w from WalletWithdrawalEntity w
+        where w.userId = :userId and w.clientRequestId = :clientRequestId
+    """)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findLockedByUserIdAndClientRequestId(
+        @Param("userId") userId: Long,
+        @Param("clientRequestId") clientRequestId: String
+    ): Optional<WalletWithdrawalEntity>
+
     fun findByWithdrawalId(withdrawalId: String): Optional<WalletWithdrawalEntity>
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findByWithdrawalIdAndProviderName(withdrawalId: String, providerName: String): Optional<WalletWithdrawalEntity>
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findByProviderNameAndProviderReference(providerName: String, providerReference: String): Optional<WalletWithdrawalEntity>
 
     fun findTop20ByUserIdOrderByCreatedAtDesc(userId: Long): List<WalletWithdrawalEntity>
