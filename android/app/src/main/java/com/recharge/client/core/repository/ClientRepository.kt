@@ -15,6 +15,7 @@ import com.recharge.client.core.model.RechargeRequest
 import com.recharge.client.core.model.RechargeResponse
 import com.recharge.client.core.model.RechargeTransactionStatusResponse
 import com.recharge.client.core.model.RentalVendorUpdateRequest
+import com.recharge.client.core.model.RentalPhotoUrlImportRequest
 import com.recharge.client.core.model.RechargeHistoryResponse
 import com.recharge.client.core.model.RechargeCommissionSummaryResponse
 import com.recharge.client.core.model.VerifyPaymentRequest
