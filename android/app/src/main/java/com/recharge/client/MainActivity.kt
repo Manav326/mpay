@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         }
                     )
                 }
-                else -> {
+                order.provider.equals("razorpay", true) -> {
                     val checkout = Checkout().apply { setKeyID(order.keyId) }
                     val options = JSONObject().apply {
                         put("key", order.keyId)
@@ -195,6 +195,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     pendingRazorpayTarget = RazorpayCheckoutTarget.WALLET
                     pendingRazorpayOrderId = order.orderId
                     checkout.open(this, options)
+                }
+                else -> {
+                    walletPaymentViewModel.paymentFailed(
+                        "Unsupported payment provider returned by server: " +
+                            order.provider.ifBlank { "unknown" }
+                    )
                 }
             }
         } catch (e: Exception) {
