@@ -106,10 +106,58 @@ Please provide copies/links of:
 - grievance policy;
 - data-processing/vendor agreements where applicable.
 
+## Answers received — 2026-09-27
+
+1. Intended operating entity: an Indian company to be incorporated; exact legal name to be confirmed.
+2. Current PayU merchant account: individual founder name. Intended post-incorporation structure: company current account / company merchant arrangement.
+3. Current Razorpay merchant account: individual founder name. Intended post-incorporation structure: company current account / company merchant arrangement.
+4. Customer Add Money currently settles into a current account; intended post-incorporation settlement is the company's current account.
+5. Intended wallet behaviour: customer can add money, retain balance, use it for recharge/rental, and withdraw unused balance.
+6. Intended withdrawal: yes, including unused Add Money balance.
+7. Intended recharge route: PayU now; BBPS later.
+8. Current BBPS relationship: none.
+9. Rental suppliers: independent third-party vehicle/driver vendors.
+10. Intended rental economics: example model confirmed — customer pays ₹1,000, vendor payable ₹900, mPay platform/service fee ₹100, subject to final commercial/tax treatment.
+11. Customer-facing rental supplier/invoice position: mPay is intended to be the customer-facing supplier/contracting party.
+12. Business decision: Option A — mPay itself is intended to operate the stored-value wallet/withdrawal model, subject to obtaining/meeting the regulatory authorisation and compliance requirements.
+
+## Consequence of Option A
+
+Option A materially changes the compliance path. mPay should not operate the current wallet/withdrawal functionality as a self-issued PPI merely because the software is ready.
+
+RBI's current PPI Master Directions state that non-bank PPI applicants must be companies incorporated in India, their MoA must cover PPI issuance, and they require RBI authorisation. The Directions also require minimum positive net worth of ₹5 crore at application and ₹15 crore by the end of the third financial year after final authorisation, subject to the applicable current framework. Full-KYC PPIs can support goods/services and specified fund-transfer/closure mechanisms, subject to limits and conditions. Therefore incorporation alone is not equivalent to authorisation. citeturn1view0
+
+Until the legal/regulatory route is completed, the engineering target must be to keep the PPI capability behind a controlled production gate rather than treating the current personal merchant/current-account arrangement as the permanent company/payment architecture.
+
+The current personal PayU/Razorpay arrangement also must not be represented to customers or regulators as a company-owned merchant account. Before company production launch, merchant KYC, bank settlement, contractual purpose and payment-provider approval must be aligned to the incorporated entity.
+
+## Rental model — preliminary legal architecture
+
+The intended model is:
+
+Customer -> mPay as customer-facing contracting/supplying party -> independent vendor fulfils the chauffeur-driven rental service -> mPay pays/settles vendor under a vendor agreement -> mPay retains its disclosed platform/service margin.
+
+This is preferable to describing mPay as merely "collecting money for vendors", but it must be validated against the actual contracts, invoices, GST treatment, vendor liability, transport obligations and payment-provider terms. If, in substance, mPay only collects and passes through customer funds for third-party vendors, the Payment Aggregator analysis may apply. The technical and contractual model must therefore be kept aligned.
+
+## Recharge model — preliminary legal architecture
+
+Current target:
+
+Customer -> mPay interface -> authorised/contracted recharge/payment route -> telecom/biller fulfilment.
+
+mPay currently has no BBPS relationship. Therefore mPay must not describe itself as a BBPS participant. If BBPS is introduced later, the exact role (for example, through an authorised BBPOU/Agent Institution/other permitted participant arrangement) must be contractually and technically documented. RBI's 2024 BBPS Directions include prepaid recharge in the BBPS bill definition and specify participant roles. citeturn0search0
+
 ## Final decision question
 
-The most important business decision is:
+Option A is selected. Before implementation is finalised, obtain qualified Indian regulatory counsel's written classification of:
 
-Do you want mPay itself to operate the stored-value wallet and withdrawals, or do you want the wallet/payment balance to be provided by a regulated payment/PPI partner while mPay remains the technology/service layer?
+- mPay wallet as a PPI/stored-value product;
+- mPay's intended withdrawal mechanism;
+- whether any PA authorisation is separately required for rental/recharge collection;
+- exact role permitted for PayU and the eventual BBPS participant;
+- required safeguarding/escrow/account structure;
+- KYC/AML/PMLA/FIU obligations;
+- GST/accounting treatment;
+- customer refund/closure mechanics.
 
-This decision must be made before we finalise the regulator-facing legal position.
+This legal opinion becomes a required evidence item in the production gate.
