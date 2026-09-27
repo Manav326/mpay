@@ -47,7 +47,19 @@ class WithdrawalService(
         val user = users.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
         log.info("WITHDRAW_TRACE user_loaded user={}", userId)
 
-        val existing = withdrawals.findByUserIdAndClientRequestId(userId, normalizedRequestId)
+        val existing = try {
+            withdrawals.findByUserIdAndClientRequestId(userId, normalizedRequestId)
+        } catch (e: Throwable) {
+            log.error(
+                "WITHDRAW_TRACE idempotency_lookup_failed user={} requestId={} type={} message={}",
+                userId,
+                normalizedRequestId,
+                e.javaClass.name,
+                e.message,
+                e
+            )
+            throw e
+        }
         log.info("WITHDRAW_TRACE idempotency_checked user={} existing={}", userId, existing.isPresent)
         if (existing.isPresent) {
             val entity = existing.get()
