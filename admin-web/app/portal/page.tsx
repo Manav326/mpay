@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
@@ -167,9 +167,103 @@ function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thu
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
-function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
-  const raw = String(car?.imageUrl || '');
-  return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4).concat(['', '', '', '']).slice(0, 4);
+async function resolveRentalPhoto(primary: string, fallback: string): Promise<string | null> {
+  const trySource = (src: string): Promise<string | null> => new Promise(resolve => {
+    if (!src) {
+      resolve(null);
+      return;
+    }
+    const image = new Image();
+    image.onload = () => resolve(src);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+
+  const first = await trySource(primary);
+  if (first) return first;
+  return trySource(fallback);
+}
+
+function useRentalViewport(
+  priority = false
+): { ref: RefObject<HTMLDivElement | null>; active: boolean } {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState(priority);
+
+  useEffect(() => {
+    if (priority) {
+      setActive(true);
+      return;
+    }
+
+    const target = ref.current;
+    if (!target) return;
+
+    if (!('IntersectionObserver' in window)) {
+      setActive(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setActive(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '700px 0px' }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [priority]);
+
+  return { ref, active };
+}
+
+function useRentalPhotoUrls(
+  car?: Pick<RentalCar, 'imageUrl'>,
+  variant: 'thumb' | 'large' = 'thumb',
+  active = true
+): string[] | null {
+  const slots = vehiclePhotoSlots(car);
+  const slotKey = slots.join('|');
+  const [resolved, setResolved] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!active) {
+      setResolved(null);
+      return () => { cancelled = true; };
+    }
+
+    setResolved(null);
+
+    if (!slots.length) {
+      setResolved([]);
+      return () => { cancelled = true; };
+    }
+
+    const fallbackVariant = variant === 'thumb' ? 'large' : 'thumb';
+    Promise.all(
+      slots.map((_, slot) =>
+        resolveRentalPhoto(
+          imageFromCar(car, slot, variant),
+          imageFromCar(car, slot, fallbackVariant)
+        )
+      )
+    ).then(results => {
+      if (cancelled) return;
+      // Do not render a partial gallery. A rental widget becomes visible
+      // only after every stored photo for that vehicle has a working source.
+      setResolved(results.every(Boolean) ? results as string[] : []);
+    });
+
+    return () => { cancelled = true; };
+  }, [slotKey, variant, active]);
+
+  return resolved;
 }
 
 function VehicleFourPhotoGallery({
@@ -181,41 +275,70 @@ function VehicleFourPhotoGallery({
   priority?: boolean;
   className?: string;
 }) {
-  const photos = vehiclePhotoSlots(car);
-  const main = imageFromCar(car, 0, 'thumb');
+  const viewport = useRentalViewport(priority);
+  const photos = useRentalPhotoUrls(car, 'thumb', viewport.active);
+
   return (
-    <div className={`vehicle-card-gallery ${className}`}>
-      <div className="vehicle-card-gallery-main">
-        {main ? (
-          <img
-            src={main}
-            alt={car?.name || 'Vehicle'}
-            loading={priority ? 'eager' : 'lazy'}
-            decoding="async"
-            fetchPriority={priority ? 'high' : 'auto'}
-          />
-        ) : <Car size={30} />}
-      </div>
-      <div className="vehicle-card-gallery-thumbs">
-        {[1, 2, 3].map(slot => {
-          const src = imageFromCar(car, slot, 'thumb');
-          return (
-            <div className="vehicle-card-gallery-thumb" key={slot}>
-              {src ? (
-                <img
-                  src={src}
-                  alt={`${car?.name || 'Vehicle'} photo ${slot + 1}`}
-                  loading={priority ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchPriority="auto"
-                />
-              ) : <span>Photo {slot + 1}</span>}
+    <div ref={viewport.ref} className={`vehicle-card-gallery ${className}`}>
+      {!photos || !photos.length ? null : (
+        <>
+          <div className="vehicle-card-gallery-main">
+            <img
+              src={photos[0]}
+              alt={car?.name || 'Vehicle'}
+              loading="eager"
+              decoding="async"
+              fetchPriority={priority ? 'high' : 'auto'}
+            />
+          </div>
+          {photos.length > 1 && (
+            <div className="vehicle-card-gallery-thumbs">
+              {photos.slice(1).map((src, index) => (
+                <div className="vehicle-card-gallery-thumb" key={src}>
+                  <img
+                    src={src}
+                    alt={`${car?.name || 'Vehicle'} photo ${index + 2}`}
+                    loading="eager"
+                    decoding="async"
+                  />
+                </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
+}
+
+function RentalDetailsPhotoGallery({
+  car,
+}: {
+  car: Pick<RentalCar, 'imageUrl' | 'name'>;
+}) {
+  const photos = useRentalPhotoUrls(car, 'large', true);
+  if (!photos || !photos.length) return null;
+
+  return (
+    <div className="vehicle-gallery rental-public-gallery">
+      {photos.map((src, index) => (
+        <div className="vehicle-gallery-slot" key={src}>
+          <img
+            src={src}
+            alt={`${car.name} ${index + 1}`}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
+  const raw = String(car?.imageUrl || '');
+  return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4);
 }
 
 function bookingShareText(b: RentalBooking) {
@@ -1161,9 +1284,17 @@ export default function Portal() {
     if (!/^[A-Za-z0-9]+@[A-Za-z]+$/.test(upi)) { setNotice('Enter a valid UPI ID.'); return false; }
     setBusy(true); setNotice('');
     try {
-      const result=await api<WithdrawalItem>('/api/v1/wallet/withdraw',{method:'POST',body:JSON.stringify({
-        amount, provider:withdrawProvider, upiId:upi, clientRequestId:crypto.randomUUID()
-      })});
+      const requestBody = JSON.stringify({
+        amount,
+        provider: withdrawProvider,
+        upiId: upi,
+        clientRequestId: crypto.randomUUID()
+      });
+      const result=await api<WithdrawalItem>('/api/v1/wallet/withdraw',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:requestBody
+      });
       await refreshWallet();
       setWithdrawals(x=>[result,...x]);
       setWithdrawAmount('');
@@ -1979,7 +2110,7 @@ export default function Portal() {
               <>
                 <div className="wallet-current-balance">Available to withdraw <b>{money(wallet?.availableBalance)}</b></div>
                 <div className="wallet-provider-picker">
-                  {(['mock','razorpay','payu'] as const).map(provider => <button key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
+                  {(['mock','razorpay','payu'] as const).map(provider => <button type="button" key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
                 </div>
                 <div className="wallet-field-grid">
                   <label className="wallet-field-label">Amount (INR)
@@ -1990,7 +2121,7 @@ export default function Portal() {
                   </label>
                 </div>
                 <div className="wallet-field-help">Minimum ₹1 · Available {money(wallet?.availableBalance)}</div>
-                <button className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{if(await withdrawMoney())setHomeActionModal(null);}}>
+                <button type="button" className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{if(await withdrawMoney())setHomeActionModal(null);}}>
                   {busy ? 'Processing…' : 'Withdraw'} <ArrowRight size={15}/>
                 </button>
               </>
@@ -3073,12 +3204,7 @@ export default function Portal() {
               <button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button>
             </div>
 
-            <div className="vehicle-gallery rental-public-gallery">
-              {[0,1,2,3].map(slot=>{
-                const src=imageFromCar(rentalDetails,slot,'large');
-                return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={rentalDetails.name + ' ' + (slot+1)} loading="eager" decoding="async" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>;
-              })}
-            </div>
+            <RentalDetailsPhotoGallery car={rentalDetails} />
 
             <div className="rental-details-hero">
               <div>
