@@ -7,6 +7,7 @@ import com.recharge.backend.repository.WalletTransactionRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito
 import java.math.BigDecimal
 import java.util.Optional
@@ -61,15 +62,16 @@ class WalletServiceFinancialControlsTest {
         assertEquals(BigDecimal("750.00"), result)
         assertEquals(BigDecimal("750.00"), wallet.balance)
         assertEquals(BigDecimal("0.00"), wallet.reservedBalance)
-        Mockito.verify(ledger).save(Mockito.argThat<WalletTransactionEntity> {
-            externalRef == "WITHDRAWAL:WDR-1" &&
-                userId == 42L &&
-                type == "WITHDRAW" &&
-                amount == BigDecimal("250.00") &&
-                status == "POSTED" &&
-                referenceType == "WITHDRAWAL" &&
-                referenceId == "WDR-1"
-        })
+        val captor = ArgumentCaptor.forClass(WalletTransactionEntity::class.java)
+        Mockito.verify(ledger).save(captor.capture())
+        val transaction = captor.value
+        assertEquals("WITHDRAWAL:WDR-1", transaction.externalRef)
+        assertEquals(42L, transaction.userId)
+        assertEquals("WITHDRAW", transaction.type)
+        assertEquals(BigDecimal("250.00"), transaction.amount)
+        assertEquals("POSTED", transaction.status)
+        assertEquals("WITHDRAWAL", transaction.referenceType)
+        assertEquals("WDR-1", transaction.referenceId)
     }
 
     @Test
