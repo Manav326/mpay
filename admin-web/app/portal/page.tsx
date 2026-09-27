@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
-import { redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
+import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
@@ -1233,8 +1233,7 @@ export default function Portal() {
         method: 'POST',
         body: JSON.stringify({ password: deletePassword, confirmation: deleteConfirmation })
       });
-      localStorage.removeItem('mpay_token');
-      localStorage.removeItem('mpay_refresh_token');
+      logoutWebSession(webSession);
       window.location.href = '/';
     } catch (e:any) {
       setNotice(e.message || 'Unable to delete your account.');
@@ -1985,9 +1984,6 @@ export default function Portal() {
       api<any>('/api/v1/recharge/commission-summary')
     ]).then(([meResult,walletResult,commissionResult])=>{
       if(meResult.status !== 'fulfilled' || walletResult.status !== 'fulfilled'){
-        localStorage.removeItem('mpay_token');
-        localStorage.removeItem('mpay_refresh_token');
-        window.location.href='/login';
         return;
       }
       const a=meResult.value;
@@ -2074,8 +2070,7 @@ export default function Portal() {
   }
 
   function logout() {
-    localStorage.removeItem('mpay_token');
-    localStorage.removeItem('mpay_refresh_token');
+    logoutWebSession(webSession);
     window.location.href='/';
   }
 
