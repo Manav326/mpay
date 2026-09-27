@@ -71,7 +71,15 @@ Customer -> regulated payment provider/PPI/PA -> regulated account or balance ->
 
 In this model, mPay can remain primarily a technology/service layer, subject to the precise contracts and regulatory permissions of the partner structure.
 
-Target design principle: prefer Model 2 unless the business explicitly decides to become a regulated PPI/payment-system operator and completes the required authorisation process.
+### 2A. Canonical business model selected
+
+The business owner has selected the following target description:
+
+> "mPay is intended to operate as a customer-facing service platform for recharge and chauffeur-driven rental services, using PayU/other appropriately authorised payment infrastructure for customer payments. mPay earns contractual service/platform commissions or fees from the underlying service transactions. Where customers preload funds and maintain a reusable balance for subsequent third-party services or withdrawal, that stored-value functionality will be implemented through an appropriately regulated wallet/payment structure rather than treating the customer's funds as unrestricted mPay operating funds."
+
+Therefore, "Option A" refers to the **overall business/service-platform model**, not a conclusion that mPay may independently issue stored value without authorisation.
+
+Target design principle: preserve the Option A consumer/service experience while implementing the stored-value/payment layer only through an appropriately regulated structure. The final choice between a regulated partner and direct authorisation remains a legal/provider decision.
 
 ## 3. What mPay should not say to a regulator
 
