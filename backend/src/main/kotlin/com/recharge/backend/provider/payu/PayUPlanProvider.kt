@@ -159,7 +159,6 @@ class PayUPlanProvider(
                 .filterNotNull().filter { it.isNotBlank() }.joinToString(" • ").ifBlank { planName },
             providerMetadata = mapOf(
                 "operatorId" to operatorId,
-                "billerId" to operatorId,
                 "circleId" to circleId,
                 "planName" to planName,
                 "planType" to (planType ?: ""),
