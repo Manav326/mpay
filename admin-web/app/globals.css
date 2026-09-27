@@ -4447,3 +4447,13 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
     flex-wrap:wrap;
   }
 }
+
+
+/* ===== Rental image load fallback ===== */
+.rental-photo-load-fallback{
+  display:grid;
+  place-items:center;
+  width:100%;
+  height:100%;
+  color:#8e8273;
+}
