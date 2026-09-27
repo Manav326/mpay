@@ -101,6 +101,15 @@ class RentalController(
     ): RentalCarResponse =
         rentalService.uploadVehiclePhoto(userId(authentication), carId, slot, photo)
 
+    @PostMapping("/vendor/vehicles/{carId}/photos/{slot}/import-url")
+    fun importVehiclePhotoFromUrl(
+        authentication: Authentication,
+        @PathVariable carId: Long,
+        @PathVariable slot: Int,
+        @Valid @RequestBody request: RentalPhotoUrlImportRequest
+    ): RentalCarResponse =
+        rentalService.importVehiclePhotoFromUrl(userId(authentication), carId, slot, request.url)
+
     @PostMapping("/vendor/vehicles/{carId}/unavailability")
     fun takeVehicleOffMarket(
         authentication: Authentication,
