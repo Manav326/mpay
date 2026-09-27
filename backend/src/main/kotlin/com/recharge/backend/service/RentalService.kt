@@ -665,10 +665,34 @@ class RentalService(
             ?: throw IllegalArgumentException("Vehicle for driver not found")
         prepareVehicleForEdit(car, "DRIVER_PHOTO_UPDATED", userId)
 
+        val newKey = rentalImageStorage.saveDriverPhoto(driverId, photo)
+        return replaceDriverPhotoReference(driver, car, newKey)
+    }
+
+    @Transactional
+    fun importDriverPhotoFromUrl(userId: Long, driverId: Long, url: String): RentalCarResponse {
+        val vendor = verifiedVendor(userId)
+        val vendorId = requireNotNull(vendor.id)
+        val driver = drivers.findById(driverId).orElseThrow { IllegalArgumentException("Driver not found") }
+        require(driver.vendorId == vendorId) { "Driver does not belong to this vendor" }
+        val car = cars.findAllByVendorIdOrderByIdDesc(vendorId).firstOrNull { it.driverId == driverId }
+            ?: throw IllegalArgumentException("Vehicle for driver not found")
+        prepareVehicleForEdit(car, "DRIVER_PHOTO_UPDATED", userId)
+
+        val imported = rentalPhotoImportService.importFromUrl(url)
+        val newKey = rentalImageStorage.saveDriverPhoto(driverId, imported.bytes, imported.contentType)
+        return replaceDriverPhotoReference(driver, car, newKey)
+    }
+
+    private fun replaceDriverPhotoReference(
+        driver: RentalDriverEntity,
+        car: RentalCarEntity,
+        newKey: String
+    ): RentalCarResponse {
         val oldValue = driver.photoUrl.orEmpty()
         val oldStoredKey = oldValue.removePrefix(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX)
             .takeIf { oldValue.startsWith(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX) }
-        val newKey = rentalImageStorage.saveDriverPhoto(driverId, photo)
+
         try {
             driver.photoUrl = RentalPhotoService.RENTAL_PHOTO_URL_PREFIX + newKey
             driver.updatedAt = Instant.now()
@@ -678,7 +702,6 @@ class RentalService(
             throw error
         }
         if (oldStoredKey != null) rentalImageStorage.delete(oldStoredKey)
-
         return toCarResponse(car)
     }
 
