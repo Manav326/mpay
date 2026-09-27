@@ -125,10 +125,36 @@ class RechargeService(
         )
 
         val provider = resolveExecutionProvider(request.operator)
+        val providerRequest = ProviderRechargeRequest(
+            transactionId = transactionId,
+            mobileNumber = request.mobileNumber,
+            operator = request.operator.uppercase(),
+            circle = request.circle,
+            plan = selectedPlan.copy(amount = amount)
+        )
+
+        val preparedProviderRequest = try {
+            val prepared = provider.prepareBeforeSubmission(providerRequest)
+            provider.validateBeforeSubmission(prepared)
+            prepared
+        } catch (ex: Exception) {
+            val failed = workflow.recordPreSubmissionFailure(
+                userId = userId,
+                request = requestData,
+                plan = selectedPlan.copy(amount = amount),
+                providerName = provider.providerName,
+                companyCommission = companyCommission,
+                clientCommission = clientCommission,
+                walletDebitAmount = walletDebitAmount,
+                message = "Recharge was not submitted: " + (ex.message ?: "provider prerequisites are not satisfied")
+            )
+            return toResponse(failed)
+        }
+
         val reserved = workflow.reserve(
             userId = userId,
             request = requestData,
-            plan = selectedPlan.copy(amount = amount),
+            plan = preparedProviderRequest.plan,
             providerName = provider.providerName,
             companyCommission = companyCommission,
             clientCommission = clientCommission,
@@ -138,15 +164,7 @@ class RechargeService(
         if (reserved.transactionId != transactionId) return toResponse(reserved)
 
         val providerResult = try {
-            provider.recharge(
-                ProviderRechargeRequest(
-                    transactionId = reserved.transactionId,
-                    mobileNumber = request.mobileNumber,
-                    operator = request.operator.uppercase(),
-                    circle = request.circle,
-                    plan = selectedPlan.copy(amount = amount)
-                )
-            )
+            provider.recharge(preparedProviderRequest.copy(transactionId = reserved.transactionId))
         } catch (ex: Exception) {
             workflow.markProviderPending(
                 transactionId = reserved.transactionId,
@@ -174,7 +192,12 @@ class RechargeService(
         var tx = workflow.find(userId, transactionId)
         if (tx.status.equals("PENDING", ignoreCase = true)) {
             val provider = executionProviders.firstOrNull { it.providerName.equals(tx.providerName, ignoreCase = true) }
-            val refreshed = provider?.getStatus(tx.providerReference ?: tx.providerOrderId ?: tx.transactionId)
+            val providerReference = tx.providerReference?.takeIf { it.isNotBlank() }
+            val refreshed = if (provider != null && providerReference != null) {
+                provider.getStatus(providerReference)
+            } else {
+                null
+            }
             if (refreshed != null && !refreshed.status.equals("PENDING", ignoreCase = true)) {
                 tx = workflow.applyProviderResult(
                     transactionId = tx.transactionId,
