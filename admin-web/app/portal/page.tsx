@@ -184,9 +184,47 @@ async function resolveRentalPhoto(primary: string, fallback: string): Promise<st
   return trySource(fallback);
 }
 
+function useRentalViewport(
+  priority = false
+): { ref: React.RefObject<HTMLDivElement | null>; active: boolean } {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState(priority);
+
+  useEffect(() => {
+    if (priority) {
+      setActive(true);
+      return;
+    }
+
+    const target = ref.current;
+    if (!target) return;
+
+    if (!('IntersectionObserver' in window)) {
+      setActive(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          setActive(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '700px 0px' }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [priority]);
+
+  return { ref, active };
+}
+
 function useRentalPhotoUrls(
   car?: Pick<RentalCar, 'imageUrl'>,
-  variant: 'thumb' | 'large' = 'thumb'
+  variant: 'thumb' | 'large' = 'thumb',
+  active = true
 ): string[] | null {
   const slots = vehiclePhotoSlots(car);
   const slotKey = slots.join('|');
@@ -194,6 +232,12 @@ function useRentalPhotoUrls(
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!active) {
+      setResolved(null);
+      return () => { cancelled = true; };
+    }
+
     setResolved(null);
 
     if (!slots.length) {
@@ -211,12 +255,13 @@ function useRentalPhotoUrls(
       )
     ).then(results => {
       if (cancelled) return;
-      const allLoaded = results.every(Boolean);
-      setResolved(allLoaded ? results as string[] : []);
+      // Do not render a partial gallery. A rental widget becomes visible
+      // only after every stored photo for that vehicle has a working source.
+      setResolved(results.every(Boolean) ? results as string[] : []);
     });
 
     return () => { cancelled = true; };
-  }, [slotKey, variant]);
+  }, [slotKey, variant, active]);
 
   return resolved;
 }
@@ -230,33 +275,37 @@ function VehicleFourPhotoGallery({
   priority?: boolean;
   className?: string;
 }) {
-  const photos = useRentalPhotoUrls(car, 'thumb');
-  if (!photos || !photos.length) return null;
+  const viewport = useRentalViewport(priority);
+  const photos = useRentalPhotoUrls(car, 'thumb', viewport.active);
 
   return (
-    <div className={`vehicle-card-gallery ${className}`}>
-      <div className="vehicle-card-gallery-main">
-        <img
-          src={photos[0]}
-          alt={car?.name || 'Vehicle'}
-          loading={priority ? 'eager' : 'lazy'}
-          decoding="async"
-          fetchPriority={priority ? 'high' : 'auto'}
-        />
-      </div>
-      {photos.length > 1 && (
-        <div className="vehicle-card-gallery-thumbs">
-          {photos.slice(1).map((src, index) => (
-            <div className="vehicle-card-gallery-thumb" key={src}>
-              <img
-                src={src}
-                alt={`${car?.name || 'Vehicle'} photo ${index + 2}`}
-                loading={priority ? 'eager' : 'lazy'}
-                decoding="async"
-              />
+    <div ref={viewport.ref} className={`vehicle-card-gallery ${className}`}>
+      {!photos || !photos.length ? null : (
+        <>
+          <div className="vehicle-card-gallery-main">
+            <img
+              src={photos[0]}
+              alt={car?.name || 'Vehicle'}
+              loading="eager"
+              decoding="async"
+              fetchPriority={priority ? 'high' : 'auto'}
+            />
+          </div>
+          {photos.length > 1 && (
+            <div className="vehicle-card-gallery-thumbs">
+              {photos.slice(1).map((src, index) => (
+                <div className="vehicle-card-gallery-thumb" key={src}>
+                  <img
+                    src={src}
+                    alt={`${car?.name || 'Vehicle'} photo ${index + 2}`}
+                    loading="eager"
+                    decoding="async"
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -267,7 +316,7 @@ function RentalDetailsPhotoGallery({
 }: {
   car: Pick<RentalCar, 'imageUrl' | 'name'>;
 }) {
-  const photos = useRentalPhotoUrls(car, 'large');
+  const photos = useRentalPhotoUrls(car, 'large', true);
   if (!photos || !photos.length) return null;
 
   return (
