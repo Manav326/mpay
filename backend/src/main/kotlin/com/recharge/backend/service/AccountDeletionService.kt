@@ -129,6 +129,13 @@ class AccountDeletionService(
             "delete from password_reset_otps where mobile = :mobile"
         ).setParameter("mobile", oldMobile).executeUpdate()
 
+        // Recharge offers are cached by mobile number rather than user_id, so purge
+        // the deleted account's cache entries immediately instead of retaining them
+        // until their normal TTL expires.
+        entityManager.createNativeQuery(
+            "delete from recharge_offer_cache where mobile_number = :mobile"
+        ).setParameter("mobile", oldMobile).executeUpdate()
+
         // Retain financial records for reconciliation, but remove direct personal identifiers.
         entityManager.createNativeQuery("""
             update wallet_withdrawals
@@ -292,6 +299,7 @@ class AccountDeletionService(
         user.profileImageContentType = null
         user.profileImageUpdatedAt = null
         user.profileUpdatedAt = Instant.now()
+        user.mobileVerifiedAt = null
         user.passwordHash = redactedPassword
         user.role = "DELETED"
         user.active = false
