@@ -1208,9 +1208,17 @@ export default function Portal() {
     if (!/^[A-Za-z0-9]+@[A-Za-z]+$/.test(upi)) { setNotice('Enter a valid UPI ID.'); return false; }
     setBusy(true); setNotice('');
     try {
-      const result=await api<WithdrawalItem>('/api/v1/wallet/withdraw',{method:'POST',body:JSON.stringify({
-        amount, provider:withdrawProvider, upiId:upi, clientRequestId:crypto.randomUUID()
-      })});
+      const requestBody = JSON.stringify({
+        amount,
+        provider: withdrawProvider,
+        upiId: upi,
+        clientRequestId: crypto.randomUUID()
+      });
+      const result=await api<WithdrawalItem>('/api/v1/wallet/withdraw',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:requestBody
+      });
       await refreshWallet();
       setWithdrawals(x=>[result,...x]);
       setWithdrawAmount('');
@@ -2026,7 +2034,7 @@ export default function Portal() {
               <>
                 <div className="wallet-current-balance">Available to withdraw <b>{money(wallet?.availableBalance)}</b></div>
                 <div className="wallet-provider-picker">
-                  {(['mock','razorpay','payu'] as const).map(provider => <button key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
+                  {(['mock','razorpay','payu'] as const).map(provider => <button type="button" key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
                 </div>
                 <div className="wallet-field-grid">
                   <label className="wallet-field-label">Amount (INR)
@@ -2037,7 +2045,7 @@ export default function Portal() {
                   </label>
                 </div>
                 <div className="wallet-field-help">Minimum ₹1 · Available {money(wallet?.availableBalance)}</div>
-                <button className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{if(await withdrawMoney())setHomeActionModal(null);}}>
+                <button type="button" className="wallet-primary-wide" disabled={busy || !(Number(withdrawAmount)>=1 && Number(withdrawAmount)<=Number(wallet?.availableBalance||0)) || !/^[A-Za-z0-9]+@[A-Za-z]+$/.test(withdrawUpi.trim())} onClick={async()=>{if(await withdrawMoney())setHomeActionModal(null);}}>
                   {busy ? 'Processing…' : 'Withdraw'} <ArrowRight size={15}/>
                 </button>
               </>
