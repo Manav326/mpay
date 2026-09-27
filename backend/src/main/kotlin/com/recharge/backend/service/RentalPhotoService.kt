@@ -15,12 +15,12 @@ class RentalPhotoService {
     private val keyPattern = Regex("[A-Za-z0-9._-]+")
 
     fun vehiclePhotos(imageUrl: String?): List<RentalPhotoResource> =
-        photoReferences(imageUrl)
+        references(imageUrl)
             .take(4)
             .mapIndexed { index, value -> resource(value, index) }
 
     fun driverPhoto(photoUrl: String?): RentalPhotoResource? =
-        photoReferences(photoUrl).firstOrNull()?.let { resource(it, null) }
+        references(photoUrl).firstOrNull()?.let { resource(it, null) }
 
     fun normalizeStoredReferences(value: String?): String? {
         if (value.isNullOrBlank()) return null
