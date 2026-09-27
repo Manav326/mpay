@@ -91,6 +91,8 @@ type RentalPhotoResource = {
   largeUrl: string;
 };
 
+type RentalPhotoValue = string | RentalPhotoResource;
+
 function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -100,9 +102,16 @@ function imageUrl(value?: string | null, variant: 'thumb' | 'large' = 'thumb') {
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
-function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priority = false }: { src?: string | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large'; priority?: boolean }) {
+function rentalPhotoResourceUrl(value?: RentalPhotoValue | null, variant: 'thumb' | 'large' = 'thumb') {
+  if (value && typeof value === 'object') {
+    return variant === 'large' ? value.largeUrl : value.thumbnailUrl;
+  }
+  return imageUrl(value, variant);
+}
+
+function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priority = false }: { src?: RentalPhotoValue | null; alt: string; label?: string; className?: string; variant?: 'thumb' | 'large'; priority?: boolean }) {
   const [failed, setFailed] = useState(false);
-  const resolved = imageUrl(src, variant);
+  const resolved = rentalPhotoResourceUrl(src, variant);
   return (
     <div className={`rental-photo-tile ${className}`}>
       {resolved && !failed ? <img src={resolved} alt={alt} loading={priority ? 'eager' : 'lazy'} decoding="async" fetchPriority={priority ? 'high' : 'auto'} onError={() => setFailed(true)} /> : <div className="rental-photo-fallback"><CarFront size={22} /><span>{label || 'Photo unavailable'}</span></div>}
@@ -111,14 +120,11 @@ function PhotoTile({ src, alt, label, className = '', variant = 'thumb', priorit
   );
 }
 
-function vehiclePhotos(vehicle: any): string[] {
+function vehiclePhotos(vehicle: any): RentalPhotoValue[] {
   if (Array.isArray(vehicle?.photos) && vehicle.photos.length) {
     return [...vehicle.photos]
       .sort((a: RentalPhotoResource, b: RentalPhotoResource) => (a.slot ?? 0) - (b.slot ?? 0))
-      .map((photo: RentalPhotoResource) => photo.url)
-      .filter(Boolean)
-      .slice(0, 4)
-      .concat(['', '', '', ''])
+      .filter((photo: RentalPhotoResource) => Boolean(photo.url))
       .slice(0, 4);
   }
   return String(vehicle?.imageUrl || '')
@@ -127,8 +133,6 @@ function vehiclePhotos(vehicle: any): string[] {
     .split('|')
     .map((value) => value.trim())
     .filter(Boolean)
-    .slice(0, 4)
-    .concat(['', '', '', ''])
     .slice(0, 4);
 }
 
@@ -734,7 +738,7 @@ function VehiclePhotoCarousel({
   onNext,
   onSelect,
 }: {
-  photos: string[];
+  photos: RentalPhotoValue[];
   activeIndex: number;
   onPrev: () => void;
   onNext: () => void;
