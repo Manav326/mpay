@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
@@ -186,7 +186,7 @@ async function resolveRentalPhoto(primary: string, fallback: string): Promise<st
 
 function useRentalViewport(
   priority = false
-): { ref: React.RefObject<HTMLDivElement | null>; active: boolean } {
+): { ref: RefObject<HTMLDivElement | null>; active: boolean } {
   const ref = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(priority);
 
