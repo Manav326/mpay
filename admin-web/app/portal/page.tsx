@@ -291,7 +291,7 @@ function VehicleFourPhotoGallery({
   priority = false,
   className = '',
 }: {
-  car?: Pick<RentalCar, 'imageUrl' | 'name'>;
+  car?: Pick<RentalCar, 'imageUrl' | 'photos' | 'name'>;
   priority?: boolean;
   className?: string;
 }) {
@@ -334,7 +334,7 @@ function VehicleFourPhotoGallery({
 function RentalDetailsPhotoGallery({
   car,
 }: {
-  car: Pick<RentalCar, 'imageUrl' | 'name'>;
+  car: Pick<RentalCar, 'imageUrl' | 'photos' | 'name'>;
 }) {
   const photos = useRentalPhotoUrls(car, 'large', true);
   if (!photos || !photos.length) return null;
