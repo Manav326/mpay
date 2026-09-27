@@ -167,6 +167,53 @@ function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thu
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
+function RentalImage({
+  src,
+  fallbackSrc,
+  alt,
+  className,
+  loading = 'lazy',
+  fetchPriority = 'auto',
+}: {
+  src: string;
+  fallbackSrc?: string;
+  alt: string;
+  className?: string;
+  loading?: 'eager' | 'lazy';
+  fetchPriority?: 'high' | 'low' | 'auto';
+}) {
+  const [activeSrc, setActiveSrc] = useState(src);
+  const [fallbackTried, setFallbackTried] = useState(false);
+
+  useEffect(() => {
+    setActiveSrc(src);
+    setFallbackTried(false);
+  }, [src]);
+
+  if (!activeSrc) {
+    return <span className={className || 'rental-photo-load-fallback'} aria-hidden="true"><Car size={26} /></span>;
+  }
+
+  return (
+    <img
+      className={className}
+      src={activeSrc}
+      alt={alt}
+      loading={loading}
+      decoding="async"
+      fetchPriority={fetchPriority}
+      onError={() => {
+        if (!fallbackTried && fallbackSrc && fallbackSrc !== activeSrc) {
+          setFallbackTried(true);
+          setActiveSrc(fallbackSrc);
+        } else {
+          setActiveSrc('');
+        }
+      }}
+    />
+  );
+}
+
 function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
   const raw = String(car?.imageUrl || '');
   return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4).concat(['', '', '', '']).slice(0, 4);
@@ -181,17 +228,17 @@ function VehicleFourPhotoGallery({
   priority?: boolean;
   className?: string;
 }) {
-  const photos = vehiclePhotoSlots(car);
   const main = imageFromCar(car, 0, 'thumb');
+  const mainFallback = imageFromCar(car, 0, 'large');
   return (
     <div className={`vehicle-card-gallery ${className}`}>
       <div className="vehicle-card-gallery-main">
         {main ? (
-          <img
+          <RentalImage
             src={main}
+            fallbackSrc={mainFallback}
             alt={car?.name || 'Vehicle'}
             loading={priority ? 'eager' : 'lazy'}
-            decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
           />
         ) : <Car size={30} />}
@@ -199,15 +246,15 @@ function VehicleFourPhotoGallery({
       <div className="vehicle-card-gallery-thumbs">
         {[1, 2, 3].map(slot => {
           const src = imageFromCar(car, slot, 'thumb');
+          const fallbackSrc = imageFromCar(car, slot, 'large');
           return (
             <div className="vehicle-card-gallery-thumb" key={slot}>
               {src ? (
-                <img
+                <RentalImage
                   src={src}
+                  fallbackSrc={fallbackSrc}
                   alt={`${car?.name || 'Vehicle'} photo ${slot + 1}`}
                   loading={priority ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchPriority="auto"
                 />
               ) : <span>Photo {slot + 1}</span>}
             </div>
@@ -3076,7 +3123,8 @@ export default function Portal() {
             <div className="vehicle-gallery rental-public-gallery">
               {[0,1,2,3].map(slot=>{
                 const src=imageFromCar(rentalDetails,slot,'large');
-                return <div className="vehicle-gallery-slot" key={slot}>{src?<img src={src} alt={rentalDetails.name + ' ' + (slot+1)} loading="eager" decoding="async" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>;
+                const fallbackSrc=imageFromCar(rentalDetails,slot,'thumb');
+                return <div className="vehicle-gallery-slot" key={slot}>{src?<RentalImage src={src} fallbackSrc={fallbackSrc} alt={rentalDetails.name + ' ' + (slot+1)} loading="eager" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>;
               })}
             </div>
 
