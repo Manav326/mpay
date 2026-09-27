@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.payu.checkoutpro.PayUCheckoutPro;
+import com.payu.checkoutpro.PayUCheckoutProConfig;
 import com.payu.ui.model.listeners.PayUCheckoutProListener;
 import com.payu.checkoutpro.utils.PayUCheckoutProConstants;
 import com.payu.base.models.PayUPaymentParams;
@@ -61,7 +62,12 @@ public final class PayUCheckoutBridge {
                 .setAdditionalParams(buildStaticHashes(vasForMobileSdkHash, paymentRelatedDetailsHash, paymentHash))
                 .build();
 
-        PayUCheckoutPro.open(activity, params, new PayUCheckoutProListener() {
+        PayUCheckoutProConfig config = new PayUCheckoutProConfig();
+        config.setMerchantName("mPay");
+        config.setMerchantLogo(com.recharge.client.R.drawable.mpay_logo);
+        config.setShowMerchantLogo(true);
+
+        PayUCheckoutPro.open(activity, params, config, new PayUCheckoutProListener() {
             @Override public void onPaymentSuccess(Object response) { callback.onPaymentSuccess(response); }
             @Override public void onPaymentFailure(Object response) { callback.onPaymentFailure(response); }
             @Override public void onPaymentCancel(boolean isTxnInitiated) { callback.onPaymentCancel(isTxnInitiated); }
