@@ -270,6 +270,22 @@ class ClientRepository(context: Context) {
     }
 
 
+    suspend fun importRentalDriverPhotoFromUrl(
+        driverId: String,
+        url: String
+    ): Result<com.recharge.client.core.model.RentalCarResponse> = apiCall {
+        val normalized = url.trim()
+        require(normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            "Please enter a valid image URL."
+        }
+        val response = api.importRentalDriverPhotoFromUrl(
+            driverId,
+            RentalPhotoUrlImportRequest(normalized)
+        )
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun uploadRentalDriverPhoto(
         driverId: String,
         uri: Uri
