@@ -15,6 +15,13 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 
+data class RentalPhotoResponse(
+    val slot: Int? = null,
+    val url: String,
+    val thumbnailUrl: String,
+    val largeUrl: String
+)
+
 data class RentalCarResponse(
     val id: String,
     val name: String,
@@ -29,11 +36,13 @@ data class RentalCarResponse(
     val pickupLongitude: Double? = null,
     val pickupPlaceId: String? = null,
     val imageUrl: String?,
+    val photos: List<RentalPhotoResponse> = emptyList(),
     val pricePerDay: BigDecimal,
     val driverId: String? = null,
     val driverName: String,
     val driverMobile: String? = null,
     val driverPhotoUrl: String? = null,
+    val driverPhoto: RentalPhotoResponse? = null,
     val driverRating: BigDecimal? = null,
     val approvalStatus: String? = null,
     val rejectionReason: String? = null,
@@ -62,9 +71,11 @@ data class RentalPublicCarResponse(
     val pickupLongitude: Double? = null,
     val pickupPlaceId: String? = null,
     val imageUrl: String?,
+    val photos: List<RentalPhotoResponse> = emptyList(),
     val pricePerDay: BigDecimal,
     val driverName: String,
     val driverPhotoUrl: String? = null,
+    val driverPhoto: RentalPhotoResponse? = null,
     val driverRating: BigDecimal? = null,
     val make: String? = null,
     val model: String? = null,
@@ -297,7 +308,9 @@ data class RentalBookingResponse(
     val driverName: String,
     val driverMobile: String? = null,
     val driverPhotoUrl: String? = null,
+    val driverPhoto: RentalPhotoResponse? = null,
     val carImageUrl: String? = null,
+    val carPhotos: List<RentalPhotoResponse> = emptyList(),
     val pickup: String,
     val drop: String,
     val pickupLatitude: Double? = null,
