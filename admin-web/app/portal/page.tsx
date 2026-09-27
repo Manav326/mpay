@@ -167,56 +167,58 @@ function imageFromCar(car?: Pick<RentalCar, 'imageUrl'>, slot = 0, variant: 'thu
   return url + (url.includes('?') ? '&' : '?') + 'variant=' + variant;
 }
 
-function RentalImage({
-  src,
-  fallbackSrc,
-  alt,
-  className,
-  loading = 'lazy',
-  fetchPriority = 'auto',
-}: {
-  src: string;
-  fallbackSrc?: string;
-  alt: string;
-  className?: string;
-  loading?: 'eager' | 'lazy';
-  fetchPriority?: 'high' | 'low' | 'auto';
-}) {
-  const [activeSrc, setActiveSrc] = useState(src);
-  const [fallbackTried, setFallbackTried] = useState(false);
+async function resolveRentalPhoto(primary: string, fallback: string): Promise<string | null> {
+  const trySource = (src: string): Promise<string | null> => new Promise(resolve => {
+    if (!src) {
+      resolve(null);
+      return;
+    }
+    const image = new Image();
+    image.onload = () => resolve(src);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
 
-  useEffect(() => {
-    setActiveSrc(src);
-    setFallbackTried(false);
-  }, [src]);
-
-  if (!activeSrc) {
-    return <span className={className || 'rental-photo-load-fallback'} aria-hidden="true"><Car size={26} /></span>;
-  }
-
-  return (
-    <img
-      className={className}
-      src={activeSrc}
-      alt={alt}
-      loading={loading}
-      decoding="async"
-      fetchPriority={fetchPriority}
-      onError={() => {
-        if (!fallbackTried && fallbackSrc && fallbackSrc !== activeSrc) {
-          setFallbackTried(true);
-          setActiveSrc(fallbackSrc);
-        } else {
-          setActiveSrc('');
-        }
-      }}
-    />
-  );
+  const first = await trySource(primary);
+  if (first) return first;
+  return trySource(fallback);
 }
 
-function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
-  const raw = String(car?.imageUrl || '');
-  return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4).concat(['', '', '', '']).slice(0, 4);
+function useRentalPhotoUrls(
+  car?: Pick<RentalCar, 'imageUrl'>,
+  variant: 'thumb' | 'large' = 'thumb'
+): string[] | null {
+  const slots = vehiclePhotoSlots(car);
+  const slotKey = slots.join('|');
+  const [resolved, setResolved] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setResolved(null);
+
+    if (!slots.length) {
+      setResolved([]);
+      return () => { cancelled = true; };
+    }
+
+    const fallbackVariant = variant === 'thumb' ? 'large' : 'thumb';
+    Promise.all(
+      slots.map((_, slot) =>
+        resolveRentalPhoto(
+          imageFromCar(car, slot, variant),
+          imageFromCar(car, slot, fallbackVariant)
+        )
+      )
+    ).then(results => {
+      if (cancelled) return;
+      const allLoaded = results.every(Boolean);
+      setResolved(allLoaded ? results as string[] : []);
+    });
+
+    return () => { cancelled = true; };
+  }, [slotKey, variant]);
+
+  return resolved;
 }
 
 function VehicleFourPhotoGallery({
@@ -228,41 +230,66 @@ function VehicleFourPhotoGallery({
   priority?: boolean;
   className?: string;
 }) {
-  const main = imageFromCar(car, 0, 'thumb');
-  const mainFallback = imageFromCar(car, 0, 'large');
+  const photos = useRentalPhotoUrls(car, 'thumb');
+  if (!photos || !photos.length) return null;
+
   return (
     <div className={`vehicle-card-gallery ${className}`}>
       <div className="vehicle-card-gallery-main">
-        {main ? (
-          <RentalImage
-            src={main}
-            fallbackSrc={mainFallback}
-            alt={car?.name || 'Vehicle'}
-            loading={priority ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : 'auto'}
-          />
-        ) : <Car size={30} />}
+        <img
+          src={photos[0]}
+          alt={car?.name || 'Vehicle'}
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchPriority={priority ? 'high' : 'auto'}
+        />
       </div>
-      <div className="vehicle-card-gallery-thumbs">
-        {[1, 2, 3].map(slot => {
-          const src = imageFromCar(car, slot, 'thumb');
-          const fallbackSrc = imageFromCar(car, slot, 'large');
-          return (
-            <div className="vehicle-card-gallery-thumb" key={slot}>
-              {src ? (
-                <RentalImage
-                  src={src}
-                  fallbackSrc={fallbackSrc}
-                  alt={`${car?.name || 'Vehicle'} photo ${slot + 1}`}
-                  loading={priority ? 'eager' : 'lazy'}
-                />
-              ) : <span>Photo {slot + 1}</span>}
+      {photos.length > 1 && (
+        <div className="vehicle-card-gallery-thumbs">
+          {photos.slice(1).map((src, index) => (
+            <div className="vehicle-card-gallery-thumb" key={src}>
+              <img
+                src={src}
+                alt={`${car?.name || 'Vehicle'} photo ${index + 2}`}
+                loading={priority ? 'eager' : 'lazy'}
+                decoding="async"
+              />
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
+}
+
+function RentalDetailsPhotoGallery({
+  car,
+}: {
+  car: Pick<RentalCar, 'imageUrl' | 'name'>;
+}) {
+  const photos = useRentalPhotoUrls(car, 'large');
+  if (!photos || !photos.length) return null;
+
+  return (
+    <div className="vehicle-gallery rental-public-gallery">
+      {photos.map((src, index) => (
+        <div className="vehicle-gallery-slot" key={src}>
+          <img
+            src={src}
+            alt={`${car.name} ${index + 1}`}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function vehiclePhotoSlots(car?: Pick<RentalCar, 'imageUrl'>): string[] {
+  const raw = String(car?.imageUrl || '');
+  return raw.replace(/\\n/g, '|').split(/[|,]/).map(x => x.trim()).filter(Boolean).slice(0, 4);
 }
 
 function bookingShareText(b: RentalBooking) {
@@ -3128,13 +3155,7 @@ export default function Portal() {
               <button className="icon-btn" onClick={()=>setRentalDetails(undefined)}><X size={17}/></button>
             </div>
 
-            <div className="vehicle-gallery rental-public-gallery">
-              {[0,1,2,3].map(slot=>{
-                const src=imageFromCar(rentalDetails,slot,'large');
-                const fallbackSrc=imageFromCar(rentalDetails,slot,'thumb');
-                return <div className="vehicle-gallery-slot" key={slot}>{src?<RentalImage src={src} fallbackSrc={fallbackSrc} alt={rentalDetails.name + ' ' + (slot+1)} loading="eager" fetchPriority="high"/>:<span>Photo {slot+1}</span>}</div>;
-              })}
-            </div>
+            <RentalDetailsPhotoGallery car={rentalDetails} />
 
             <div className="rental-details-hero">
               <div>
