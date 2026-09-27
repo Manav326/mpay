@@ -1,12 +1,9 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
+import { redirectToLogin, refreshWebSession } from './session';
 import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
-
-type AuthTokenPair = { accessToken: string; refreshToken: string };
-
-let refreshPromise: Promise<string | null> | null = null;
 
 function normalizeDisplayValue<T>(value: T): T {
   if (typeof value === 'string') {
@@ -28,67 +25,20 @@ function normalizeDisplayValue<T>(value: T): T {
   return value;
 }
 
-function sessionTokens(): AuthTokenPair | null {
-  if (typeof window === 'undefined') return null;
-  const accessToken = localStorage.getItem('mpay_admin_token');
-  const raw = localStorage.getItem('mpay_admin_session');
-  if (!accessToken || !raw) return null;
-  try {
-    const session = JSON.parse(raw);
-    if (!session?.refreshToken) return null;
-    return { accessToken, refreshToken: session.refreshToken };
-  } catch {
-    return null;
-  }
-}
 
-function saveRefreshedSession(result: AuthTokenPair): void {
-  if (typeof window === 'undefined') return;
-  const raw = localStorage.getItem('mpay_admin_session');
-  const current = raw ? JSON.parse(raw) : {};
-  const next = { ...current, token: result.accessToken, refreshToken: result.refreshToken };
-  localStorage.setItem('mpay_admin_token', result.accessToken);
-  localStorage.setItem('mpay_admin_session', JSON.stringify(next));
-}
+const adminWebSession = {
+  accessKey: 'mpay_admin_token',
+  refreshKey: 'mpay_admin_refresh_token',
+  sessionKey: 'mpay_admin_session',
+  redirectPath: '/admin',
+};
 
 function clearAdminSession(): never {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('mpay_admin_token');
-    localStorage.removeItem('mpay_admin_session');
-    window.location.href = '/admin';
-  }
-  throw new Error('Your admin session has expired. Please sign in again.');
-}
-
-async function refreshAdminAccessToken(): Promise<string | null> {
-  if (refreshPromise) return refreshPromise;
-  const tokens = sessionTokens();
-  if (!tokens) return null;
-
-  refreshPromise = (async () => {
-    try {
-      const response = await fetch(baseUrl + '/api/v1/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-      });
-      if (!response.ok) return null;
-      const result = normalizeDisplayValue(await response.json()) as AuthTokenPair;
-      if (!result.accessToken || !result.refreshToken) return null;
-      saveRefreshedSession(result);
-      return result.accessToken;
-    } catch {
-      return null;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
+  redirectToLogin(adminWebSession);
 }
 
 async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+  let token = typeof window !== 'undefined' ? localStorage.getItem(adminWebSession.accessKey) : null;
   const buildHeaders = (authorization?: string) => {
     const headers = new Headers(init.headers || {});
     if (!headers.has('Content-Type') && !(typeof FormData !== 'undefined' && init.body instanceof FormData)) {
@@ -101,11 +51,11 @@ async function authenticatedFetch(path: string, init: RequestInit = {}): Promise
 
   let response = await fetch(baseUrl + path, { ...init, headers: buildHeaders() });
   if (response.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/v1/auth/')) {
-    const refreshed = await refreshAdminAccessToken();
-    if (refreshed) {
-      response = await fetch(baseUrl + path, { ...init, headers: buildHeaders(refreshed) });
-      if (response.status === 401) clearAdminSession();
-    } else {
+    const refreshed = await refreshWebSession(adminWebSession);
+    if (refreshed === 'refreshed') {
+      token = localStorage.getItem(adminWebSession.accessKey);
+      response = await fetch(baseUrl + path, { ...init, headers: buildHeaders(token || undefined) });
+    } else if (refreshed === 'invalid') {
       clearAdminSession();
     }
   }

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
+import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
@@ -77,41 +78,70 @@ type VehicleUnavailability = {
 };
 type CalendarDay = { date: string; status: string; bookingId?: string | null; reasonCode?: string | null; reasonLabel?: string | null };
 
+const webSession = {
+  accessKey: 'mpay_token',
+  refreshKey: 'mpay_refresh_token',
+  redirectPath: '/login',
+};
+
 async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('mpay_token');
-  const r = await fetch(base + path, {
+  let token = localStorage.getItem(webSession.accessKey);
+  const request = (authorization?: string) => fetch(base + path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(authorization ? { Authorization: 'Bearer ' + authorization } : token ? { Authorization: 'Bearer ' + token } : {}),
       ...(init?.headers || {})
     }
   });
-  if (r.status === 401) { localStorage.removeItem('mpay_token'); localStorage.removeItem('mpay_refresh_token'); window.location.href = '/login'; throw new Error('Your session has expired. Please sign in again.'); }
-  if (!r.ok) { const text = await r.text(); let message = text || ('Request failed (' + r.status + ')'); try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {} throw new Error(message); }
+
+  let r = await request();
+  if (r.status === 401) {
+    const refreshed = await refreshWebSession(webSession);
+    if (refreshed === 'refreshed') {
+      token = localStorage.getItem(webSession.accessKey);
+      r = await request(token || undefined);
+    } else if (refreshed === 'invalid') {
+      redirectToLogin(webSession);
+    }
+  }
+
+  if (r.status === 401) {
+    throw new Error('Your session could not be refreshed. Please try again.');
+  }
+  if (!r.ok) {
+    const text = await r.text();
+    let message = text || ('Request failed (' + r.status + ')');
+    try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {}
+    throw new Error(message);
+  }
   return r.status === 204 ? (undefined as T) : r.json();
 }
 
 async function apiUpload<T = any>(path: string, method: 'PUT' | 'POST', formData: FormData): Promise<T> {
-  const token = localStorage.getItem('mpay_token');
-  const r = await fetch(base + path, {
+  let token = localStorage.getItem(webSession.accessKey);
+  const request = (authorization?: string) => fetch(base + path, {
     method,
     body: formData,
-    headers: token ? { Authorization: 'Bearer ' + token } : {}
+    headers: authorization ? { Authorization: 'Bearer ' + authorization } : token ? { Authorization: 'Bearer ' + token } : {}
   });
+
+  let r = await request();
   if (r.status === 401) {
-    localStorage.removeItem('mpay_token');
-    localStorage.removeItem('mpay_refresh_token');
-    window.location.href = '/login';
-    throw new Error('Your session has expired. Please sign in again.');
+    const refreshed = await refreshWebSession(webSession);
+    if (refreshed === 'refreshed') {
+      token = localStorage.getItem(webSession.accessKey);
+      r = await request(token || undefined);
+    } else if (refreshed === 'invalid') {
+      redirectToLogin(webSession);
+    }
   }
+
+  if (r.status === 401) throw new Error('Your session could not be refreshed. Please try again.');
   if (!r.ok) {
     const text = await r.text();
     let message = text || 'Upload failed';
-    try {
-      const parsed = JSON.parse(text);
-      message = parsed?.message || parsed?.error || message;
-    } catch {}
+    try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {}
     throw new Error(message);
   }
   return r.json();
@@ -210,6 +240,22 @@ function useRentalViewport(
 ): { ref: RefObject<HTMLDivElement | null>; active: boolean } {
   const ref = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(priority);
+
+  useEffect(() => {
+    const config = {
+      accessKey: 'mpay_token',
+      refreshKey: 'mpay_refresh_token',
+      redirectPath: '/login',
+    };
+    if (!localStorage.getItem(config.accessKey)) {
+      redirectToLogin(config);
+      return;
+    }
+    startWebSessionRefresh(config);
+    return () => {
+      // The shared module owns the timer; the next authenticated page load restarts it.
+    };
+  }, []);
 
   useEffect(() => {
     if (priority) {
@@ -1187,8 +1233,7 @@ export default function Portal() {
         method: 'POST',
         body: JSON.stringify({ password: deletePassword, confirmation: deleteConfirmation })
       });
-      localStorage.removeItem('mpay_token');
-      localStorage.removeItem('mpay_refresh_token');
+      logoutWebSession(webSession);
       window.location.href = '/';
     } catch (e:any) {
       setNotice(e.message || 'Unable to delete your account.');
@@ -1939,9 +1984,6 @@ export default function Portal() {
       api<any>('/api/v1/recharge/commission-summary')
     ]).then(([meResult,walletResult,commissionResult])=>{
       if(meResult.status !== 'fulfilled' || walletResult.status !== 'fulfilled'){
-        localStorage.removeItem('mpay_token');
-        localStorage.removeItem('mpay_refresh_token');
-        window.location.href='/login';
         return;
       }
       const a=meResult.value;
@@ -2028,8 +2070,7 @@ export default function Portal() {
   }
 
   function logout() {
-    localStorage.removeItem('mpay_token');
-    localStorage.removeItem('mpay_refresh_token');
+    logoutWebSession(webSession);
     window.location.href='/';
   }
 
