@@ -20,6 +20,7 @@ interface RentalImageStorage {
     )
 
     fun save(carId: Long, slot: Int, file: MultipartFile): String
+    fun save(carId: Long, slot: Int, bytes: ByteArray, contentType: String): String
     fun saveDriverPhoto(driverId: Long, file: MultipartFile): String
     fun load(key: String, variant: ImageVariant = ImageVariant.THUMB): StoredImage?
     fun delete(key: String?)
@@ -32,20 +33,25 @@ class LocalRentalImageStorage(
     private val root: Path = Paths.get(imagesDir).toAbsolutePath().normalize().also { Files.createDirectories(it) }
 
     override fun save(carId: Long, slot: Int, file: MultipartFile): String {
-        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
         require(!file.isEmpty) { "Vehicle photo is empty" }
-
         val contentType = file.contentType?.lowercase().orEmpty()
-        require(contentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
-        require(file.size <= MAX_BYTES) { "Vehicle photo must be 5 MB or smaller" }
+        return save(carId, slot, file.bytes, contentType)
+    }
 
-        val ext = when (contentType) {
+    override fun save(carId: Long, slot: Int, bytes: ByteArray, contentType: String): String {
+        require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
+        require(bytes.isNotEmpty()) { "Vehicle photo is empty" }
+        require(bytes.size.toLong() <= MAX_BYTES) { "Vehicle photo must be 5 MB or smaller" }
+        val normalizedContentType = contentType.trim().lowercase()
+        require(normalizedContentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
+
+        val ext = when (normalizedContentType) {
             "image/png" -> "png"
             "image/webp" -> "webp"
             else -> "jpg"
         }
         val key = "rental_${carId}_${slot}_${UUID.randomUUID()}.$ext"
-        Files.write(resolve(key), file.bytes)
+        Files.write(resolve(key), bytes)
         runCatching {
             ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB)
             ImageVariantSupport.ensureVariant(root, key, ImageVariant.LARGE)
