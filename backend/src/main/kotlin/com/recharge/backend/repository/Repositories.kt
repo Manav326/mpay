@@ -287,6 +287,9 @@ interface PaymentOrderRepository : JpaRepository<PaymentOrderEntity, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findByRazorpayOrderIdAndUserId(razorpayOrderId: String, userId: Long): Optional<PaymentOrderEntity>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByRazorpayOrderId(razorpayOrderId: String): Optional<PaymentOrderEntity>
 }
 
 
