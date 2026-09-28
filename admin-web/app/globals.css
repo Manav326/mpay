@@ -49,18 +49,18 @@
 .story-simple{left:47.5%;top:24%;animation:mpayWordSimple 10s ease-in-out -3.3s infinite}
 .story-smart{left:76.5%;top:25%;animation:mpayWordSmart 10s ease-in-out -6.4s infinite}
 
-.mpay-brand-mark{
+.mpay-showcase-brand-mark{
   position:absolute;z-index:5;left:39.5%;top:18%;display:flex;flex-direction:column;align-items:flex-start;
   padding-left:2px;pointer-events:none;
 }
-.mpay-brand-mark strong{
+.mpay-showcase-brand-mark strong{
   font-size:clamp(17px,1.45vw,22px);line-height:1;font-weight:950;letter-spacing:-.055em;color:#2f2922;
 }
-.mpay-brand-mark strong:after{
+.mpay-showcase-brand-mark strong:after{
   content:'';display:inline-block;width:6px;height:6px;margin-left:3px;border-radius:50%;background:#f59e0b;
   vertical-align:3px;box-shadow:0 0 10px rgba(245,158,11,.24);
 }
-.mpay-brand-mark span{
+.mpay-showcase-brand-mark span{
   margin-top:5px;color:#9a8972;font-size:clamp(6px,.58vw,8px);font-weight:850;letter-spacing:.12em;text-transform:uppercase;
 }
 
@@ -130,14 +130,14 @@
 @media(max-width:900px){
   .portal-topbar{height:82px;padding:0!important}
   .story-secure{left:5%;}.story-simple{left:45%;}.story-smart{left:75%}
-  .mpay-brand-mark{left:39%;}.mpay-finance-flow{left:16%;}.mpay-recharge-flow{left:55%;}.mpay-rental-flow{left:81%}
+  .mpay-showcase-brand-mark{left:39%;}.mpay-finance-flow{left:16%;}.mpay-recharge-flow{left:55%;}.mpay-rental-flow{left:81%}
   .flow-arrow{width:20px}.flow-tag{font-size:6px}.mpay-story-word strong{font-size:11px}
 }
 @media(max-width:640px){
   .portal-topbar{height:74px;padding:0!important}
   .portal-mobile-menu{left:7px}
   .mpay-story-word strong{font-size:9px}.story-word-icon{width:18px;height:18px}
-  .mpay-brand-mark{left:39%;top:17%}.mpay-brand-mark strong{font-size:16px}.mpay-brand-mark span{font-size:5px;letter-spacing:.08em}
+  .mpay-showcase-brand-mark{left:39%;top:17%}.mpay-showcase-brand-mark strong{font-size:16px}.mpay-showcase-brand-mark span{font-size:5px;letter-spacing:.08em}
   .mpay-finance-flow{left:14%;top:58%;gap:5px}.mpay-recharge-flow{left:52%;top:58%;gap:5px}.mpay-rental-flow{left:80%;top:58%;gap:5px}
   .flow-arrow{width:13px}.flow-tag{font-size:5px}
   .mpay-finance-flow .flow-bank .flow-tag{display:none}
@@ -4575,7 +4575,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 }
 .mpay-brand-copy strong{
   display:block;
-  color:inherit;
+  color:#a86408;
   font-size:20px;
   line-height:1;
   font-weight:900;

@@ -141,10 +141,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         order.checkoutParams["paymentHash"].orEmpty(),
                         object : PayUCheckoutBridge.Callback {
                             override fun onPaymentSuccess(response: Any?) {
-                                val payuParameters = extractPayUPaymentParameters(response).toMutableMap()
+                                val payuParameters = extractPayUPaymentParameters(response)
                                 val txnId = payuParameters["txnid"].orEmpty().ifBlank { order.orderId }
-                                payuParameters["txnid"] = txnId
-                                walletPaymentViewModel.processPayUPaymentCallback(order.orderId, payuParameters)
+                                walletPaymentViewModel.verifyPayment(
+                                    provider = "payu",
+                                    paymentId = payuParameters["mihpayid"]?.takeIf { it.isNotBlank() },
+                                    orderId = txnId,
+                                    signature = payuParameters["hash"]?.takeIf { it.isNotBlank() }
+                                )
                             }
 
                             override fun onPaymentFailure(response: Any?) {
@@ -243,10 +247,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     order.checkoutParams["paymentHash"].orEmpty(),
                     object : PayUCheckoutBridge.Callback {
                         override fun onPaymentSuccess(response: Any?) {
-                            val payuParameters = extractPayUPaymentParameters(response).toMutableMap()
+                            val payuParameters = extractPayUPaymentParameters(response)
                             val txnId = payuParameters["txnid"].orEmpty().ifBlank { order.orderId }
-                            payuParameters["txnid"] = txnId
-                            rechargeViewModel.processPayUPaymentCallback(order.orderId, payuParameters)
+                            rechargeViewModel.verifyGatewayPayment(
+                                provider = "payu",
+                                paymentId = payuParameters["mihpayid"]?.takeIf { it.isNotBlank() },
+                                orderId = txnId,
+                                signature = payuParameters["hash"]?.takeIf { it.isNotBlank() }
+                            )
                         }
 
                         override fun onPaymentFailure(response: Any?) {
