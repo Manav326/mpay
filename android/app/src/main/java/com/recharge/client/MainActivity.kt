@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -402,6 +403,23 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 }
 
 private sealed class AuthRoute { data object Login : AuthRoute(); data object Register : AuthRoute(); data object ForgotPassword : AuthRoute() }
+
+private val AuthRouteSaver = Saver<AuthRoute, String>(
+    save = { route ->
+        when (route) {
+            AuthRoute.Login -> "login"
+            AuthRoute.Register -> "register"
+            AuthRoute.ForgotPassword -> "forgot-password"
+        }
+    },
+    restore = { value ->
+        when (value) {
+            "register" -> AuthRoute.Register
+            "forgot-password" -> AuthRoute.ForgotPassword
+            else -> AuthRoute.Login
+        }
+    }
+)
 private data class TopLevelDestination(val route: String, val label: String, val icon: ImageVector, val tint: Color)
 
 @Composable
@@ -426,7 +444,7 @@ private fun AppRoot(
     val profileState by profileViewModel.state.collectAsState()
     val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
-    var authRoute by rememberSaveable { mutableStateOf<AuthRoute>(AuthRoute.Login) }
+    var authRoute by rememberSaveable(stateSaver = AuthRouteSaver) { mutableStateOf<AuthRoute>(AuthRoute.Login) }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
