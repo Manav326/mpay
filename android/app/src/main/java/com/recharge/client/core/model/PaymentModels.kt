@@ -49,4 +49,11 @@ data class PayUHashRequest(
     val hashType: String? = null
 )
 
+data class PayUPaymentStatusRequest(
+    val orderId: String,
+    val status: String,
+    val paymentId: String? = null,
+    val signature: String? = null
+)
+
 data class PayUHashResponse(val hash: String)
