@@ -71,7 +71,7 @@ class IncomingCallActivity : ComponentActivity() {
         if (granted) answerCall()
         else {
             lifecycleScope.launch {
-                repository().decline(callId)
+                repository.decline(callId)
             }
             finish()
         }
