@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Mic, MicOff, Phone, PhoneCall, PhoneOff, ShieldCheck, Volume2, VolumeX } from 'lucide-react';
+import { Check, ChevronDown, Mic, MicOff, PhoneCall, PhoneOff, ShieldCheck } from 'lucide-react';
 import {
   createVoiceCall,
   endVoiceCall,
@@ -38,7 +38,6 @@ export function VoiceCallWidget({
   const [status, setStatus] = useState('RINGING');
   const [message, setMessage] = useState('Waiting for the customer to answer…');
   const [muted, setMuted] = useState(false);
-  const [speaker, setSpeaker] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
@@ -46,6 +45,7 @@ export function VoiceCallWidget({
   const localStreamRef = useRef<MediaStream | null>(null);
   const queuedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteDescriptionReadyRef = useRef(false);
+  const signalingStartedRef = useRef(false);
   const endedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -93,7 +93,8 @@ export function VoiceCallWidget({
   }, [call?.connectedAt]);
 
   useEffect(() => {
-    if (!call || status !== 'ACCEPTED' && status !== 'CONNECTED') return;
+    if (!call || call.status !== 'ACCEPTED' || signalingStartedRef.current) return;
+    signalingStartedRef.current = true;
     let cancelled = false;
 
     async function connect() {
@@ -224,7 +225,7 @@ export function VoiceCallWidget({
       localStreamRef.current?.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     };
-  }, [call?.status, callId, iceServers, status]);
+  }, [call?.status, callId, iceServers]);
 
   function finish(text: string) {
     endedRef.current = true;
@@ -255,11 +256,6 @@ export function VoiceCallWidget({
     setMuted(next);
   }
 
-  function toggleSpeaker() {
-    setSpeaker(value => !value);
-    setMessage('Speaker controls are managed by your browser audio output.');
-  }
-
   return (
     <div className="voice-call-modal-backdrop" role="dialog" aria-modal="true" aria-label="mPay voice call">
       <section className="voice-call-modal">
@@ -276,10 +272,7 @@ export function VoiceCallWidget({
           <button className={muted ? 'voice-round active' : 'voice-round'} onClick={toggleMute} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}>
             {muted ? <MicOff size={19} /> : <Mic size={19} />}
           </button>
-          <button className={speaker ? 'voice-round active' : 'voice-round'} onClick={toggleSpeaker} aria-label="Speaker output">
-            {speaker ? <Volume2 size={19} /> : <VolumeX size={19} />}
-          </button>
-          <button className="voice-round hangup" onClick={hangUp} disabled={busy} aria-label="End call">
+<button className="voice-round hangup" onClick={hangUp} disabled={busy} aria-label="End call">
             <PhoneOff size={19} />
           </button>
         </div>
