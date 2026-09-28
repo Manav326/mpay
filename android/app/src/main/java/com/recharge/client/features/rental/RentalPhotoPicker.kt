@@ -1,5 +1,5 @@
 package com.recharge.client.features.rental
-
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -128,6 +128,10 @@ fun RentalPhotoPickerDialog(
                         title = "From device",
                         subtitle = "Choose a photo",
                         onClick = {
+                             Log.d(
+                           "MpayImagePicker",
+                          "CLICK From device"
+                            )
                             source = RentalPhotoPickerSource.DEVICE
                             onDevicePicked(null)
                             onLaunchDevicePicker()
