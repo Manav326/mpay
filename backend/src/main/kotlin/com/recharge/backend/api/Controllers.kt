@@ -629,7 +629,7 @@ class VoiceCallAccessAdminController(
         access.setRoleAccess(currentUser(authentication), role, request.enabled)
 
     @GetMapping("/users")
-    fun users(authentication: Authentication): List<VoiceCallUserAccessResponse> =
+    fun listUsers(authentication: Authentication): List<VoiceCallUserAccessResponse> =
         access.userAccess(currentUser(authentication))
 
     @PutMapping("/users/{publicId}")
