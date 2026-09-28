@@ -58,6 +58,10 @@ jobs:
         working-directory: android
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          MPAY_FIREBASE_API_KEY: ${{ secrets.MPAY_FIREBASE_API_KEY }}
+          MPAY_FIREBASE_APP_ID: ${{ secrets.MPAY_FIREBASE_APP_ID }}
+          MPAY_FIREBASE_PROJECT_ID: ${{ secrets.MPAY_FIREBASE_PROJECT_ID }}
+          MPAY_FIREBASE_SENDER_ID: ${{ secrets.MPAY_FIREBASE_SENDER_ID }}
           MPAY_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/mpay-upload-key.jks
           MPAY_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           MPAY_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
