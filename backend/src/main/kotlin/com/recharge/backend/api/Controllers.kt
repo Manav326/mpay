@@ -84,6 +84,14 @@ class ClientController(
         )
     }
 
+    @PostMapping("/payments/payu/status")
+    fun payuStatus(
+        authentication: Authentication,
+        @Valid @RequestBody request: PayUPaymentStatusRequest
+    ): VerifyPaymentResponse =
+        payuPaymentGateway.recordClientOutcome(authenticatedUserId(authentication), request)
+  }
+
     @PostMapping("/recharge/operator")
     fun operator(@Valid @RequestBody request: OperatorCheckRequest) = recharge.detect(request)
 
