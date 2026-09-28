@@ -240,7 +240,7 @@ function userStatusMeta(value?: string){
   return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleUsers = users.filter(u => {
@@ -362,7 +362,7 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
       </div>
       {visibleUsers.length===0&&<div className="empty-state">No users match the selected filters.</div>}
     </section>
-    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated}/>}
+    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated}/>}
   </div>
 }
 
@@ -385,6 +385,21 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
   const [loadingWallet,setLoadingWallet] = useState(true);
   const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
   const [statusBusy,setStatusBusy] = useState(false);
+  const [voiceCallId,setVoiceCallId] = useState<string | null>(null);
+  const [voiceCallBusy,setVoiceCallBusy] = useState(false);
+
+  async function startVoiceSupportCall(){
+    if(voiceCallBusy || voiceCallId) return;
+    setVoiceCallBusy(true);
+    try {
+      const created = await createVoiceCall(user.publicUserId);
+      setVoiceCallId(created.callId);
+    } catch(error:any) {
+      window.alert(error?.message || 'Unable to start the customer call.');
+    } finally {
+      setVoiceCallBusy(false);
+    }
+  }
 
   useEffect(()=>{ if(canManageHistoryPdfAccess){ getUserHistoryPdfAccess(user.publicUserId).then(setHistoryPdfAccess).catch(()=>setHistoryPdfAccess(null)); } },[user.publicUserId,canManageHistoryPdfAccess]);
 
@@ -489,6 +504,19 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
         </div>}
       </section>
 
+      {canCallCustomer && user.role.toUpperCase() === 'CLIENT' && user.status === 'ACTIVE' && <section className="drawer-section">
+        <div className="drawer-section-title">
+          <div><h3>Voice support</h3><p>Start a two-way support call. The customer must accept before audio connects.</p></div>
+          <PhoneCall size={17}/>
+        </div>
+        <div className="voice-drawer-card">
+          <div className="voice-drawer-copy"><b>Call {user.name}</b><span>mPay voice support · not recorded</span></div>
+          <button className="primary" disabled={voiceCallBusy || !!voiceCallId} onClick={()=>void startVoiceSupportCall()}>
+            <PhoneCall size={15}/>{voiceCallBusy ? 'Starting…' : voiceCallId ? 'Call active' : 'Start voice call'}
+          </button>
+        </div>
+      </section>}
+
       {canManageHistoryPdfAccess && <section className="drawer-section">
         <div className="drawer-section-title"><div><h3>History PDF access</h3><p>Per-account permission for exporting compact wallet or recharge statements.</p></div></div>
         {historyPdfAccess ? <div className="detail-card">
@@ -559,6 +587,7 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
         {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
       </section>}
 
+      {voiceCallId && <VoiceCallWidget callId={voiceCallId} customerName={user.name || user.mobile} onClosed={()=>setVoiceCallId(null)}/>}
       <div className="drawer-note"><ShieldCheck size={15}/> Customer history is read-only here. Account status uses the protected user-lifecycle API; money and rental state changes remain owned by their authoritative workflows.</div>
     </aside>
   </div>
