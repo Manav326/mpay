@@ -35,21 +35,27 @@ class CallWebSocketHandshakeInterceptor(
 
         val token = queryToken?.takeIf { it.isNotBlank() } ?: headerToken
         if (token.isNullOrBlank()) {
-            response.setStatusCode( HttpStatus.UNAUTHORIZED)
+            response.setStatusCode(HttpStatus.UNAUTHORIZED)
             return false
         }
 
         return try {
             val claims = jwtService.parseAndValidate(token)
             if (!jwtService.isCallSignalingToken(claims)) {
-                response.statusCode = HttpStatus.UNAUTHORIZED
+                response.setStatusCode(HttpStatus.UNAUTHORIZED)
                 false
             } else {
                 val userId = claims.subject.toLongOrNull()
                 val callId = claims["call_id"]?.toString()
                 val user = userId?.let { users.findById(it).orElse(null) }
-                if (userId == null || callId.isNullOrBlank() || user == null || !user.active || !calls.socketAuthorized(userId, callId)) {
-                    response.statusCode = HttpStatus.FORBIDDEN)
+                if (
+                    userId == null ||
+                    callId.isNullOrBlank() ||
+                    user == null ||
+                    !user.active ||
+                    !calls.socketAuthorized(userId, callId)
+                ) {
+                    response.setStatusCode(HttpStatus.FORBIDDEN)
                     false
                 } else {
                     attributes["userId"] = userId
@@ -58,7 +64,7 @@ class CallWebSocketHandshakeInterceptor(
                 }
             }
         } catch (_: Exception) {
-            response.statusCode = HttpStatus.UNAUTHORIZED
+            response.setStatusCode(HttpStatus.UNAUTHORIZED)
             false
         }
     }
