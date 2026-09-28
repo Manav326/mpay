@@ -145,7 +145,8 @@ export function VoiceCallWidget({
         const socket = new WebSocket(webSocketUrl(token.token, token.websocketPath));
         socketRef.current = socket;
 
-        socket.onopen = async () => {
+        async function createOffer() {
+          if (endedRef.current) return;
           setMessage('Preparing secure audio…');
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -154,11 +155,19 @@ export function VoiceCallWidget({
             callId,
             payload: { kind: 'offer', type: offer.type, sdp: offer.sdp },
           }));
+        }
+
+        socket.onopen = () => {
+          setMessage('Waiting for secure audio…');
         };
 
         socket.onmessage = async event => {
           try {
             const data = JSON.parse(event.data);
+            if (data.type === 'ready') {
+              await createOffer();
+              return;
+            }
             if (data.type === 'status') {
               if (['DECLINED', 'MISSED', 'CANCELLED', 'ENDED'].includes(data.status)) {
                 finish(data.status === 'DECLINED' ? 'The customer declined the call.' : 'The call has ended.');
