@@ -1,3 +1,6 @@
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -16,10 +19,10 @@ val syncMpayBranding = tasks.register("syncMpayBranding") {
         runtimeTarget.parentFile.mkdirs()
         storeTarget.parentFile.mkdirs()
 
-        java.nio.file.Files.copy(
+        Files.copy(
             source.toPath(),
             runtimeTarget.toPath(),
-            java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            StandardCopyOption.REPLACE_EXISTING
         )
         java.nio.file.Files.copy(
             source.toPath(),
