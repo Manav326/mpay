@@ -3,6 +3,7 @@ package com.recharge.client.features.rental
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import android.util.Log
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -1886,13 +1887,14 @@ fun RentalVehicleOnboardingScreen(
     var pickerTitle by remember { mutableStateOf("") }
     var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
     var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
-    var pendingDevicePickerTarget by remember { mutableStateOf<Int?>(null) }
+    var pendingDevicePickerRequestId by remember { mutableIntStateOf(0) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
         val target = devicePickerTarget
         devicePickerTarget = null
+        Log.d("MpayImagePicker", "CALLBACK uri=" + (uri != null) + " target=" + target)
         pickedDeviceUri = uri?.toString()
         if (uri != null && target != null) {
             val candidate = RentalPhotoCandidate(
@@ -1910,16 +1912,25 @@ fun RentalVehicleOnboardingScreen(
         }
     }
 
-    LaunchedEffect(pendingDevicePickerTarget) {
-        val target = pendingDevicePickerTarget ?: return@LaunchedEffect
-        pendingDevicePickerTarget = null
+    LaunchedEffect(pendingDevicePickerRequestId) {
+        val requestId = pendingDevicePickerRequestId
+        if (requestId == 0) return@LaunchedEffect
+
+        // Wait for the picker Dialog window to be fully removed before asking Android
+        // to start DocumentsUI. This keeps the ActivityResult launch on the host
+        // screen rather than the transient Compose Dialog window.
+        withFrameNanos { }
+
+        val target = devicePickerTarget
+        if (target == null) return@LaunchedEffect
+        Log.d("MpayImagePicker", "EFFECT target=" + target + " request=" + requestId + "; launching GetContent")
         devicePickerLauncher.launch("image/*")
     }
 
     fun openPhotoPicker(slot: Int, title: String) {
         pickedDeviceUri = null
         devicePickerTarget = null
-        pendingDevicePickerTarget = null
+        pendingDevicePickerRequestId += 1
         pickerTarget = slot
         pickerTitle = title
     }
@@ -2242,14 +2253,13 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
+                        Log.d("MpayImagePicker", "LAUNCH CALLBACK target=" + target)
                         // Close the Compose Dialog first. The ActivityResult launch is then
-                        // performed from a LaunchedEffect after the dialog window is gone.
-                        // This avoids the OEM/Compose Dialog-to-picker transition that can
-                        // swallow the GET_CONTENT launch before Android starts DocumentsUI.
+                        // performed after the dialog window is gone.
                         devicePickerTarget = target
                         pickedDeviceUri = null
                         pickerTarget = null
-                        pendingDevicePickerTarget = target
+                        pendingDevicePickerRequestId += 1
                     },
                     onDevicePicked = { uri -> pickedDeviceUri = uri },
                     onDismiss = { pickerTarget = null },
