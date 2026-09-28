@@ -1948,7 +1948,7 @@ fun RentalVehicleOnboardingScreen(
 
     fun openPhotoPicker(slot: Int, title: String) {
         pickedDeviceUri = null
-        devicePickerTarget = slot
+        devicePickerTarget = null
         pickerTarget = slot
         pickerTitle = title
     }
