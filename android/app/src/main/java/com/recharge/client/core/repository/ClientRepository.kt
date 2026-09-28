@@ -146,6 +146,24 @@ class ClientRepository(context: Context) {
         response.body()!!.hash
     }
 
+    suspend fun reportPayUStatus(
+        orderId: String,
+        status: String,
+        paymentId: String? = null,
+        signature: String? = null
+    ): Result<PaymentVerificationResponse> = apiCall {
+        val response = api.payuStatus(
+            PayUPaymentStatusRequest(
+                orderId = orderId,
+                status = status,
+                paymentId = paymentId,
+                signature = signature
+            )
+        )
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun detectOperator(mobile: String): Result<OperatorCheckResponse> = apiCall {
         val response = api.operator(OperatorCheckRequest(mobile))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
