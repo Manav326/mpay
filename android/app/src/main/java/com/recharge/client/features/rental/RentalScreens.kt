@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1886,10 +1887,9 @@ fun RentalVehicleOnboardingScreen(
     var pickerTitle by remember { mutableStateOf("") }
     var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
     var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
-    var pendingDevicePickerTarget by remember { mutableStateOf<Int?>(null) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         val target = devicePickerTarget
         devicePickerTarget = null
@@ -1910,18 +1910,20 @@ fun RentalVehicleOnboardingScreen(
         }
     }
 
-    LaunchedEffect(pendingDevicePickerTarget) {
-        val target = pendingDevicePickerTarget ?: return@LaunchedEffect
-        pendingDevicePickerTarget = null
-        devicePickerLauncher.launch("image/*")
-    }
-
     fun openPhotoPicker(slot: Int, title: String) {
         pickedDeviceUri = null
         devicePickerTarget = null
-        pendingDevicePickerTarget = null
         pickerTarget = slot
         pickerTitle = title
+    }
+
+    fun launchDevicePhotoPicker(target: Int) {
+        devicePickerTarget = target
+        pickedDeviceUri = null
+        pickerTarget = null
+        devicePickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
     }
 
     LazyColumn(
@@ -2242,14 +2244,10 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
-                        // Close the Compose Dialog first. The ActivityResult launch is then
-                        // performed from a LaunchedEffect after the dialog window is gone.
-                        // This avoids the OEM/Compose Dialog-to-picker transition that can
-                        // swallow the GET_CONTENT launch before Android starts DocumentsUI.
-                        devicePickerTarget = target
-                        pickedDeviceUri = null
-                        pickerTarget = null
-                        pendingDevicePickerTarget = target
+                        // Use the Android Photo Picker directly. It is more reliable than
+                        // launching ACTION_GET_CONTENT from a Compose Dialog transition,
+                        // while keeping the existing mPay picker UI unchanged.
+                        launchDevicePhotoPicker(target)
                     },
                     onDevicePicked = { uri -> pickedDeviceUri = uri },
                     onDismiss = { pickerTarget = null },
