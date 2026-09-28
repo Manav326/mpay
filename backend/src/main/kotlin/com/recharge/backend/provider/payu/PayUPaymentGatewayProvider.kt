@@ -311,6 +311,8 @@ class PayUPaymentGatewayProvider(
                 "phone" to phone,
                 "surl" to properties.pgSuccessUrl,
                 "furl" to properties.pgFailureUrl,
+                "webSurl" to properties.pgWebSuccessUrl,
+                "webFurl" to properties.pgWebFailureUrl,
                 "userCredential" to "${properties.effectivePgKey()}:$phone",
                 "vasForMobileSdkHash" to sha512("${properties.effectivePgKey()}|vas_for_mobile_sdk|${order.amount.toPlainString()}|${properties.effectivePgSalt()}"),
                 "paymentRelatedDetailsHash" to sha512("${properties.effectivePgKey()}|payment_related_details_for_mobile_sdk|${properties.effectivePgKey()}:$phone|${properties.effectivePgSalt()}"),
