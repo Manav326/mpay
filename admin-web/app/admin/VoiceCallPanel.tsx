@@ -49,13 +49,15 @@ export function VoiceCallWidget({
   const endedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const iceServersKey = JSON.stringify(call?.iceServers ?? []);
   const iceServers = useMemo(() => {
     return call?.iceServers?.map(server => ({
       urls: server.urls,
       username: server.username || undefined,
       credential: server.credential || undefined,
     })) || [];
-  }, [call]);
+  }, [iceServersKey]);
+  const mediaActive = call?.status === 'ACCEPTED' || call?.status === 'CONNECTED';
 
   useEffect(() => {
     let active = true;
@@ -93,7 +95,7 @@ export function VoiceCallWidget({
   }, [call?.connectedAt]);
 
   useEffect(() => {
-    if (!call || call.status !== 'ACCEPTED' || signalingStartedRef.current) return;
+    if (!call || !mediaActive || signalingStartedRef.current) return;
     signalingStartedRef.current = true;
     let cancelled = false;
 
@@ -118,10 +120,12 @@ export function VoiceCallWidget({
         };
 
         pc.ontrack = event => {
-          const stream = event.streams[0];
+          const stream = event.streams[0] || new MediaStream([event.track]);
           if (audioRef.current && stream) {
             audioRef.current.srcObject = stream;
-            void audioRef.current.play().catch(() => {});
+            void audioRef.current.play().catch(() => {
+              setMessage('Browser audio playback is blocked. Click the call window to enable audio.');
+            });
           }
         };
 
@@ -225,7 +229,7 @@ export function VoiceCallWidget({
       localStreamRef.current?.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     };
-  }, [call?.status, callId, iceServers]);
+  }, [mediaActive, callId, iceServers]);
 
   function finish(text: string) {
     endedRef.current = true;
