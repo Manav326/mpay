@@ -207,7 +207,6 @@ class VoiceCallEngine(private val context: Context) {
                 override fun onDataChannel(dataChannel: DataChannel) = Unit
                 override fun onRenegotiationNeeded() = Unit
                 override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<MediaStream>) = Unit
-                override fun onRemoveTrack(receiver: RtpReceiver) = Unit
                 override fun onTrack(transceiver: RtpTransceiver) = Unit
             }
         )
