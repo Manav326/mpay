@@ -24,10 +24,10 @@ val syncMpayBranding = tasks.register("syncMpayBranding") {
             runtimeTarget.toPath(),
             StandardCopyOption.REPLACE_EXISTING
         )
-        java.nio.file.Files.copy(
+        Files.copy(
             source.toPath(),
             storeTarget.toPath(),
-            java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            StandardCopyOption.REPLACE_EXISTING
         )
     }
 }
