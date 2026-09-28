@@ -141,6 +141,23 @@ class WalletPaymentViewModel(application: Application) : AndroidViewModel(applic
         const val PAYU_STATUS_INTERVAL_MS = 5_000L
     }
 
+    fun reportPayUOutcome(
+        orderId: String,
+        status: String,
+        paymentId: String? = null,
+        signature: String? = null
+    ) {
+        if (orderId.isBlank()) return
+        viewModelScope.launch {
+            repository.reportPayUStatus(
+                orderId = orderId,
+                status = status,
+                paymentId = paymentId,
+                signature = signature
+            )
+        }
+    }
+
     fun generatePayUHash(
         hashName: String,
         hashString: String,
