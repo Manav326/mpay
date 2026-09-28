@@ -1,7 +1,5 @@
 package com.recharge.backend.service
 
-import com.google.auth.oauth2.GoogleCredentials
-import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.AndroidConfig
 import com.google.firebase.messaging.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
@@ -10,8 +8,6 @@ import com.recharge.backend.config.CallProperties
 import com.recharge.backend.domain.CallPushDeviceEntity
 import com.recharge.backend.repository.CallPushDeviceRepository
 import org.slf4j.LoggerFactory
-import java.io.ByteArrayInputStream
-import java.util.Base64
 import org.springframework.stereotype.Service
 import java.time.Instant
 
@@ -105,31 +101,6 @@ class CallPushService(
     }
 
     private fun firebaseMessaging(): FirebaseMessaging? {
-        return try {
-            synchronized(FirebaseApp::class.java) {
-                if (FirebaseApp.getApps().isEmpty()) {
-                    val encoded = properties.firebaseServiceAccountJsonBase64.trim()
-                    if (encoded.isNotBlank()) {
-                        val jsonBytes = Base64.getDecoder().decode(encoded)
-                        val credentials = GoogleCredentials.fromStream(ByteArrayInputStream(jsonBytes))
-                        FirebaseApp.initializeApp(
-                            FirebaseOptions.builder()
-                                .setCredentials(credentials)
-                                .build()
-                        )
-                    } else {
-                        FirebaseApp.initializeApp()
-                    }
-                }
-            }
-            FirebaseMessaging.getInstance()
-        } catch (ex: Exception) {
-            log.warn(
-                "Firebase Admin is not configured; voice-call push delivery is disabled. " +
-                    "Configure application-default credentials before production use. Cause: {}",
-                ex.message
-            )
-            null
-        }
+        return FirebaseMessagingProvider.get(properties.firebaseServiceAccountJsonBase64)
     }
 }
