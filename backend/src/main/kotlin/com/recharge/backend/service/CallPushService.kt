@@ -10,6 +10,8 @@ import com.recharge.backend.config.CallProperties
 import com.recharge.backend.domain.CallPushDeviceEntity
 import com.recharge.backend.repository.CallPushDeviceRepository
 import org.slf4j.LoggerFactory
+import java.io.ByteArrayInputStream
+import java.util.Base64
 import org.springframework.stereotype.Service
 import java.time.Instant
 
