@@ -159,7 +159,12 @@ fun ProfileScreen(
                         )
                     }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                    ProfileActionRow(Icons.Default.Delete, "Delete account", "Permanently delete your account and associated personal data") {
+                    ProfileActionRow(
+                        icon = Icons.Default.Delete,
+                        title = "Delete account",
+                        subtitle = "Permanently delete your account and associated personal data",
+                        danger = true
+                    ) {
                         showDeleteDialog = true
                     }
                 }
@@ -261,18 +266,27 @@ private fun ProfileActionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    danger: Boolean = false,
     onClick: () -> Unit
 ) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFF1F5F9)) {
-            Icon(icon, null, tint = Color(0xFF475569), modifier = Modifier.padding(8.dp).size(20.dp))
+    val titleColor = if (danger) Color(0xFFB42318) else MaterialTheme.colorScheme.onSurface
+    val iconColor = if (danger) Color(0xFFC24135) else Color(0xFF475569)
+    val iconBackground = if (danger) Color(0xFFFFF0ED) else Color(0xFFF1F5F9)
+    val chevronColor = if (danger) Color(0xFFB42318) else AppColors.TextSecondary
+
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(shape = RoundedCornerShape(10.dp), color = iconBackground) {
+            Icon(icon, null, tint = iconColor, modifier = Modifier.padding(8.dp).size(20.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = titleColor)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
         }
-        Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextSecondary)
+        Icon(Icons.Default.ChevronRight, null, tint = chevronColor)
     }
 }
 
