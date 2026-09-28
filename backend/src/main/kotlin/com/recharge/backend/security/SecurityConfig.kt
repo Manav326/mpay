@@ -54,6 +54,8 @@ class SecurityConfig {
                     "/api/v1/auth/portal-roles",
                     "/api/v1/webhooks/payu/payout",
                     "/api/v1/webhooks/payu/payment",
+                    "/api/v1/webhooks/payu/payment/return/success",
+                    "/api/v1/webhooks/payu/payment/return/failure",
                     "/api/v1/webhooks/razorpay/payout",
                     "/api/v1/car-rental/photos/**"
                 ).permitAll()
