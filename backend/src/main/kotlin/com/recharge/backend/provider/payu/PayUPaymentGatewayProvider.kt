@@ -94,8 +94,10 @@ class PayUPaymentGatewayProvider(
         }
         val transaction = findTransaction(statusResponse, txnId)
         val status = transaction.path("status").asText().lowercase()
+        val unmappedStatus = transaction.path("unmappedstatus").asText().lowercase()
+        val paymentCaptured = status == "success" || unmappedStatus == "captured"
 
-        if (status != "success") {
+        if (!paymentCaptured) {
             if (status in setOf("pending", "initiated", "in progress")) {
                 return VerifyPaymentResponse("PENDING", walletService.getBalance(userId))
             }
