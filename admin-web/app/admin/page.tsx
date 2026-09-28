@@ -1,19 +1,20 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle } from 'lucide-react';
+import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle, PhoneCall } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { cancelRentalBooking, completeRentalBooking, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
+import { cancelRentalBooking, completeRentalBooking, createVoiceCall, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
 import RentalVendorReview from './RentalVendorReview';
 import RentalBookingActions from './RentalBookingActions';
 import RentalPayouts from './RentalPayouts';
+import { VoiceAccessPanel, VoiceCallWidget } from './VoiceCallPanel';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
-type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions';
+type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'|'voice';
 
 const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
   dashboard: '/admin',
@@ -22,6 +23,7 @@ const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
   vendors: '/admin/vendors',
   rental: '/admin/rental',
   commissions: '/admin/commissions',
+  voice: '/admin/voice',
 };
 
 function adminViewFromPath(pathname: string): AdminView {
@@ -31,6 +33,7 @@ function adminViewFromPath(pathname: string): AdminView {
     case '/admin/vendors': return 'vendors';
     case '/admin/rental': return 'rental';
     case '/admin/commissions': return 'commissions';
+    case '/admin/voice': return 'voice';
     default: return 'dashboard';
   }
 }
@@ -95,6 +98,7 @@ export default function Page() {
     if (permissions.includes('MANAGE_VENDORS')) allowed.add('vendors');
     if (permissions.includes('MANAGE_RENTAL_OPERATIONS')) allowed.add('rental');
     if (permissions.includes('MANAGE_COMMISSION_RATES')) allowed.add('commissions');
+    if (permissions.includes('MANAGE_CALL_ACCESS')) allowed.add('voice');
 
     const currentPath = window.location.pathname;
     const currentView = adminViewFromPath(currentPath);
@@ -185,6 +189,8 @@ export default function Page() {
   const canManageHistoryPdfAccess = permissions.includes('MANAGE_HISTORY_PDF_ACCESS');
   const canRefreshRecharge = permissions.includes('MANAGE_RECHARGE_OPERATIONS');
   const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
+  const canCallCustomer = permissions.includes('CALL_CUSTOMER');
+  const canManageCallAccess = permissions.includes('MANAGE_CALL_ACCESS');
   const menu = [
     ['dashboard','Dashboard',LayoutDashboard],
     ['users','Users & Wallet',Users],
@@ -192,6 +198,7 @@ export default function Page() {
     ...(canVendors ? [['vendors','Rental Partners',CarFront] as const] : []),
     ...(canRentalOperations ? [['rental','Rental Operations',CalendarDays] as const] : []),
     ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
+    ...(canManageCallAccess ? [['voice','Voice & Access',PhoneCall] as const] : []),
   ] as const;
 
   return <div className="shell">
@@ -200,12 +207,13 @@ export default function Page() {
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><button className="nav" onClick={logout} title="Logout"><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':'Commission Rules'}</h1></div></div><div className="top-actions"><div className="admin-role-badge"><span className="admin-role-badge-icon"><ShieldCheck size={14}/></span><div><b>{session.role}</b><small>Authorized access</small></div></div><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
+    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':view==='commissions'?'Commission Rules':'Voice & Access'}</h1></div></div><div className="top-actions"><div className="admin-role-badge"><span className="admin-role-badge-icon"><ShieldCheck size={14}/></span><div><b>{session.role}</b><small>Authorized access</small></div></div><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
       {notice && <div className="admin-notice"><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
       {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} attention={attention} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
+      {view==='voice' && canManageCallAccess && <VoiceAccessPanel />}
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
-      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
+      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
       {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id,reason)=>{setBusy(true);try{await cancelRentalBooking(id,reason);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} 
       {view==='vendors' && canVendors && <RentalVendorReview/>}
@@ -232,7 +240,7 @@ function userStatusMeta(value?: string){
   return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleUsers = users.filter(u => {
@@ -358,7 +366,7 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
   </div>
 }
 
-function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
+function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
   const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
