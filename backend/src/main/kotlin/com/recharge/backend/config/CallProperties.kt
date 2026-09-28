@@ -9,5 +9,6 @@ data class CallProperties(
     var websocketPath: String = "/ws/calls",
     var iceServers: String = "stun:stun.l.google.com:19302",
     var turnUsername: String = "",
-    var turnCredential: String = ""
+    var turnCredential: String = "",
+    var firebaseServiceAccountJsonBase64: String = ""
 )
