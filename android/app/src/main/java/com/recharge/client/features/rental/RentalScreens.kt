@@ -1886,6 +1886,7 @@ fun RentalVehicleOnboardingScreen(
     var pickerTitle by remember { mutableStateOf("") }
     var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
     var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
+    var pendingDevicePickerTarget by remember { mutableStateOf<Int?>(null) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -1904,11 +1905,21 @@ fun RentalVehicleOnboardingScreen(
                 form.driverPhoto = candidate
             }
         }
+        if (target != null) {
+            pickerTarget = target
+        }
+    }
+
+    LaunchedEffect(pendingDevicePickerTarget) {
+        val target = pendingDevicePickerTarget ?: return@LaunchedEffect
+        pendingDevicePickerTarget = null
+        devicePickerLauncher.launch("image/*")
     }
 
     fun openPhotoPicker(slot: Int, title: String) {
         pickedDeviceUri = null
         devicePickerTarget = null
+        pendingDevicePickerTarget = null
         pickerTarget = slot
         pickerTitle = title
     }
@@ -2231,10 +2242,14 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
-                        // Launch directly from the user's tap. Do not dismiss the dialog
-                        // and defer the ActivityResult launch through Compose state/effects.
+                        // Close the Compose Dialog first. The ActivityResult launch is then
+                        // performed from a LaunchedEffect after the dialog window is gone.
+                        // This avoids the OEM/Compose Dialog-to-picker transition that can
+                        // swallow the GET_CONTENT launch before Android starts DocumentsUI.
                         devicePickerTarget = target
-                        devicePickerLauncher.launch("image/*")
+                        pickedDeviceUri = null
+                        pickerTarget = null
+                        pendingDevicePickerTarget = target
                     },
                     onDevicePicked = { uri -> pickedDeviceUri = uri },
                     onDismiss = { pickerTarget = null },
