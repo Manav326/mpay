@@ -1,6 +1,6 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
 import { redirectToLogin, refreshWebSession } from './session';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile, VoiceCallResponse, VoiceCallSignalingTokenResponse, VoiceCallRoleAccess, VoiceCallUserAccess } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -443,5 +443,47 @@ export async function updateCommissionRate(role: string, commissionPercent: numb
   return api('/api/v1/admin/commission-roles/' + encodeURIComponent(role), {
     method: 'PUT',
     body: JSON.stringify({ commissionPercent, active }),
+  });
+}
+
+
+export async function createVoiceCall(targetPublicId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/calls', { method: 'POST', body: JSON.stringify({ targetPublicId }) });
+}
+
+export async function getVoiceCall(callId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/calls/' + encodeURIComponent(callId));
+}
+
+export async function endVoiceCall(callId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/calls/' + encodeURIComponent(callId) + '/end', { method: 'POST' });
+}
+
+export async function getVoiceCallSignalingToken(callId: string): Promise<VoiceCallSignalingTokenResponse> {
+  return api('/api/v1/calls/signaling-token', {
+    method: 'POST',
+    body: JSON.stringify({ callId }),
+  });
+}
+
+export async function getVoiceCallRoleAccess(): Promise<VoiceCallRoleAccess[]> {
+  return api('/api/v1/admin/call-access/roles');
+}
+
+export async function updateVoiceCallRoleAccess(role: string, enabled: boolean): Promise<VoiceCallRoleAccess> {
+  return api('/api/v1/admin/call-access/roles/' + encodeURIComponent(role), {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function getVoiceCallUserAccess(): Promise<VoiceCallUserAccess[]> {
+  return api('/api/v1/admin/call-access/users');
+}
+
+export async function updateVoiceCallUserAccess(publicUserId: string, mode: VoiceCallUserAccess['mode']): Promise<VoiceCallUserAccess> {
+  return api('/api/v1/admin/call-access/users/' + encodeURIComponent(publicUserId), {
+    method: 'PUT',
+    body: JSON.stringify({ mode }),
   });
 }
