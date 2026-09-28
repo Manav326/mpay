@@ -46,8 +46,8 @@ interface AdminAttention {
   pendingPayouts: number;
 }
 
-function Logo({ compact = false }: { compact?: boolean }) {
-  return <MpayBrandUnit variant="sidebar" className={compact ? 'compact' : ''} />;
+function Logo() {
+  return <MpayBrandUnit variant="sidebar" />;
 }
 
 export default function Page() {
@@ -195,7 +195,7 @@ export default function Page() {
 
   return <div className="shell">
     <aside className={`sidebar ${drawer?'open ':''}${sidebarCollapsed?'collapsed':''}`}>
-      <div className="side-top"><Logo compact/><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={19}/></button></div>
+      <div className="side-top"><Logo/><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={19}/></button></div>
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><button className="nav" onClick={logout} title="Logout"><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
