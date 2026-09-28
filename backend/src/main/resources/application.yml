@@ -82,6 +82,13 @@ app:
       contact-id: ${MPAY_RAZORPAY_PAYOUT_CONTACT_ID:}
       purpose: ${MPAY_RAZORPAY_PAYOUT_PURPOSE:payout}
       webhook-secret: ${MPAY_RAZORPAY_PAYOUT_WEBHOOK_SECRET:}
+  calls:
+    ringing-timeout-seconds: ${MPAY_CALL_RINGING_TIMEOUT_SECONDS:30}
+    signaling-token-ttl-seconds: ${MPAY_CALL_SIGNALING_TOKEN_TTL_SECONDS:300}
+    websocket-path: ${MPAY_CALL_WEBSOCKET_PATH:/ws/calls}
+    ice-servers: ${MPAY_CALL_ICE_SERVERS:stun:stun.l.google.com:19302}
+    turn-username: ${MPAY_CALL_TURN_USERNAME:}
+    turn-credential: ${MPAY_CALL_TURN_CREDENTIAL:}
   profile:
     images-dir: ${MPAY_PROFILE_IMAGES_DIR:./data/profile-images}
 
