@@ -52,7 +52,7 @@ fun AddMoneyDialog(
         title = { Text("Add money") },
         text = {
             Column(Modifier.fillMaxWidth()) {
-                Text("Choose how to fund the wallet. Mock is for development/testing; Razorpay and PayU use their configured test gateways.", style = MaterialTheme.typography.bodyMedium)
+                Text("Choose how to fund the wallet. Mock is for development/testing; Razorpay uses its configured test gateway.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
                 MpayProviderSelector(provider, !busy) { provider = it }
                 Spacer(Modifier.height(8.dp))
