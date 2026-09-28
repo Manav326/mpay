@@ -6,6 +6,7 @@ import com.recharge.backend.service.CallWebSocketRegistry
 import com.recharge.backend.service.VoiceCallService
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.CloseStatus
+import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketHandler
 import org.springframework.web.socket.WebSocketSession
@@ -26,12 +27,13 @@ class CallWebSocketHandler(
         userBySession[session.id] = userId
     }
 
-    override fun handleMessage(session: WebSocketSession, message: TextMessage) {
+    override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
+        val textMessage = message as? TextMessage ?: return
         val userId = userBySession[session.id] ?: return
         val callId = session.attributes["callId"]?.toString() ?: return
         if (!calls.socketAuthorized(userId, callId)) return
 
-        val node = runCatching { objectMapper.readTree(message.payload) }.getOrNull() ?: return
+        val node = runCatching { objectMapper.readTree(textMessage.payload) }.getOrNull() ?: return
         val messageCallId = node.get("callId")?.asText()
         if (!messageCallId.isNullOrBlank() && messageCallId != callId) return
 
