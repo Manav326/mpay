@@ -693,7 +693,7 @@ function MpayServiceShowcase({ view }: { view: string }) {
         <span className="flow-tag">UPI / BANK</span>
       </div>
 
-      <div className="mpay-brand-mark" aria-hidden="true">
+      <div className="mpay-showcase-brand-mark" aria-hidden="true">
         <strong>mPay</strong>
         <span>Secure · Simple · Smart</span>
       </div>
