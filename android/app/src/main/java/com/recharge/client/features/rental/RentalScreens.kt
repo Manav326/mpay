@@ -1,5 +1,7 @@
 package com.recharge.client.features.rental
 
+import android.util.Log
+
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
@@ -1891,6 +1893,11 @@ fun RentalVehicleOnboardingScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         val target = devicePickerTarget
+
+        Log.d(
+            "MpayImagePicker",
+            "CALLBACK uri=${uri != null} target=$target"
+        )
         devicePickerTarget = null
         pickedDeviceUri = uri?.toString()
         if (uri != null && target != null) {
@@ -1911,10 +1918,15 @@ fun RentalVehicleOnboardingScreen(
     }
 
     LaunchedEffect(devicePickerTarget) {
-        if (devicePickerTarget != null) {
-            kotlinx.coroutines.yield()
-            devicePickerLauncher.launch("image/*")
-        }
+        val target = devicePickerTarget ?: return@LaunchedEffect
+        kotlinx.coroutines.yield()
+
+        Log.d(
+            "MpayImagePicker",
+            "EFFECT target=$target; launching GetContent"
+        )
+
+        devicePickerLauncher.launch("image/*")
     }
 
     fun openPhotoPicker(slot: Int, title: String) {
@@ -2241,6 +2253,11 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
+                        Log.d(
+                            "MpayImagePicker",
+                            "LAUNCH CALLBACK target=$target"
+                        )
+
                         devicePickerTarget = target
                         pickerTarget = null
                     },
