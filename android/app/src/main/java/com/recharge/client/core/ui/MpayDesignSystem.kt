@@ -131,7 +131,7 @@ fun MpayProviderSelector(
     onChange: (String) -> Unit
 ) {
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        val providers = listOf("mock" to "Mock", "razorpay" to "Razorpay", "payu" to "PayU")
+        val providers = listOf("mock" to "Mock", "razorpay" to "Razorpay")
         providers.forEachIndexed { index, item ->
             SegmentedButton(
                 selected = provider.equals(item.first, true),
