@@ -101,6 +101,7 @@ interface RolePermissionRepository : JpaRepository<RolePermissionEntity, Long> {
     fun findAllByRoleIgnoreCaseOrderByPermissionAsc(role: String): List<RolePermissionEntity>
     fun findAllByPermissionIgnoreCaseOrderByRoleAsc(permission: String): List<RolePermissionEntity>
     fun existsByRoleIgnoreCaseAndPermissionIgnoreCase(role: String, permission: String): Boolean
+    fun deleteByRoleIgnoreCaseAndPermissionIgnoreCase(role: String, permission: String)
 }
 
 interface RoleHierarchyRepository : JpaRepository<RoleHierarchyEntity, Long> {
