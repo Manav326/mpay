@@ -396,7 +396,7 @@ private fun AppRoot(
     val profileState by profileViewModel.state.collectAsState()
     val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
-    var authRoute by rememberSaveable { mutableStateOf("login") }
+    var authRoute by rememberSaveable { mutableStateOf<AuthRoute>(AuthRoute.Login) }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -407,14 +407,14 @@ private fun AppRoot(
             rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
             authViewModel.clearRegistrationOtp()
-            authRoute = "login"
+            authRoute = AuthRoute.Login
         }
     }
 
     LaunchedEffect(passwordResetState) {
         if (passwordResetState is PasswordResetUiState.Success) {
             passwordResetViewModel.clear()
-            authRoute = "login"
+            authRoute = AuthRoute.Login
             authViewModel.clearError()
         }
     }
@@ -446,13 +446,13 @@ private fun AppRoot(
 
     if (authState !is AuthUiState.Authenticated) {
         when (authRoute) {
-            "login" -> LoginScreen(
+            AuthRoute.Login -> LoginScreen(
                 authState = authState,
                 onLogin = { mobile, password -> authViewModel.login(mobile, password) },
-                onSignUp = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = "register" },
-                onForgotPassword = { authViewModel.clearError(); passwordResetViewModel.clear(); authRoute = "forgot-password" }
+                onSignUp = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = AuthRoute.Register },
+                onForgotPassword = { authViewModel.clearError(); passwordResetViewModel.clear(); authRoute = AuthRoute.ForgotPassword }
             )
-            "register" -> RegisterScreen(
+            AuthRoute.Register -> RegisterScreen(
                 authState = authState,
                 registrationOtpState = registrationOtpState,
                 onRegister = { name, email, mobile, password, verificationToken ->
@@ -461,13 +461,13 @@ private fun AppRoot(
                 onSendOtp = authViewModel::sendRegistrationOtp,
                 onVerifyOtp = authViewModel::verifyRegistrationOtp,
                 onClearOtp = authViewModel::clearRegistrationOtp,
-                onBack = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = "login" }
+                onBack = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = AuthRoute.Login }
             )
-            else -> ForgotPasswordScreen(
+            AuthRoute.ForgotPassword -> ForgotPasswordScreen(
                 state = passwordResetState,
                 onRequestOtp = passwordResetViewModel::requestOtp,
                 onReset = passwordResetViewModel::resetPassword,
-                onBack = { passwordResetViewModel.clear(); authRoute = "login" }
+                onBack = { passwordResetViewModel.clear(); authRoute = AuthRoute.Login }
             )
         }
         return
