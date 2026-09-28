@@ -1894,17 +1894,6 @@ fun RentalVehicleOnboardingScreen(
         val target = devicePickerTarget
         devicePickerTarget = null
         pickedDeviceUri = uri?.toString()
-        if (uri != null && target != null) {
-            val candidate = RentalPhotoCandidate(
-                RentalPhotoCandidateSource.DEVICE,
-                uri.toString()
-            )
-            if (target in 0..3) {
-                form.pendingPhotos[target].value = candidate
-            } else if (target == 4) {
-                form.driverPhoto = candidate
-            }
-        }
         if (target != null) {
             pickerTarget = target
         }
