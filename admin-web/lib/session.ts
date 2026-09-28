@@ -75,7 +75,7 @@ function clearSession(config: WebSessionConfig): void {
 
 export function redirectToLogin(config: WebSessionConfig): never {
   clearSession(config);
-  window.location.href = config.redirectPath;
+  window.location.replace(config.redirectPath);
   throw new Error('Your session has expired. Please sign in again.');
 }
 

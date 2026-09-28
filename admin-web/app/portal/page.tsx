@@ -13,6 +13,34 @@ import {
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 
+type PortalView = 'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'rental-booking'|'bookings'|'account';
+
+const PORTAL_VIEW_PATHS: Record<PortalView, string> = {
+  home: '/portal',
+  recharge: '/portal/recharge',
+  wallet: '/portal/wallet',
+  history: '/portal/history',
+  marketplace: '/portal/marketplace',
+  rental: '/portal/rentals',
+  'rental-booking': '/portal/rentals/booking',
+  bookings: '/portal/bookings',
+  account: '/portal/account',
+};
+
+function portalViewFromPath(pathname: string): PortalView {
+  switch (pathname.replace(/\/+$/, '') || '/portal') {
+    case '/portal/recharge': return 'recharge';
+    case '/portal/wallet': return 'wallet';
+    case '/portal/history': return 'history';
+    case '/portal/marketplace': return 'marketplace';
+    case '/portal/rentals': return 'rental';
+    case '/portal/rentals/booking': return 'rental-booking';
+    case '/portal/bookings': return 'bookings';
+    case '/portal/account': return 'account';
+    default: return 'home';
+  }
+}
+
 type Wallet = { balance: number; availableBalance: number; reservedBalance: number };
 type Me = {
   userId?: number; publicUserId: string; mobile: string; name?: string; email?: string; profileImageUrl?: string | null;
@@ -751,9 +779,27 @@ function WalletBalanceHero({
 
 export default function Portal() {
   const webCapabilities = useWebCapabilities();
-  const [view, setView] = useState<'home'|'recharge'|'wallet'|'history'|'marketplace'|'rental'|'rental-booking'|'bookings'|'account'>('home');
+  const [view, setViewState] = useState<PortalView>('home');
   const [drawer, setDrawer] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  function setView(next: PortalView) {
+    setViewState(next);
+    if (typeof window === 'undefined') return;
+    const target = PORTAL_VIEW_PATHS[next];
+    if (window.location.pathname !== target) {
+      window.history.pushState({ mpayPortalView: next }, '', target);
+    }
+  }
+
+  useEffect(() => {
+    const syncViewFromUrl = () => setViewState(portalViewFromPath(window.location.pathname));
+    syncViewFromUrl();
+
+    const onPopState = () => syncViewFromUrl();
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const [wallet, setWallet] = useState<Wallet>();
   const [me, setMe] = useState<Me>();
   const [profileImage, setProfileImage] = useState('');
@@ -2159,7 +2205,7 @@ export default function Portal() {
 
   function logout() {
     logoutWebSession(webSession);
-    window.location.href='/';
+    window.location.replace('/');
   }
 
   const menu = [
