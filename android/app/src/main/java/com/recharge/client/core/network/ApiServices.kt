@@ -53,6 +53,30 @@ interface ClientApi {
     @GET("api/v1/me")
     suspend fun me(): Response<CurrentUserResponse>
 
+    @POST("api/v1/calls")
+    suspend fun createVoiceCall(@Body request: CreateVoiceCallRequest): Response<VoiceCallResponse>
+
+    @GET("api/v1/calls/active")
+    suspend fun activeVoiceCall(): Response<VoiceCallResponse?>
+
+    @GET("api/v1/calls/{callId}")
+    suspend fun voiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/{callId}/accept")
+    suspend fun acceptVoiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/{callId}/decline")
+    suspend fun declineVoiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/{callId}/end")
+    suspend fun endVoiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/signaling-token")
+    suspend fun voiceCallSignalingToken(@Body request: VoiceCallSignalingTokenRequest): Response<VoiceCallSignalingTokenResponse>
+
+    @PUT("api/v1/calls/push-token")
+    suspend fun registerCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
+
 
     @GET("api/v1/history/pdf-access")
     suspend fun historyPdfAccess(): Response<HistoryPdfAccessResponse>
