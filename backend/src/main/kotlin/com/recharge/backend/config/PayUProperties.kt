@@ -31,6 +31,9 @@ data class PayUProperties(
     val pgVerifyUrl: String = "https://test.payu.in/merchant/postservice.php?form=2",
     val pgSuccessUrl: String = "https://cbjs.payu.in/sdk/success",
     val pgFailureUrl: String = "https://cbjs.payu.in/sdk/failure",
+    val pgWebSuccessUrl: String = "https://api.mpay.thinkwithsujeet.in/api/v1/webhooks/payu/payment/return/success",
+    val pgWebFailureUrl: String = "https://api.mpay.thinkwithsujeet.in/api/v1/webhooks/payu/payment/return/failure",
+    val pgWebOrigin: String = "https://mpay.thinkwithsujeet.in",
     val pgProduction: Boolean = false,
     val connectTimeoutMs: Long = 10000,
     val readTimeoutMs: Long = 30000
