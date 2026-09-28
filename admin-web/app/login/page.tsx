@@ -42,7 +42,7 @@ export default function UserLogin() {
       const d = await r.json();
       localStorage.setItem('mpay_token', d.accessToken);
       localStorage.setItem('mpay_refresh_token', d.refreshToken);
-      window.location.href = '/portal';
+      window.location.replace('/portal');
     } catch (e: any) {
       setNotice(e.message || 'Unable to sign in.');
     } finally {
