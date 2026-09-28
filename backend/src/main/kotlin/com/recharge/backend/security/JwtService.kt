@@ -39,13 +39,30 @@ class JwtService(
 
     fun isAccessToken(claims: Claims): Boolean = claims["token_type"] == "ACCESS"
     fun isRefreshToken(claims: Claims): Boolean = claims["token_type"] == "REFRESH"
+    fun isCallSignalingToken(claims: Claims): Boolean = claims["token_type"] == "CALL_SIGNAL"
+
+    fun createCallSignalingToken(
+        userId: Long,
+        mobile: String,
+        role: String,
+        callId: String,
+        ttlSeconds: Long
+    ): String = createToken(
+        userId = userId,
+        mobile = mobile,
+        role = role,
+        tokenType = "CALL_SIGNAL",
+        expiresAt = Instant.now().plusSeconds(ttlSeconds.coerceAtLeast(30)),
+        extraClaims = mapOf("call_id" to callId)
+    )
 
     private fun createToken(
         userId: Long,
         mobile: String,
         role: String,
         tokenType: String,
-        expiresAt: Instant
+        expiresAt: Instant,
+        extraClaims: Map<String, Any> = emptyMap()
     ): String {
         val now = Instant.now()
         return Jwts.builder()
@@ -54,6 +71,7 @@ class JwtService(
             .claim("mobile", mobile)
             .claim("role", role)
             .claim("token_type", tokenType)
+            .also { builder -> extraClaims.forEach { (name, value) -> builder.claim(name, value) } }
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiresAt))
             .signWith(key)
