@@ -102,7 +102,7 @@ object CallNotificationManager {
         }
     }
 
-    fun showActive(context: Context, callId: String, otherName: String, connected: Boolean) {
+    fun buildActiveNotification(context: Context, callId: String, otherName: String, connected: Boolean): Notification {
         ensureChannels(context)
         val appContext = context.applicationContext
         val hangupIntent = PendingIntent.getBroadcast(
@@ -134,16 +134,19 @@ object CallNotificationManager {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             )
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangupIntent))
         } else {
             builder.addAction(NotificationCompat.Action.Builder(0, "End call", hangupIntent).build())
         }
+        return builder.build()
+    }
 
+    fun showActive(context: Context, callId: String, otherName: String, connected: Boolean) {
+        val notification = buildActiveNotification(context, callId, otherName, connected)
         runCatching {
-            androidx.core.app.NotificationManagerCompat.from(appContext)
-                .notify(activeNotificationId(callId), builder.build())
+            androidx.core.app.NotificationManagerCompat.from(context.applicationContext)
+                .notify(activeNotificationId(callId), notification)
         }
     }
 
