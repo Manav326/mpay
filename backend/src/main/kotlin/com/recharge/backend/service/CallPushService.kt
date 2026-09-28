@@ -108,7 +108,18 @@ class CallPushService(
         return try {
             synchronized(FirebaseApp::class.java) {
                 if (FirebaseApp.getApps().isEmpty()) {
-                    FirebaseApp.initializeApp()
+                    val encoded = properties.firebaseServiceAccountJsonBase64.trim()
+                    if (encoded.isNotBlank()) {
+                        val jsonBytes = Base64.getDecoder().decode(encoded)
+                        val credentials = GoogleCredentials.fromStream(ByteArrayInputStream(jsonBytes))
+                        FirebaseApp.initializeApp(
+                            FirebaseOptions.builder()
+                                .setCredentials(credentials)
+                                .build()
+                        )
+                    } else {
+                        FirebaseApp.initializeApp()
+                    }
                 }
             }
             FirebaseMessaging.getInstance()
