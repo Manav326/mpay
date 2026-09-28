@@ -205,6 +205,13 @@ data class PayUHashRequest(
     val hashType: String? = null
 )
 
+data class PayUPaymentStatusRequest(
+    @field:NotBlank val orderId: String,
+    @field:NotBlank val status: String,
+    val paymentId: String? = null,
+    val signature: String? = null
+)
+
 data class PayUHashResponse(val hash: String)
 
 data class RechargeResponse(
