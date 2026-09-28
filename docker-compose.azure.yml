@@ -12,6 +12,9 @@ services:
   backend:
     environment:
       JAVA_TOOL_OPTIONS: "-Xms256m -Xmx1100m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC"
+      MPAY_CALL_ICE_SERVERS: ${MPAY_CALL_ICE_SERVERS:?MPAY_CALL_ICE_SERVERS must be set for Azure voice calling}
+      MPAY_CALL_TURN_USERNAME: ${MPAY_CALL_TURN_USERNAME:?MPAY_CALL_TURN_USERNAME must be set for Azure voice calling}
+      MPAY_CALL_TURN_CREDENTIAL: ${MPAY_CALL_TURN_CREDENTIAL:?MPAY_CALL_TURN_CREDENTIAL must be set for Azure voice calling}
     volumes:
       - ./backend/config:/app/config:ro
       - mpay_azure_profile_images:/app/data/profile-images
@@ -31,6 +34,24 @@ services:
       - mpay_azure_caddy_data:/data
       - mpay_azure_caddy_config:/config
     mem_limit: 96m
+
+  coturn:
+    image: coturn/coturn:4.18.0-r0
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - "-n"
+      - "--log-file=stdout"
+      - "--fingerprint"
+      - "--lt-cred-mech"
+      - "--realm=${MPAY_CALL_TURN_REALM:?MPAY_CALL_TURN_REALM must be set for Azure TURN}"
+      - "--user=${MPAY_CALL_TURN_USERNAME:?MPAY_CALL_TURN_USERNAME must be set for Azure TURN}:${MPAY_CALL_TURN_CREDENTIAL:?MPAY_CALL_TURN_CREDENTIAL must be set for Azure TURN}"
+      - "--listening-port=3478"
+      - "--no-tls"
+      - "--min-port=49160"
+      - "--max-port=49260"
+      - "--no-multicast-peers"
+      - "--external-ip=${MPAY_CALL_TURN_EXTERNAL_IP:?MPAY_CALL_TURN_EXTERNAL_IP must be set for Azure TURN}"
 
 volumes:
   mpay_azure_postgres_data:
