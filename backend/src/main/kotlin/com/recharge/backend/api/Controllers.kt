@@ -90,7 +90,6 @@ class ClientController(
         @Valid @RequestBody request: PayUPaymentStatusRequest
     ): VerifyPaymentResponse =
         payuPaymentGateway.recordClientOutcome(authenticatedUserId(authentication), request)
-  }
 
     @PostMapping("/recharge/operator")
     fun operator(@Valid @RequestBody request: OperatorCheckRequest) = recharge.detect(request)
