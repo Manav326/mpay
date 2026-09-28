@@ -546,3 +546,60 @@ class AdminFinancialController(
     ): AdminFinancialWalletPageResponse =
         service.walletHistory(currentUser(authentication), page, size, referenceType)
 }
+
+
+@RestController
+@RequestMapping("/api/v1/calls")
+class VoiceCallController(
+    private val users: com.recharge.backend.repository.UserRepository,
+    private val calls: com.recharge.backend.service.VoiceCallService
+) {
+    private fun currentUser(authentication: Authentication) =
+        authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
+            ?: throw IllegalStateException("Invalid authenticated user")
+
+    @PostMapping
+    fun create(authentication: Authentication, @Valid @RequestBody request: CreateVoiceCallRequest): VoiceCallResponse =
+        calls.create(currentUser(authentication), request.targetPublicId)
+
+    @GetMapping("/active")
+    fun active(authentication: Authentication): VoiceCallResponse? =
+        calls.active(currentUser(authentication))
+
+    @GetMapping("/{callId}")
+    fun get(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        calls.get(currentUser(authentication), callId)
+
+    @PostMapping("/{callId}/accept")
+    fun accept(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        calls.accept(currentUser(authentication), callId)
+
+    @PostMapping("/{callId}/decline")
+    fun decline(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        calls.decline(currentUser(authentication), callId)
+
+    @PostMapping("/{callId}/end")
+    fun end(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        calls.end(currentUser(authentication), callId)
+
+    @PostMapping("/signaling-token")
+    fun signalingToken(
+        authentication: Authentication,
+        @Valid @RequestBody request: VoiceCallSignalingTokenRequest
+    ): VoiceCallSignalingTokenResponse =
+        calls.signalingToken(currentUser(authentication), request.callId)
+
+    @PutMapping("/push-token")
+    fun registerPushToken(
+        authentication: Authentication,
+        @Valid @RequestBody request: CallPushTokenRequest
+    ) {
+        val user = currentUser(authentication)
+        // Push tokens are always bound to the authenticated account server-side.
+        com.recharge.backend.service.CallPushServiceHolder.register(
+            userId = requireNotNull(user.id),
+            token = request.token,
+            platform = request.platform
+        )
+    }
+}
