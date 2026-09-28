@@ -49,7 +49,7 @@ val firebaseSenderId = providers.gradleProperty("firebaseSenderId")
 
 android {
     namespace = "com.recharge.client"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.client.mpay"
