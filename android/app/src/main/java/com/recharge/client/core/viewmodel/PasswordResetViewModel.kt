@@ -34,8 +34,14 @@ class PasswordResetViewModel(application: Application) : AndroidViewModel(applic
         _state.value = PasswordResetUiState.Sending
         viewModelScope.launch {
             _state.value = repository.forgotPassword(mobile).fold(
-                onSuccess = { PasswordResetUiState.OtpSent(it.expiresInSeconds, it.demoOtp, it.deliveryMode) },
-                onFailure = { PasswordResetUiState.Error(it.message ?: "Unable to send OTP") }
+                onSuccess = {
+                    PasswordResetUiState.OtpSent(it.expiresInSeconds, it.demoOtp, it.deliveryMode).also { sent ->
+                        lastOtpSent = sent
+                    }
+                },
+                onFailure = {
+                    PasswordResetUiState.Error(it.message ?: "Unable to send OTP")
+                }
             )
         }
     }
