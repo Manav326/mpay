@@ -91,7 +91,7 @@ export default function Page() {
 
     const permissions = session.permissions || [];
     const allowed = new Set<AdminView>(['dashboard', 'users']);
-    if (permissions.includes('MANAGE_FINANCIAL_OPERATIONS')) allowed.add('financial');
+    if (permissions.includes('VIEW_FINANCIAL_OPERATIONS')) allowed.add('financial');
     if (permissions.includes('MANAGE_VENDORS')) allowed.add('vendors');
     if (permissions.includes('MANAGE_RENTAL_OPERATIONS')) allowed.add('rental');
     if (permissions.includes('MANAGE_COMMISSION_RATES')) allowed.add('commissions');
