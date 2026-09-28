@@ -35,6 +35,7 @@ class VoiceCallService : Service() {
     private var callId: String? = null
     private var otherName: String = "mPay customer"
     private var engine: VoiceCallEngine? = null
+    private var startupJob: kotlinx.coroutines.Job? = null
     private var observerJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
@@ -68,8 +69,8 @@ class VoiceCallService : Service() {
     }
 
     private fun startVoiceCall(incomingCallId: String) {
-        observerJob?.cancel()
-        observerJob = scope.launch {
+        startupJob?.cancel()
+        startupJob = scope.launch {
             val repository = VoiceCallRepository(applicationContext)
             val call = repository.getCall(incomingCallId).getOrElse {
                 stateFlow.value = VoiceCallEngineState(VoiceCallPhase.ERROR, message = "Call is no longer available")
@@ -85,7 +86,7 @@ class VoiceCallService : Service() {
             val newEngine = VoiceCallEngine(applicationContext)
             engine = newEngine
             observerJob?.cancel()
-            observerJob = launch {
+            observerJob = scope.launch {
                 newEngine.state.collect { state ->
                     stateFlow.value = state
                     updateForegroundNotification(call, state)
@@ -148,6 +149,8 @@ class VoiceCallService : Service() {
     }
 
     private fun stopCall() {
+        startupJob?.cancel()
+        startupJob = null
         observerJob?.cancel()
         observerJob = null
         engine?.stop()
