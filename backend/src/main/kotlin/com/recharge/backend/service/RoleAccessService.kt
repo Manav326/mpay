@@ -9,18 +9,38 @@ import org.springframework.stereotype.Service
 @Service
 class RoleAccessService(
     private val permissions: RolePermissionRepository,
-    private val hierarchy: RoleHierarchyRepository
+    private val hierarchy: RoleHierarchyRepository,
+    private val overrides: com.recharge.backend.repository.UserPermissionOverrideRepository
 ) {
     fun permissionsFor(role: String): Set<String> = permissions
         .findAllByRoleIgnoreCaseOrderByPermissionAsc(role)
         .map { it.permission.uppercase() }
         .toSet()
 
-    fun hasPermission(role: String, permission: String): Boolean =
+    fun permissionsFor(user: UserEntity): Set<String> {
+        val userId = requireNotNull(user.id) { "User ID is required" }
+        val resolved = permissionsFor(user.role).toMutableSet()
+        overrides.findAllByUserId(userId).forEach { override ->
+            if (override.allowed) resolved.add(override.permission.uppercase())
+            else resolved.remove(override.permission.uppercase())
+        }
+        return resolved
+    }
+
+    fun hasRolePermission(role: String, permission: String): Boolean =
         permissions.existsByRoleIgnoreCaseAndPermissionIgnoreCase(role, permission)
 
+    fun hasPermission(role: String, permission: String): Boolean =
+        hasRolePermission(role, permission)
+
+    fun hasPermission(user: UserEntity, permission: String): Boolean {
+        val userId = requireNotNull(user.id) { "User ID is required" }
+        val override = overrides.findByUserIdAndPermissionIgnoreCase(userId, permission)
+        return override?.allowed ?: hasRolePermission(user.role, permission)
+    }
+
     fun requirePermission(viewer: UserEntity, permission: String) {
-        if (!hasPermission(viewer.role, permission)) {
+        if (!hasPermission(viewer, permission)) {
             throw AccessDeniedException("Permission required: $permission")
         }
     }
