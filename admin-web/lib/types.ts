@@ -389,3 +389,40 @@ export interface HistoryPdfPendingAccessResponse {
   requestReason: string;
   requestedAt: string;
 }
+
+
+export interface VoiceCallResponse {
+  callId: string;
+  status: string;
+  callerName?: string | null;
+  callerPublicId: string;
+  calleeName?: string | null;
+  calleePublicId: string;
+  createdAt: string;
+  ringingExpiresAt: string;
+  acceptedAt?: string | null;
+  connectedAt?: string | null;
+  endedAt?: string | null;
+  endedReason?: string | null;
+  iceServers: Array<{ urls: string[]; username?: string | null; credential?: string | null }>;
+}
+
+export interface VoiceCallSignalingTokenResponse {
+  token: string;
+  expiresInSeconds: number;
+  websocketPath: string;
+}
+
+export interface VoiceCallRoleAccess {
+  role: string;
+  enabled: boolean;
+}
+
+export interface VoiceCallUserAccess {
+  publicUserId: string;
+  name?: string | null;
+  mobile: string;
+  role: string;
+  mode: 'DEFAULT' | 'ALLOW' | 'DENY';
+  enabled: boolean;
+}
