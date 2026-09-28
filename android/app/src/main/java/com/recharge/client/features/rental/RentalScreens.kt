@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.ui.window.Dialog
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1721,7 +1722,43 @@ fun CarRentalMarketplaceScreen(
             }
         }
     }
-}
+
+
+    pickerTarget?.let { target ->
+        RentalPhotoPickerDialog(
+            title = pickerTitle,
+            currentPreview = when {
+                target in 0..3 -> form.pendingPhotos[target].value?.value
+                    ?: listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)[target]
+                        .takeIf { it.isNotBlank() }
+                        ?.let { rentalPhotoDisplayUrl(it, "large") }
+                target == 4 -> form.driverPhoto?.value
+                    ?: editingCar?.driverPhoto?.largeUrl?.let { rentalPhotoDisplayUrl(it, "large") }
+                    ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
+                else -> null
+            },
+            deviceUri = pickedDeviceUri,
+            onLaunchDevicePicker = {
+                devicePickerTarget = target
+                pickedDeviceUri = null
+                devicePickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onDevicePicked = { uri -> pickedDeviceUri = uri },
+            onDismiss = { pickerTarget = null; devicePickerTarget = null; pickedDeviceUri = null },
+            onUse = { candidate ->
+                if (target in 0..3) {
+                    form.pendingPhotos[target].value = candidate
+                } else if (target == 4) {
+                    form.driverPhoto = candidate
+                }
+                pickerTarget = null
+                devicePickerTarget = null
+                pickedDeviceUri = null
+            }
+        )
+    }}
 
 @Composable
 private fun VehiclePhotoField(
@@ -1886,10 +1923,9 @@ fun RentalVehicleOnboardingScreen(
     var pickerTitle by remember { mutableStateOf("") }
     var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
     var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
-    var pendingDevicePickerTarget by remember { mutableStateOf<Int?>(null) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         val target = devicePickerTarget
         devicePickerTarget = null
@@ -1910,16 +1946,9 @@ fun RentalVehicleOnboardingScreen(
         }
     }
 
-    LaunchedEffect(pendingDevicePickerTarget) {
-        val target = pendingDevicePickerTarget ?: return@LaunchedEffect
-        pendingDevicePickerTarget = null
-        devicePickerLauncher.launch("image/*")
-    }
-
     fun openPhotoPicker(slot: Int, title: String) {
         pickedDeviceUri = null
-        devicePickerTarget = null
-        pendingDevicePickerTarget = null
+        devicePickerTarget = slot
         pickerTarget = slot
         pickerTitle = title
     }
@@ -2225,45 +2254,6 @@ fun RentalVehicleOnboardingScreen(
             )
         }
         state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
-
-        item {
-            pickerTarget?.let { target ->
-                RentalPhotoPickerDialog(
-                    title = pickerTitle,
-                    currentPreview = when {
-                        target in 0..3 -> form.pendingPhotos[target].value?.value
-                            ?: listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)[target]
-                                .takeIf { it.isNotBlank() }
-                                ?.let { rentalPhotoDisplayUrl(it, "large") }
-                        target == 4 -> form.driverPhoto?.value
-                            ?: editingCar?.driverPhoto?.largeUrl?.let { rentalPhotoDisplayUrl(it, "large") }
-                            ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
-                        else -> null
-                    },
-                    deviceUri = pickedDeviceUri,
-                    onLaunchDevicePicker = {
-                        // Close the Compose Dialog first. The ActivityResult launch is then
-                        // performed from a LaunchedEffect after the dialog window is gone.
-                        // This avoids the OEM/Compose Dialog-to-picker transition that can
-                        // swallow the GET_CONTENT launch before Android starts DocumentsUI.
-                        devicePickerTarget = target
-                        pickedDeviceUri = null
-                        pickerTarget = null
-                        pendingDevicePickerTarget = target
-                    },
-                    onDevicePicked = { uri -> pickedDeviceUri = uri },
-                    onDismiss = { pickerTarget = null },
-                    onUse = { candidate ->
-                        if (target in 0..3) {
-                            form.pendingPhotos[target].value = candidate
-                        } else if (target == 4) {
-                            form.driverPhoto = candidate
-                        }
-                        pickerTarget = null
-                    }
-                )
-            }
-        }
 
         item {
             val manufacturing = form.manufacturingYear.toIntOrNull()
