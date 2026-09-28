@@ -2335,7 +2335,7 @@ export default function Portal() {
               <>
                 <div className="wallet-current-balance">Current available balance <b>{money(wallet?.availableBalance)}</b></div>
                 <div className="wallet-provider-picker">
-                  {(['mock','razorpay','payu'] as const).map(provider => <button key={provider} className={addMoneyProvider===provider?'selected':''} onClick={()=>setAddMoneyProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
+                  {(['mock','razorpay'] as const).map(provider => <button key={provider} className={addMoneyProvider===provider?'selected':''} onClick={()=>setAddMoneyProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : 'Razorpay'}</button>)}
                 </div>
                 <label className="wallet-field-label">Amount (INR)
                   <div className="wallet-input-shell"><span>₹</span><input inputMode="decimal" maxLength={10} value={addMoneyAmount} onChange={e=>setAddMoneyAmount(e.target.value.replace(/[^0-9.]/g,''))} placeholder="Enter amount"/></div>
@@ -2349,7 +2349,7 @@ export default function Portal() {
               <>
                 <div className="wallet-current-balance">Available to withdraw <b>{money(wallet?.availableBalance)}</b></div>
                 <div className="wallet-provider-picker">
-                  {(['mock','razorpay','payu'] as const).map(provider => <button type="button" key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : provider === 'razorpay' ? 'Razorpay' : 'PayU'}</button>)}
+                  {(['mock','razorpay'] as const).map(provider => <button type="button" key={provider} className={withdrawProvider===provider?'selected':''} onClick={()=>setWithdrawProvider(provider)} disabled={busy}>{provider === 'mock' ? 'Mock' : 'Razorpay'}</button>)}
                 </div>
                 <div className="wallet-field-grid">
                   <label className="wallet-field-label">Amount (INR)
