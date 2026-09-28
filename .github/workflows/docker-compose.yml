@@ -90,6 +90,11 @@ jobs:
           MPAY_ADMIN_WEB_TAG: azure-sha-ci
           MPAY_PUBLIC_DOMAIN: mpay.example.test
           MPAY_API_DOMAIN: api.mpay.example.test
+          MPAY_CALL_TURN_REALM: turn.mpay.example.test
+          MPAY_CALL_TURN_EXTERNAL_IP: 198.51.100.10
+          MPAY_CALL_TURN_USERNAME: ci
+          MPAY_CALL_TURN_CREDENTIAL: ci
+          MPAY_CALL_ICE_SERVERS: stun:stun.l.google.com:19302,turn:turn.mpay.example.test:3478?transport=udp,turn:turn.mpay.example.test:3478?transport=tcp
         run: |
           docker compose -f docker-compose.yml -f docker-compose.azure.yml config
 
