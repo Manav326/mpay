@@ -706,6 +706,9 @@ private fun AppNavHost(
                 onClearWithdrawMessage = walletViewModel::clearWithdrawMessage,
                 onOpenWalletDetail = walletViewModel::openDetails,
                 onCloseWalletDetail = walletViewModel::closeDetails,
+                onLoadHistoryPdfAccess = walletViewModel::loadHistoryPdfAccess,
+                onRequestHistoryPdfAccess = walletViewModel::requestHistoryPdfAccess,
+                onDownloadHistoryPdf = walletViewModel::downloadHistoryPdf,
                 isVisible = currentRoute == "wallet"
             )
         }
@@ -836,7 +839,10 @@ private fun AppNavHost(
                 onPreviousPage = { rechargeHistoryViewModel.goToPage(historyState.page - 1) },
                 onNextPage = { rechargeHistoryViewModel.goToPage(historyState.page + 1) },
                 onRefresh = rechargeHistoryViewModel::refreshHistory,
-                onBack = { nav.popBackStack() }
+                onBack = { nav.popBackStack() },
+                onLoadHistoryPdfAccess = rechargeHistoryViewModel::loadHistoryPdfAccess,
+                onRequestHistoryPdfAccess = rechargeHistoryViewModel::requestHistoryPdfAccess,
+                onDownloadHistoryPdf = rechargeHistoryViewModel::downloadHistoryPdf
             )
         }
     }

@@ -66,6 +66,7 @@ interface WalletWithdrawalRepository : JpaRepository<WalletWithdrawalEntity, Lon
 interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, Long> {
     fun existsByExternalRef(externalRef: String): Boolean
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toExclusive: Instant, pageable: Pageable): Page<WalletTransactionEntity>
+    fun findAllByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toExclusive: Instant): List<WalletTransactionEntity>
     fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<WalletTransactionEntity>
     fun findAllByReferenceTypeOrderByCreatedAtDesc(referenceType: String, pageable: Pageable): Page<WalletTransactionEntity>
     fun findAllByUserIdInOrderByCreatedAtDesc(userIds: Collection<Long>, pageable: Pageable): Page<WalletTransactionEntity>
@@ -125,6 +126,9 @@ interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntit
     fun findAllByTransactionIdIn(transactionIds: Collection<String>): List<RechargeTransactionEntity>
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<RechargeTransactionEntity>
     fun findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toInclusive: Instant, pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findAllByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, fromInclusive: Instant, toInclusive: Instant): List<RechargeTransactionEntity>
+    fun findAllByUserIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, status: String, fromInclusive: Instant, toInclusive: Instant): List<RechargeTransactionEntity>
+    fun findAllByUserIdAndStatusInAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, statuses: Collection<String>, fromInclusive: Instant, toInclusive: Instant): List<RechargeTransactionEntity>
     fun findByUserIdAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, status: String, fromInclusive: Instant, toInclusive: Instant, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findByUserIdAndStatusInAndCreatedAtBetweenOrderByCreatedAtDesc(userId: Long, statuses: Collection<String>, fromInclusive: Instant, toInclusive: Instant, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByOrderByCreatedAtDesc(pageable: Pageable): Page<RechargeTransactionEntity>
@@ -296,6 +300,7 @@ interface PaymentOrderRepository : JpaRepository<PaymentOrderEntity, Long> {
 interface PasswordResetOtpRepository : JpaRepository<com.recharge.backend.domain.PasswordResetOtpEntity, Long> {
     fun findByMobileAndPurpose(mobile: String, purpose: String): java.util.Optional<com.recharge.backend.domain.PasswordResetOtpEntity>
 }
+
 
 
 

@@ -13,6 +13,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 import retrofit2.http.Path
 import com.recharge.client.core.model.RentalVendorOnboardingRequest
 import com.recharge.client.core.model.RentalVendorResponse
@@ -51,6 +52,22 @@ interface ClientApi {
 
     @GET("api/v1/me")
     suspend fun me(): Response<CurrentUserResponse>
+
+
+    @GET("api/v1/history/pdf-access")
+    suspend fun historyPdfAccess(): Response<HistoryPdfAccessResponse>
+
+    @POST("api/v1/history/pdf-access/request")
+    suspend fun requestHistoryPdfAccess(@Body request: Map<String, String>): Response<HistoryPdfAccessResponse>
+
+    @Streaming
+    @GET("api/v1/history/pdf")
+    suspend fun historyPdf(
+        @Query("type") type: String,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("status") status: String? = null
+    ): Response<okhttp3.ResponseBody>
 
     @GET("api/v1/wallet")
     suspend fun wallet(): Response<WalletResponse>

@@ -370,3 +370,22 @@ export interface AdminProfile {
   profileImageVersion?: number | null;
   role: string;
 }
+
+
+export interface HistoryPdfAccessResponse {
+  status: string;
+  requestId: number | null;
+  requestReason: string | null;
+  reviewNote: string | null;
+  requestedAt: string | null;
+  reviewedAt: string | null;
+}
+
+export interface HistoryPdfPendingAccessResponse {
+  requestId: number;
+  publicUserId: string;
+  customerName: string | null;
+  mobile: string;
+  requestReason: string;
+  requestedAt: string;
+}

@@ -822,6 +822,10 @@ export default function Portal() {
   const [historyPageSize, setHistoryPageSize] = useState(20);
   const [historyRefreshing, setHistoryRefreshing] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPdfAccess, setHistoryPdfAccess] = useState<{status:string;requestId:number|null;requestReason:string|null;reviewNote:string|null;requestedAt:string|null;reviewedAt:string|null} | null>(null);
+  const [historyPdfReason, setHistoryPdfReason] = useState('');
+  const [historyPdfRequestOpen, setHistoryPdfRequestOpen] = useState(false);
+  const [historyPdfBusy, setHistoryPdfBusy] = useState(false);
   const [rechargeFunding, setRechargeFunding] = useState<'WALLET'|'RAZORPAY'|'PAYU'>('WALLET');
 
   const [walletHistory, setWalletHistory] = useState<WalletItem[]>([]);
@@ -2139,9 +2143,9 @@ export default function Portal() {
     if(view==='home'){
       void Promise.all([refreshWallet(), loadLatestRecharge(), loadCommissionSummary()]);
     } else if(view==='history'){
-      void loadHistory();
+      void Promise.all([loadHistory(), loadHistoryPdfAccess()]);
     } else if(view==='wallet'){
-      void Promise.all([refreshWallet(), loadWalletHistory(0), loadWithdrawals(0), loadCommissionSummary()]);
+      void Promise.all([refreshWallet(), loadWalletHistory(0), loadWithdrawals(0), loadCommissionSummary(), loadHistoryPdfAccess()]);
     } else if(view==='rental'){
       void loadRentalCars(rentalSearch.startDate,rentalSearch.endDate,rentalSearch.location);
     } else if(view==='rental-booking'){
@@ -2158,6 +2162,80 @@ export default function Portal() {
       void loadHistory(0);
     }
   },[view, historyKind, historyFrom, historyTo]);
+
+  async function loadHistoryPdfAccess() {
+    try {
+      setHistoryPdfAccess(await api('/api/v1/history/pdf-access'));
+    } catch {
+      setHistoryPdfAccess(null);
+    }
+  }
+
+  async function requestHistoryPdfAccess() {
+    const reason = historyPdfReason.trim();
+    if (reason.length < 20) {
+      setNotice('Please provide at least 20 characters explaining why you need PDF history access.');
+      return;
+    }
+    setHistoryPdfBusy(true);
+    try {
+      const result = await api('/api/v1/history/pdf-access/request', { method: 'POST', body: JSON.stringify({ reason }) });
+      setHistoryPdfAccess(result);
+      setHistoryPdfRequestOpen(false);
+      setHistoryPdfReason('');
+      setNotice('Your PDF history access request has been submitted for administrator review.');
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to submit the PDF history access request.');
+    } finally {
+      setHistoryPdfBusy(false);
+    }
+  }
+
+  async function downloadHistoryPdf(type:'WALLET'|'RECHARGE') {
+    if (historyPdfAccess?.status !== 'APPROVED') {
+      setNotice('PDF history access is not approved for this account.');
+      return;
+    }
+    const from = type === 'RECHARGE' ? historyFrom : walletHistoryFrom;
+    const to = type === 'RECHARGE' ? historyTo : walletHistoryTo;
+    const params = new URLSearchParams({ type, from, to });
+    if (type === 'RECHARGE' && historyKind !== 'ALL') params.set('status', historyKind);
+    setHistoryPdfBusy(true);
+    try {
+      let token = localStorage.getItem(webSession.accessKey);
+      const request = (authorization?: string) => fetch(base + '/api/v1/history/pdf?' + params.toString(), {
+        headers: authorization ? { Authorization: 'Bearer ' + authorization } : token ? { Authorization: 'Bearer ' + token } : {}
+      });
+      let response = await request();
+      if (response.status === 401) {
+        const refreshed = await refreshWebSession(webSession);
+        if (refreshed === 'refreshed') {
+          token = localStorage.getItem(webSession.accessKey);
+          response = await request(token || undefined);
+        }
+      }
+      if (!response.ok) {
+        const text = await response.text();
+        let message = text || ('PDF request failed (' + response.status + ')');
+        try { const parsed = JSON.parse(text); message = parsed?.message || parsed?.error || message; } catch {}
+        throw new Error(message);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'mpay-' + type.toLowerCase() + '-history-' + from + '-' + to + '.pdf';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setNotice('PDF statement generated successfully.');
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to generate the PDF statement.');
+    } finally {
+      setHistoryPdfBusy(false);
+    }
+  }
 
   useEffect(()=>{
     if(selectedVendorVehicle){
@@ -2519,6 +2597,29 @@ export default function Portal() {
             <button className="wallet-icon-action" onClick={()=>{void refreshWallet();void loadWalletHistory(walletHistoryPage);}} disabled={walletHistoryLoading}><RefreshCw size={16}/></button>
           </div>
 
+          <div className="history-pdf-access-box wallet-history-pdf-box">
+            <div>
+              <span className="recharge-history-eyebrow">PDF STATEMENT</span>
+              <b>{historyPdfAccess?.status === 'APPROVED' ? 'Wallet statement ready' : historyPdfAccess?.status === 'PENDING' ? 'Approval pending' : 'Administrator approval required'}</b>
+              <small>
+                {historyPdfAccess?.status === 'APPROVED'
+                  ? date(walletHistoryFrom) + ' → ' + date(walletHistoryTo) + ' · Up to 1 year or 5,000 records'
+                  : historyPdfAccess?.status === 'PENDING'
+                    ? 'Your request is being reviewed.'
+                    : 'Request access with a clear reason before exporting account history.'}
+              </small>
+            </div>
+            {historyPdfAccess?.status === 'APPROVED' ? (
+              <div className="history-pdf-actions">
+                <button className="landing-secondary" onClick={()=>void downloadHistoryPdf('WALLET')} disabled={historyPdfBusy}>{historyPdfBusy ? 'Generating…' : 'Download wallet PDF'}</button>
+              </div>
+            ) : historyPdfAccess?.status === 'PENDING' ? (
+              <span className="history-pdf-state">Under review</span>
+            ) : (
+              <button className="landing-secondary" onClick={()=>setHistoryPdfRequestOpen(true)} disabled={historyPdfBusy}>Request access</button>
+            )}
+          </div>
+
           <div className="wallet-filter-chips">
             {[
               {key:'',label:'All'},
@@ -2611,6 +2712,29 @@ export default function Portal() {
             <button className="landing-secondary recharge-refresh-button" onClick={()=>void loadHistory(0)} disabled={historyRefreshing}>
               <RefreshCw size={15} className={historyRefreshing ? 'spin' : ''}/> {historyRefreshing ? 'Refreshing…' : 'Refresh'}
             </button>
+          </div>
+
+          <div className="history-pdf-access-box recharge-history-pdf-box">
+            <div>
+              <span className="recharge-history-eyebrow">PDF STATEMENT</span>
+              <b>{historyPdfAccess?.status === 'APPROVED' ? 'Recharge statement ready' : historyPdfAccess?.status === 'PENDING' ? 'Approval pending' : 'Administrator approval required'}</b>
+              <small>
+                {historyPdfAccess?.status === 'APPROVED'
+                  ? date(historyFrom) + ' → ' + date(historyTo) + ' · ' + (historyKind === 'ALL' ? 'All statuses' : historyKind) + ' · Up to 1 year or 5,000 records'
+                  : historyPdfAccess?.status === 'PENDING'
+                    ? 'Your request is being reviewed.'
+                    : 'Request access with a clear reason before exporting account history.'}
+              </small>
+            </div>
+            {historyPdfAccess?.status === 'APPROVED' ? (
+              <div className="history-pdf-actions">
+                <button className="landing-secondary" onClick={()=>void downloadHistoryPdf('RECHARGE')} disabled={historyPdfBusy}>{historyPdfBusy ? 'Generating…' : 'Download recharge PDF'}</button>
+              </div>
+            ) : historyPdfAccess?.status === 'PENDING' ? (
+              <span className="history-pdf-state">Under review</span>
+            ) : (
+              <button className="landing-secondary" onClick={()=>setHistoryPdfRequestOpen(true)} disabled={historyPdfBusy}>Request access</button>
+            )}
           </div>
 
           <div className="recharge-history-filters">
@@ -2731,6 +2855,23 @@ export default function Portal() {
           />
         </div>
       </section>}
+
+      {historyPdfRequestOpen && <div className="modal-backdrop" onClick={()=>!historyPdfBusy&&setHistoryPdfRequestOpen(false)}>
+        <div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}>
+          <div className="panel-head">
+            <div><h2>Request history PDF access</h2><p>An administrator must approve this feature for your account.</p></div>
+            <button className="icon-btn" onClick={()=>!historyPdfBusy&&setHistoryPdfRequestOpen(false)}><X size={17}/></button>
+          </div>
+          <label className="wallet-field-label">Reason for request
+            <textarea className="wallet-text-input" rows={5} maxLength={1000} value={historyPdfReason} onChange={e=>setHistoryPdfReason(e.target.value)} placeholder="Explain why you need downloadable wallet or recharge statements." />
+          </label>
+          <div className="wallet-field-help">{historyPdfReason.length}/1000 · minimum 20 characters</div>
+          <div className="modal-actions">
+            <button className="landing-secondary" onClick={()=>setHistoryPdfRequestOpen(false)} disabled={historyPdfBusy}>Cancel</button>
+            <button className="landing-primary" onClick={()=>void requestHistoryPdfAccess()} disabled={historyPdfBusy || historyPdfReason.trim().length < 20}>{historyPdfBusy ? 'Submitting…' : 'Submit request'}</button>
+          </div>
+        </div>
+      </div>}
 
       {view==='marketplace' && <section className="portal-content"><div className="portal-panel"><div className="panel-head"><div><h2>Marketplace</h2><p>Explore mPay service categories.</p></div><Car size={28}/></div>
         <button className="rental-car selected" onClick={()=>setView('rental')}><div className="rental-car-icon"><Car size={26}/></div><b>Car Rental</b><span>NEW · Chauffeur-driven cars</span><strong>Open marketplace</strong></button>

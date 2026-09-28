@@ -1,6 +1,9 @@
 package com.recharge.client.features.recharge
 
 import android.app.DatePickerDialog
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -40,11 +44,32 @@ fun RechargeHistoryScreen(
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
     onRefresh: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLoadHistoryPdfAccess: () -> Unit,
+    onRequestHistoryPdfAccess: (String) -> Unit,
+    onDownloadHistoryPdf: ((ByteArray, String) -> Unit) -> Unit
 ) {
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
     var pendingFrom by remember { mutableStateOf<LocalDate?>(null) }
+    var showPdfRequest by rememberSaveable { mutableStateOf(false) }
+    var pdfReason by rememberSaveable { mutableStateOf("") }
+    var pendingPdfBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val pdfWriter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri: Uri? ->
+        val bytes = pendingPdfBytes
+        if (uri != null && bytes != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: error("Unable to save PDF.")
+                android.widget.Toast.makeText(context, "PDF saved successfully.", android.widget.Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                android.widget.Toast.makeText(context, it.message ?: "Unable to save PDF.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        pendingPdfBytes = null
+    }
+
+    LaunchedEffect(Unit) { onLoadHistoryPdfAccess() }
 
     if (showFromPicker) {
         FutureSafeDatePicker(state.fromDate) { date ->
@@ -62,6 +87,40 @@ fun RechargeHistoryScreen(
         }
     }
 
+    if (showPdfRequest) {
+        AlertDialog(
+            onDismissRequest = { if (!state.historyPdfBusy) showPdfRequest = false },
+            title = { Text("Request history PDF access") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("An administrator must approve downloadable statements for your account.")
+                    OutlinedTextField(
+                        value = pdfReason,
+                        onValueChange = { if (it.length <= 1000) pdfReason = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Reason for request") },
+                        placeholder = { Text("Explain why you need a downloadable recharge statement.") },
+                        minLines = 4,
+                        maxLines = 6,
+                        supportingText = { Text("${pdfReason.length}/1000 · minimum 20 characters") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onRequestHistoryPdfAccess(pdfReason.trim())
+                        showPdfRequest = false
+                    },
+                    enabled = !state.historyPdfBusy && pdfReason.trim().length >= 20
+                ) { Text("Submit request") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPdfRequest = false }, enabled = !state.historyPdfBusy) { Text("Cancel") }
+            }
+        )
+    }
+
     Column(
         Modifier.fillMaxSize().widthIn(max = 1000.dp).padding(horizontal = 16.dp)
     ) {
@@ -76,6 +135,15 @@ fun RechargeHistoryScreen(
                 Icon(Icons.Default.Refresh, "Refresh history")
             }
         }
+
+        RechargeHistoryPdfAccessCard(
+            state = state,
+            onRequest = { showPdfRequest = true },
+            onDownload = { onDownloadHistoryPdf { bytes, fileName ->
+                pendingPdfBytes = bytes
+                pdfWriter.launch(fileName)
+            } }
+        )
 
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             FilterButton(HistoryFilter.TODAY, state.filter, "Today", onFilterToday)
@@ -206,5 +274,49 @@ private fun FutureSafeDatePicker(initial: LocalDate, onSelected: (LocalDate) -> 
         dialog.datePicker.maxDate = today.timeInMillis
         dialog.show()
         onDispose { dialog.dismiss() }
+    }
+}
+
+
+@Composable
+private fun RechargeHistoryPdfAccessCard(
+    state: RechargeHistoryUiState,
+    onRequest: () -> Unit,
+    onDownload: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Recharge statement", style = MaterialTheme.typography.titleMedium)
+            when (state.historyPdfAccessStatus) {
+                "APPROVED" -> {
+                    Text(
+                        state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) +
+                            " → " +
+                            state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) +
+                            " · " + if (state.statusFilter == "ALL") "All statuses" else state.statusFilter,
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text("Up to 1 year or 5,000 records per statement.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(onClick = onDownload, enabled = !state.historyPdfBusy, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (state.historyPdfBusy) "Generating…" else "Download recharge PDF")
+                    }
+                }
+                "PENDING" -> {
+                    Text("Your request is under administrator review.", color = AppColors.TextSecondary)
+                    state.historyPdfAccessRequestReason?.let { Text("Reason: " + it, style = MaterialTheme.typography.bodySmall) }
+                }
+                "REJECTED", "REVOKED" -> {
+                    Text("PDF export is not currently enabled.", color = AppColors.TextSecondary)
+                    state.historyPdfAccessReviewNote?.let { Text("Admin note: " + it, style = MaterialTheme.typography.bodySmall) }
+                    Button(onClick = onRequest, enabled = !state.historyPdfBusy) { Text("Request access") }
+                }
+                else -> {
+                    Text("Request administrator approval to download this recharge history as a statement.", color = AppColors.TextSecondary)
+                    Button(onClick = onRequest, enabled = !state.historyPdfBusy) { Text("Request access") }
+                }
+            }
+            state.historyPdfError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
     }
 }
