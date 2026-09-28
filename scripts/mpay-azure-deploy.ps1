@@ -83,7 +83,7 @@ try {
             throw "Remote branch refs/heads/$Branch was not found."
         }
 
-        $remoteBranchSha = (($lsRemoteOutput[0] -split "s+")[0]).Trim()
+        $remoteBranchSha = (($lsRemoteOutput[0] -split "\s+")[0]).Trim()
         if ($remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
             throw "Could not determine the remote SHA for refs/heads/$Branch."
         }
