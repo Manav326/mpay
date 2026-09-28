@@ -27,7 +27,7 @@ dependencies {
     implementation("com.twelvemonkeys.imageio:imageio-webp:3.15.2")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
-    implementation("com.google.firebase:firebase-admin:9.11.0")
+    implementation("com.google.firebase:firebase-admin:9.10.0")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
