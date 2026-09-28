@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - fix/android-rental-image-picker-final
   pull_request:
     branches:
       - main
