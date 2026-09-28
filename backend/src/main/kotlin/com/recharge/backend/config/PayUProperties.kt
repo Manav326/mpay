@@ -28,7 +28,7 @@ data class PayUProperties(
     val pgSalt: String = "",
     val merchantKey: String = "",
     val merchantSalt: String = "",
-    val pgVerifyUrl: String = "https://test.payu.in/merchant/postservice.php?form=2",
+    val pgVerifyUrl: String = "https://test.payu.in/merchant/postservice?form=2",
     val pgSuccessUrl: String = "https://cbjs.payu.in/sdk/success",
     val pgFailureUrl: String = "https://cbjs.payu.in/sdk/failure",
     val pgProduction: Boolean = false,
