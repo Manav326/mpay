@@ -4,6 +4,9 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -32,6 +37,8 @@ import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
 import com.recharge.client.core.viewmodel.*
 import com.recharge.client.features.auth.ForgotPasswordScreen
+import com.recharge.client.MpayFirebase
+import com.recharge.client.features.voice.VoiceCallPushRegistrar
 import com.recharge.client.features.auth.LoginScreen
 import com.recharge.client.features.auth.RegisterScreen
 import com.recharge.client.features.home.HomeScreen
@@ -444,6 +451,11 @@ private fun AppRoot(
     passwordResetViewModel: PasswordResetViewModel = viewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
+    val context = LocalContext.current
+    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = {}
+    )
     val passwordResetState by passwordResetViewModel.state.collectAsState()
     val registrationOtpState by authViewModel.registrationOtpState.collectAsState()
     val paymentState by paymentViewModel.state.collectAsState()
