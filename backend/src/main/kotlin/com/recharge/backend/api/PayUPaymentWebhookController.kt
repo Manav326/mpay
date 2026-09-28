@@ -141,5 +141,10 @@ class PayUPaymentWebhookController(
     }
 
     private fun jsString(value: String): String =
-        """ + value.replace("\\", "\\\\").replace(""", "\\"").replace("\r", "").replace("\n", "") + """
+        value
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\r", "")
+            .replace("\n", "")
+            .let { "\"$it\"" }
 }
