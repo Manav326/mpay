@@ -16,7 +16,7 @@ import com.recharge.client.R
 object CallNotificationManager {
     const val ACTION_DECLINE = "com.recharge.client.voice.DECLINE"
     const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
-    private const val CHANNEL_INCOMING = "incoming_calls"
+    private const val CHANNEL_INCOMING = "incoming_calls_v2"
     private const val CHANNEL_ACTIVE = "active_calls"
     private const val INCOMING_BASE_ID = 48000
 
@@ -34,6 +34,7 @@ object CallNotificationManager {
                 description = "Incoming support and account-service calls from mPay"
                 setSound(ringtone, audioAttributes)
                 enableVibration(true)
+                setVibrationPattern(longArrayOf(0L, 500L, 250L, 500L))
             }
         )
         manager.createNotificationChannel(
@@ -85,6 +86,8 @@ object CallNotificationManager {
             .setContentIntent(openIntent)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setSound(ringtone, audioAttributes)
+            .setVibrate(longArrayOf(0L, 500L, 250L, 500L))
             .setOngoing(true)
             .setAutoCancel(false)
             .setTimeoutAfter(35_000L)
