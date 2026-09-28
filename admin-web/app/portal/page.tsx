@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
+import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
@@ -2174,7 +2175,7 @@ export default function Portal() {
 
   return <div className="portal-shell" data-form-factor={webCapabilities.formFactor} data-contact-picker={webCapabilities.canUseContactPicker ? 'available' : 'unavailable'}>
     <aside className={'portal-sidebar ' + (drawer ? 'open ' : '') + (sidebarCollapsed ? 'collapsed' : '')}>
-      <div className="portal-side-head"><a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a><div className="portal-side-controls"><button className="icon-btn sidebar-collapse-btn" title={sidebarCollapsed?'Expand navigation':'Collapse navigation'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</button><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div></div>
+      <div className="portal-side-head"><a className="landing-brand portal-brand-link" href="/" aria-label="mPay home"><MpayBrandUnit variant="sidebar"/></a><div className="portal-side-controls"><button className="icon-btn sidebar-collapse-btn" title={sidebarCollapsed?'Expand navigation':'Collapse navigation'} onClick={()=>setSidebarCollapsed(v=>!v)}>{sidebarCollapsed?<ChevronRight size={17}/>:<ChevronLeft size={17}/>}</button><button className="icon-btn mobile-only" onClick={()=>setDrawer(false)}><X size={18}/></button></div></div>
       <div className="portal-welcome"><span>Signed in as</span><b>{me?.name || 'mPay user'}</b><small>{me?.mobile || ''}</small></div>
       <nav>{menu.map(([key,label,Icon])=>
         <button key={key} className={view===key?'portal-nav active':'portal-nav'} onClick={()=>{setView(key);setDrawer(false);}}>
