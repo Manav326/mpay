@@ -140,12 +140,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         order.checkoutParams["paymentHash"].orEmpty(),
                         object : PayUCheckoutBridge.Callback {
                             override fun onPaymentSuccess(response: Any?) {
-                                val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                                val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
-                                val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
-                                val mihpayid = parsed?.optString("mihpayid").orEmpty()
-                                val hash = parsed?.optString("hash").orEmpty()
-                                walletPaymentViewModel.verifyPayment("payu", mihpayid, txnId, hash)
+                                val payuParameters = extractPayUPaymentParameters(response).toMutableMap()
+                                val txnId = payuParameters["txnid"].orEmpty().ifBlank { order.orderId }
+                                payuParameters["txnid"] = txnId
+                                walletPaymentViewModel.processPayUPaymentCallback(order.orderId, payuParameters)
                             }
 
                             override fun onPaymentFailure(response: Any?) {
@@ -244,12 +242,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     order.checkoutParams["paymentHash"].orEmpty(),
                     object : PayUCheckoutBridge.Callback {
                         override fun onPaymentSuccess(response: Any?) {
-                            val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                            val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
-                            val txnId = parsed?.optString("txnid").orEmpty().ifBlank { order.orderId }
-                            val mihpayid = parsed?.optString("mihpayid").orEmpty()
-                            val hash = parsed?.optString("hash").orEmpty()
-                            rechargeViewModel.verifyGatewayPayment("payu", mihpayid, txnId, hash)
+                            val payuParameters = extractPayUPaymentParameters(response).toMutableMap()
+                            val txnId = payuParameters["txnid"].orEmpty().ifBlank { order.orderId }
+                            payuParameters["txnid"] = txnId
+                            rechargeViewModel.processPayUPaymentCallback(order.orderId, payuParameters)
                         }
 
                         override fun onPaymentFailure(response: Any?) {
@@ -357,6 +353,40 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         }
     }
 
+    private fun extractPayUPaymentParameters(response: Any?): Map<String, String> {
+        val raw = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE").orEmpty()
+        if (raw.isBlank()) return emptyMap()
+
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return emptyMap()
+        val payload = root.optJSONObject("result")
+            ?: root.optJSONObject("data")
+            ?: root
+
+        val parameters = buildMap {
+            val keys = payload.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = payload.opt(key)
+                if (value != null && value != JSONObject.NULL && !value.toString().equals("null", true)) {
+                    put(key, value.toString())
+                }
+            }
+            if (!containsKey("status") && root.has("status")) {
+                put("status", root.optString("status"))
+            }
+            if (!containsKey("txnid") && root.has("txnid")) {
+                put("txnid", root.optString("txnid"))
+            }
+            if (!containsKey("mihpayid") && root.has("mihpayid")) {
+                put("mihpayid", root.optString("mihpayid"))
+            }
+            if (!containsKey("hash") && root.has("hash")) {
+                put("hash", root.optString("hash"))
+            }
+        }
+        return parameters
+    }
+
     override fun onPaymentError(code: Int, response: String?, paymentData: PaymentData?) {
         val target = pendingRazorpayTarget
         pendingRazorpayTarget = null
@@ -396,7 +426,7 @@ private fun AppRoot(
     val profileState by profileViewModel.state.collectAsState()
     val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
-    var authRoute by rememberSaveable { mutableStateOf("login") }
+    var authRoute by rememberSaveable { mutableStateOf<AuthRoute>(AuthRoute.Login) }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -407,14 +437,14 @@ private fun AppRoot(
             rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
             authViewModel.clearRegistrationOtp()
-            authRoute = "login"
+            authRoute = AuthRoute.Login
         }
     }
 
     LaunchedEffect(passwordResetState) {
         if (passwordResetState is PasswordResetUiState.Success) {
             passwordResetViewModel.clear()
-            authRoute = "login"
+            authRoute = AuthRoute.Login
             authViewModel.clearError()
         }
     }
@@ -446,13 +476,13 @@ private fun AppRoot(
 
     if (authState !is AuthUiState.Authenticated) {
         when (authRoute) {
-            "login" -> LoginScreen(
+            AuthRoute.Login -> LoginScreen(
                 authState = authState,
                 onLogin = { mobile, password -> authViewModel.login(mobile, password) },
-                onSignUp = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = "register" },
-                onForgotPassword = { authViewModel.clearError(); passwordResetViewModel.clear(); authRoute = "forgot-password" }
+                onSignUp = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = AuthRoute.Register },
+                onForgotPassword = { authViewModel.clearError(); passwordResetViewModel.clear(); authRoute = AuthRoute.ForgotPassword }
             )
-            "register" -> RegisterScreen(
+            AuthRoute.Register -> RegisterScreen(
                 authState = authState,
                 registrationOtpState = registrationOtpState,
                 onRegister = { name, email, mobile, password, verificationToken ->
@@ -461,13 +491,13 @@ private fun AppRoot(
                 onSendOtp = authViewModel::sendRegistrationOtp,
                 onVerifyOtp = authViewModel::verifyRegistrationOtp,
                 onClearOtp = authViewModel::clearRegistrationOtp,
-                onBack = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = "login" }
+                onBack = { authViewModel.clearError(); authViewModel.clearRegistrationOtp(); authRoute = AuthRoute.Login }
             )
-            else -> ForgotPasswordScreen(
+            AuthRoute.ForgotPassword -> ForgotPasswordScreen(
                 state = passwordResetState,
                 onRequestOtp = passwordResetViewModel::requestOtp,
                 onReset = passwordResetViewModel::resetPassword,
-                onBack = { passwordResetViewModel.clear(); authRoute = "login" }
+                onBack = { passwordResetViewModel.clear(); authRoute = AuthRoute.Login }
             )
         }
         return

@@ -136,6 +136,12 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun processPayUPaymentCallback(parameters: Map<String, String>): Result<Map<String, String>> = apiCall {
+        val response = api.payuPaymentCallback(parameters)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun createRechargePaymentOrder(request: RechargeRequest): Result<PaymentOrderResponse> = apiCall {
         val response = api.createRechargePaymentOrder(request)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))

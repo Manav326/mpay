@@ -174,6 +174,9 @@ interface ClientApi {
     @POST("api/v1/recharge/payment-order")
     suspend fun createRechargePaymentOrder(@Body request: RechargeRequest): Response<PaymentOrderResponse>
 
+    @POST("api/v1/webhooks/payu/payment")
+    suspend fun payuPaymentCallback(@Body parameters: Map<String, String>): Response<Map<String, String>>
+
     @POST("api/v1/payments/payu/hash")
     suspend fun payuHash(@Body request: PayUHashRequest): Response<PayUHashResponse>
 

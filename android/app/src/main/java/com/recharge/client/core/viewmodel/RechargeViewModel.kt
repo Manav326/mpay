@@ -329,37 +329,96 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
 
         _state.value = current.copy(executing = true, gatewayOrder = null, error = null)
         viewModelScope.launch {
-            repository.verifyPayment(
-                com.recharge.client.core.model.VerifyPaymentRequest(
-                    provider = provider,
-                    paymentId = paymentId,
-                    orderId = orderId,
-                    signature = signature
-                )
-            ).onSuccess { verification ->
-                val response = gatewayVerificationToRechargeResponse(verification)
-                _state.value = _state.value.copy(
-                    executing = false,
-                    walletBalance = verification.availableBalance,
-                    action = when (verification.rechargeStatus?.uppercase()) {
-                        "SUCCESS" -> RechargeActionState.Success(response)
-                        "FAILED" -> RechargeActionState.Failure(verification.message ?: "Recharge failed after payment verification.")
-                        else -> RechargeActionState.Pending(response)
-                    }
-                )
-                if (response.transactionId.isNotBlank() && verification.rechargeStatus?.uppercase() == "PENDING") {
-                    startPolling(response.transactionId)
-                }
-            }.onFailure { failure ->
-                _state.value = _state.value.copy(
-                    executing = false,
-                    gatewayOrder = null,
-                    action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
-                )
-                refreshWallet()
-            }
+            verifyGatewayPaymentInternal(provider, paymentId, orderId, signature)
         }
     }
+
+    fun processPayUPaymentCallback(orderId: String, parameters: Map<String, String>) {
+        val current = _state.value
+        if (current.executing) return
+        if (orderId.isBlank()) {
+            _state.value = current.copy(
+                executing = false,
+                gatewayOrder = null,
+                action = RechargeActionState.Failure("Payment verification data is incomplete.")
+            )
+            return
+        }
+
+        _state.value = current.copy(executing = true, gatewayOrder = null, error = null)
+        viewModelScope.launch {
+            repository.processPayUPaymentCallback(parameters)
+                .onSuccess { callback ->
+                    when (callback["status"].orEmpty().uppercase()) {
+                        "CAPTURED", "PENDING" -> verifyGatewayPaymentInternal(
+                            provider = "payu",
+                            paymentId = parameters["mihpayid"],
+                            orderId = orderId,
+                            signature = parameters["hash"]
+                        )
+                        "CANCELLED", "FAILED" -> _state.value = _state.value.copy(
+                            executing = false,
+                            gatewayOrder = null,
+                            action = RechargeActionState.Failure(
+                                callback["message"] ?: "PayU payment was not completed."
+                            )
+                        )
+                        else -> verifyGatewayPaymentInternal(
+                            provider = "payu",
+                            paymentId = parameters["mihpayid"],
+                            orderId = orderId,
+                            signature = parameters["hash"]
+                        )
+                    }
+                }
+                .onFailure {
+                    verifyGatewayPaymentInternal(
+                        provider = "payu",
+                        paymentId = parameters["mihpayid"],
+                        orderId = orderId,
+                        signature = parameters["hash"]
+                    )
+                }
+        }
+    }
+
+    private suspend fun verifyGatewayPaymentInternal(
+        provider: String,
+        paymentId: String?,
+        orderId: String,
+        signature: String?
+    ) {
+        repository.verifyPayment(
+            com.recharge.client.core.model.VerifyPaymentRequest(
+                provider = provider,
+                paymentId = paymentId,
+                orderId = orderId,
+                signature = signature
+            )
+        ).onSuccess { verification ->
+            val response = gatewayVerificationToRechargeResponse(verification)
+            _state.value = _state.value.copy(
+                executing = false,
+                walletBalance = verification.availableBalance,
+                action = when (verification.rechargeStatus?.uppercase()) {
+                    "SUCCESS" -> RechargeActionState.Success(response)
+                    "FAILED" -> RechargeActionState.Failure(verification.message ?: "Recharge failed after payment verification.")
+                    else -> RechargeActionState.Pending(response)
+                }
+            )
+            if (response.transactionId.isNotBlank() && verification.rechargeStatus?.uppercase() == "PENDING") {
+                startPolling(response.transactionId)
+            }
+        }.onFailure { failure ->
+            _state.value = _state.value.copy(
+                executing = false,
+                gatewayOrder = null,
+                action = RechargeActionState.Failure(friendlyRechargeError(failure.message))
+            )
+            refreshWallet()
+        }
+    }
+
 
     private fun gatewayVerificationToRechargeResponse(verification: PaymentVerificationResponse): RechargeResponse {
         val amount = verification.amount ?: _state.value.selectedPlan?.amount ?: BigDecimal.ZERO
