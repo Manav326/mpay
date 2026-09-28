@@ -97,7 +97,6 @@ class VoiceCallService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "This call is no longer ringing")
         }
         if (call.ringingExpiresAt.isBefore(Instant.now())) {
-            expireCall(call)
             throw ResponseStatusException(HttpStatus.CONFLICT, "This call has expired")
         }
 
@@ -253,7 +252,7 @@ class VoiceCallService(
             .orElse(false)
 
     private fun broadcastStatus(call: VoiceCallEntity) {
-        val payload = """{"type":"status","callId":"\${call.callId}","status":"\${call.status}"}"""
+        val payload = """{"type":"status","callId":"${call.callId}","status":"${call.status}"}"""
         websocket.sendToUsers(listOf(call.callerUserId, call.calleeUserId), payload)
     }
 
