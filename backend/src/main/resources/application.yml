@@ -106,6 +106,9 @@ app:
     pg-verify-url: https://test.payu.in/merchant/postservice.php?form=2
     pg-success-url: https://cbjs.payu.in/sdk/success
     pg-failure-url: https://cbjs.payu.in/sdk/failure
+    pg-web-success-url: ${MPAY_PAYU_WEB_SUCCESS_URL:https://api.mpay.thinkwithsujeet.in/api/v1/webhooks/payu/payment/return/success}
+    pg-web-failure-url: ${MPAY_PAYU_WEB_FAILURE_URL:https://api.mpay.thinkwithsujeet.in/api/v1/webhooks/payu/payment/return/failure}
+    pg-web-origin: ${MPAY_PAYU_WEB_ORIGIN:https://mpay.thinkwithsujeet.in}
     pg-production: false
     connect-timeout-ms: 10000
     payout:
