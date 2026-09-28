@@ -366,7 +366,7 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
   </div>
 }
 
-function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
+function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
   const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
