@@ -1928,9 +1928,11 @@ fun RentalVehicleOnboardingScreen(
     }
 
     fun openPhotoPicker(slot: Int, title: String) {
+        // Opening the mPay photo-choice dialog must not trigger the system picker.
+        // Advance the request id only after the user explicitly chooses
+        // "From device" and the Compose dialog has been dismissed.
         pickedDeviceUri = null
         devicePickerTarget = null
-        pendingDevicePickerRequestId += 1
         pickerTarget = slot
         pickerTitle = title
     }
