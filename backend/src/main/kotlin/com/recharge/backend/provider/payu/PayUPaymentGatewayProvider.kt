@@ -85,13 +85,7 @@ class PayUPaymentGatewayProvider(
         require(order.providerName.equals(providerName, true)) { "Payment order belongs to another gateway" }
 
         if (order.status == "CAPTURED") {
-            // Re-run the idempotent settlement so older orders that were marked captured
-            // before settlement completed can repair any missing wallet ledger entry.
-            return paymentSettlementService.settleCaptured(
-                userId = userId,
-                order = order,
-                externalPaymentReference = order.razorpayPaymentId?.takeIf { it.isNotBlank() } ?: txnId
-            )
+            return paymentSettlementService.responseForCaptured(userId, order)
         }
 
         val statusResponse = verifyWithPayU(txnId)
@@ -130,6 +124,157 @@ class PayUPaymentGatewayProvider(
         orders.save(order)
 
         return settled
+    }
+
+    @Transactional
+    fun recordClientOutcome(userId: Long, request: com.recharge.backend.api.PayUPaymentStatusRequest): VerifyPaymentResponse {
+        check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
+
+        val txnId = request.orderId.trim()
+        require(txnId.isNotBlank()) { "PayU transaction ID is required" }
+
+        val order = orders.findByRazorpayOrderIdAndUserId(txnId, userId)
+            .orElseThrow { IllegalArgumentException("PayU payment order not found") }
+        require(order.providerName.equals(providerName, true)) { "Payment order belongs to another gateway" }
+
+        if (order.status == "CAPTURED") {
+            return paymentSettlementService.responseForCaptured(userId, order)
+        }
+
+        val normalized = request.status.trim().uppercase()
+        require(normalized in setOf("FAILED", "FAILURE", "PENDING", "CANCEL", "CANCELLED")) {
+            "PayU client outcome must be FAILED, PENDING or CANCELLED"
+        }
+
+        order.status = when (normalized) {
+            "PENDING" -> "PENDING"
+            "CANCEL", "CANCELLED" -> "CANCELLED"
+            else -> "FAILED"
+        }
+        request.paymentId?.trim()?.takeIf { it.isNotBlank() }?.let { order.razorpayPaymentId = it }
+        request.signature?.trim()?.takeIf { it.isNotBlank() }?.let { order.razorpaySignature = it }
+        orders.save(order)
+
+        return VerifyPaymentResponse(
+            status = order.status,
+            balance = walletService.getBalance(userId),
+            availableBalance = walletService.getAvailableBalance(userId),
+            message = when (order.status) {
+                "PENDING" -> "PayU payment is pending final confirmation."
+                "CANCELLED" -> "PayU payment was cancelled."
+                else -> "PayU payment failed."
+            }
+        )
+    }
+
+    @Transactional
+    fun handlePaymentCallback(parameters: Map<String, String>): VerifyPaymentResponse {
+        check(isConfigured()) { "PayU Payment Gateway test key/salt are not configured" }
+
+        val normalized = parameters.mapKeys { it.key.trim() }.mapValues { it.value }
+        val key = normalized["key"]?.trim().orEmpty()
+        val txnId = normalized["txnid"]?.trim().orEmpty()
+        val amount = normalized["amount"]?.trim()?.toBigDecimalOrNull()
+            ?: throw IllegalArgumentException("PayU callback amount is missing")
+        val status = normalized["status"]?.trim()?.lowercase().orEmpty()
+
+        require(key == properties.effectivePgKey()) { "Invalid PayU callback merchant key" }
+        require(txnId.isNotBlank()) { "PayU callback transaction id is missing" }
+
+        val order = orders.findByRazorpayOrderId(txnId)
+            .orElseThrow { IllegalArgumentException("PayU payment order not found") }
+        require(order.providerName.equals(providerName, true)) { "Payment order belongs to another gateway" }
+        require(amount.setScale(2) == order.amount.setScale(2)) { "PayU callback payment amount mismatch" }
+
+        verifyReverseHash(normalized)
+
+        if (order.status == "CAPTURED") {
+            return paymentSettlementService.responseForCaptured(order.userId, order)
+        }
+
+        val paymentReference = normalized["mihpayid"]?.trim().takeIf { !it.isNullOrBlank() } ?: txnId
+        order.razorpayPaymentId = paymentReference
+        order.razorpaySignature = normalized["hash"]?.trim()?.takeIf { !it.isNullOrBlank() }
+
+        return when (status) {
+            "success" -> {
+                val settled = paymentSettlementService.settleCaptured(
+                    userId = order.userId,
+                    order = order,
+                    externalPaymentReference = paymentReference
+                )
+                order.status = "CAPTURED"
+                order.verifiedAt = Instant.now()
+                orders.save(order)
+                settled
+            }
+
+            "pending", "in progress", "initiated" -> {
+                order.status = "PENDING"
+                orders.save(order)
+                VerifyPaymentResponse(
+                    status = "PENDING",
+                    balance = walletService.getBalance(order.userId),
+                    availableBalance = walletService.getAvailableBalance(order.userId),
+                    message = "PayU payment is pending final confirmation."
+                )
+            }
+
+            "cancel", "cancelled" -> {
+                order.status = "CANCELLED"
+                orders.save(order)
+                VerifyPaymentResponse(
+                    status = "CANCELLED",
+                    balance = walletService.getBalance(order.userId),
+                    availableBalance = walletService.getAvailableBalance(order.userId),
+                    message = "PayU payment was cancelled."
+                )
+            }
+
+            else -> {
+                order.status = "FAILED"
+                orders.save(order)
+                VerifyPaymentResponse(
+                    status = "FAILED",
+                    balance = walletService.getBalance(order.userId),
+                    availableBalance = walletService.getAvailableBalance(order.userId),
+                    message = normalized["error_Message"]?.takeIf { it.isNotBlank() }
+                        ?: normalized["error"]?.takeIf { it.isNotBlank() }
+                        ?: "PayU payment failed."
+                )
+            }
+        }
+    }
+
+    private fun verifyReverseHash(parameters: Map<String, String>) {
+        val received = parameters["hash"]?.trim().orEmpty()
+        require(received.isNotBlank()) { "PayU callback hash is missing" }
+
+        val hashString = buildString {
+            parameters["additional_charges"]?.trim()?.takeIf { it.isNotBlank() }?.let {
+                append(it).append("|")
+            }
+            append(properties.effectivePgSalt())
+                .append("|").append(parameters["status"].orEmpty())
+                .append("||||||")
+                .append(parameters["udf5"].orEmpty()).append("|")
+                .append(parameters["udf4"].orEmpty()).append("|")
+                .append(parameters["udf3"].orEmpty()).append("|")
+                .append(parameters["udf2"].orEmpty()).append("|")
+                .append(parameters["udf1"].orEmpty()).append("|")
+                .append(parameters["email"].orEmpty()).append("|")
+                .append(parameters["firstname"].orEmpty()).append("|")
+                .append(parameters["productinfo"].orEmpty()).append("|")
+                .append(parameters["amount"].orEmpty()).append("|")
+                .append(parameters["txnid"].orEmpty()).append("|")
+                .append(parameters["key"].orEmpty())
+        }
+
+        val calculated = sha512(hashString)
+        require(MessageDigest.isEqual(
+            calculated.lowercase().toByteArray(StandardCharsets.UTF_8),
+            received.lowercase().toByteArray(StandardCharsets.UTF_8)
+        )) { "Invalid PayU callback hash" }
     }
 
     fun generateHash(hashName: String, hashString: String, postSalt: String? = null, hashType: String? = null): String {
