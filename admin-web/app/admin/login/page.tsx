@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
       const s={token:r.accessToken,refreshToken:r.refreshToken,role:r.role,name:r.name||r.role,permissions:r.permissions||[]};
       localStorage.setItem('mpay_admin_session',JSON.stringify(s));
       localStorage.setItem('mpay_admin_token',r.accessToken);
-      window.location.href='/admin';
+      window.location.replace('/admin');
     }catch(err:any){setNotice(err?.message||'Unable to sign in. Please check your details.');}
     finally{setBusy(false);}
   }
