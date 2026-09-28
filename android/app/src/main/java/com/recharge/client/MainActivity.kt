@@ -474,12 +474,46 @@ private fun AppRoot(
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
 
+    var presentedIncomingCallId by rememberSaveable { mutableStateOf<String?>(null) }
+
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Authenticated) {
             rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
             authViewModel.clearRegistrationOtp()
             authRoute = AuthRoute.Login
+
+            VoiceCallPushRegistrar.sync(context)
+
+            if (
+                Build.VERSION.SDK_INT >= 33 &&
+                MpayFirebase.isConfigured() &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+
+            val callsApi = NetworkModule.clientApi(context)
+            while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                val activeCall = runCatching { callsApi.activeVoiceCall() }
+                    .getOrNull()
+                    ?.takeIf { it.isSuccessful }
+                    ?.body()
+
+                if (activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId) {
+                    presentedIncomingCallId = activeCall.callId
+                    context.startActivity(
+                        android.content.Intent(context, IncomingCallActivity::class.java)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
+                            .putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, activeCall.callerName ?: "mPay Support")
+                    )
+                } else if (activeCall == null) {
+                    presentedIncomingCallId = null
+                }
+
+                kotlinx.coroutines.delay(3500L)
+            }
         }
     }
 
