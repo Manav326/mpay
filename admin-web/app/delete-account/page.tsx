@@ -1,3 +1,5 @@
+import MpayBrandUnit from '../components/MpayBrandUnit';
+
 export const metadata = {
   title: "Delete Your mPay Account | mPay",
   description: "Request deletion of your mPay account and associated personal data.",
@@ -8,10 +10,7 @@ export default function DeleteAccountPage() {
     <main className="privacy-page">
       <div className="privacy-shell">
         <header className="privacy-header">
-          <a href="/" className="privacy-brand">
-            <img src="/mpay-logo.png" alt="mPay" />
-            <span>mPay</span>
-          </a>
+          <a href="/" className="privacy-brand" aria-label="mPay home"><MpayBrandUnit variant="legal"/></a>
           <a href="/privacy-policy" className="privacy-back">Privacy Policy</a>
         </header>
 
