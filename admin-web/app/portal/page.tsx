@@ -2205,7 +2205,7 @@ export default function Portal() {
 
   function logout() {
     logoutWebSession(webSession);
-    window.location.href='/';
+    window.location.replace('/');
   }
 
   const menu = [
