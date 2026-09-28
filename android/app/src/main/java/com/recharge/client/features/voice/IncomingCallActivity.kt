@@ -276,24 +276,45 @@ private fun IncomingCallScreen(
                 Spacer(Modifier.height(28.dp))
 
                 if (!accepted) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onDecline,
-                            modifier = Modifier
-                                .size(68.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE5484D))
-                        ) {
-                            Icon(Icons.Default.CallEnd, contentDescription = "Decline", tint = Color.White)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(28.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = onDecline,
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE5484D))
+                            ) {
+                                Icon(Icons.Default.CallEnd, contentDescription = "Decline call", tint = Color.White)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "Decline",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = AppColors.TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
-                        IconButton(
-                            onClick = onAccept,
-                            modifier = Modifier
-                                .size(68.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF16A34A))
-                        ) {
-                            Icon(Icons.Default.Call, contentDescription = "Accept", tint = Color.White)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = onAccept,
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF16A34A))
+                            ) {
+                                Icon(Icons.Default.Call, contentDescription = "Answer call", tint = Color.White)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "Answer",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = AppColors.TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 } else {
