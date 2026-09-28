@@ -1906,19 +1906,9 @@ fun RentalVehicleOnboardingScreen(
         }
     }
 
-    LaunchedEffect(pickerTarget) {
-        pickedDeviceUri = null
-    }
-
-    LaunchedEffect(devicePickerTarget) {
-        if (devicePickerTarget != null) {
-            kotlinx.coroutines.yield()
-            devicePickerLauncher.launch("image/*")
-        }
-    }
-
     fun openPhotoPicker(slot: Int, title: String) {
         pickedDeviceUri = null
+        devicePickerTarget = null
         pickerTarget = slot
         pickerTitle = title
     }
@@ -2241,8 +2231,10 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
+                        // Launch directly from the user's tap. Do not dismiss the dialog
+                        // and defer the ActivityResult launch through Compose state/effects.
                         devicePickerTarget = target
-                        pickerTarget = null
+                        devicePickerLauncher.launch("image/*")
                     },
                     onDevicePicked = { uri -> pickedDeviceUri = uri },
                     onDismiss = { pickerTarget = null },
