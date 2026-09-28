@@ -1316,6 +1316,13 @@ export default function Portal() {
     }
 
     const orderId=String(order.orderId);
+    const closeWalletFunding=()=>{
+      if(purpose === 'wallet'){
+        setHomeActionModal(null);
+        setAddMoneyAmount('');
+      }
+    };
+
     const data:any = {
       key:order.keyId,
       txnid:orderId,
@@ -1324,8 +1331,8 @@ export default function Portal() {
       firstname:p.firstName || me?.name || 'mPay',
       email:p.email || me?.email || ((me?.mobile || '') + '@mpay.local'),
       phone:p.phone || me?.mobile || '',
-      surl:p.surl,
-      furl:p.furl,
+      surl:p.webSurl || p.surl,
+      furl:p.webFurl || p.furl,
       hash:p.paymentHash
     };
 
@@ -1363,8 +1370,7 @@ export default function Portal() {
           setView('history');
         } else {
           setNotice('PayU payment verified and wallet updated.');
-          setHomeActionModal(null);
-          setAddMoneyAmount('');
+          closeWalletFunding();
         }
         return true;
       } catch(e:any) {
@@ -1372,7 +1378,52 @@ export default function Portal() {
       }
     };
 
+    const returnOrigin=(()=>{
+      try { return new URL(base,window.location.origin).origin; }
+      catch { return window.location.origin; }
+    })();
+
+    let returnCleanupTimer:number|undefined;
+    let removeReturnListener=()=>{};
+    const returnMessageHandler=async(event:MessageEvent)=>{
+      if(event.origin !== returnOrigin) return;
+      const payload=event.data;
+      if(!payload || payload.type !== 'mpay-payu-result' || String(payload.txnId || '') !== orderId) return;
+
+      removeReturnListener();
+      const callbackStatus=String(payload.status || '').toUpperCase();
+
+      if(callbackStatus === 'SUCCESS'){
+        if(!(await verifyAndRefresh())){
+          void monitorPayUVerification(orderId,purpose);
+          setNotice('PayU completed the payment. mPay is confirming it with PayU…');
+        }
+        return;
+      }
+
+      if(callbackStatus === 'PENDING'){
+        void monitorPayUVerification(orderId,purpose);
+        setNotice('PayU payment is pending confirmation.');
+        return;
+      }
+
+      closeWalletFunding();
+      setNotice(
+        callbackStatus === 'CANCELLED'
+          ? 'PayU payment was cancelled.'
+          : 'PayU payment failed.'
+      );
+    };
+
+    removeReturnListener=()=>{
+      window.removeEventListener('message',returnMessageHandler);
+      if(returnCleanupTimer !== undefined) window.clearTimeout(returnCleanupTimer);
+    };
+    window.addEventListener('message',returnMessageHandler);
+    returnCleanupTimer=window.setTimeout(removeReturnListener,10*60*1000);
+
     const responseHandler=async(boltResponse:any)=>{
+      removeReturnListener();
       const response=boltResponse?.response || boltResponse || {};
       const responseStatus=String(response?.txnStatus || response?.status || '').toUpperCase();
 
@@ -1393,22 +1444,26 @@ export default function Portal() {
 
       if(responseStatus === 'CANCEL' || responseStatus === 'CANCELLED') {
         await reportOutcome('CANCELLED',response);
+        closeWalletFunding();
         setNotice('PayU payment was cancelled.');
         return;
       }
 
       await reportOutcome('FAILED',response);
+      closeWalletFunding();
       setNotice(String(response?.error_Message || response?.field9 || 'PayU payment was not completed.'));
     };
 
     const catchException=async(error:any)=>{
+      removeReturnListener();
       await reportOutcome('FAILED',{});
+      closeWalletFunding();
       setNotice(typeof error === 'string' ? error : (error?.message || 'Unable to complete PayU payment.'));
     };
 
-    // Checkout Plus opens PayU in a modal when invoked with its current
-    // two-argument handler contract. It intentionally keeps the user on
-    // the mPay page instead of navigating to a new tab.
+    // Checkout Plus uses the documented two-argument handler contract.
+    // The browser return URLs are mPay callbacks so OTP/success/failure
+    // windows can securely notify this page and close themselves.
     bolt.launch(data,{ responseHandler, catchException });
   }
 
