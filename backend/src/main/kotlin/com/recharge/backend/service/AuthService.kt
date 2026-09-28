@@ -139,7 +139,7 @@ class AuthService(
             refreshToken = jwtService.createRefreshToken(userId, user.mobile, user.role),
             userId = userId,
             role = user.role,
-            permissions = roleAccessService.permissionsFor(user.role),
+            permissions = roleAccessService.permissionsFor(user),
             mobileVerified = user.mobileVerifiedAt != null
         )
     }
