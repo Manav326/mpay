@@ -20,7 +20,7 @@ android {
         applicationId = "com.client.mpay"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0.0"
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
         buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
