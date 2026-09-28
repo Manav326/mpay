@@ -35,7 +35,7 @@ class CallWebSocketHandshakeInterceptor(
 
         val token = queryToken?.takeIf { it.isNotBlank() } ?: headerToken
         if (token.isNullOrBlank()) {
-            response.statusCode = HttpStatus.UNAUTHORIZED
+            response.setStatusCode( HttpStatus.UNAUTHORIZED)
             return false
         }
 
@@ -49,7 +49,7 @@ class CallWebSocketHandshakeInterceptor(
                 val callId = claims["call_id"]?.toString()
                 val user = userId?.let { users.findById(it).orElse(null) }
                 if (userId == null || callId.isNullOrBlank() || user == null || !user.active || !calls.socketAuthorized(userId, callId)) {
-                    response.statusCode = HttpStatus.FORBIDDEN
+                    response.statusCode = HttpStatus.FORBIDDEN)
                     false
                 } else {
                     attributes["userId"] = userId
