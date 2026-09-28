@@ -11,6 +11,7 @@ import RentalBookingActions from './RentalBookingActions';
 import RentalPayouts from './RentalPayouts';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
+import MpayBrandUnit from '../components/MpayBrandUnit';
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
@@ -24,7 +25,7 @@ interface AdminAttention {
 }
 
 function Logo({ compact = false }: { compact?: boolean }) {
-  return <div className="brand"><img src="/mpay-logo.png" alt="mPay"/><div><strong>mPay</strong>{!compact && <span>Admin Portal</span>}</div></div>;
+  return <MpayBrandUnit variant="sidebar" className={compact ? 'compact' : ''} />;
 }
 
 export default function Page() {
