@@ -48,7 +48,11 @@ fun RentalPhotoPickerDialog(
     onDismiss: () -> Unit,
     onUse: (RentalPhotoCandidate) -> Unit
 ) {
-    var source by remember { mutableStateOf<RentalPhotoPickerSource?>(null) }
+    var source by remember(deviceUri) {
+        mutableStateOf(
+            if (!deviceUri.isNullOrBlank()) RentalPhotoPickerSource.DEVICE else null
+        )
+    }
     var urlInput by remember { mutableStateOf("") }
     var checkedUrl by remember { mutableStateOf<String?>(null) }
     var urlState by remember { mutableStateOf(RentalUrlState.IDLE) }
