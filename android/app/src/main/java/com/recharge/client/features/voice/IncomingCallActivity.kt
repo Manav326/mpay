@@ -91,7 +91,13 @@ class IncomingCallActivity : ComponentActivity() {
             bound = service != null
             service?.let { svc ->
                 lifecycleScope.launch {
-                    svc.state.collect { engineState = it }
+                    svc.state.collect {
+                        engineState = it
+                        if (it.phase == VoiceCallPhase.ENDED || it.phase == VoiceCallPhase.ERROR) {
+                            kotlinx.coroutines.delay(500)
+                            if (!isFinishing) finish()
+                        }
+                    }
                 }
             }
         }
