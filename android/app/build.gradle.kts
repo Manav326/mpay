@@ -3,6 +3,28 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val syncMpayBranding = tasks.register("syncMpayBranding") {
+    doLast {
+        val source = rootProject.projectDir.parentFile.resolve("admin-web/public/branding/mpay-logo.png")
+        require(source.isFile) {
+            "Canonical mPay logo not found at ${source.absolutePath}"
+        }
+
+        val runtimeTarget = project.projectDir.resolve("src/main/res/drawable-nodpi/mpay_logo.png")
+        val storeTarget = rootProject.projectDir.resolve("store-assets/mPay-play-store-icon-1024.png")
+
+        runtimeTarget.parentFile.mkdirs()
+        storeTarget.parentFile.mkdirs()
+
+        source.copyTo(runtimeTarget, overwrite = true)
+        source.copyTo(storeTarget, overwrite = true)
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncMpayBranding)
+}
+
 val mpayApiBaseUrl = providers.gradleProperty("mpayApiBaseUrl")
     .orElse(providers.environmentVariable("MPAY_API_BASE_URL"))
     .orElse("http://192.168.31.47:8080/")

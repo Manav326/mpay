@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import MpayBrandUnit from '../../components/MpayBrandUnit';
 import { getPortalRoles, login, requestPasswordReset, resetPassword } from '@/lib/api';
 
 export default function AdminLoginPage() {
@@ -61,7 +62,7 @@ export default function AdminLoginPage() {
     <div className="admin-login-glow glow-one"/><div className="admin-login-glow glow-two"/>
     <section className="admin-login-card">
       <a href="/" className="back-link"><ArrowLeft size={16}/> Back to mPay</a>
-      <div className="admin-login-brand"><img src="/mpay-logo.png" alt="mPay"/><div><strong>mPay</strong><span>Secure portal access</span></div></div>
+      <div className="mpay-auth-brand"><MpayBrandUnit variant="auth" /></div>
       {mode==='login' ? (
         <>
           <div className="admin-login-copy">

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
+import MpayBrandUnit from '../components/MpayBrandUnit';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 
@@ -123,7 +124,7 @@ export default function Signup() {
     <main className="portal-auth-page">
       <section className="portal-auth-card">
         <a href="/" className="back-link"><ArrowLeft size={16} /> Back to mPay</a>
-        <div className="admin-login-brand"><img src="/mpay-logo.png" alt="mPay" /><div><strong>mPay</strong><span>Create your account</span></div></div>
+        <div className="mpay-auth-brand"><MpayBrandUnit variant="auth" /></div>
         <div className="admin-login-copy">
           <div className="secure-badge"><ShieldCheck size={15} /> Secure registration</div>
           <h1>Start with mPay.</h1>

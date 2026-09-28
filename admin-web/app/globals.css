@@ -4542,3 +4542,214 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   height:100%;
   color:#8e8273;
 }
+
+
+/* ===== Central mPay brand unit ===== */
+.mpay-brand-unit{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+  color:inherit;
+  text-decoration:none;
+}
+.mpay-brand-mark{
+  display:grid;
+  place-items:center;
+  flex:none;
+  overflow:hidden;
+  background:#fff;
+}
+.mpay-brand-mark img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.mpay-brand-copy{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  justify-content:center;
+  line-height:1;
+}
+.mpay-brand-copy strong{
+  display:block;
+  color:inherit;
+  font-size:20px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:-.035em;
+}
+.mpay-brand-copy small{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-top:5px;
+  color:#8a8176;
+  font-size:8px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.mpay-brand-copy small i{
+  font-style:normal;
+  color:#d99a20;
+  letter-spacing:0;
+}
+.mpay-brand-unit.compact .mpay-brand-copy{
+  display:none;
+}
+
+.mpay-brand-landing .mpay-brand-mark{
+  width:42px;
+  height:42px;
+  border-radius:13px;
+}
+.mpay-brand-landing .mpay-brand-copy strong{
+  font-size:21px;
+}
+.mpay-brand-landing .mpay-brand-copy small{
+  margin-top:4px;
+  font-size:7.5px;
+  letter-spacing:.095em;
+}
+
+.mpay-brand-auth{
+  flex-direction:column;
+  gap:9px;
+  text-align:center;
+}
+.mpay-brand-auth .mpay-brand-mark{
+  width:58px;
+  height:58px;
+  border-radius:18px;
+}
+.mpay-brand-auth .mpay-brand-copy{
+  align-items:center;
+}
+.mpay-brand-auth .mpay-brand-copy strong{
+  font-size:25px;
+}
+.mpay-brand-auth .mpay-brand-copy small{
+  margin-top:6px;
+  justify-content:center;
+  font-size:8px;
+}
+
+.mpay-brand-sidebar{
+  gap:9px;
+}
+.mpay-brand-sidebar .mpay-brand-mark{
+  width:36px;
+  height:36px;
+  border-radius:11px;
+}
+.mpay-brand-sidebar .mpay-brand-copy strong{
+  font-size:16px;
+}
+.mpay-brand-sidebar .mpay-brand-copy small{
+  margin-top:4px;
+  font-size:7px;
+  letter-spacing:.07em;
+}
+
+.mpay-brand-legal{
+  gap:9px;
+}
+.mpay-brand-legal .mpay-brand-mark{
+  width:39px;
+  height:39px;
+  border-radius:12px;
+}
+.mpay-brand-legal .mpay-brand-copy strong{
+  font-size:19px;
+}
+.mpay-brand-legal .mpay-brand-copy small{
+  margin-top:4px;
+  font-size:7px;
+}
+
+.landing-brand,
+.privacy-brand,
+.portal-brand-link{
+  color:inherit;
+  text-decoration:none;
+}
+.landing-brand{
+  display:block;
+  min-width:0;
+  font-size:inherit;
+  font-weight:inherit;
+}
+.landing-brand .mpay-brand-unit{
+  max-width:190px;
+}
+.privacy-brand{
+  display:block;
+  min-width:0;
+  font-size:inherit;
+  font-weight:inherit;
+}
+.privacy-brand .mpay-brand-unit{
+  max-width:230px;
+}
+.portal-brand-link{
+  display:block;
+  min-width:0;
+  flex:1 1 auto;
+}
+.portal-brand-link .mpay-brand-unit{
+  width:max-content;
+  max-width:100%;
+}
+
+.mpay-auth-brand{
+  display:flex;
+  justify-content:center;
+  margin-top:30px;
+  width:100%;
+}
+.mpay-auth-brand .mpay-brand-unit{
+  max-width:100%;
+}
+
+/* The customer portal collapsible sidebar hides the coded text, but keeps
+   the PNG mark visible so the collapsed navigation never loses branding. */
+.portal-sidebar.collapsed .portal-brand-link .mpay-brand-copy{
+  display:none;
+}
+.portal-sidebar.collapsed .portal-brand-link .mpay-brand-unit{
+  justify-content:center;
+}
+.portal-sidebar.collapsed .portal-brand-link{
+  display:flex;
+  justify-content:center;
+}
+.portal-sidebar.collapsed .portal-brand-link .mpay-brand-mark{
+  display:grid;
+}
+
+@media(max-width:600px){
+  .mpay-brand-landing .mpay-brand-mark{
+    width:38px;
+    height:38px;
+    border-radius:12px;
+  }
+  .mpay-brand-landing .mpay-brand-copy strong{
+    font-size:19px;
+  }
+  .mpay-brand-landing .mpay-brand-copy small{
+    font-size:6.8px;
+    letter-spacing:.075em;
+  }
+  .mpay-brand-sidebar .mpay-brand-copy small,
+  .mpay-brand-legal .mpay-brand-copy small{
+    font-size:6.5px;
+  }
+  .mpay-auth-brand{
+    margin-top:27px;
+  }
+}

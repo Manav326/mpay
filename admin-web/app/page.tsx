@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, CheckCircle2, ChevronDown, Menu, ShieldCheck, Smartphone, UserRound, WalletCards, X, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
+import MpayBrandUnit from './components/MpayBrandUnit';
 
-function Brand(){return <a className="landing-brand" href="/"><img src="/mpay-logo.png" alt="mPay"/><span>mPay</span></a>}
+function Brand(){
+  return <a className="landing-brand" href="/" aria-label="mPay home"><MpayBrandUnit variant="landing"/></a>;
+}
 
 export default function LandingPage(){
   const [open,setOpen]=useState(false);
