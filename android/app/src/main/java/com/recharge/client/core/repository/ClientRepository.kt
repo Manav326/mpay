@@ -8,7 +8,9 @@ import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
 import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.PaymentVerificationResponse
 import com.recharge.client.core.model.PayUHashRequest
+import com.recharge.client.core.model.PayUPaymentStatusRequest
 import com.recharge.client.core.model.OperatorCheckResponse
 import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeRequest
