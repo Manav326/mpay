@@ -1,3 +1,5 @@
+import MpayBrandUnit from '../components/MpayBrandUnit';
+
 export const metadata = {
   title: "Privacy Policy | mPay",
   description: "Privacy Policy for the mPay mobile application and services.",
@@ -8,10 +10,7 @@ export default function PrivacyPolicyPage() {
     <main className="privacy-page">
       <div className="privacy-shell">
         <header className="privacy-header">
-          <a href="/" className="privacy-brand">
-            <img src="/mpay-logo.png" alt="mPay" />
-            <span>mPay</span>
-          </a>
+          <a href="/" className="privacy-brand" aria-label="mPay home"><MpayBrandUnit variant="legal"/></a>
           <a href="/" className="privacy-back">Back to mPay</a>
         </header>
 
