@@ -150,8 +150,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
                             override fun onPaymentFailure(response: Any?) {
                                 val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                                val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
-                                    .getOrNull()?.takeIf { it.isNotBlank() }
+                                val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
+                                val message = parsed?.optString("error_Message").takeIf { !it.isNullOrBlank() }
+                                val mihpayid = parsed?.optString("mihpayid").orEmpty()
+                                val hash = parsed?.optString("hash").orEmpty()
                                 walletPaymentViewModel.reportPayUOutcome(
                                     orderId = order.orderId,
                                     status = "FAILED",
@@ -252,20 +254,31 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
                         override fun onPaymentFailure(response: Any?) {
                             val payuResponse = PayUCheckoutBridge.getResponseValue(response, "CP_PAYU_RESPONSE")
-                            val message = runCatching { JSONObject(payuResponse.orEmpty()).optString("error_Message") }
-                                .getOrNull()?.takeIf { it.isNotBlank() }
+                            val parsed = runCatching { JSONObject(payuResponse.orEmpty()) }.getOrNull()
+                            val message = parsed?.optString("error_Message").takeIf { !it.isNullOrBlank() }
+                            val mihpayid = parsed?.optString("mihpayid").orEmpty()
+                            val hash = parsed?.optString("hash").orEmpty()
+                            rechargeViewModel.reportPayUOutcome(
+                                orderId = order.orderId,
+                                status = "FAILED",
+                                paymentId = mihpayid,
+                                signature = hash
+                            )
                             rechargeViewModel.gatewayPaymentFailed(message ?: "PayU payment failed")
                         }
 
                         override fun onPaymentCancel(isTxnInitiated: Boolean) {
                             if (isTxnInitiated) {
+                                rechargeViewModel.reportPayUOutcome(order.orderId, "PENDING")
                                 rechargeViewModel.verifyGatewayPayment("payu", null, order.orderId, null)
                             } else {
+                                rechargeViewModel.reportPayUOutcome(order.orderId, "CANCELLED")
                                 rechargeViewModel.gatewayPaymentFailed("PayU payment was cancelled")
                             }
                         }
 
                         override fun onError(message: String?) {
+                            rechargeViewModel.reportPayUOutcome(order.orderId, "FAILED")
                             rechargeViewModel.gatewayPaymentFailed(message ?: "PayU checkout error")
                         }
 
