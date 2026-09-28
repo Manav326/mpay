@@ -1,5 +1,7 @@
 package com.recharge.client.features.rental
 
+import android.util.Log
+
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
@@ -1892,6 +1894,11 @@ fun RentalVehicleOnboardingScreen(
         ActivityResultContracts.GetContent()
     ) { uri ->
         val target = devicePickerTarget
+
+        Log.d(
+            "MpayImagePicker",
+            "CALLBACK uri=${uri != null} target=$target"
+        )
         devicePickerTarget = null
         pickedDeviceUri = uri?.toString()
         if (uri != null && target != null) {
@@ -1913,6 +1920,12 @@ fun RentalVehicleOnboardingScreen(
     LaunchedEffect(pendingDevicePickerTarget) {
         val target = pendingDevicePickerTarget ?: return@LaunchedEffect
         pendingDevicePickerTarget = null
+
+        Log.d(
+            "MpayImagePicker",
+            "EFFECT target=$target; launching GetContent"
+        )
+
         devicePickerLauncher.launch("image/*")
     }
 
@@ -2242,6 +2255,11 @@ fun RentalVehicleOnboardingScreen(
                     },
                     deviceUri = pickedDeviceUri,
                     onLaunchDevicePicker = {
+                        Log.d(
+                            "MpayImagePicker",
+                            "LAUNCH CALLBACK target=$target"
+                        )
+
                         // Close the Compose Dialog first. The ActivityResult launch is then
                         // performed from a LaunchedEffect after the dialog window is gone.
                         // This avoids the OEM/Compose Dialog-to-picker transition that can
