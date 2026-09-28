@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +26,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.recharge.client.R
 import com.recharge.client.core.theme.AppColors
 
@@ -96,24 +95,46 @@ fun MpayBrandHeader(compact: Boolean = false) {
 
         Row(
             modifier = Modifier
-                .background(
-                    color = AppColors.SurfaceWarm.copy(alpha = 0.82f),
-                    shape = RoundedCornerShape(50)
-                )
-                .padding(horizontal = 11.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = null,
-                tint = AppColors.PrimaryDark,
-                modifier = Modifier.size(13.dp)
-            )
-            Spacer(Modifier.width(6.dp))
             Text(
-                text = "Secure • Simple • Smart",
-                style = MaterialTheme.typography.labelSmall,
+                text = "SECURE",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.15.sp
+                ),
+                color = AppColors.PrimaryDark
+            )
+            Text(
+                text = " • ",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = AppColors.Accent
+            )
+            Text(
+                text = "SIMPLE",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.15.sp
+                ),
+                color = AppColors.PrimaryDark
+            )
+            Text(
+                text = " • ",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = AppColors.Accent
+            )
+            Text(
+                text = "SMART",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.15.sp
+                ),
                 color = AppColors.PrimaryDark
             )
         }
