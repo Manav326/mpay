@@ -83,7 +83,7 @@ try {
             throw "Remote branch refs/heads/$Branch was not found."
         }
 
-        $remoteBranchSha = (($lsRemoteOutput[0] -split "\s+")[0]).Trim()
+        $remoteBranchSha = (($lsRemoteOutput[0] -split "s+")[0]).Trim()
         if ($remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
             throw "Could not determine the remote SHA for refs/heads/$Branch."
         }
@@ -167,7 +167,7 @@ try {
     }
 
     Write-Host "Pulling exact commit images..." -ForegroundColor Yellow
-    Invoke-Compose @("pull", "backend", "admin-web")
+    Invoke-Compose @("pull", "backend", "admin-web", "coturn")
 
     Write-Host "Starting PostgreSQL and Redis..." -ForegroundColor Yellow
     Invoke-Compose @("up", "-d", "postgres", "redis")
@@ -185,14 +185,15 @@ try {
         }
     }
 
-    Write-Host "Starting backend, Admin Web and Caddy..." -ForegroundColor Yellow
-    Invoke-Compose @("up", "-d", "backend", "admin-web", "caddy")
+    Write-Host "Starting backend, Admin Web, Caddy and TURN..." -ForegroundColor Yellow
+    Invoke-Compose @("up", "-d", "backend", "admin-web", "caddy", "coturn")
 
     Write-Host ""
     Invoke-Compose @("ps")
     Write-Host ""
     Write-Host "Admin Web : https://mpay.thinkwithsujeet.in" -ForegroundColor Green
     Write-Host "Backend   : https://api.mpay.thinkwithsujeet.in" -ForegroundColor Green
+    Write-Host "TURN      : turn.mpay.thinkwithsujeet.in:3478" -ForegroundColor Green
     Write-Host "Commit    : $commitSha" -ForegroundColor Green
 }
 finally {
