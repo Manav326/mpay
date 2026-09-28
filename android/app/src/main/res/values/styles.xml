@@ -5,4 +5,18 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/white</item>
     </style>
+
+    <!-- Keep PayU Checkout Pro floating over mPay without relying on private
+         framework windowFixed* attributes. The public minimum-width attributes
+         keep the native checkout close to the intended compact modal width. -->
+    <style name="Theme.MpayPayUCheckoutDialog" parent="OnePayuTheme">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.30</item>
+        <item name="android:windowMinWidthMajor">92%</item>
+        <item name="android:windowMinWidthMinor">92%</item>
+        <item name="android:windowCloseOnTouchOutside">false</item>
+    </style>
 </resources>

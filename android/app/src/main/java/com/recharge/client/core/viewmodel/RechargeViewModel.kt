@@ -298,6 +298,23 @@ class RechargeViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
+    fun reportPayUOutcome(
+        orderId: String,
+        status: String,
+        paymentId: String? = null,
+        signature: String? = null
+    ) {
+        if (orderId.isBlank()) return
+        viewModelScope.launch {
+            repository.reportPayUStatus(
+                orderId = orderId,
+                status = status,
+                paymentId = paymentId,
+                signature = signature
+            )
+        }
+    }
+
     fun verifyGatewayPayment(provider: String, paymentId: String?, orderId: String?, signature: String?) {
         val current = _state.value
         if (current.executing) return

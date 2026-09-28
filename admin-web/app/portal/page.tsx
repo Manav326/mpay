@@ -1329,15 +1329,29 @@ export default function Portal() {
       hash:p.paymentHash
     };
 
-    const verifyAndRefresh=async()=>{
+    const reportOutcome=async(status:string,response:any)=>{
+      try {
+        await api<any>('/api/v1/payments/payu/status',{
+          method:'POST',
+          body:JSON.stringify({
+            orderId,
+            status,
+            paymentId:response?.mihpayid,
+            signature:response?.hash
+          })
+        });
+      } catch {}
+    };
+
+    const verifyAndRefresh=async(response?:any)=>{
       try {
         const verified=await api<any>('/api/v1/payments/verify',{
           method:'POST',
           body:JSON.stringify({
             provider:'payu',
             orderId,
-            paymentId:undefined,
-            signature:undefined
+            paymentId:response?.mihpayid,
+            signature:response?.hash
           })
         });
         await refreshWallet();
@@ -1358,28 +1372,44 @@ export default function Portal() {
       }
     };
 
-    const responseHandler=async(response:any)=>{
-      const responseStatus=String(response?.status || '').toLowerCase();
-      if(responseStatus === 'success') {
-        if(!(await verifyAndRefresh())) {
+    const responseHandler=async(boltResponse:any)=>{
+      const response=boltResponse?.response || boltResponse || {};
+      const responseStatus=String(response?.txnStatus || response?.status || '').toUpperCase();
+
+      if(responseStatus === 'SUCCESS') {
+        if(!(await verifyAndRefresh(response))) {
           void monitorPayUVerification(orderId,purpose);
           setNotice('PayU completed the payment. mPay is confirming it with PayU…');
         }
         return;
       }
-      if(responseStatus === 'pending') {
+
+      if(responseStatus === 'PENDING') {
+        await reportOutcome('PENDING',response);
         void monitorPayUVerification(orderId,purpose);
         setNotice('PayU payment is pending confirmation.');
         return;
       }
+
+      if(responseStatus === 'CANCEL' || responseStatus === 'CANCELLED') {
+        await reportOutcome('CANCELLED',response);
+        setNotice('PayU payment was cancelled.');
+        return;
+      }
+
+      await reportOutcome('FAILED',response);
       setNotice(String(response?.error_Message || response?.field9 || 'PayU payment was not completed.'));
     };
 
-    const catchException=(error:any)=>{
+    const catchException=async(error:any)=>{
+      await reportOutcome('FAILED',{});
       setNotice(typeof error === 'string' ? error : (error?.message || 'Unable to complete PayU payment.'));
     };
 
-    bolt.launch(data,responseHandler,catchException);
+    // Checkout Plus opens PayU in a modal when invoked with its current
+    // two-argument handler contract. It intentionally keeps the user on
+    // the mPay page instead of navigating to a new tab.
+    bolt.launch(data,{ responseHandler, catchException });
   }
 
   async function addMoney(): Promise<boolean> {

@@ -8,7 +8,9 @@ import com.recharge.client.core.model.CreatePaymentOrderRequest
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.OperatorCheckRequest
 import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.PaymentVerificationResponse
 import com.recharge.client.core.model.PayUHashRequest
+import com.recharge.client.core.model.PayUPaymentStatusRequest
 import com.recharge.client.core.model.OperatorCheckResponse
 import com.recharge.client.core.model.RechargePlan
 import com.recharge.client.core.model.RechargeRequest
@@ -144,6 +146,24 @@ class ClientRepository(context: Context) {
         val response = api.payuHash(PayUHashRequest(hashName, hashString, postSalt, hashType))
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!.hash
+    }
+
+    suspend fun reportPayUStatus(
+        orderId: String,
+        status: String,
+        paymentId: String? = null,
+        signature: String? = null
+    ): Result<PaymentVerificationResponse> = apiCall {
+        val response = api.payuStatus(
+            PayUPaymentStatusRequest(
+                orderId = orderId,
+                status = status,
+                paymentId = paymentId,
+                signature = signature
+            )
+        )
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
     }
 
     suspend fun detectOperator(mobile: String): Result<OperatorCheckResponse> = apiCall {

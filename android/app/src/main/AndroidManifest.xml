@@ -18,6 +18,15 @@
         <meta-data android:name="payu_debug_mode_enabled" android:value="true" />
         <meta-data android:name="payu_web_service_url" android:value="https://test.payu.in" />
         <meta-data android:name="payu_post_url" android:value="https://test.payu.in" />
+        <!-- Keep PayU's native checkout on top of mPay as a compact modal window. -->
+        <activity
+            android:name="com.payu.ui.view.activities.CheckoutActivity"
+            android:theme="@style/Theme.MpayPayUCheckoutDialog"
+            tools:replace="android:theme" />
+        <activity
+            android:name="com.payu.custombrowser.CBActivity"
+            android:theme="@style/Theme.MpayPayUCheckoutDialog"
+            tools:replace="android:theme" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
