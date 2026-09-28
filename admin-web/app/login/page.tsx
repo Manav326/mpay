@@ -1,6 +1,7 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowLeft, ShieldCheck, UserPlus } from 'lucide-react';
+import MpayBrandUnit from '../components/MpayBrandUnit';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 
@@ -113,7 +114,7 @@ export default function UserLogin() {
 
   return <main className="portal-auth-page"><section className="portal-auth-card">
     <a href="/" className="back-link"><ArrowLeft size={16} /> Back to mPay</a>
-    <div className="admin-login-brand"><img src="/mpay-logo.png" alt="mPay" /><div><strong>mPay</strong><span>Customer account</span></div></div>
+    <div className="mpay-auth-brand"><MpayBrandUnit variant="auth" /></div>
     {mode === 'login' ? <>
       <div className="admin-login-copy"><div className="secure-badge"><ShieldCheck size={15} /> Secure sign in</div><h1>Welcome back.</h1><p>Sign in to recharge, manage your wallet and keep track of every transaction.</p></div>
       <form className="form" onSubmit={submit}>
