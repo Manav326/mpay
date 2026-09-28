@@ -13,6 +13,28 @@ import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminD
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
+type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions';
+
+const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
+  dashboard: '/admin',
+  users: '/admin/users',
+  financial: '/admin/financial',
+  vendors: '/admin/vendors',
+  rental: '/admin/rental',
+  commissions: '/admin/commissions',
+};
+
+function adminViewFromPath(pathname: string): AdminView {
+  switch (pathname.replace(/\/+$/, '') || '/admin') {
+    case '/admin/users': return 'users';
+    case '/admin/financial': return 'financial';
+    case '/admin/vendors': return 'vendors';
+    case '/admin/rental': return 'rental';
+    case '/admin/commissions': return 'commissions';
+    default: return 'dashboard';
+  }
+}
+
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
 
@@ -34,10 +56,57 @@ export default function Page() {
   const [portalRoles, setPortalRoles] = useState<string[]>(['ADMIN','MANAGER']);
   const [selectedPortalRole, setSelectedPortalRole] = useState('ADMIN');
   const [mobile, setMobile] = useState(''); const [password, setPassword] = useState(''); const [otp, setOtp] = useState(''); const [newPassword, setNewPassword] = useState('');
-  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [sidebarCollapsed, setSidebarCollapsed] = useState(false); const [view, setView] = useState<'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'>('dashboard');
+  const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [resetRequested, setResetRequested] = useState(false); const [sidebarCollapsed, setSidebarCollapsed] = useState(false); const [view, setViewState] = useState<AdminView>('dashboard');
   const [dashboard, setDashboard] = useState<DashboardSummary>(); const [users, setUsers] = useState<UserSummary[]>([]); const [visibleUserRoles, setVisibleUserRoles] = useState<string[]>(['ADMIN','MANAGER','CLIENT']);
   const [roleFilter, setRoleFilter] = useState<Role|'ALL'>('ALL'); const [sort, setSort] = useState<SortMode>('today-high'); const [userQuery, setUserQuery] = useState(''); const [userStatusFilter, setUserStatusFilter] = useState<'ALL'|'ACTIVE'|'BLOCKED'>('ALL'); const [selected, setSelected] = useState<UserDetail>(); const [drawer, setDrawer] = useState(false);
   const [rentalDashboard, setRentalDashboard] = useState<RentalAdminDashboard>();
+
+  function setView(next: AdminView) {
+    setViewState(next);
+    if (typeof window === 'undefined') return;
+    const target = ADMIN_VIEW_PATHS[next];
+    if (window.location.pathname !== target) {
+      window.history.pushState({ mpayAdminView: next }, '', target);
+    }
+  }
+
+  useEffect(() => {
+    const syncViewFromUrl = () => setViewState(adminViewFromPath(window.location.pathname));
+    syncViewFromUrl();
+
+    const onPopState = () => syncViewFromUrl();
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!session && window.location.pathname.startsWith('/admin/') && window.location.pathname !== '/admin/login') {
+      window.location.replace('/admin/login');
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !session) return;
+
+    const permissions = session.permissions || [];
+    const allowed = new Set<AdminView>(['dashboard', 'users']);
+    if (permissions.includes('MANAGE_FINANCIAL_OPERATIONS')) allowed.add('financial');
+    if (permissions.includes('MANAGE_VENDORS')) allowed.add('vendors');
+    if (permissions.includes('MANAGE_RENTAL_OPERATIONS')) allowed.add('rental');
+    if (permissions.includes('MANAGE_COMMISSION_RATES')) allowed.add('commissions');
+
+    const currentPath = window.location.pathname;
+    const currentView = adminViewFromPath(currentPath);
+    const knownPath = currentPath === '/admin' || Object.values(ADMIN_VIEW_PATHS).includes(currentPath);
+
+    if (!knownPath || !allowed.has(currentView)) {
+      setViewState('dashboard');
+      if (currentPath !== '/admin') {
+        window.history.replaceState({ mpayAdminView: 'dashboard' }, '', '/admin');
+      }
+    }
+  }, [session]);
   const [rentalBookings, setRentalBookings] = useState<RentalAdminBooking[]>([]);
   const [rentalBookingPage, setRentalBookingPage] = useState(0);
   const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
@@ -103,7 +172,7 @@ export default function Page() {
 
   async function doLogin(e: React.FormEvent){ e.preventDefault(); setBusy(true); setNotice(''); try { const r = await login(mobile, password, selectedPortalRole); const s={token:r.accessToken, refreshToken:r.refreshToken, role:r.role, name:r.name||r.role, permissions:r.permissions||[]}; localStorage.setItem('mpay_admin_session', JSON.stringify(s)); localStorage.setItem('mpay_admin_token', r.accessToken); startWebSessionRefresh({ accessKey: 'mpay_admin_token', refreshKey: 'mpay_admin_refresh_token', sessionKey: 'mpay_admin_session', redirectPath: '/admin' }); setSession(s); } catch(err:any){ setNotice(err.message||'Login failed'); } finally { setBusy(false); } }
   async function doReset(e: React.FormEvent){ e.preventDefault(); setBusy(true); try { if(!resetRequested){ await requestPasswordReset(mobile); setResetRequested(true); setNotice('OTP requested. Enter the OTP sent to the registered mobile number.'); } else { await resetPassword(mobile, otp, newPassword); setNotice('Password reset successful. You can now sign in.'); setLoginState('login'); setResetRequested(false); setOtp(''); setNewPassword(''); } } catch(err:any){ setNotice(err.message||'Reset failed'); } finally { setBusy(false); } }
-  function logout(){ logoutWebSession({ accessKey: 'mpay_admin_token', refreshKey: 'mpay_admin_refresh_token', sessionKey: 'mpay_admin_session', redirectPath: '/admin' }); setSession(null); }
+  function logout(){ logoutWebSession({ accessKey: 'mpay_admin_token', refreshKey: 'mpay_admin_refresh_token', sessionKey: 'mpay_admin_session', redirectPath: '/admin/login' }); setSession(null); if (typeof window !== 'undefined') window.location.replace('/admin/login'); }
 
   if(!session) return <AuthScreen resetRequested={resetRequested} setResetRequested={setResetRequested} state={loginState} setState={setLoginState} mobile={mobile} setMobile={setMobile} password={password} setPassword={setPassword} otp={otp} setOtp={setOtp} newPassword={newPassword} setNewPassword={setNewPassword} busy={busy} notice={notice} onLogin={doLogin} onReset={doReset} portalRoles={portalRoles} selectedPortalRole={selectedPortalRole} setSelectedPortalRole={setSelectedPortalRole}/>;
 
