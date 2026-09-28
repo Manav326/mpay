@@ -4728,6 +4728,9 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   display:flex;
   justify-content:center;
 }
+.portal-sidebar.collapsed .portal-brand-link .mpay-brand-mark{
+  display:grid;
+}
 
 @media(max-width:600px){
   .mpay-brand-landing .mpay-brand-mark{
