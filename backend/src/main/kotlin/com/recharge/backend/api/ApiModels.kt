@@ -558,3 +558,36 @@ data class AdminDashboardResponse(
     val monthTo: Instant
 )
 
+
+
+data class HistoryPdfAccessRequest(
+    @field:jakarta.validation.constraints.Size(min = 20, max = 1000)
+    val reason: String
+)
+
+data class HistoryPdfAccessDecisionRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    val action: String,
+    @field:jakarta.validation.constraints.Size(max = 1000)
+    val reviewNote: String? = null,
+    @field:jakarta.validation.constraints.NotNull
+    val requestId: Long
+)
+
+data class HistoryPdfAccessResponse(
+    val status: String,
+    val requestId: Long?,
+    val requestReason: String?,
+    val reviewNote: String?,
+    val requestedAt: Instant?,
+    val reviewedAt: Instant?
+)
+
+data class HistoryPdfPendingAccessResponse(
+    val requestId: Long,
+    val publicUserId: String,
+    val customerName: String?,
+    val mobile: String,
+    val requestReason: String,
+    val requestedAt: Instant
+)

@@ -4753,3 +4753,39 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
     margin-top:27px;
   }
 }
+
+
+.history-pdf-access-box{
+  flex-basis:100%;order:3;display:flex;align-items:center;justify-content:space-between;gap:18px;
+  margin-top:14px;padding:14px 16px;border:1px solid #e6e9ee;border-radius:16px;
+  background:linear-gradient(135deg,#fbfcfe,#fff);
+}
+.history-pdf-access-box>div:first-child{display:flex;flex-direction:column;gap:3px;min-width:0}
+.history-pdf-access-box b{font-size:13px;color:#1b2430}
+.history-pdf-access-box small{font-size:11px;color:#747d8a}
+.history-pdf-actions{display:flex;gap:8px;flex-shrink:0}
+.history-pdf-state{font-size:12px;font-weight:700;color:#7b6a24;white-space:nowrap}
+@media (max-width:760px){
+  .history-pdf-access-box{align-items:flex-start;flex-direction:column}
+  .history-pdf-actions{width:100%}
+  .history-pdf-actions button{flex:1}
+}
+
+
+.history-pdf-queue-panel{margin-bottom:18px}
+.history-pdf-queue-meta{display:flex;align-items:center;gap:10px}
+.history-pdf-queue-meta span{font-size:12px;font-weight:800;color:#8b6b17;background:#fff8df;border:1px solid #ecdca9;border-radius:999px;padding:5px 9px}
+.history-pdf-queue-list{display:grid;gap:10px}
+.history-pdf-queue-item{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid #e8ebef;border-radius:14px;background:#fbfcfe}
+.history-pdf-queue-copy{min-width:0;flex:1}
+.history-pdf-queue-copy>div{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.history-pdf-queue-copy b{font-size:13px}
+.history-pdf-queue-copy span{font-size:11px;color:#7c8490}
+.history-pdf-queue-copy p{margin:5px 0 0;font-size:12px;color:#596273;line-height:1.45}
+.history-pdf-queue-empty,.history-pdf-queue-loading{padding:14px 2px;color:#7b8490;font-size:12px}
+.history-pdf-review-box{margin-top:14px;padding:12px;border:1px solid #e7eaee;border-radius:14px;background:#fafbfd}
+.history-pdf-review-box label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:#49515d}
+.admin-textarea{width:100%;min-height:78px;resize:vertical;border:1px solid #dfe4ea;border-radius:10px;background:#fff;padding:10px 11px;font:inherit;font-size:12px;line-height:1.45;outline:none}
+.admin-textarea:focus{border-color:#b9c3cf;box-shadow:0 0 0 3px rgba(75,85,99,.08)}
+.history-pdf-review-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+@media (max-width:760px){.history-pdf-queue-item{align-items:stretch;flex-direction:column}.history-pdf-review-actions{justify-content:stretch}.history-pdf-review-actions button{flex:1}}

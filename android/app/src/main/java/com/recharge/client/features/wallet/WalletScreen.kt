@@ -1,6 +1,9 @@
 package com.recharge.client.features.wallet
 
 import android.app.DatePickerDialog
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,15 +68,72 @@ fun WalletScreen(
     onWithdrawalPreviousPage: () -> Unit,
     onWithdrawalNextPage: () -> Unit,
     onWithdraw: (String, String, String) -> Unit, onClearWithdrawMessage: () -> Unit, onOpenWalletDetail: (WalletHistoryItem) -> Unit, onCloseWalletDetail: () -> Unit,
+    onLoadHistoryPdfAccess: () -> Unit,
+    onRequestHistoryPdfAccess: (String) -> Unit,
+    onDownloadHistoryPdf: (String, (ByteArray, String) -> Unit) -> Unit,
     isVisible: Boolean
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
     var pendingFrom by remember { mutableStateOf<LocalDate?>(null) }
+    var showPdfRequest by rememberSaveable { mutableStateOf(false) }
+    var pdfReason by rememberSaveable { mutableStateOf("") }
+    var pendingPdfBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val context = LocalContext.current
+    val pdfWriter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri: Uri? ->
+        val bytes = pendingPdfBytes
+        if (uri != null && bytes != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: error("Unable to save PDF.")
+                android.widget.Toast.makeText(context, "PDF saved successfully.", android.widget.Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                android.widget.Toast.makeText(context, it.message ?: "Unable to save PDF.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+        pendingPdfBytes = null
+    }
 
-    LaunchedEffect(isVisible) { if (isVisible) { onRefresh(); onRefreshCommission(); onRefreshWalletHistory() } }
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            onRefresh(); onRefreshCommission(); onRefreshWalletHistory(); onLoadHistoryPdfAccess()
+        }
+    }
     if (showWithdraw) WithdrawDialog(walletUiState, wallet?.availableBalance ?: BigDecimal.ZERO, { showWithdraw = false }, onWithdraw, onClearWithdrawMessage)
+
+    if (showPdfRequest) {
+        AlertDialog(
+            onDismissRequest = { if (!walletUiState.historyPdfBusy) showPdfRequest = false },
+            title = { Text("Request history PDF access") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("An administrator must approve downloadable statements for your account.")
+                    OutlinedTextField(
+                        value = pdfReason,
+                        onValueChange = { if (it.length <= 1000) pdfReason = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Reason for request") },
+                        placeholder = { Text("Explain why you need downloadable wallet or recharge statements.") },
+                        minLines = 4,
+                        maxLines = 6,
+                        supportingText = { Text("${pdfReason.length}/1000 · minimum 20 characters") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onRequestHistoryPdfAccess(pdfReason.trim())
+                        showPdfRequest = false
+                    },
+                    enabled = !walletUiState.historyPdfBusy && pdfReason.trim().length >= 20
+                ) { Text("Submit request") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPdfRequest = false }, enabled = !walletUiState.historyPdfBusy) { Text("Cancel") }
+            }
+        )
+    }
 
     if (showFromPicker) WalletDatePicker(walletUiState.fromDate) { date -> pendingFrom = date; showFromPicker = false; showToPicker = true }
     if (showToPicker) WalletDatePicker(maxOf(walletUiState.toDate, pendingFrom ?: walletUiState.toDate)) { date ->
@@ -144,6 +205,18 @@ fun WalletScreen(
                     }
                 }
             }
+        }
+        item {
+            HistoryPdfAccessCard(
+                state = walletUiState,
+                onRequest = { showPdfRequest = true },
+                onDownload = {
+                    onDownloadHistoryPdf("WALLET") { bytes, fileName ->
+                        pendingPdfBytes = bytes
+                        pdfWriter.launch(fileName)
+                    }
+                }
+            )
         }
         item {
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), onClick = onViewRechargeHistory) {
@@ -584,3 +657,46 @@ private fun walletTransactionTitle(item: WalletHistoryItem) = when {
     item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true) -> "Withdrawal details"
     else -> "Wallet transaction details"
 }
+
+@Composable
+private fun HistoryPdfAccessCard(
+    state: WalletUiState,
+    onRequest: () -> Unit,
+    onDownload: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Wallet statement", style = MaterialTheme.typography.titleMedium)
+            when (state.historyPdfAccessStatus) {
+                "APPROVED" -> {
+                    Text(
+                        state.fromDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)) +
+                            " → " +
+                            state.toDate.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)),
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text("Up to 1 year or 5,000 records per statement.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(onClick = onDownload, enabled = !state.historyPdfBusy, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (state.historyPdfBusy) "Generating…" else "Download wallet PDF")
+                    }
+                }
+                "PENDING" -> {
+                    Text("Your request is under administrator review.", color = AppColors.TextSecondary)
+                    state.historyPdfAccessRequestReason?.let { Text("Reason: " + it, style = MaterialTheme.typography.bodySmall) }
+                }
+                "REJECTED", "REVOKED" -> {
+                    Text("PDF export is not currently enabled.", color = AppColors.TextSecondary)
+                    state.historyPdfAccessReviewNote?.let { Text("Admin note: " + it, style = MaterialTheme.typography.bodySmall) }
+                    Button(onClick = onRequest, enabled = !state.historyPdfBusy) { Text("Request access") }
+                }
+                else -> {
+                    Text("Request administrator approval to download your wallet history as a statement.", color = AppColors.TextSecondary)
+                    Button(onClick = onRequest, enabled = !state.historyPdfBusy) { Text("Request access") }
+                }
+            }
+            state.historyPdfError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+}
+

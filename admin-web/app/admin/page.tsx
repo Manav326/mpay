@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { cancelRentalBooking, completeRentalBooking, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
+import { cancelRentalBooking, completeRentalBooking, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
 import RentalVendorReview from './RentalVendorReview';
 import RentalBookingActions from './RentalBookingActions';
 import RentalPayouts from './RentalPayouts';
-import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate } from '@/lib/types';
+import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
@@ -182,6 +182,7 @@ export default function Page() {
   const canRentalOperations = permissions.includes('MANAGE_RENTAL_OPERATIONS');
   const canFinancial = permissions.includes('VIEW_FINANCIAL_OPERATIONS');
   const canManageUserStatus = permissions.includes('MANAGE_USER_STATUS');
+  const canManageHistoryPdfAccess = permissions.includes('MANAGE_HISTORY_PDF_ACCESS');
   const canRefreshRecharge = permissions.includes('MANAGE_RECHARGE_OPERATIONS');
   const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
   const menu = [
@@ -204,7 +205,7 @@ export default function Page() {
       {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} attention={attention} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
-      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
+      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
       {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id,reason)=>{setBusy(true);try{await cancelRentalBooking(id,reason);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} 
       {view==='vendors' && canVendors && <RentalVendorReview/>}
@@ -231,7 +232,7 @@ function userStatusMeta(value?: string){
   return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleUsers = users.filter(u => {
@@ -239,8 +240,40 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
     const matchesStatus = statusFilter === 'ALL' || String(u.status || '').toUpperCase() === statusFilter;
     return matchesQuery && matchesStatus;
   });
+  const [pendingPdfRequests, setPendingPdfRequests] = useState<HistoryPdfPendingAccessResponse[]>([]);
+  const [pendingPdfLoading, setPendingPdfLoading] = useState(false);
+
+  async function loadPendingPdfRequests() {
+    if (!canManageHistoryPdfAccess) return;
+    setPendingPdfLoading(true);
+    try { setPendingPdfRequests(await getPendingHistoryPdfAccess()); } catch { setPendingPdfRequests([]); }
+    finally { setPendingPdfLoading(false); }
+  }
+
+  useEffect(()=>{ void loadPendingPdfRequests(); },[canManageHistoryPdfAccess]);
 
   return <div className="content users-wallet-page">
+    {canManageHistoryPdfAccess && <section className="panel history-pdf-queue-panel">
+      <div className="panel-head wrap">
+        <div>
+          <h2>PDF access requests</h2>
+          <p>Customer requests waiting for administrator review.</p>
+        </div>
+        <div className="history-pdf-queue-meta"><span>{pendingPdfRequests.length} pending</span><button className="secondary compact" onClick={()=>void loadPendingPdfRequests()} disabled={pendingPdfLoading}>{pendingPdfLoading ? 'Refreshing…' : 'Refresh'}</button></div>
+      </div>
+      {pendingPdfLoading && pendingPdfRequests.length===0 ? <div className="history-pdf-queue-loading">Loading requests…</div> :
+       pendingPdfRequests.length===0 ? <div className="history-pdf-queue-empty">No PDF access requests are waiting for review.</div> :
+       <div className="history-pdf-queue-list">
+         {pendingPdfRequests.map(request=><div className="history-pdf-queue-item" key={request.requestId}>
+           <div className="history-pdf-queue-copy">
+             <div><b>{request.customerName || 'mPay customer'}</b><span>{request.mobile} · {dateTime(request.requestedAt)}</span></div>
+             <p>{request.requestReason}</p>
+           </div>
+           <button className="secondary compact" onClick={async()=>{try{setSelected(await getUserDetailById(request.publicUserId));}catch(err:any){window.alert(err?.message||'Unable to open the customer account.');}}}>Review</button>
+         </div>)}
+       </div>}
+    </section>}
+
     <section className="panel users-directory-panel">
       <div className="panel-head wrap users-directory-head">
         <div className="users-directory-title">
@@ -321,11 +354,11 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
       </div>
       {visibleUsers.length===0&&<div className="empty-state">No users match the selected filters.</div>}
     </section>
-    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} onStatusUpdated={onStatusUpdated}/>}
+    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated}/>}
   </div>
 }
 
-function UserDrawer({user,onClose,canManageUserStatus,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
   const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
@@ -333,6 +366,9 @@ function UserDrawer({user,onClose,canManageUserStatus,onStatusUpdated}:{user:Use
   const [rechargeHasNext,setRechargeHasNext] = useState(false);
   const [walletHistory,setWalletHistory] = useState<WalletHistoryItem[]>([]);
   const [withdrawals,setWithdrawals] = useState<WithdrawalHistoryItem[]>([]);
+  const [historyPdfAccess,setHistoryPdfAccess] = useState<HistoryPdfAccessResponse | null>(null);
+  const [historyPdfBusy,setHistoryPdfBusy] = useState(false);
+  const [historyPdfNote,setHistoryPdfNote] = useState('');
   const [withdrawalPage,setWithdrawalPage] = useState(0);
   const [withdrawalHasNext,setWithdrawalHasNext] = useState(false);
   const [walletPage,setWalletPage] = useState(0);
@@ -341,6 +377,8 @@ function UserDrawer({user,onClose,canManageUserStatus,onStatusUpdated}:{user:Use
   const [loadingWallet,setLoadingWallet] = useState(true);
   const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
   const [statusBusy,setStatusBusy] = useState(false);
+
+  useEffect(()=>{ if(canManageHistoryPdfAccess){ getUserHistoryPdfAccess(user.publicUserId).then(setHistoryPdfAccess).catch(()=>setHistoryPdfAccess(null)); } },[user.publicUserId,canManageHistoryPdfAccess]);
 
   useEffect(()=>{
     let active = true;
@@ -442,6 +480,29 @@ function UserDrawer({user,onClose,canManageUserStatus,onStatusUpdated}:{user:Use
           <button className={user.status === 'ACTIVE' ? 'status-toggle off' : 'status-toggle on'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{const next=await updateUserStatus(user.publicUserId,user.status!=='ACTIVE');onStatusUpdated(user.publicUserId,next.status);}catch(error:any){window.alert(error?.message||'Unable to update account status.');}finally{setStatusBusy(false);}}}>{statusBusy ? 'Saving…' : user.status === 'ACTIVE' ? 'Block account' : 'Unblock account'}</button>
         </div>}
       </section>
+
+      {canManageHistoryPdfAccess && <section className="drawer-section">
+        <div className="drawer-section-title"><div><h3>History PDF access</h3><p>Per-account permission for exporting compact wallet or recharge statements.</p></div></div>
+        {historyPdfAccess ? <div className="detail-card">
+          <div className="detail-top"><span className={"status " + historyPdfAccess.status.toLowerCase()}>{historyPdfAccess.status}</span><span>{historyPdfAccess.requestedAt ? dateTime(historyPdfAccess.requestedAt) : '—'}</span></div>
+          {historyPdfAccess.requestReason && <div className="detail-row"><span>Customer reason</span><strong>{historyPdfAccess.requestReason}</strong></div>}
+          {historyPdfAccess.reviewNote && <div className="detail-row"><span>Admin note</span><strong>{historyPdfAccess.reviewNote}</strong></div>}
+          {historyPdfAccess.reviewedAt && <div className="detail-row"><span>Decision recorded</span><strong>{dateTime(historyPdfAccess.reviewedAt)}</strong></div>}
+          <div className="account-state-actions">
+            <div><b>{historyPdfAccess.status === 'APPROVED' ? 'Export access is active' : historyPdfAccess.status === 'PENDING' ? 'Approval is required' : 'Export access is not active'}</b><span>PDF generation remains blocked unless the latest request is approved.</span></div>
+          </div>
+          {(historyPdfAccess.status === 'PENDING' || historyPdfAccess.status === 'APPROVED') && <div className="history-pdf-review-box">
+            <label>Review note
+              <textarea className="admin-textarea" maxLength={1000} rows={3} value={historyPdfNote} onChange={e=>setHistoryPdfNote(e.target.value)} placeholder={historyPdfAccess.status === 'PENDING' ? 'Add a note for the customer (required when rejecting).' : 'Optional note explaining why access is being revoked.'}/>
+            </label>
+            <div className="history-pdf-review-actions">
+              {historyPdfAccess.status === 'PENDING' && <button className="status-toggle on" disabled={historyPdfBusy} onClick={async()=>{setHistoryPdfBusy(true);try{const next=await decideUserHistoryPdfAccess(user.publicUserId,historyPdfAccess.requestId!, 'APPROVE', historyPdfNote.trim()||undefined);setHistoryPdfAccess(next);setHistoryPdfNote('');onHistoryPdfDecision();}catch(error:any){window.alert(error?.message||'Unable to approve PDF access.');}finally{setHistoryPdfBusy(false);}}}>{historyPdfBusy ? 'Saving…' : 'Approve'}</button>}
+              {historyPdfAccess.status === 'PENDING' && <button className="status-toggle off" disabled={historyPdfBusy || historyPdfNote.trim().length===0} onClick={async()=>{setHistoryPdfBusy(true);try{const next=await decideUserHistoryPdfAccess(user.publicUserId,historyPdfAccess.requestId!, 'REJECT', historyPdfNote.trim());setHistoryPdfAccess(next);setHistoryPdfNote('');onHistoryPdfDecision();}catch(error:any){window.alert(error?.message||'Unable to reject PDF access.');}finally{setHistoryPdfBusy(false);}}}>{historyPdfBusy ? 'Saving…' : 'Reject'}</button>}
+              {historyPdfAccess.status === 'APPROVED' && <button className="status-toggle off" disabled={historyPdfBusy} onClick={async()=>{setHistoryPdfBusy(true);try{const next=await decideUserHistoryPdfAccess(user.publicUserId,historyPdfAccess.requestId!, 'REVOKE', historyPdfNote.trim()||undefined);setHistoryPdfAccess(next);setHistoryPdfNote('');onHistoryPdfDecision();}catch(error:any){window.alert(error?.message||'Unable to revoke PDF access.');}finally{setHistoryPdfBusy(false);}}}>{historyPdfBusy ? 'Saving…' : 'Revoke access'}</button>}
+            </div>
+          </div>}
+        </div> : <div className="empty-state">Unable to load PDF access state.</div>}
+      </section>}
 
       <div className="detail-tabs">
         <button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}><WalletCards size={15}/> Overview</button>

@@ -26,6 +26,7 @@ import com.recharge.client.core.model.WalletHistoryResponse
 import com.recharge.client.core.model.WithdrawMoneyRequest
 import com.recharge.client.core.model.WithdrawMoneyResponse
 import com.recharge.client.core.model.WithdrawalHistoryResponse
+import com.recharge.client.core.model.HistoryPdfAccessResponse
 import com.recharge.client.core.model.RentalVehicleCalendarResponse
 import com.recharge.client.core.model.RentalVehicleUnavailabilityResponse
 import com.recharge.client.core.model.RentalVehicleUnavailabilityRequest
@@ -81,6 +82,24 @@ class ClientRepository(context: Context) {
         }
         result.onSuccess { profileCache.save(it) }
         return result.recoverCatching { profileCache.get() ?: throw it }
+    }
+
+    suspend fun historyPdfAccess(): Result<HistoryPdfAccessResponse> = apiCall {
+        val response = api.historyPdfAccess()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun requestHistoryPdfAccess(reason: String): Result<HistoryPdfAccessResponse> = apiCall {
+        val response = api.requestHistoryPdfAccess(mapOf("reason" to reason))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun historyPdf(type: String, from: String, to: String, status: String? = null): Result<ByteArray> = apiCall {
+        val response = api.historyPdf(type = type, from = from, to = to, status = status)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!.bytes()
     }
 
     suspend fun wallet(): Result<WalletResponse> = apiCall {

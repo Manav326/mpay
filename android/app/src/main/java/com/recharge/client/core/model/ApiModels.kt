@@ -226,3 +226,13 @@ data class WithdrawalHistoryResponse(
     val totalPages: Int,
     val hasNext: Boolean
 )
+
+
+data class HistoryPdfAccessResponse(
+    val status: String,
+    val requestId: Long?,
+    val requestReason: String?,
+    val reviewNote: String?,
+    val requestedAt: String?,
+    val reviewedAt: String?
+)

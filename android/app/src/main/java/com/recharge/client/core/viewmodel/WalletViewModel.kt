@@ -47,7 +47,12 @@ data class WalletUiState(
     val selectedWalletItem: WalletHistoryItem? = null,
     val selectedWithdrawal: WithdrawMoneyResponse? = null,
     val detailLoading: Boolean = false,
-    val detailError: String? = null
+    val detailError: String? = null,
+    val historyPdfAccessStatus: String = "NOT_REQUESTED",
+    val historyPdfAccessRequestReason: String? = null,
+    val historyPdfAccessReviewNote: String? = null,
+    val historyPdfBusy: Boolean = false,
+    val historyPdfError: String? = null
 )
 
 private fun todayIndia(): LocalDate = LocalDate.now(ZoneId.of("Asia/Kolkata"))
@@ -62,6 +67,63 @@ class WalletViewModel(application: Application) : AndroidViewModel(application) 
     private var detailJob: Job? = null
     private var historyRequestGeneration = 0L
     private var detailRequestGeneration = 0L
+
+    fun loadHistoryPdfAccess() {
+        viewModelScope.launch {
+            repository.historyPdfAccess()
+                .onSuccess { access ->
+                    _state.value = _state.value.copy(
+                        historyPdfAccessStatus = access.status,
+                        historyPdfAccessRequestReason = access.requestReason,
+                        historyPdfAccessReviewNote = access.reviewNote,
+                        historyPdfError = null
+                    )
+                }
+                .onFailure { e ->
+                    _state.value = _state.value.copy(historyPdfError = e.message ?: "Unable to check PDF history access.")
+                }
+        }
+    }
+
+    fun requestHistoryPdfAccess(reason: String) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(historyPdfBusy = true, historyPdfError = null)
+            repository.requestHistoryPdfAccess(reason)
+                .onSuccess { access ->
+                    _state.value = _state.value.copy(
+                        historyPdfBusy = false,
+                        historyPdfAccessStatus = access.status,
+                        historyPdfAccessRequestReason = access.requestReason,
+                        historyPdfAccessReviewNote = access.reviewNote
+                    )
+                }
+                .onFailure { e ->
+                    _state.value = _state.value.copy(
+                        historyPdfBusy = false,
+                        historyPdfError = e.message ?: "Unable to submit PDF history request."
+                    )
+                }
+        }
+    }
+
+    fun downloadHistoryPdf(type: String, onReady: (ByteArray, String) -> Unit) {
+        val current = _state.value
+        if (current.historyPdfAccessStatus != "APPROVED") {
+            _state.value = current.copy(historyPdfError = "PDF history access is not approved for this account.")
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(historyPdfBusy = true, historyPdfError = null)
+            repository.historyPdf(type, current.fromDate.toString(), current.toDate.toString(), null)
+                .onSuccess { bytes ->
+                    _state.value = _state.value.copy(historyPdfBusy = false)
+                    onReady(bytes, "mpay-" + type.lowercase() + "-history-" + current.fromDate + "-" + current.toDate + ".pdf")
+                }
+                .onFailure { e ->
+                    _state.value = _state.value.copy(historyPdfBusy = false, historyPdfError = e.message ?: "Unable to generate PDF.")
+                }
+        }
+    }
 
     fun resetSession() {
         historyJob?.cancel()

@@ -6,6 +6,7 @@ import com.recharge.backend.service.RechargeService
 import com.recharge.backend.service.WalletService
 import com.recharge.backend.provider.payu.PayUPaymentGatewayProvider
 import com.recharge.backend.service.ProfileService
+import com.recharge.backend.service.HistoryPdfAccessService
 import com.recharge.backend.repository.RechargeTransactionRepository
 import org.springframework.http.CacheControl
 import org.springframework.http.MediaType
@@ -28,7 +29,9 @@ class ClientController(
     private val paymentGatewayService: PaymentGatewayService,
     private val payuPaymentGateway: PayUPaymentGatewayProvider,
     private val rechargeRepository: RechargeTransactionRepository,
-    private val withdrawalService: com.recharge.backend.service.WithdrawalService
+    private val withdrawalService: com.recharge.backend.service.WithdrawalService,
+    private val historyPdfAccess: com.recharge.backend.service.HistoryPdfAccessService,
+    private val historyPdf: com.recharge.backend.service.HistoryPdfService
 ) {
     private fun authenticatedUserId(authentication: Authentication): Long =
         authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
@@ -187,6 +190,43 @@ class ClientController(
     ): WithdrawalHistoryResponse =
         withdrawalService.history(authenticatedUserId(authentication), page, size)
 
+    @GetMapping("/history/pdf-access")
+    fun historyPdfAccess(authentication: Authentication): HistoryPdfAccessResponse =
+        historyPdfAccess.status(authenticatedUserId(authentication))
+
+    @PostMapping("/history/pdf-access/request")
+    fun requestHistoryPdfAccess(
+        authentication: Authentication,
+        @Valid @RequestBody request: HistoryPdfAccessRequest
+    ): HistoryPdfAccessResponse =
+        historyPdfAccess.request(authenticatedUserId(authentication), request.reason)
+
+    @GetMapping("/history/pdf", produces = [MediaType.APPLICATION_PDF_VALUE])
+    fun historyPdf(
+        authentication: Authentication,
+        @RequestParam type: String,
+        @RequestParam(required = false) from: String?,
+        @RequestParam(required = false) to: String?,
+        @RequestParam(required = false) status: String?
+    ): ResponseEntity<ByteArray> {
+        val bytes = historyPdf.generate(
+            authenticatedUserId(authentication),
+            type,
+            from?.let(LocalDate::parse),
+            to?.let(LocalDate::parse),
+            status
+        )
+        val safeType = type.trim().lowercase()
+        val safeFrom = from ?: LocalDate.now().toString()
+        val safeTo = to ?: safeFrom
+        val filename = "mpay-" + safeType + "-history-" + safeFrom + "-" + safeTo + ".pdf"
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .contentLength(bytes.size.toLong())
+            .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+            .body(bytes)
+    }
+
     @GetMapping("/wallet/withdrawals/{withdrawalId}")
     fun withdrawalStatus(
         authentication: Authentication,
@@ -324,7 +364,8 @@ class ProfileController(private val profileService: ProfileService) {
 class CommissionRoleAdminController(
     private val commissionRateService: com.recharge.backend.service.CommissionRateService,
     private val users: com.recharge.backend.repository.UserRepository,
-    private val roleAccess: com.recharge.backend.service.RoleAccessService
+    private val roleAccess: com.recharge.backend.service.RoleAccessService,
+    private val historyPdfAccess: com.recharge.backend.service.HistoryPdfAccessService
 ) {
     private fun currentUser(authentication: Authentication) = authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
         ?: throw IllegalStateException("Invalid authenticated user")
@@ -349,7 +390,8 @@ class CommissionRoleAdminController(
 class AdminController(
     private val adminService: com.recharge.backend.service.AdminService,
     private val users: com.recharge.backend.repository.UserRepository,
-    private val roleAccess: com.recharge.backend.service.RoleAccessService
+    private val roleAccess: com.recharge.backend.service.RoleAccessService,
+    private val historyPdfAccess: HistoryPdfAccessService
 ) {
     private fun currentUser(authentication: Authentication) = authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
         ?: throw IllegalStateException("Invalid authenticated user")
@@ -411,6 +453,27 @@ class AdminController(
         @RequestParam(defaultValue = "25") size: Int
     ): WithdrawalHistoryResponse =
         adminService.withdrawalHistory(currentUser(authentication), publicId, page, size)
+
+    @GetMapping("/history-pdf-access/pending")
+    fun pendingHistoryPdfAccess(authentication: Authentication): List<HistoryPdfPendingAccessResponse> =
+        historyPdfAccess.pending(currentUser(authentication))
+
+    @GetMapping("/users/{publicId}/history-pdf-access")
+    fun userHistoryPdfAccess(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): HistoryPdfAccessResponse =
+        historyPdfAccess.adminStatus(currentUser(authentication), publicId)
+
+    @PostMapping("/users/{publicId}/history-pdf-access/decision")
+    fun decideHistoryPdfAccess(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @Valid @RequestBody request: HistoryPdfAccessDecisionRequest
+    ): HistoryPdfAccessResponse =
+        historyPdfAccess.decide(
+            currentUser(authentication), publicId, request.requestId, request.action, request.reviewNote
+        )
 
     @GetMapping("/users/{publicId}/profile-image")
     fun userProfileImage(

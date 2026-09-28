@@ -1,6 +1,6 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
 import { redirectToLogin, refreshWebSession } from './session';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
@@ -109,6 +109,7 @@ export async function login(mobile: string, password: string, role: string) {
               'MANAGE_RECHARGE_OPERATIONS',
               'MANAGE_RENTAL_OPERATIONS',
               'VIEW_FINANCIAL_OPERATIONS',
+              'MANAGE_HISTORY_PDF_ACCESS',
             ]
           : [
               'PORTAL_LOGIN',
@@ -229,6 +230,29 @@ export async function getUserDetailById(id: string): Promise<UserDetail> {
     latestRecharge: result.latestRecharge,
     recentWalletEntries: result.recentWalletEntries,
   };
+}
+
+export async function getPendingHistoryPdfAccess(): Promise<HistoryPdfPendingAccessResponse[]> {
+  if (demo) return [];
+  return api('/api/v1/admin/history-pdf-access/pending');
+}
+
+export async function getUserHistoryPdfAccess(id: string): Promise<HistoryPdfAccessResponse> {
+  if (demo) return { status: 'APPROVED', requestId: 1, requestReason: 'Demo access', reviewNote: 'Demo mode', requestedAt: new Date().toISOString(), reviewedAt: new Date().toISOString() };
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/history-pdf-access');
+}
+
+export async function decideUserHistoryPdfAccess(
+  id: string,
+  requestId: number,
+  action: 'APPROVE' | 'REJECT' | 'REVOKE',
+  reviewNote?: string
+): Promise<HistoryPdfAccessResponse> {
+  if (demo) return { status: action === 'APPROVE' ? 'APPROVED' : action === 'REVOKE' ? 'REVOKED' : 'REJECTED', requestId, requestReason: 'Demo access', reviewNote: reviewNote || 'Demo mode', requestedAt: new Date().toISOString(), reviewedAt: new Date().toISOString() };
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/history-pdf-access/decision', {
+    method: 'POST',
+    body: JSON.stringify({ requestId, action, reviewNote }),
+  });
 }
 
 export async function getUserRechargeHistory(id: string, page = 0, size = 25): Promise<RechargeHistoryResponse> {
