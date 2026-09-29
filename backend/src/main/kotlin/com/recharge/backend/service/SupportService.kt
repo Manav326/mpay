@@ -65,29 +65,46 @@ class SupportService(
             callRequests.save(it)
         }
 
-        val supportCase = cases.save(
-            SupportCaseEntity(
-                customerUserId = customerId,
-                subject = "Customer requested a support call",
-                category = "CALLBACK",
-                priority = "NORMAL",
-                status = OPEN,
-                source = "CUSTOMER_CALL_REQUEST",
-                createdAt = now,
-                updatedAt = now
+        var conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN).orElse(null)
+        var supportCase = conversation?.caseId?.let { cases.findById(it).orElse(null) }
+
+        if (supportCase == null) {
+            supportCase = cases.save(
+                SupportCaseEntity(
+                    customerUserId = customerId,
+                    subject = if (conversation != null) "Customer requested a support callback" else "Customer requested a support call",
+                    category = if (conversation != null) "CHAT_CALLBACK" else "CALLBACK",
+                    priority = "NORMAL",
+                    status = OPEN,
+                    source = if (conversation != null) "CUSTOMER_CHAT_CALLBACK" else "CUSTOMER_CALL_REQUEST",
+                    createdAt = now,
+                    updatedAt = now
+                )
             )
-        )
-        val conversation = conversations.save(
-            SupportConversationEntity(
-                caseId = supportCase.id,
-                customerUserId = customerId,
-                status = OPEN,
-                startedAt = now,
-                lastActivityAt = now
+        } else {
+            supportCase.status = OPEN
+            supportCase.resolvedAt = null
+            supportCase.updatedAt = now
+            cases.save(supportCase)
+        }
+
+        if (conversation == null) {
+            conversation = conversations.save(
+                SupportConversationEntity(
+                    caseId = supportCase.id,
+                    customerUserId = customerId,
+                    status = OPEN,
+                    startedAt = now,
+                    lastActivityAt = now
+                )
             )
-        )
-        supportCase.updatedAt = now
-        cases.save(supportCase)
+        } else {
+            conversation.caseId = supportCase.id
+            conversation.status = OPEN
+            conversation.closedAt = null
+            conversation.lastActivityAt = now
+            conversations.save(conversation)
+        }
 
         val request = callRequests.save(
             SupportCallRequestEntity(
@@ -221,7 +238,9 @@ class SupportService(
                 status = OPEN,
                 messages = emptyList(),
                 unreadForCustomer = 0,
-                unreadForStaff = 0
+                unreadForStaff = 0,
+                callbackRequestEnabled = callbackRequestEnabled(customer),
+                pendingCallbackRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(requireNotNull(customer.id), PENDING).orElse(null)?.let(::toRequestResponse)
             )
         }
 
@@ -239,7 +258,9 @@ class SupportService(
             status = conversation.status,
             messages = messageList.map(::toMessageResponse),
             unreadForCustomer = messageList.count { it.senderType == "STAFF" && it.customerReadAt == null },
-            unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null }
+            unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null },
+            callbackRequestEnabled = callbackRequestEnabled(customer),
+            pendingCallbackRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(requireNotNull(customer.id), PENDING).orElse(null)?.let(::toRequestResponse)
         )
     }
 
