@@ -4,6 +4,7 @@ import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.AndroidConfig
+import com.google.firebase.messaging.AndroidFcmOptions
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.MulticastMessage
 import com.recharge.backend.config.CallProperties
@@ -85,6 +86,9 @@ class CallPushService(
         val androidConfig = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
             .setTtl(90_000L)
+            // Allow delivery while the device is locked after reboot (direct-boot capable).
+            .setDirectBootOk(true)
+            .setFcmOptions(AndroidFcmOptions.withAnalyticsLabel("voice-call"))
             .build()
 
         try {
@@ -96,11 +100,31 @@ class CallPushService(
                     .build()
             )
 
+            var successCount = 0
+            var failureCount = 0
             response.responses.forEachIndexed { index, result ->
-                if (!result.isSuccessful) {
-                    log.debug("FCM delivery failed for call device token {}: {}", index, result.exception?.message)
+                if (result.isSuccessful) {
+                    successCount++
+                } else {
+                    failureCount++
+                    log.warn(
+                        "FCM voice-call delivery failed. event={} callId={} tokenIndex={} error={}",
+                        data["event"],
+                        data["callId"],
+                        index,
+                        result.exception?.message
+                    )
                 }
             }
+            log.info(
+                "FCM voice-call send result. event={} callId={} userId={} tokenCount={} successCount={} failureCount={} analyticsLabel=voice-call",
+                data["event"],
+                data["callId"],
+                userId,
+                tokens.size,
+                successCount,
+                failureCount
+            )
         } catch (ex: Exception) {
             // Push delivery is an enhancement to the call flow. A transient FCM problem must
             // never turn an already-authorized call creation into a 500 response.
