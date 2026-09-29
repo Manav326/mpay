@@ -73,16 +73,47 @@ import java.time.format.DateTimeFormatter
 data class SupportTopicOption(
     val title: String,
     val description: String,
-    val message: String
+    val message: String,
+    val steps: List<String>
 )
 
 private val supportTopicOptions = listOf(
-    SupportTopicOption("Add money", "Razorpay, PayU or payment not reflected", "I need help with adding money to my mPay wallet."),
-    SupportTopicOption("Withdrawal", "UPI withdrawal, status or failed request", "I need help with a wallet withdrawal."),
-    SupportTopicOption("Mobile recharge", "Recharge failed, pending or wrong plan", "I need help with a mobile recharge."),
-    SupportTopicOption("Car rental", "Booking, cancellation or payment issue", "I need help with an mPay car rental booking."),
-    SupportTopicOption("Wallet & transactions", "Balance, debit, refund or transaction history", "I need help with a wallet transaction."),
-    SupportTopicOption("Account & profile", "Profile, login or account access", "I need help with my mPay account or profile.")
+    SupportTopicOption(
+        "Add money",
+        "Payment completed but wallet not updated",
+        "I need help with adding money to my mPay wallet.",
+        listOf("Open Wallet and check the latest transaction.", "Confirm whether the payment shows completed, pending or failed.", "If money was paid but the wallet is still unchanged, continue to chat with mPay Support.")
+    ),
+    SupportTopicOption(
+        "Withdrawal",
+        "UPI withdrawal, status or failed request",
+        "I need help with a wallet withdrawal.",
+        listOf("Open Wallet → Withdrawals and check the latest status.", "Confirm the UPI ID used for the request.", "If the request is stuck, failed or the wallet amount needs clarification, continue to chat with mPay Support.")
+    ),
+    SupportTopicOption(
+        "Mobile recharge",
+        "Recharge failed, pending or wrong plan",
+        "I need help with a mobile recharge.",
+        listOf("Open Recharge History and select the affected recharge.", "Check the mobile number, operator, amount and transaction status.", "If the recharge is still unresolved, continue to chat with mPay Support before retrying.")
+    ),
+    SupportTopicOption(
+        "Car rental",
+        "Booking, cancellation or payment issue",
+        "I need help with an mPay car rental booking.",
+        listOf("Open My Bookings and select the affected booking.", "Check its status, trip dates and wallet payment details.", "If the booking or refund issue remains, continue to chat with mPay Support.")
+    ),
+    SupportTopicOption(
+        "Wallet & transactions",
+        "Balance, debit, refund or transaction history",
+        "I need help with a wallet transaction.",
+        listOf("Open Wallet or Transaction History and select the transaction.", "Check the amount, status, reference and description.", "If the ledger entry still needs explanation, continue to chat with mPay Support.")
+    ),
+    SupportTopicOption(
+        "Account & profile",
+        "Profile, login or account access",
+        "I need help with my mPay account or profile.",
+        listOf("Check Profile and Account Settings for the affected detail.", "Confirm that the account is active and your profile information is current.", "If you still cannot complete the action, continue to chat with mPay Support.")
+    )
 )
 
 @Composable
@@ -102,6 +133,8 @@ fun CustomerSupportScreen(
     var chatDraft by remember { mutableStateOf("") }
     var chatError by remember { mutableStateOf<String?>(null) }
     var chat by remember { mutableStateOf<com.recharge.client.core.model.SupportChatResponse?>(null) }
+    var guidedTopic by remember { mutableStateOf<SupportTopicOption?>(null) }
+    var callbackBusy by remember { mutableStateOf(false) }
 
     suspend fun load() {
         loading = true
@@ -212,6 +245,48 @@ fun CustomerSupportScreen(
                 error = it.message ?: "Unable to cancel the callback request."
             }
             busy = false
+        }
+    }
+
+    fun requestCallbackFromChat() {
+        if (callbackBusy || chat?.pendingCallbackRequest != null || chat?.callbackRequestEnabled != true) return
+        callbackBusy = true
+        chatError = null
+        scope.launch {
+            runCatching {
+                NetworkModule.clientApi(context).requestCustomerSupportCall(CreateSupportCallRequest(null))
+            }.onSuccess { response ->
+                if (response.isSuccessful) {
+                    loadChat()
+                    load()
+                } else {
+                    chatError = "mPay could not create the callback request."
+                }
+            }.onFailure {
+                chatError = it.message ?: "Unable to request a support callback."
+            }
+            callbackBusy = false
+        }
+    }
+
+    fun cancelChatCallback(request: SupportCallRequestResponse) {
+        if (callbackBusy) return
+        callbackBusy = true
+        chatError = null
+        scope.launch {
+            runCatching {
+                NetworkModule.clientApi(context).cancelCustomerSupportCall(request.requestId)
+            }.onSuccess { response ->
+                if (response.isSuccessful) {
+                    loadChat()
+                    load()
+                } else {
+                    chatError = "Unable to cancel the callback request."
+                }
+            }.onFailure {
+                chatError = it.message ?: "Unable to cancel the callback request."
+            }
+            callbackBusy = false
         }
     }
 
@@ -385,7 +460,18 @@ fun CustomerSupportScreen(
             error = chatError,
             onDraftChange = { chatDraft = it.take(4000) },
             onSend = { sendChatMessage() },
-            onChooseTopic = { topic -> sendChatMessage(topic.message) },
+            onChooseTopic = { topic -> guidedTopic = topic },
+            onStartChat = {
+                guidedTopic?.let {
+                    guidedTopic = null
+                    sendChatMessage(it.message)
+                }
+            },
+            onRequestCallback = ::requestCallbackFromChat,
+            onCancelCallback = ::cancelChatCallback,
+            callbackBusy = callbackBusy,
+            guidedTopic = guidedTopic,
+            onBackToTopics = { guidedTopic = null },
             onDismiss = { chatOpen = false },
             onRefresh = { scope.launch { loadChat() } }
         )
@@ -520,6 +606,49 @@ private fun SupportInteractionCard(item: SupportInteractionResponse) {
 }
 
 @Composable
+private fun SupportGuidedHelp(
+    topic: SupportTopicOption,
+    onBack: () -> Unit,
+    onStartChat: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(topic.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text("Try these steps first", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            topic.steps.forEachIndexed { index, step ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Surface(shape = RoundedCornerShape(9.dp), color = AppColors.Primary.copy(alpha = .11f)) {
+                        Text((index + 1).toString(), modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.size(9.dp))
+                    Text(step, modifier = Modifier.weight(1f), color = AppColors.TextPrimary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFFFFBF3)) {
+                Text("Still stuck? A real mPay support member can continue from here.", modifier = Modifier.padding(11.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
+            Button(onClick = onStartChat, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                Icon(Icons.Default.HeadsetMic, contentDescription = null)
+                Spacer(Modifier.size(7.dp))
+                Text("Chat with mPay Support", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
 private fun SupportTopicOptionCard(
     topic: SupportTopicOption,
     onClick: () -> Unit
@@ -580,6 +709,12 @@ private fun SupportChatDialog(
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onChooseTopic: (SupportTopicOption) -> Unit,
+    onStartChat: () -> Unit,
+    onRequestCallback: () -> Unit,
+    onCancelCallback: (SupportCallRequestResponse) -> Unit,
+    callbackBusy: Boolean,
+    guidedTopic: SupportTopicOption?,
+    onBackToTopics: () -> Unit,
     onDismiss: () -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -649,7 +784,15 @@ private fun SupportChatDialog(
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (chat?.messages.isNullOrEmpty()) {
+                    if (chat?.messages.isNullOrEmpty() && guidedTopic != null) {
+                        item {
+                            SupportGuidedHelp(
+                                topic = requireNotNull(guidedTopic),
+                                onBack = onBackToTopics,
+                                onStartChat = onStartChat
+                            )
+                        }
+                    } else if (chat?.messages.isNullOrEmpty()) {
                         item {
                             Column(
                                 Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 10.dp),
@@ -710,6 +853,43 @@ private fun SupportChatDialog(
                                             style = MaterialTheme.typography.labelSmall
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
+                    Surface(
+                        color = Color(0xFFFFFBF3),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            if (chat?.pendingCallbackRequest != null) {
+                                Text("Callback requested", color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                Text("Customer Care will handle the voice request from the same support case.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                OutlinedButton(
+                                    onClick = { onCancelCallback(requireNotNull(chat?.pendingCallbackRequest)) },
+                                    enabled = !callbackBusy,
+                                    shape = RoundedCornerShape(11.dp)
+                                ) {
+                                    Icon(Icons.Default.CallEnd, contentDescription = null)
+                                    Spacer(Modifier.size(5.dp))
+                                    Text("Cancel callback")
+                                }
+                            } else if (chat?.callbackRequestEnabled == true) {
+                                OutlinedButton(
+                                    onClick = onRequestCallback,
+                                    enabled = !callbackBusy,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Call, contentDescription = null)
+                                    Spacer(Modifier.size(6.dp))
+                                    Text(if (callbackBusy) "Requesting callback…" else "Still need help? Request a callback", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
