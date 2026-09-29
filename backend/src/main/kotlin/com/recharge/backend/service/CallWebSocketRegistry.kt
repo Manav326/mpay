@@ -78,8 +78,16 @@ class CallWebSocketRegistry {
     }
 
     fun closeCall(callId: String) {
-        sessionsByCallUser.entries
+        val matching = sessionsByCallUser.entries
             .filter { it.key.callId == callId }
+            .toList()
+
+        matching.forEach { (key, sessions) ->
+            sessionsByCallUser.remove(key, sessions)
+            disconnectedSince.remove(key)
+        }
+
+        matching
             .flatMap { it.value.toList() }
             .distinctBy { it.id }
             .forEach { session ->
