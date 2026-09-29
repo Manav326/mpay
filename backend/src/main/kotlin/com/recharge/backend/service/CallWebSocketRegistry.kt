@@ -3,33 +3,60 @@ package com.recharge.backend.service
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 
 @Component
 class CallWebSocketRegistry {
-    private val sessions = ConcurrentHashMap<Long, CopyOnWriteArraySet<WebSocketSession>>()
+    private data class ParticipantKey(val callId: String, val userId: Long)
+
+    private val sessionsByUser = ConcurrentHashMap<Long, CopyOnWriteArraySet<WebSocketSession>>()
+    private val sessionsByCallUser = ConcurrentHashMap<ParticipantKey, CopyOnWriteArraySet<WebSocketSession>>()
     private val readyUsers = ConcurrentHashMap<String, CopyOnWriteArraySet<Long>>()
+    private val disconnectedSince = ConcurrentHashMap<ParticipantKey, Instant>()
 
-    fun register(userId: Long, session: WebSocketSession) {
-        sessions.computeIfAbsent(userId) { CopyOnWriteArraySet() }.add(session)
+    fun register(userId: Long, callId: String, session: WebSocketSession) {
+        sessionsByUser.computeIfAbsent(userId) { CopyOnWriteArraySet() }.add(session)
+        val key = ParticipantKey(callId, userId)
+        sessionsByCallUser.computeIfAbsent(key) { CopyOnWriteArraySet() }.add(session)
+        disconnectedSince.remove(key)
     }
 
-    fun unregister(userId: Long, session: WebSocketSession) {
-        sessions[userId]?.remove(session)
-        if (sessions[userId]?.isEmpty() == true) sessions.remove(userId)
+    fun unregister(userId: Long, callId: String, session: WebSocketSession) {
+        sessionsByUser[userId]?.let { sessions ->
+            sessions.remove(session)
+            if (sessions.isEmpty()) sessionsByUser.remove(userId, sessions)
+        }
+
+        val key = ParticipantKey(callId, userId)
+        sessionsByCallUser[key]?.let { sessions ->
+            sessions.remove(session)
+            if (sessions.isEmpty()) {
+                sessionsByCallUser.remove(key, sessions)
+                disconnectedSince.putIfAbsent(key, Instant.now())
+            }
+        }
     }
 
-    fun sendToUser(userId: Long, payload: String, exceptSession: WebSocketSession? = null) {
-        sessions[userId]?.forEach { session ->
+    fun sendToCallUser(
+        callId: String,
+        userId: Long,
+        payload: String,
+        exceptSession: WebSocketSession? = null
+    ) {
+        sessionsByCallUser[ParticipantKey(callId, userId)]?.forEach { session ->
             if (session !== exceptSession && session.isOpen) {
                 runCatching { session.sendMessage(TextMessage(payload)) }
             }
         }
     }
 
-    fun hasOpenSession(userId: Long): Boolean =
-        sessions[userId]?.any { it.isOpen } == true
+    fun hasOpenSession(callId: String, userId: Long): Boolean =
+        sessionsByCallUser[ParticipantKey(callId, userId)]?.any { it.isOpen } == true
+
+    fun disconnectedSince(callId: String, userId: Long): Instant? =
+        disconnectedSince[ParticipantKey(callId, userId)]
 
     fun markReady(callId: String, userId: Long): Boolean =
         readyUsers.computeIfAbsent(callId) { CopyOnWriteArraySet() }.add(userId)
@@ -44,10 +71,16 @@ class CallWebSocketRegistry {
 
     fun clearCall(callId: String) {
         readyUsers.remove(callId)
+        disconnectedSince.keys.removeIf { it.callId == callId }
     }
 
-
-    fun sendToUsers(userIds: Collection<Long>, payload: String, exceptSession: WebSocketSession? = null) {
-        userIds.distinct().forEach { sendToUser(it, payload, exceptSession) }
+    fun closeCall(callId: String) {
+        sessionsByCallUser.entries
+            .filter { it.key.callId == callId }
+            .flatMap { it.value.toList() }
+            .distinctBy { it.id }
+            .forEach { session ->
+                runCatching { session.close() }
+            }
     }
 }
