@@ -91,11 +91,28 @@ class CallPushService(
         // foreground and background delivery on the same Android code path, where the
         // dedicated ringtone foreground service owns sound/vibration and authoritative
         // expiry/terminal-state cleanup.
-        val androidConfig = AndroidConfig.builder()
+        val androidConfigBuilder = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
-            .setTtl(90_000L)
+            .setTtl(properties.ringingTimeoutSeconds.coerceAtLeast(10) * 1000L)
             .setFcmOptions(AndroidFcmOptions.withAnalyticsLabel("voice-call"))
-            .build()
+
+        // Incoming calls use both notification + data:
+        // - foreground: MpayFirebaseMessagingService can run the full custom ringing path
+        // - background/locked: Android/FCM can display and sound the call notification even
+        //   when the app process is not running.
+        if (data["event"] == "CALL_INCOMING") {
+            androidConfigBuilder.setNotification(
+                com.google.firebase.messaging.AndroidNotification.builder()
+                    .setTitle("Incoming mPay call")
+                    .setBody(data["callerName"] ?: "mPay Support")
+                    .setChannelId("incoming_calls_v5")
+                    .setSound("default")
+                    .setPriority(com.google.firebase.messaging.AndroidNotification.Priority.HIGH)
+                    .build()
+            )
+        }
+
+        val androidConfig = androidConfigBuilder.build()
 
         try {
             val response = messaging.sendEachForMulticast(
