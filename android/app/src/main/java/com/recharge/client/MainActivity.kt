@@ -41,7 +41,6 @@ import com.recharge.client.core.viewmodel.*
 import com.recharge.client.features.auth.ForgotPasswordScreen
 import com.recharge.client.MpayFirebase
 import com.recharge.client.features.voice.VoiceCallPushRegistrar
-import com.recharge.client.features.voice.CallNotificationManager
 import com.recharge.client.features.voice.IncomingCallActivity
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.features.auth.LoginScreen
