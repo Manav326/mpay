@@ -50,6 +50,7 @@ import com.recharge.client.features.auth.LoginScreen
 import com.recharge.client.features.auth.RegisterScreen
 import com.recharge.client.features.home.HomeScreen
 import com.recharge.client.features.profile.ProfileScreen
+import com.recharge.client.features.support.CustomerSupportScreen
 import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
@@ -849,6 +850,12 @@ private fun AppNavHost(
                 isVisible = currentRoute == "wallet"
             )
         }
+        composable("customer-support") {
+            CustomerSupportScreen(
+                context = context,
+                onBack = { nav.popBackStack() }
+            )
+        }
         composable("profile") {
             ProfileScreen(
                 state = profileViewModel.state.collectAsState().value,
@@ -860,6 +867,7 @@ private fun AppNavHost(
                 onLogout = authLogout,
                 onProfileUpdated = homeViewModel::load,
                 onBecomeVendor = { nav.navigate("rental-vendor") },
+                onHelpSupport = { nav.navigate("customer-support") },
                 onDeleteAccount = { password, confirmation, closeDialog ->
                     profileViewModel.deleteAccount(password, confirmation) {
                         closeDialog()
