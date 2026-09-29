@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.HeadsetMic
@@ -171,7 +172,7 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    LaunchedEffect(minimized) {
+    LaunchedEffect(minimized, configuration.screenWidthDp, configuration.screenHeightDp) {
         if (!minimized) clampPosition()
     }
 
@@ -531,7 +532,7 @@ private fun GuidedFloatingHelp(
         Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.ChevronRight, "Back")
+                    Icon(Icons.Default.ArrowBack, "Back")
                 }
                 Column(Modifier.weight(1f)) {
                     Text(topic.title, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
