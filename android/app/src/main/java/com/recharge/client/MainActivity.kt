@@ -815,7 +815,9 @@ private fun AppNavHost(
                 state = customerCareViewModel.state.collectAsState().value,
                 onLoad = customerCareViewModel::load,
                 onOpen = customerCareViewModel::open,
-                onCreate = customerCareViewModel::create,
+                onCreate = { category, subject, message ->
+                    customerCareViewModel.create(category, subject, message)
+                },
                 onReply = customerCareViewModel::reply,
                 onClose = customerCareViewModel::closeSelected,
                 onClearError = customerCareViewModel::clearError,
