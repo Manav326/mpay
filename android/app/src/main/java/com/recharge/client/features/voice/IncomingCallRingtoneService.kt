@@ -9,10 +9,12 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
+import android.util.Log
 import android.os.Looper
 
 class IncomingCallRingtoneService : Service() {
     companion object {
+        private const val TAG = "IncomingCallRingtoneService"
         const val ACTION_START = "com.recharge.client.voice.RING_START"
         const val EXTRA_CALL_ID = "call_id"
         const val EXTRA_CALLER_NAME = "caller_name"
@@ -40,21 +42,30 @@ class IncomingCallRingtoneService : Service() {
         callId = incomingId
         callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { "mPay Support" }
 
-        val notification = CallNotificationManager.buildIncomingNotification(this, callId, callerName)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                CallNotificationManager.incomingNotificationId(callId),
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            )
-        } else {
-            startForeground(CallNotificationManager.incomingNotificationId(callId), notification)
-        }
+        return runCatching {
+            val notification = CallNotificationManager.buildIncomingNotification(this, callId, callerName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    CallNotificationManager.incomingNotificationId(callId),
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(CallNotificationManager.incomingNotificationId(callId), notification)
+            }
 
-        startRinging()
-        handler.removeCallbacks(timeout)
-        handler.postDelayed(timeout, STOP_AFTER_MS)
-        return START_NOT_STICKY
+            startRinging()
+            handler.removeCallbacks(timeout)
+            handler.postDelayed(timeout, STOP_AFTER_MS)
+            START_NOT_STICKY
+        }.getOrElse { error ->
+            Log.e(TAG, "Unable to start incoming-call ringtone service. callId=$callId", error)
+            ringtone?.stop()
+            ringtone = null
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            START_NOT_STICKY
+        }
     }
 
     private fun startRinging() {
