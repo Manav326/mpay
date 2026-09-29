@@ -18,6 +18,7 @@ class SupportService(
     private val interactions: SupportInteractionRepository,
     private val notes: SupportNoteRepository,
     private val callRequests: SupportCallRequestRepository,
+    private val events: SupportCaseEventRepository,
     private val users: UserRepository,
     private val roleAccess: RoleAccessService,
     private val overrides: UserPermissionOverrideRepository,
@@ -98,13 +99,16 @@ class SupportService(
                 expiresAt = now.plusSeconds(CALLBACK_WINDOW_MINUTES * 60)
             )
         )
+        recordCaseEvent(supportCase, conversation.id, customerId, "CALL_REQUESTED", "CUSTOMER", "VOICE", "Support callback requested", request.requestId)
         return toRequestResponse(request)
     }
 
     @Transactional
     fun cancelCustomerCallRequest(customer: UserEntity, requestId: String): SupportCallRequestResponse {
         ensureClient(customer)
-        val request = requestById(requestId)
+        val request = callRequests.findByRequestIdForUpdate(requestId.trim()).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Support call request not found")
+        }
         val customerId = requireNotNull(customer.id)
         if (request.customerUserId != customerId) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "This call request does not belong to your account")
@@ -136,39 +140,61 @@ class SupportService(
     }
 
     @Transactional
-    fun markRequestCallStarted(viewer: UserEntity, requestId: String, callId: String): SupportCallRequestResponse {
+    fun claimSupportRequestForCall(viewer: UserEntity, requestId: String, targetPublicId: String): SupportCallRequestEntity {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
-        val request = requestById(requestId)
+        val request = callRequests.findByRequestIdForUpdate(requestId.trim()).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Support call request not found")
+        }
+        val target = clientByPublicId(targetPublicId)
+        if (request.customerUserId != requireNotNull(target.id)) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "This callback request belongs to another customer")
+        }
+        val now = Instant.now()
         if (request.status != PENDING) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "This callback request is no longer pending")
         }
-        if (request.expiresAt.isBefore(Instant.now())) {
+        if (request.expiresAt.isBefore(now)) {
             request.status = EXPIRED
-            request.reviewedAt = Instant.now()
+            request.reviewedAt = now
+            request.outcome = "EXPIRED"
+            request.outcomeAt = now
             callRequests.save(request)
+            closeCase(request.caseId, "Callback request expired")
             throw ResponseStatusException(HttpStatus.CONFLICT, "This callback request has expired")
         }
-        request.status = IN_PROGRESS
-        request.reviewedByUserId = requireNotNull(viewer.id)
-        request.reviewedAt = Instant.now()
-        request.voiceCallId = callId
+        request.assignedUserId = requireNotNull(viewer.id)
+        request.claimedAt = now
         callRequests.save(request)
-        touchConversation(request.conversationId, request.caseId)
-        return toRequestResponse(request)
+        request.caseId?.let { caseId ->
+            cases.findById(caseId).orElse(null)?.let {
+                it.assignedUserId = viewer.id
+                it.updatedAt = now
+                cases.save(it)
+                recordCaseEvent(it, request.conversationId, viewer.id, "CALL_REQUEST_CLAIMED", "INTERNAL", "VOICE", "Support callback claimed", request.requestId)
+            }
+        }
+        return request
     }
 
-    @Transactional
     fun declineRequest(viewer: UserEntity, requestId: String, note: String?): SupportCallRequestResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val request = requestById(requestId)
         if (request.status != PENDING) {
             return toRequestResponse(request)
         }
+        val now = Instant.now()
         request.status = DECLINED
         request.reviewedByUserId = requireNotNull(viewer.id)
-        request.reviewedAt = Instant.now()
+        request.reviewedAt = now
         request.reviewNote = note?.trim()?.takeIf { it.isNotBlank() }?.take(1000)
+        request.outcome = "DECLINED_BY_SUPPORT"
+        request.outcomeAt = now
         callRequests.save(request)
+        request.caseId?.let { caseId ->
+            cases.findById(caseId).orElse(null)?.let {
+                recordCaseEvent(it, request.conversationId, viewer.id, "CALL_REQUEST_DECLINED", "CUSTOMER", "VOICE", "Support callback request declined", request.requestId)
+            }
+        }
         closeCase(request.caseId, request.reviewNote ?: "Support call request declined")
         return toRequestResponse(request)
     }
@@ -188,7 +214,8 @@ class SupportService(
             pendingRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(customerId, PENDING).orElse(null)?.let(::toRequestResponse),
             cases = cases.findAllByCustomerUserIdOrderByUpdatedAtDesc(customerId).take(20).map { toCaseResponse(it, customer) },
             interactions = interactions.findAllByCustomerUserIdOrderByStartedAtDesc(customerId).take(50).map(::toInteractionResponse),
-            customerNotes = notes.findAllByCustomerUserIdAndVisibilityOrderByCreatedAtDesc(customerId, "CUSTOMER").take(50).map(::toNoteResponse)
+            customerNotes = notes.findAllByCustomerUserIdAndVisibilityOrderByCreatedAtDesc(customerId, "CUSTOMER").take(50).map(::toNoteResponse),
+            events = events.findAllByCustomerUserIdAndVisibilityOrderByCreatedAtDesc(customerId, "CUSTOMER").take(100).map(::toEventResponse)
         )
     }
 
@@ -304,16 +331,20 @@ class SupportService(
         conversations.save(conversation)
 
         if (request != null) {
+            val now = Instant.now()
             request.status = IN_PROGRESS
             request.voiceCallId = call.callId
             request.reviewedByUserId = actor.id
-            request.reviewedAt = Instant.now()
+            request.assignedUserId = actor.id
+            request.claimedAt = request.claimedAt ?: now
+            request.reviewedAt = now
             callRequests.save(request)
         }
 
         caseEntity?.let {
             it.updatedAt = Instant.now()
             cases.save(it)
+            recordCaseEvent(it, conversation.id, actor.id, "VOICE_CALL_STARTED", "CUSTOMER", "VOICE", "mPay support started a voice call", call.callId)
         }
     }
 
@@ -322,11 +353,15 @@ class SupportService(
         val interaction = interactions.findByVoiceCallId(call.callId).orElse(null) ?: return
         interaction.status = call.status
         interaction.endedAt = call.endedAt
-        interaction.durationSeconds = if (call.connectedAt != null && call.endedAt != null) {
-            Duration.between(call.connectedAt, call.endedAt).seconds.coerceAtLeast(0)
-        } else 0L
+        interaction.durationSeconds = if (call.connectedAt != null && call.endedAt != null) Duration.between(call.connectedAt, call.endedAt).seconds.coerceAtLeast(0) else 0L
+        interaction.ringDurationSeconds = call.endedAt?.let { ended -> Duration.between(call.createdAt, call.acceptedAt ?: ended).seconds.coerceAtLeast(0) }
+        interaction.handlingDurationSeconds = call.endedAt?.let { ended -> Duration.between(call.createdAt, ended).seconds.coerceAtLeast(0) }
         interaction.outcome = when (call.status) {
-            "ENDED" -> if (call.connectedAt != null) "ANSWERED" else "ENDED_BEFORE_CONNECT"
+            "ENDED" -> when {
+                call.connectedAt != null -> "ANSWERED"
+                call.endedReason == "CONNECT_TIMEOUT" -> "CONNECT_FAILED"
+                else -> "ENDED_BEFORE_CONNECT"
+            }
             "DECLINED" -> "CUSTOMER_DECLINED"
             "MISSED" -> "NO_ANSWER"
             "CANCELLED" -> "CANCELLED"
@@ -343,8 +378,15 @@ class SupportService(
         callRequests.findAllByCustomerUserIdOrderByRequestedAtDesc(interaction.customerUserId)
             .firstOrNull { it.voiceCallId == call.callId }
             ?.let {
-                it.status = COMPLETED
-                it.reviewedAt = it.reviewedAt ?: call.endedAt
+                val now = call.endedAt ?: Instant.now()
+                it.status = when (call.status) {
+                    "DECLINED" -> DECLINED
+                    "CANCELLED" -> CANCELLED
+                    else -> COMPLETED
+                }
+                it.outcome = interaction.outcome
+                it.outcomeAt = now
+                it.reviewedAt = it.reviewedAt ?: now
                 callRequests.save(it)
             }
 
@@ -357,6 +399,7 @@ class SupportService(
                     if (it.status == CLOSED) it.status = OPEN
                 }
                 cases.save(it)
+                recordCaseEvent(it, interaction.conversationId, interaction.actorUserId, "VOICE_CALL_ENDED", "CUSTOMER", "VOICE", "Voice support call ended", call.callId)
             }
         }
     }
@@ -379,6 +422,8 @@ class SupportService(
         entity.resolutionCode = request.resolutionCode?.trim()?.takeIf { it.isNotBlank() }?.take(100)
         entity.resolutionNote = request.resolutionNote?.trim()?.takeIf { it.isNotBlank() }?.take(1200)
         cases.save(entity)
+        recordCaseEvent(entity, conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(entity.customerUserId, OPEN).orElse(null)?.id, viewer.id, "CASE_STATUS_CHANGED", "CUSTOMER", "SUPPORT", "Support case status changed to " + status, request.resolutionCode)
+        markWrapUp(entity.id, now)
         return toCaseResponse(entity, customer)
     }
 
@@ -410,6 +455,8 @@ class SupportService(
         )
         entity.updatedAt = Instant.now()
         cases.save(entity)
+        recordCaseEvent(entity, note.conversationId, viewer.id, "NOTE_ADDED", visibility, "NOTE", if (visibility == "CUSTOMER") "Support added a customer-visible note" else "Support note added", note.id.toString())
+        markWrapUp(entity.id, note.createdAt)
         return toNoteResponse(note)
     }
 
@@ -420,6 +467,11 @@ class SupportService(
         } else {
             notes.findAllByCustomerUserIdAndVisibilityOrderByCreatedAtDesc(customerId, "CUSTOMER").take(50)
         }
+        val eventList = if (includeInternalNotes) {
+            events.findAllByCustomerUserIdOrderByCreatedAtDesc(customerId).take(150)
+        } else {
+            events.findAllByCustomerUserIdAndVisibilityOrderByCreatedAtDesc(customerId, "CUSTOMER").take(100)
+        }
         return SupportCustomerResponse(
             customerPublicId = customer.publicId,
             customerName = customer.name,
@@ -428,8 +480,19 @@ class SupportService(
             pendingRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(customerId, PENDING).orElse(null)?.let(::toRequestResponse),
             openCases = cases.findAllByCustomerUserIdOrderByUpdatedAtDesc(customerId).filter { it.status != CLOSED }.take(30).map { toCaseResponse(it, customer) },
             interactions = interactions.findAllByCustomerUserIdOrderByStartedAtDesc(customerId).take(100).map(::toInteractionResponse),
-            notes = notesList.map(::toNoteResponse)
+            notes = notesList.map(::toNoteResponse),
+            events = eventList.map(::toEventResponse)
         )
+    }
+
+    private fun markWrapUp(caseId: Long?, now: Instant) {
+        if (caseId == null) return
+        interactions.findFirstByCaseIdAndChannelOrderByStartedAtDesc(caseId, "VOICE").orElse(null)?.let { interaction ->
+            if (interaction.endedAt != null && interaction.wrapUpCompletedAt == null) {
+                interaction.wrapUpCompletedAt = now
+                interactions.save(interaction)
+            }
+        }
     }
 
     private fun callbackRequestEnabled(customer: UserEntity): Boolean =
@@ -467,12 +530,40 @@ class SupportService(
 
     private fun closeCase(caseId: Long?, note: String) {
         val entity = caseId?.let { cases.findById(it).orElse(null) } ?: return
+        val now = Instant.now()
         entity.status = CLOSED
-        entity.resolvedAt = Instant.now()
-        entity.updatedAt = Instant.now()
+        entity.resolvedAt = now
+        entity.updatedAt = now
         entity.resolutionCode = "CALL_REQUEST_DECLINED"
         entity.resolutionNote = note.take(1200)
         cases.save(entity)
+        recordCaseEvent(entity, null, null, "CASE_AUTO_CLOSED", "CUSTOMER", "SUPPORT", note.take(500), null)
+    }
+
+    private fun recordCaseEvent(
+        case: SupportCaseEntity,
+        conversationId: Long?,
+        actorUserId: Long?,
+        eventType: String,
+        visibility: String,
+        channel: String?,
+        summary: String,
+        metadata: String?
+    ) {
+        events.save(
+            SupportCaseEventEntity(
+                caseId = requireNotNull(case.id),
+                conversationId = conversationId,
+                customerUserId = case.customerUserId,
+                actorUserId = actorUserId,
+                eventType = eventType,
+                visibility = visibility,
+                channel = channel,
+                summary = summary.take(500),
+                metadata = metadata?.take(5000),
+                createdAt = Instant.now()
+            )
+        )
     }
 
     private fun touchConversation(conversationId: Long?, caseId: Long?) {
@@ -513,7 +604,11 @@ class SupportService(
             customerPublicId = customer?.publicId,
             customerName = customer?.name,
             customerMobile = customer?.mobile,
-            voiceCallId = entity.voiceCallId
+            voiceCallId = entity.voiceCallId,
+            assignedUserPublicId = entity.assignedUserId?.let { users.findById(it).orElse(null)?.publicId },
+            assignedUserName = entity.assignedUserId?.let { users.findById(it).orElse(null)?.name },
+            claimedAt = entity.claimedAt?.toString(),
+            outcome = entity.outcome
         )
     }
 
@@ -547,6 +642,13 @@ class SupportService(
             endedAt = entity.endedAt?.toString(),
             durationSeconds = duration,
             durationLabel = duration?.let { formatDuration(it) },
+            ringDurationSeconds = entity.ringDurationSeconds,
+            ringDurationLabel = entity.ringDurationSeconds?.let { formatDuration(it) },
+            handlingDurationSeconds = entity.handlingDurationSeconds,
+            handlingDurationLabel = entity.handlingDurationSeconds?.let { formatDuration(it) },
+            wrapUpCompletedAt = entity.wrapUpCompletedAt?.toString(),
+            wrapUpDurationSeconds = if (entity.wrapUpCompletedAt != null && entity.endedAt != null) Duration.between(entity.endedAt, entity.wrapUpCompletedAt).seconds.coerceAtLeast(0) else null,
+            wrapUpDurationLabel = if (entity.wrapUpCompletedAt != null && entity.endedAt != null) formatDuration(Duration.between(entity.endedAt, entity.wrapUpCompletedAt).seconds.coerceAtLeast(0)) else null,
             outcome = entity.outcome,
             voiceCallId = entity.voiceCallId,
             actorUserPublicId = actor?.publicId,
@@ -563,6 +665,21 @@ class SupportService(
             note = entity.note,
             authorUserPublicId = author?.publicId,
             authorName = author?.name,
+            createdAt = entity.createdAt.toString()
+        )
+    }
+
+    private fun toEventResponse(entity: SupportCaseEventEntity): SupportCaseEventResponse {
+        val actor = entity.actorUserId?.let { users.findById(it).orElse(null) }
+        return SupportCaseEventResponse(
+            eventId = entity.eventId,
+            caseId = cases.findById(entity.caseId).orElse(null)?.caseId ?: "",
+            eventType = entity.eventType,
+            visibility = entity.visibility,
+            channel = entity.channel,
+            summary = entity.summary,
+            actorUserPublicId = actor?.publicId,
+            actorName = actor?.name,
             createdAt = entity.createdAt.toString()
         )
     }
