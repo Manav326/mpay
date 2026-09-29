@@ -1,6 +1,7 @@
 package com.recharge.client.features.voice
 
 import android.content.Intent
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -15,6 +16,13 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         when (message.data["event"]) {
             "CALL_INCOMING" -> {
+                if (message.priority != RemoteMessage.PRIORITY_HIGH) {
+                    Log.w(
+                        "MpayFirebaseMessaging",
+                        "Incoming call FCM was not delivered at HIGH priority. priority=" +
+                            message.priority + " callId=" + message.data["callId"]
+                    )
+                }
                 val callId = message.data["callId"].orEmpty()
                 if (callId.isNotBlank()) {
                     CallNotificationManager.showIncoming(
