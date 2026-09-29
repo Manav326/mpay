@@ -21,13 +21,15 @@ import {
   createVoiceCall,
   declineCustomerCareRequest,
   getCustomerCallbackAccess,
+  getCustomerCareChat,
   getCustomerCareCustomer,
   getCustomerCareRequests,
+  sendCustomerCareChatMessage,
   startCustomerCareCall,
   updateCustomerCallbackAccess,
   updateSupportCase,
 } from '@/lib/api';
-import { SupportCallRequest, SupportCase, SupportCaseEvent, SupportCustomer, SupportInteraction, SupportNote } from '@/lib/types';
+import { SupportCallRequest, SupportCase, SupportCaseEvent, SupportChat, SupportCustomer, SupportInteraction, SupportNote } from '@/lib/types';
 import { VoiceCallWidget } from './VoiceCallPanel';
 
 type Props = {
@@ -65,6 +67,9 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
   const [busyKey, setBusyKey] = useState('');
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const [activeCallName, setActiveCallName] = useState('');
+  const [supportChat, setSupportChat] = useState<SupportChat | null>(null);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   async function loadRequests() {
     setRequestsLoading(true);
@@ -90,11 +95,52 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
     }
   }
 
+  async function loadSupportChat(publicId: string) {
+    if (!publicId) return;
+    setChatLoading(true);
+    try {
+      setSupportChat(await getCustomerCareChat(publicId));
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to load the customer chat.');
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  async function sendSupportChatMessage() {
+    if (!selected || !canManageSupport || !chatDraft.trim() || busyKey) return;
+    setBusyKey('chat');
+    try {
+      const saved = await sendCustomerCareChatMessage(selected.customerPublicId, chatDraft.trim());
+      setChatDraft('');
+      setSupportChat(value => value ? {
+        ...value,
+        status: 'OPEN',
+        messages: [...value.messages, saved],
+        unreadForStaff: 0,
+      } : value);
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to send the support reply.');
+    } finally {
+      setBusyKey('');
+    }
+  }
+
   useEffect(() => {
     void loadRequests();
     const timer = window.setInterval(() => { void loadRequests(); }, 7000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [selected?.customerPublicId]);
+
+  useEffect(() => {
+    if (!selected?.customerPublicId) {
+      setSupportChat(null);
+      return;
+    }
+    void loadSupportChat(selected.customerPublicId);
+    const timer = window.setInterval(() => { void loadSupportChat(selected.customerPublicId); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [selected?.customerPublicId]);
 
   const visibleRequests = useMemo(() => {
     const q = requestSearch.trim().toLowerCase();
@@ -378,6 +424,46 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
               </div>
             </section>
           )}
+
+          <section className="drawer-section">
+            <div className="drawer-section-title">
+              <div><h3>Customer chat</h3><p>Live two-way support conversation with the customer.</p></div>
+              <MessageSquareText size={17}/>
+            </div>
+            <div className="support-chat-admin">
+              <div className="support-chat-messages">
+                {chatLoading && !supportChat ? (
+                  <div className="empty-state">Loading customer chat…</div>
+                ) : supportChat?.messages.length ? (
+                  supportChat.messages.map(message => (
+                    <div key={message.messageId} className={message.senderType === 'STAFF' ? 'support-chat-bubble staff' : 'support-chat-bubble customer'}>
+                      <div className="support-chat-meta">
+                        <b>{message.senderType === 'STAFF' ? 'You / mPay Support' : 'Customer'}</b>
+                        <span>{dateTime(message.createdAt)}</span>
+                      </div>
+                      <div>{message.message}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-state">No chat messages yet. The customer will see your reply here.</div>
+                )}
+              </div>
+              {canManageSupport && (
+                <div className="support-chat-composer">
+                  <textarea
+                    value={chatDraft}
+                    maxLength={4000}
+                    onChange={event => setChatDraft(event.target.value)}
+                    placeholder="Reply to the customer…"
+                    rows={3}
+                  />
+                  <button className="primary compact" disabled={!chatDraft.trim() || busyKey === 'chat'} onClick={() => void sendSupportChatMessage()}>
+                    {busyKey === 'chat' ? 'Sending…' : 'Send reply'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
 
           <section className="drawer-section">
             <div className="drawer-section-title">
