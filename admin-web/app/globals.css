@@ -5035,3 +5035,106 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .voice-call-avatar svg{width:21px;height:21px}
   .voice-call-controls{margin-top:12px}
 }
+/* ===== Customer Care workspace ===== */
+.customer-care-page{display:grid;gap:14px}
+.customer-care-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+.customer-care-head h2{margin:4px 0 3px;font-size:24px;letter-spacing:-.02em;color:#2f2a25}
+.customer-care-head p{margin:0;color:#8b8175;font-size:11px;line-height:1.5}
+.customer-care-refresh{min-height:34px!important;padding:7px 11px!important;border-radius:10px!important;font-size:10px!important}
+.customer-care-refresh .spin{animation:customer-care-spin .9s linear infinite}
+@keyframes customer-care-spin{to{transform:rotate(360deg)}}
+.customer-care-notice{padding:10px 12px;border:1px solid #edd8b1;border-radius:11px;background:#fff8e9;color:#8b5f18;font-size:10px}
+.customer-care-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.customer-care-kpi{padding:13px 14px;border:1px solid var(--border);border-radius:15px;background:linear-gradient(135deg,#fffdf9,#fff);box-shadow:0 6px 18px rgba(74,53,27,.035)}
+.customer-care-kpi span,.customer-care-kpi small{display:block}
+.customer-care-kpi span{font-size:9px;font-weight:800;color:#897d70;text-transform:uppercase;letter-spacing:.08em}
+.customer-care-kpi strong{display:block;margin:5px 0 2px;font-size:21px;line-height:1;font-weight:900;color:#372f27;font-variant-numeric:tabular-nums}
+.customer-care-kpi small{font-size:9px;color:#a09589}
+.customer-care-kpi.urgent{border-color:#efcfbf;background:linear-gradient(135deg,#fff7f2,#fff)}
+.customer-care-kpi.urgent strong{color:#b23a2f}
+.customer-care-workspace{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(380px,.92fr);min-height:620px;border:1px solid var(--border);border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 10px 32px rgba(63,44,20,.045)}
+.customer-care-queue{min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border);background:#fff}
+.customer-care-filterbar{display:grid;grid-template-columns:minmax(170px,1.6fr) repeat(4,minmax(88px,1fr));gap:7px;padding:11px;border-bottom:1px solid var(--border);background:#fcfaf7}
+.customer-care-search{display:flex;align-items:center;gap:7px;min-width:0;padding:0 10px;border:1px solid #e6ded3;border-radius:10px;background:#fff;color:#9c9082}
+.customer-care-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;padding:9px 0;font:inherit;font-size:10px;color:#40372f}
+.customer-care-search input::placeholder{color:#aaa095}
+.customer-care-select{display:grid;gap:4px;min-width:0}
+.customer-care-select>span{font-size:8px;font-weight:800;color:#998d80;text-transform:uppercase;letter-spacing:.06em}
+.customer-care-select>div{position:relative;display:flex;align-items:center}
+.customer-care-select select{appearance:none;width:100%;min-width:0;border:1px solid #e6ded3;border-radius:10px;padding:8px 24px 8px 9px;background:#fff;color:#4b4138;font:inherit;font-size:9px;outline:0}
+.customer-care-select svg{position:absolute;right:8px;pointer-events:none;color:#9a8d7f}
+.customer-care-queue-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 11px;color:#9b9084;font-size:9px;border-bottom:1px solid #f1ece5}
+.customer-care-queue-meta span{display:inline-flex;align-items:center;gap:5px}
+.customer-care-ticket-list{flex:1;overflow:auto}
+.customer-care-ticket-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 13px;border:0;border-bottom:1px solid #f3eee8;background:#fff;text-align:left;cursor:pointer}
+.customer-care-ticket-row:hover{background:#fffcf7}
+.customer-care-ticket-row.selected{background:#fff8eb;box-shadow:inset 3px 0 0 #d69b31}
+.customer-care-ticket-main{min-width:0;flex:1}
+.customer-care-ticket-line{display:flex;align-items:center;gap:7px;min-width:0}
+.customer-care-ticket-line strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#392f27;font-size:11px}
+.customer-care-ticket-id{display:block;margin-top:3px;color:#9b9083;font-size:8px;font-weight:700;letter-spacing:.02em}
+.customer-care-ticket-customer{display:flex;align-items:center;gap:4px;margin-top:6px;min-width:0;color:#7b7064;font-size:9px}
+.customer-care-ticket-customer span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.customer-care-ticket-side{display:grid;justify-items:end;gap:5px;flex:none;color:#9c9084;font-size:8px;text-align:right}
+.customer-care-status,.customer-care-priority{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:4px 7px;font-size:7px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.customer-care-status.open{background:#fff4da;color:#996114}
+.customer-care-status.progress{background:#edf5ff;color:#346599}
+.customer-care-status.waiting{background:#f5f0ff;color:#7257a6}
+.customer-care-status.resolved{background:#edf8ef;color:#2d7542}
+.customer-care-status.closed{background:#f2f0ee;color:#766d64}
+.customer-care-priority{padding:3px 6px;font-size:6.5px;background:#f4f0eb;color:#786d62}
+.customer-care-priority.low{background:#f3f1ef;color:#786d64}
+.customer-care-priority.normal{background:#fff6df;color:#966116}
+.customer-care-priority.high{background:#fff0e5;color:#a14b17}
+.customer-care-priority.urgent{background:#fff0f0;color:#b53737}
+.customer-care-empty,.customer-care-detail-empty{display:grid;place-items:center;align-content:center;gap:6px;min-height:220px;padding:25px;text-align:center;color:#a19486;font-size:10px}
+.customer-care-empty strong,.customer-care-detail-empty strong{color:#5b5147;font-size:12px}
+.customer-care-empty span,.customer-care-detail-empty span{max-width:240px;line-height:1.5}
+.customer-care-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-top:1px solid var(--border);background:#fcfaf7}
+.customer-care-pagination .secondary{min-height:30px!important;padding:6px 9px!important;border-radius:9px!important;font-size:8px!important}
+.customer-care-pagination>span{color:#8d8276;font-size:9px;font-weight:800}
+.customer-care-detail{min-width:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#fffdf9,#fff)}
+.customer-care-detail-head{display:flex;justify-content:space-between;gap:12px;padding:15px 16px 12px;border-bottom:1px solid var(--border)}
+.customer-care-detail-head h3{margin:4px 0 3px;font-size:18px;line-height:1.2;color:#352e27;letter-spacing:-.015em}
+.customer-care-customer-head{display:flex;gap:5px;color:#82776c;font-size:9px}
+.customer-care-detail-badges{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.customer-care-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px 16px;border-bottom:1px solid #f0ebe5;background:#fffaf4}
+.customer-care-timeline{flex:1;min-height:0;overflow:auto;display:grid;gap:8px;padding:13px 16px;background:#fcfbf9}
+.customer-care-message{max-width:88%;padding:9px 10px;border:1px solid #ebe4dc;border-radius:12px;background:#fff;box-shadow:0 3px 12px rgba(72,52,30,.025)}
+.customer-care-message.customer{justify-self:start;border-top-left-radius:5px}
+.customer-care-message.agent{justify-self:end;border-top-right-radius:5px;background:#fff9ee;border-color:#ecd9b9}
+.customer-care-message.internal{justify-self:end;border-top-right-radius:5px;background:#f7f5ff;border-color:#ddd7f2}
+.customer-care-message-meta{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;color:#9a8e82;font-size:7.5px;font-weight:800}
+.customer-care-message p{margin:0;color:#4d433a;font-size:10px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.customer-care-message.internal p{color:#5b516b}
+.customer-care-composer{padding:10px 16px;border-top:1px solid var(--border);background:#fff}
+.customer-care-composer-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.customer-care-composer-toggle button{display:inline-flex;align-items:center;gap:5px;border:1px solid #e7dfd5;border-radius:999px;padding:6px 9px;background:#fff;color:#776c61;font-size:8px;font-weight:900;cursor:pointer}
+.customer-care-composer-toggle button.active{background:#f5f2ff;border-color:#dcd5ef;color:#66538e}
+.customer-care-composer-toggle span{color:#9b9085;font-size:8px}
+.customer-care-composer textarea{width:100%;min-height:76px;resize:vertical;border:1px solid #e4ddd4;border-radius:10px;padding:9px 10px;outline:0;background:#fff;font:inherit;font-size:10px;line-height:1.5;color:#40372e;box-sizing:border-box}
+.customer-care-composer textarea:focus{border-color:#d9bc84;box-shadow:0 0 0 3px rgba(217,188,132,.13)}
+.customer-care-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:7px;color:#a0968a;font-size:8px}
+.customer-care-compose-footer .primary{min-height:32px;padding:7px 11px;border-radius:9px;font-size:9px;font-weight:900}
+.customer-care-detail-foot{display:flex;justify-content:space-between;gap:10px;padding:8px 16px;border-top:1px solid #f0ebe5;background:#fff;color:#9b9084;font-size:7.5px}
+.customer-care-detail-foot span{display:inline-flex;align-items:center;gap:4px}
+@media(max-width:1100px){
+  .customer-care-workspace{grid-template-columns:1fr}
+  .customer-care-queue{border-right:0;border-bottom:1px solid var(--border);max-height:520px}
+  .customer-care-detail{min-height:560px}
+}
+@media(max-width:850px){
+  .customer-care-kpis{grid-template-columns:repeat(2,1fr)}
+  .customer-care-filterbar{grid-template-columns:1fr 1fr}
+  .customer-care-search{grid-column:1/-1}
+}
+@media(max-width:560px){
+  .customer-care-head{align-items:stretch;flex-direction:column}
+  .customer-care-kpis{grid-template-columns:1fr 1fr}
+  .customer-care-workspace{border-radius:14px}
+  .customer-care-filterbar{grid-template-columns:1fr 1fr}
+  .customer-care-controls{grid-template-columns:1fr}
+  .customer-care-ticket-side span:last-child{display:none}
+  .customer-care-detail-head{flex-direction:column}
+  .customer-care-detail-badges{justify-content:flex-start}
+}
