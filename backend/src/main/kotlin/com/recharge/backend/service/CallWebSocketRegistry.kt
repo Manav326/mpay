@@ -9,6 +9,7 @@ import java.util.concurrent.CopyOnWriteArraySet
 @Component
 class CallWebSocketRegistry {
     private val sessions = ConcurrentHashMap<Long, CopyOnWriteArraySet<WebSocketSession>>()
+    private val readyUsers = ConcurrentHashMap<String, CopyOnWriteArraySet<Long>>()
 
     fun register(userId: Long, session: WebSocketSession) {
         sessions.computeIfAbsent(userId) { CopyOnWriteArraySet() }.add(session)
@@ -29,6 +30,21 @@ class CallWebSocketRegistry {
 
     fun hasOpenSession(userId: Long): Boolean =
         sessions[userId]?.any { it.isOpen } == true
+
+    fun markReady(callId: String, userId: Long): Boolean =
+        readyUsers.computeIfAbsent(callId) { CopyOnWriteArraySet() }.add(userId)
+
+    fun isReady(callId: String, userId: Long): Boolean =
+        readyUsers[callId]?.contains(userId) == true
+
+    fun clearReady(callId: String, userId: Long) {
+        readyUsers[callId]?.remove(userId)
+        if (readyUsers[callId]?.isEmpty() == true) readyUsers.remove(callId)
+    }
+
+    fun clearCall(callId: String) {
+        readyUsers.remove(callId)
+    }
 
 
     fun sendToUsers(userIds: Collection<Long>, payload: String, exceptSession: WebSocketSession? = null) {
