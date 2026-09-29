@@ -186,6 +186,7 @@ export function VoiceCallWidget({
             setMessage('Connected securely');
           } else if (state === 'failed') {
             setMessage('The secure audio connection could not be established.');
+            void endVoiceCall(callId).catch(() => {});
           }
         };
 
@@ -252,6 +253,7 @@ export function VoiceCallWidget({
           socket.onmessage = async event => {
           try {
             const data = JSON.parse(event.data);
+            if (data.callId !== callId) return;
             if (data.type === 'ready') {
               setMessage('Customer connected. Preparing secure audio…');
               await createOffer();
