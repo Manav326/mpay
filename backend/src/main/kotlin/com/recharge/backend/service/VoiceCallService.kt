@@ -61,11 +61,43 @@ class VoiceCallService(
         if (callerId == targetId) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot call your own account")
         }
-        if (participants.existsByUserId(callerId) || participants.existsByUserId(targetId)) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, "One of the accounts is already in an active call")
-        }
 
         val now = Instant.now()
+
+        val callerParticipant = participants.findByUserId(callerId).orElse(null)
+        if (callerParticipant != null) {
+            val existingCall = calls.findByCallId(callerParticipant.callId).orElse(null)
+            when {
+                existingCall == null || isTerminal(existingCall.status) -> {
+                    participants.delete(callerParticipant)
+                }
+                existingCall.status == RINGING && existingCall.ringingExpiresAt.isBefore(now) -> {
+                    expireCall(existingCall)
+                }
+                existingCall.calleeUserId == targetId -> {
+                    return response(existingCall)
+                }
+                else -> {
+                    throw ResponseStatusException(HttpStatus.CONFLICT, "You already have an active customer call")
+                }
+            }
+        }
+
+        val targetParticipant = participants.findByUserId(targetId).orElse(null)
+        if (targetParticipant != null) {
+            val existingCall = calls.findByCallId(targetParticipant.callId).orElse(null)
+            when {
+                existingCall == null || isTerminal(existingCall.status) -> {
+                    participants.delete(targetParticipant)
+                }
+                existingCall.status == RINGING && existingCall.ringingExpiresAt.isBefore(now) -> {
+                    expireCall(existingCall)
+                }
+                else -> {
+                    throw ResponseStatusException(HttpStatus.CONFLICT, "This customer is already in an active call")
+                }
+            }
+        }
         val call = calls.saveAndFlush(
             VoiceCallEntity(
                 callerUserId = callerId,
@@ -200,6 +232,9 @@ class VoiceCallService(
     fun expireRingingCalls() {
         calls.findAllByStatusAndRingingExpiresAtBefore(RINGING, Instant.now()).forEach { expireCall(it) }
     }
+
+    private fun isTerminal(status: String): Boolean =
+        status in setOf(DECLINED, MISSED, CANCELLED, ENDED)
 
     private fun expireCall(call: VoiceCallEntity) {
         if (call.status != RINGING) return
