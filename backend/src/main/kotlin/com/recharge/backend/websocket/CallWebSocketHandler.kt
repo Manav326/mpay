@@ -24,7 +24,7 @@ class CallWebSocketHandler(
     override fun afterConnectionEstablished(session: WebSocketSession) {
         val userId = session.attributes["userId"] as Long
         val callId = session.attributes["callId"]?.toString()
-        registry.register(userId, session)
+        registry.register(userId, callId.orEmpty(), session)
         userBySession[session.id] = userId
 
         // The authenticated socket is already fully authorized for this call.
@@ -60,16 +60,14 @@ class CallWebSocketHandler(
 
                 // Readiness is state, not a one-shot event. Either participant may
                 // connect first; once both are ready, start negotiation.
-                if (registry.hasOpenSession(otherUserId) && registry.isReady(callId, otherUserId)) {
-                    registry.sendToUsers(
-                        listOf(userId, otherUserId),
-                        """{"type":"ready","callId":"$callId"}"""
-                    )
+                if (registry.hasOpenSession(callId, otherUserId) && registry.isReady(callId, otherUserId)) {
+                    registry.sendToCallUser(callId, userId, """{"type":"ready","callId":"$callId"}""")
+                    registry.sendToCallUser(callId, otherUserId, """{"type":"ready","callId":"$callId"}""")
                 }
             }
             "signal" -> {
                 val otherUserId = calls.otherParticipant(callId, userId)
-                registry.sendToUser(otherUserId, message.payload)
+                registry.sendToCallUser(callId, otherUserId, message.payload)
             }
             "connected" -> calls.markConnected(userId, callId)
             "hangup" -> {
@@ -84,9 +82,13 @@ class CallWebSocketHandler(
     override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
         val userId = userBySession.remove(session.id) ?: return
         val callId = session.attributes["callId"]?.toString()
-        registry.unregister(userId, session)
         if (!callId.isNullOrBlank()) {
-            registry.clearReady(callId, userId)
+            registry.unregister(userId, callId, session)
+            if (!registry.hasOpenSession(callId, userId)) {
+                registry.clearReady(callId, userId)
+            }
+        } else {
+            registry.unregister(userId, "", session)
         }
     }
 
