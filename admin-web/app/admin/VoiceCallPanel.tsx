@@ -40,6 +40,8 @@ export function VoiceCallWidget({
   const [muted, setMuted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [summary, setSummary] = useState<VoiceCallResponse | null>(null);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const signalingReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
@@ -72,8 +74,14 @@ export function VoiceCallWidget({
         if (!active) return;
         setCall(current);
         setStatus(current.status);
-        if (current.status === 'DECLINED' || current.status === 'MISSED' || current.status === 'CANCELLED' || current.status === 'ENDED') {
-          finish(current.status === 'DECLINED' ? 'The customer declined the call.' : 'The call has ended.');
+        if (
+          !endedRef.current &&
+          ['DECLINED', 'MISSED', 'CANCELLED', 'ENDED'].includes(current.status)
+        ) {
+          void finish(
+            current.status === 'DECLINED' ? 'The customer declined the call.' : 'The call has ended.',
+            current
+          );
         }
       } catch (error: any) {
         if (active) setMessage(error?.message || 'Unable to load the call.');
@@ -114,11 +122,22 @@ export function VoiceCallWidget({
 
   useEffect(() => {
     const connectedAt = call?.connectedAt ? new Date(call.connectedAt).getTime() : null;
-    if (!connectedAt) return;
-    setElapsed(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)));
-    const timer = setInterval(() => setElapsed(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000))), 1000);
+    const endedAt = call?.endedAt ? new Date(call.endedAt).getTime() : null;
+    if (!connectedAt) {
+      setElapsed(0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      const end = endedAt ?? Date.now();
+      setElapsed(Math.max(0, Math.floor((end - connectedAt) / 1000)));
+    };
+
+    updateElapsed();
+    if (endedAt) return;
+    const timer = setInterval(updateElapsed, 1000);
     return () => clearInterval(timer);
-  }, [call?.connectedAt]);
+  }, [call?.connectedAt, call?.endedAt]);
 
   useEffect(() => {
     if (!call || !mediaActive || signalingStartedRef.current) return;
@@ -239,8 +258,23 @@ export function VoiceCallWidget({
               return;
             }
             if (data.type === 'status') {
-              if (['DECLINED', 'MISSED', 'CANCELLED', 'ENDED'].includes(data.status)) {
-                finish(data.status === 'DECLINED' ? 'The customer declined the call.' : 'The call has ended.');
+              if (data.status === 'CONNECTED') {
+                const connectedAtEpochMillis = Number(data.connectedAtEpochMillis);
+                setStatus('CONNECTED');
+                setMessage('Connected securely');
+                if (Number.isFinite(connectedAtEpochMillis) && connectedAtEpochMillis > 0) {
+                  setCall(current => current ? {
+                    ...current,
+                    status: 'CONNECTED',
+                    connectedAt: new Date(connectedAtEpochMillis).toISOString(),
+                  } : current);
+                }
+                return;
+              }
+              if (!endedRef.current && ['DECLINED', 'MISSED', 'CANCELLED', 'ENDED'].includes(data.status)) {
+                void finish(
+                  data.status === 'DECLINED' ? 'The customer declined the call.' : 'The call has ended.'
+                );
               }
               return;
             }
@@ -305,7 +339,9 @@ export function VoiceCallWidget({
     };
   }, [mediaActive, callId, iceServers]);
 
-  function finish(text: string) {
+  async function finish(text: string, finalCall?: VoiceCallResponse) {
+    if (summaryVisible && endedRef.current) return;
+
     endedRef.current = true;
     setMessage(text);
     socketRef.current?.close();
@@ -314,7 +350,22 @@ export function VoiceCallWidget({
     socketRef.current = null;
     peerRef.current = null;
     localStreamRef.current = null;
-    setTimeout(onClosed, 650);
+
+    let resolvedCall = finalCall ?? null;
+    if (!resolvedCall) {
+      try {
+        resolvedCall = await getVoiceCall(callId);
+      } catch {
+        resolvedCall = call;
+      }
+    }
+
+    if (resolvedCall) {
+      setCall(resolvedCall);
+      setStatus(resolvedCall.status);
+      setSummary(resolvedCall);
+    }
+    setSummaryVisible(true);
   }
 
   async function hangUp() {
@@ -334,8 +385,8 @@ export function VoiceCallWidget({
     }
 
     try {
-      await endVoiceCall(callId);
-      finish('Call ended');
+      const endedCall = await endVoiceCall(callId);
+      await finish('Call ended', endedCall);
     } catch (error: any) {
       if (!endedRef.current) {
         setMessage(error?.message || 'Unable to end the call. Please try again.');
@@ -354,24 +405,80 @@ export function VoiceCallWidget({
   return (
     <div className="voice-call-modal-backdrop" role="dialog" aria-modal="true" aria-label="mPay voice call">
       <section className="voice-call-modal">
-        <div className="voice-call-topline">
-          <span className="voice-call-live"><span />{status === 'CONNECTED' ? 'LIVE' : 'OUTGOING'}</span>
-          <span className="voice-call-secure"><ShieldCheck size={13} /> Secure</span>
-        </div>
-        <div className="voice-call-avatar"><PhoneCall size={29} /></div>
-        <div className="voice-call-kicker">mPay voice support</div>
-        <h2>{customerName || 'mPay customer'}</h2>
-        <p>{status === 'RINGING' ? 'Ringing customer…' : status === 'CONNECTED' ? formatDuration(elapsed) : message}</p>
-        <audio ref={audioRef} autoPlay playsInline />
-        <div className="voice-call-controls">
-          <button className={muted ? 'voice-round active' : 'voice-round'} onClick={toggleMute} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}>
-            {muted ? <MicOff size={19} /> : <Mic size={19} />}
-          </button>
-<button className="voice-round hangup" onClick={hangUp} disabled={busy} aria-label="End call">
-            <PhoneOff size={19} />
-          </button>
-        </div>
-        <div className="voice-call-footnote">The call is not recorded. The customer must accept before two-way audio starts.</div>
+        {summaryVisible ? (
+          <>
+            <div className="voice-call-topline">
+              <span className="voice-call-live"><span />CALL ENDED</span>
+              <span className="voice-call-secure"><ShieldCheck size={13} /> Secure</span>
+            </div>
+            <div className="voice-call-avatar"><PhoneCall size={29} /></div>
+            <div className="voice-call-kicker">mPay voice support · call summary</div>
+            <h2>{customerName || summary?.calleeName || 'mPay customer'}</h2>
+            <p>{summary?.status === 'DECLINED' ? 'Customer declined the call.' : 'The call has ended.'}</p>
+
+            <div className="detail-grid detail-grid-3">
+              <div>
+                <small>Connected time</small>
+                <b>{formatDuration(callDurationSeconds(summary))}</b>
+              </div>
+              <div>
+                <small>Status</small>
+                <b>{summary?.status || status}</b>
+              </div>
+              <div>
+                <small>End reason</small>
+                <b>{summary?.endedReason || '—'}</b>
+              </div>
+              <div>
+                <small>Started</small>
+                <b>{summary?.createdAt ? formatCallDate(summary.createdAt) : '—'}</b>
+              </div>
+              <div>
+                <small>Connected at</small>
+                <b>{summary?.connectedAt ? formatCallDate(summary.connectedAt) : 'Not connected'}</b>
+              </div>
+              <div>
+                <small>Ended at</small>
+                <b>{summary?.endedAt ? formatCallDate(summary.endedAt) : '—'}</b>
+              </div>
+            </div>
+
+            <div className="voice-call-footnote">
+              Call ID: <span className="mono">{summary?.callId || callId}</span>
+            </div>
+
+            <div className="voice-call-summary-actions">
+              <button className="secondary" onClick={onClosed}>Close</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="voice-call-topline">
+              <span className="voice-call-live"><span />{status === 'CONNECTED' ? 'LIVE' : 'OUTGOING'}</span>
+              <span className="voice-call-secure"><ShieldCheck size={13} /> Secure</span>
+            </div>
+            <div className="voice-call-avatar"><PhoneCall size={29} /></div>
+            <div className="voice-call-kicker">mPay voice support</div>
+            <h2>{customerName || 'mPay customer'}</h2>
+            <p>
+              {status === 'RINGING'
+                ? 'Ringing customer…'
+                : status === 'CONNECTED'
+                  ? 'Call time  ' + formatDuration(elapsed)
+                  : message}
+            </p>
+            <audio ref={audioRef} autoPlay playsInline />
+            <div className="voice-call-controls">
+              <button className={muted ? 'voice-round active' : 'voice-round'} onClick={toggleMute} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}>
+                {muted ? <MicOff size={19} /> : <Mic size={19} />}
+              </button>
+              <button className="voice-round hangup" onClick={hangUp} disabled={busy} aria-label="End call">
+                <PhoneOff size={19} />
+              </button>
+            </div>
+            <div className="voice-call-footnote">The call is not recorded. The customer must accept before two-way audio starts.</div>
+          </>
+        )}
       </section>
     </div>
   );
@@ -381,6 +488,21 @@ function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
   const seconds = (totalSeconds % 60).toString().padStart(2, '0');
   return minutes + ':' + seconds;
+}
+
+function callDurationSeconds(call: VoiceCallResponse | null) {
+  if (!call?.connectedAt) return 0;
+  const start = new Date(call.connectedAt).getTime();
+  const end = call.endedAt ? new Date(call.endedAt).getTime() : Date.now();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+  return Math.max(0, Math.floor((end - start) / 1000));
+}
+
+function formatCallDate(value: string) {
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
 }
 
 export function VoiceAccessPanel() {
