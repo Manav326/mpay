@@ -115,7 +115,10 @@ class VoiceCallService : Service() {
                     Log.i(TAG, "Authoritative call state became terminal: " + current.status + " callId=" + incomingCallId)
                     stateFlow.value = stateFlow.value.copy(
                         phase = VoiceCallPhase.ENDED,
-                        message = "Call ended"
+                        message = "Call ended",
+                        endedAtEpochMillis = current.endedAt?.let {
+                            runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
+                        } ?: System.currentTimeMillis()
                     )
                     stopCall()
                 }
