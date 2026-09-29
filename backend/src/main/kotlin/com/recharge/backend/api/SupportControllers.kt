@@ -23,6 +23,17 @@ class CustomerSupportController(
     fun overview(authentication: Authentication): CustomerSupportOverviewResponse =
         support.customerOverview(currentUser(authentication))
 
+    @GetMapping("/chat")
+    fun chat(authentication: Authentication): SupportChatResponse =
+        support.customerChat(currentUser(authentication))
+
+    @PostMapping("/chat/messages")
+    fun sendChatMessage(
+        authentication: Authentication,
+        @Valid @RequestBody request: CreateSupportMessageRequest
+    ): SupportMessageResponse =
+        support.sendCustomerChatMessage(currentUser(authentication), request.message)
+
     @PostMapping("/call-request")
     fun requestCall(
         authentication: Authentication,
@@ -82,6 +93,21 @@ class CustomerCareAdminController(
         @Valid @RequestBody request: SupportRequestDecisionRequest
     ): SupportCallRequestResponse =
         support.declineRequest(currentUser(authentication), requestId, request.note)
+
+    @GetMapping("/customers/{publicId}/chat")
+    fun customerChat(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): SupportChatResponse =
+        support.adminChat(currentUser(authentication), publicId)
+
+    @PostMapping("/customers/{publicId}/chat/messages")
+    fun sendCustomerChatMessage(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @Valid @RequestBody request: CreateSupportMessageRequest
+    ): SupportMessageResponse =
+        support.sendAdminChatMessage(currentUser(authentication), publicId, request.message)
 
     @GetMapping("/customers/{publicId}")
     fun customer(
