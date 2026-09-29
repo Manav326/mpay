@@ -28,7 +28,8 @@ class VoiceCallService(
     private val push: CallPushService,
     private val jwtService: JwtService,
     private val properties: CallProperties,
-    private val websocket: CallWebSocketRegistry
+    private val websocket: CallWebSocketRegistry,
+    private val support: SupportService
 ) {
     private companion object {
         const val RINGING = "RINGING"
@@ -42,7 +43,7 @@ class VoiceCallService(
     }
 
     @Transactional
-    fun create(caller: UserEntity, targetPublicId: String): VoiceCallResponse {
+    fun create(caller: UserEntity, targetPublicId: String, supportRequestId: String? = null): VoiceCallResponse {
         roleAccess.requirePermission(caller, "CALL_CUSTOMER")
 
         val target = users.findByPublicId(targetPublicId.trim()).orElseThrow {
@@ -120,6 +121,7 @@ class VoiceCallService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "One of the accounts is already in an active call")
         }
 
+        support.recordVoiceCallStarted(call, caller, supportRequestId)
         push.sendIncomingCall(targetId, call.callId, caller.name, call.ringingExpiresAt)
         return response(call)
     }
@@ -144,6 +146,7 @@ class VoiceCallService(
         call.endedByUserId = userId
         call.endedReason = reason.take(80)
         calls.save(call)
+        support.recordVoiceCallEnded(call)
         participants.deleteAllByCallId(call.callId)
         broadcastStatus(call)
         push.sendCallEnded(otherUserId, call.callId, call.status)
@@ -182,6 +185,7 @@ class VoiceCallService(
         call.endedByUserId = requireNotNull(user.id)
         call.endedReason = "DECLINED"
         calls.save(call)
+        support.recordVoiceCallEnded(call)
 
         participants.deleteAllByCallId(call.callId)
         broadcastStatus(call)
@@ -201,6 +205,7 @@ class VoiceCallService(
         call.endedByUserId = userId
         call.endedReason = "HANGUP"
         calls.save(call)
+        support.recordVoiceCallEnded(call)
 
         val otherUserId = otherParticipant(call, userId)
         participants.deleteAllByCallId(call.callId)
@@ -294,6 +299,7 @@ class VoiceCallService(
         locked.endedAt = Instant.now()
         locked.endedReason = "SIGNALING_DISCONNECT"
         calls.save(locked)
+        support.recordVoiceCallEnded(locked)
         participants.deleteAllByCallId(locked.callId)
         broadcastStatus(locked)
     }
@@ -306,6 +312,7 @@ class VoiceCallService(
         locked.endedAt = Instant.now()
         locked.endedReason = "CONNECT_TIMEOUT"
         calls.save(locked)
+        support.recordVoiceCallEnded(locked)
         participants.deleteAllByCallId(locked.callId)
         broadcastStatus(locked)
         push.sendCallEnded(locked.callerUserId, locked.callId, locked.status)
@@ -323,6 +330,7 @@ class VoiceCallService(
         locked.endedAt = Instant.now()
         locked.endedReason = "TIMEOUT"
         calls.save(locked)
+        support.recordVoiceCallEnded(locked)
         participants.deleteAllByCallId(locked.callId)
         broadcastStatus(locked)
         push.sendCallEnded(locked.callerUserId, locked.callId, locked.status)
