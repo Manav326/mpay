@@ -41,10 +41,11 @@ object CallNotificationManager {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_INCOMING, "Incoming mPay calls", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Incoming support and account-service calls from mPay"
-                // The dedicated ringtone foreground service is the single source of
-                // ringing sound/vibration, avoiding overlapping notification alerts.
-                setSound(null, null)
-                enableVibration(false)
+                // This channel remains audible as a fallback when Android does not allow
+                // the dedicated ringtone service to start from the background.
+                setSound(ringtone, audioAttributes)
+                enableVibration(true)
+                setVibrationPattern(longArrayOf(0L, 500L, 250L, 500L))
             }
         )
         manager.createNotificationChannel(
@@ -120,20 +121,24 @@ object CallNotificationManager {
         persistentRinging: Boolean = true
     ) {
         val appContext = context.applicationContext
+        val remaining = remainingMillisUntil(expiresAt)
         val notification = runCatching {
             buildIncomingNotification(
                 appContext,
                 callId,
                 callerName,
-                timeoutMillis = remainingMillisUntil(expiresAt)
+                timeoutMillis = remaining
             )
         }.getOrNull() ?: return
 
         runCatching {
             androidx.core.app.NotificationManagerCompat.from(appContext)
                 .notify(incomingNotificationId(callId), notification)
+        }.onFailure {
+            android.util.Log.e("CallNotificationManager", "Unable to post incoming call notification. callId=$callId", it)
         }
-        if (persistentRinging) {
+
+        if (persistentRinging && remaining > 0L) {
             runCatching {
                 ContextCompat.startForegroundService(
                     appContext,
@@ -143,6 +148,14 @@ object CallNotificationManager {
                         .putExtra(IncomingCallRingtoneService.EXTRA_CALLER_NAME, callerName)
                         .putExtra(IncomingCallRingtoneService.EXTRA_EXPIRES_AT, expiresAt.orEmpty())
                 )
+            }.onFailure {
+                android.util.Log.e(
+                    "CallNotificationManager",
+                    "Unable to start incoming ringtone foreground service. callId=$callId",
+                    it
+                )
+                // The CallStyle notification is already posted and its audible
+                // channel sound is the fallback in this case.
             }
         }
     }
