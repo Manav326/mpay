@@ -261,43 +261,46 @@ class VoiceCallService(
     }
 
     private fun expireDisconnectedConnectedCall(call: VoiceCallEntity) {
-        if (call.status != CONNECTED) return
+        val locked = calls.findByCallIdForUpdate(call.callId).orElse(null) ?: return
+        if (locked.status != CONNECTED) return
 
-        call.status = ENDED
-        call.endedAt = Instant.now()
-        call.endedReason = "SIGNALING_DISCONNECT"
-        calls.save(call)
-        participants.deleteAllByCallId(call.callId)
-        broadcastStatus(call)
+        locked.status = ENDED
+        locked.endedAt = Instant.now()
+        locked.endedReason = "SIGNALING_DISCONNECT"
+        calls.save(locked)
+        participants.deleteAllByCallId(locked.callId)
+        broadcastStatus(locked)
     }
 
     private fun expireUnconnectedCall(call: VoiceCallEntity) {
-        if (call.status != ACCEPTED) return
+        val locked = calls.findByCallIdForUpdate(call.callId).orElse(null) ?: return
+        if (locked.status != ACCEPTED) return
 
-        call.status = ENDED
-        call.endedAt = Instant.now()
-        call.endedReason = "CONNECT_TIMEOUT"
-        calls.save(call)
-        participants.deleteAllByCallId(call.callId)
-        broadcastStatus(call)
-        push.sendCallEnded(call.callerUserId, call.callId, call.status)
-        push.sendCallEnded(call.calleeUserId, call.callId, call.status)
+        locked.status = ENDED
+        locked.endedAt = Instant.now()
+        locked.endedReason = "CONNECT_TIMEOUT"
+        calls.save(locked)
+        participants.deleteAllByCallId(locked.callId)
+        broadcastStatus(locked)
+        push.sendCallEnded(locked.callerUserId, locked.callId, locked.status)
+        push.sendCallEnded(locked.calleeUserId, locked.callId, locked.status)
     }
 
     private fun isTerminal(status: String): Boolean =
         status in setOf(DECLINED, MISSED, CANCELLED, ENDED)
 
     private fun expireCall(call: VoiceCallEntity) {
-        if (call.status != RINGING) return
+        val locked = calls.findByCallIdForUpdate(call.callId).orElse(null) ?: return
+        if (locked.status != RINGING) return
 
-        call.status = MISSED
-        call.endedAt = Instant.now()
-        call.endedReason = "TIMEOUT"
-        calls.save(call)
-        participants.deleteAllByCallId(call.callId)
-        broadcastStatus(call)
-        push.sendCallEnded(call.callerUserId, call.callId, call.status)
-        push.sendCallEnded(call.calleeUserId, call.callId, call.status)
+        locked.status = MISSED
+        locked.endedAt = Instant.now()
+        locked.endedReason = "TIMEOUT"
+        calls.save(locked)
+        participants.deleteAllByCallId(locked.callId)
+        broadcastStatus(locked)
+        push.sendCallEnded(locked.callerUserId, locked.callId, locked.status)
+        push.sendCallEnded(locked.calleeUserId, locked.callId, locked.status)
     }
 
     private fun participantCall(user: UserEntity, callId: String): VoiceCallEntity =
