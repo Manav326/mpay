@@ -199,6 +199,7 @@ class VoiceCallService(
     fun get(user: UserEntity, callId: String): VoiceCallResponse =
         response(participantCall(user, callId))
 
+    @Transactional
     fun active(user: UserEntity): VoiceCallResponse? {
         val userId = requireNotNull(user.id)
         val participant = participants.findByUserId(userId).orElse(null) ?: return null
