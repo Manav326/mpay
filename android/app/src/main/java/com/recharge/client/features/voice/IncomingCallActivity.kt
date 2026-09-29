@@ -473,7 +473,7 @@ private fun IncomingCallScreen(
                     Spacer(Modifier.height(14.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.Top
                     ) {
                         VerticalSwipeCallAction(
@@ -483,10 +483,9 @@ private fun IncomingCallScreen(
                             tint = Color(0xFFDC2626),
                             trackTint = Color(0xFFFFF1F2),
                             enabled = !answering,
-                            onTriggered = onDecline,
-                            modifier = Modifier.weight(1f)
+                            onTriggered = onDecline
                         )
-                        Spacer(Modifier.size(16.dp))
+                        Spacer(Modifier.size(22.dp))
                         VerticalSwipeCallAction(
                             label = "Answer",
                             hint = "Swipe up to answer",
@@ -494,8 +493,7 @@ private fun IncomingCallScreen(
                             tint = Color(0xFF15803D),
                             trackTint = Color(0xFFECFDF3),
                             enabled = !answering,
-                            onTriggered = onAccept,
-                            modifier = Modifier.weight(1f)
+                            onTriggered = onAccept
                         )
                     }
                 } else {
@@ -630,17 +628,24 @@ private fun VerticalSwipeCallAction(
     val gestureScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val trackHeight = 220.dp
-    val thumbSize = 62.dp
+    val trackWidth = 92.dp
+    val trackHeight = 280.dp
+    val thumbSize = 58.dp
     val maxTravel = with(density) { (trackHeight - thumbSize - 24.dp).toPx() }
     val triggerTravel = maxTravel * 0.66f
 
-    androidx.compose.material3.Surface(
-        modifier = modifier.height(trackHeight),
-        shape = RoundedCornerShape(28.dp),
-        color = trackTint,
-        tonalElevation = 2.dp,
-        shadowElevation = 8.dp
+    Box(
+        modifier = modifier
+            .width(trackWidth)
+            .height(trackHeight)
+            .clip(RoundedCornerShape(46.dp))
+            .background(trackTint)
+            .border(
+                width = 1.dp,
+                color = tint.copy(alpha = 0.10f),
+                shape = RoundedCornerShape(46.dp)
+            )
+            .padding(8.dp)
     ) {
         Box(
             modifier = Modifier
@@ -688,7 +693,7 @@ private fun VerticalSwipeCallAction(
                 .padding(12.dp)
         ) {
             Column(
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
