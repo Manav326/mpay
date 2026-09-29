@@ -54,10 +54,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
 import com.recharge.client.core.model.CreateSupportCallRequest
 import com.recharge.client.core.model.CreateSupportMessageRequest
 import com.recharge.client.core.model.SupportCallRequestResponse
@@ -67,7 +68,6 @@ import com.recharge.client.core.theme.AppColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 private data class FloatingSupportTopic(
     val title: String,
@@ -124,9 +124,7 @@ fun CustomerSupportFloatingChat(
 
     val scope = rememberCoroutineScope()
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val maxWidth = configuration.screenWidthDp.dp
-    val maxHeight = configuration.screenHeightDp.dp
+    val density = LocalDensity.current
 
     var chat by remember { mutableStateOf<SupportChatResponse?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -229,34 +227,18 @@ fun CustomerSupportFloatingChat(
 
     val windowWidth = if (minimized) 258f else widthDp
     val windowHeight = if (minimized) 58f else heightDp
+    val boundedWidth = windowWidth.coerceAtMost((configuration.screenWidthDp - 16).coerceAtLeast(minWidth).toFloat())
+    val boundedHeight = windowHeight.coerceAtMost((configuration.screenHeightDp - 16).coerceAtLeast(minHeight).toFloat())
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
-        Popup(
-            alignment = Alignment.TopStart,
-            onDismissRequest = {},
-            focusable = false
-        ) {
-            Box(
-                modifier = Modifier
-                    .offset(
-                        x = with(density) { offsetX.dp.toPx().roundToInt().let { IntOffset(it, 0) } }.let { IntOffset(it.x, with(density) { offsetY.dp.toPx().roundToInt() }) }.x.dp,
-                        y = offsetY.dp
-                    )
-                    .width(windowWidth.coerceAtMost(maxWidth.value - 16f).dp)
-                    .height(windowHeight.coerceAtMost(maxHeight.value - 16f).dp)
-            )
-        }
-
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .offset { IntOffset(with(density) { offsetX.dp.roundToPx() }, with(density) { offsetY.dp.roundToPx() }) }
+    ) {
         FloatingChatWindow(
             modifier = Modifier
-                .offset {
-                    IntOffset(
-                        with(density) { offsetX.dp.toPx().roundToInt() },
-                        with(density) { offsetY.dp.toPx().roundToInt() }
-                    )
-                }
-                .width(windowWidth.coerceAtMost(maxWidth.value - 16f).dp)
-                .height(windowHeight.coerceAtMost(maxHeight.value - 16f).dp),
+                .width(boundedWidth.dp)
+                .height(boundedHeight.dp),
             chat = chat,
             loading = loading,
             busy = busy,
@@ -297,6 +279,7 @@ fun CustomerSupportFloatingChat(
             }
         )
     }
+
 }
 
 @Composable
@@ -323,6 +306,7 @@ private fun FloatingChatWindow(
     onResize: (Float, Float) -> Unit
 ) {
     val listState = rememberLazyListState()
+    val density = LocalDensity.current
     LaunchedEffect(chat?.messages?.size) {
         val size = chat?.messages?.size ?: 0
         if (size > 0) listState.animateScrollToItem(size - 1)
@@ -344,7 +328,13 @@ private fun FloatingChatWindow(
                     .background(Color(0xFFFFFAF1))
                     .pointerInput(Unit) {
                         detectDragGestures(
-                            onDrag = { _, dragAmount -> onDrag(dragAmount.x, dragAmount.y) }
+                            onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(
+                                with(density) { dragAmount.x.toDp().value },
+                                with(density) { dragAmount.y.toDp().value }
+                            )
+                        }
                         )
                     }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -503,14 +493,20 @@ private fun FloatingChatWindow(
                 Box(
                     Modifier.fillMaxWidth().background(Color(0xFFFFFAF1)).padding(horizontal = 7.dp, vertical = 4.dp)
                 ) {
-                    Text("Drag the header to move · drag the bottom-right corner to resize", color = Color(0xFFA1988D), style = MaterialTheme.typography.labelSmall)
+                    Text("Drag header to move · drag corner to resize", color = Color(0xFFA1988D), style = MaterialTheme.typography.labelSmall)
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
+                            .size(22.dp)
                             .align(Alignment.BottomEnd)
                             .pointerInput(Unit) {
                                 detectDragGestures(
-                                    onDrag = { _, dragAmount -> onResize(dragAmount.x / 3f, dragAmount.y / 3f) }
+                                    onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    onResize(
+                                        with(density) { dragAmount.x.toDp().value },
+                                        with(density) { dragAmount.y.toDp().value }
+                                    )
+                                }
                                 )
                             }
                     )
