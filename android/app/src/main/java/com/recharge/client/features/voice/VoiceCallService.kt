@@ -22,6 +22,7 @@ class VoiceCallService : Service() {
         private const val TAG = "VoiceCallService"
         const val ACTION_START = "com.recharge.client.voice.START"
         const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
+        const val ACTION_REMOTE_END = "com.recharge.client.voice.REMOTE_END"
         const val EXTRA_OTHER_NAME = "extra_other_name"
         private const val NOTIFICATION_ID = 59021
     }
@@ -49,6 +50,22 @@ class VoiceCallService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val incomingCallId = intent?.getStringExtra(IncomingCallActivity.EXTRA_CALL_ID).orEmpty()
         otherName = intent?.getStringExtra(EXTRA_OTHER_NAME).orEmpty().ifBlank { "mPay customer" }
+
+        if (intent?.action == ACTION_REMOTE_END) {
+            if (incomingCallId.isNotBlank() && callId != null && callId != incomingCallId) {
+                Log.w(TAG, "Ignoring remote end for different call. active=$callId remote=$incomingCallId")
+                return START_STICKY
+            }
+            Log.i(TAG, "Remote call end received. callId=" + (incomingCallId.ifBlank { callId ?: "" }))
+            stateFlow.value = VoiceCallEngineState(
+                phase = VoiceCallPhase.ENDED,
+                muted = stateFlow.value.muted,
+                speaker = stateFlow.value.speaker,
+                message = "Call ended"
+            )
+            stopCall()
+            return START_NOT_STICKY
+        }
 
         if (intent?.action == ACTION_HANGUP) {
             if (incomingCallId.isNotBlank()) {
