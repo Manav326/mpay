@@ -89,6 +89,29 @@ export function VoiceCallWidget({
   }, [callId]);
 
   useEffect(() => {
+    function endCallOnPageHide(event: PageTransitionEvent) {
+      if (event.persisted || endedRef.current) return;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('mpay_admin_token') : null;
+      if (!token) return;
+
+      void fetch(
+        getAdminApiBaseUrl() + '/api/v1/calls/' + encodeURIComponent(callId) + '/end',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer ' + token,
+            'Content-Type': 'application/json',
+          },
+          keepalive: true,
+        },
+      ).catch(() => {});
+    }
+
+    window.addEventListener('pagehide', endCallOnPageHide);
+    return () => window.removeEventListener('pagehide', endCallOnPageHide);
+  }, [callId]);
+
+  useEffect(() => {
     const connectedAt = call?.connectedAt ? new Date(call.connectedAt).getTime() : null;
     if (!connectedAt) return;
     setElapsed(Math.max(0, Math.floor((Date.now() - connectedAt) / 1000)));
