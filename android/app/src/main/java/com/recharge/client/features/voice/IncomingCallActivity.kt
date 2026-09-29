@@ -176,6 +176,13 @@ class IncomingCallActivity : ComponentActivity() {
         if (intent.getBooleanExtra(EXTRA_ACTIVE_CALL, false)) {
             accepted = true
             answering = false
+            if (!bound) {
+                bindService(
+                    Intent(this, VoiceCallService::class.java),
+                    serviceConnection,
+                    BIND_AUTO_CREATE
+                )
+            }
         }
         if (intent.getStringExtra(EXTRA_ACTION) == ACTION_ANSWER) {
             requestToAnswer()
