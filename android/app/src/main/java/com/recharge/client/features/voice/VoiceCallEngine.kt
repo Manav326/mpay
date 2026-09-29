@@ -322,7 +322,7 @@ class VoiceCallEngine(private val context: Context) {
                 }
 
                 override fun onFailure(socket: WebSocket, t: Throwable, response: Response?) {
-                    Log.e(TAG, "Signaling WebSocket failed callId=$callId iceState=" + peerConnection?.iceConnectionState + " message=" + t.message, t)
+                    Log.e(TAG, "Signaling WebSocket failed callId=$callId iceState=" + peerConnection?.iceConnectionState() + " message=" + t.message, t)
                     // WebSocket carries signaling only. Once ICE is connected, the media path
                     // is independent, so a later signaling failure must not tear down live audio.
                     if (stateFlow.value.phase != VoiceCallPhase.CONNECTED &&
