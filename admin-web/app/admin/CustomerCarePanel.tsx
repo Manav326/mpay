@@ -27,7 +27,7 @@ import {
   updateCustomerCallbackAccess,
   updateSupportCase,
 } from '@/lib/api';
-import { SupportCallRequest, SupportCase, SupportCustomer, SupportInteraction, SupportNote } from '@/lib/types';
+import { SupportCallRequest, SupportCase, SupportCaseEvent, SupportCustomer, SupportInteraction, SupportNote } from '@/lib/types';
 import { VoiceCallWidget } from './VoiceCallPanel';
 
 type Props = {
@@ -59,7 +59,8 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [selected, setSelected] = useState<SupportCustomer | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
-  const [customerQuery, setCustomerQuery] = useState('');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [customerLookup, setCustomerLookup] = useState('');
   const [notice, setNotice] = useState('');
   const [busyKey, setBusyKey] = useState('');
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
@@ -96,13 +97,13 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
   }, []);
 
   const visibleRequests = useMemo(() => {
-    const q = customerQuery.trim().toLowerCase();
+    const q = requestSearch.trim().toLowerCase();
     if (!q) return requests;
     return requests.filter(item =>
       [item.customerName, item.customerMobile, item.customerPublicId, item.reason]
         .some(value => String(value || '').toLowerCase().includes(q))
     );
-  }, [requests, customerQuery]);
+  }, [requests, requestSearch]);
 
   async function callRequest(item: SupportCallRequest) {
     if (!canManageSupport || !canCallCustomer || busyKey) return;
@@ -213,7 +214,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
           </button>
         </div>
 
-        <div className="metric-grid" style={{ marginTop: 16 }}>
+        <div className="metric-grid support-metrics">
           <div className="metric-card">
             <div className="metric-head"><span>Pending callbacks</span><div className="metric-icon"><BellRing size={17} /></div></div>
             <strong>{requests.length}</strong>
@@ -242,22 +243,22 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
               <p>A request never starts audio. Staff explicitly choose when to call.</p>
             </div>
           </div>
-          <div className="filters" style={{ marginBottom: 12 }}>
+          <div className="filters support-request-filter">
             <Search size={15} />
             <input
-              value={customerQuery}
-              onChange={event => setCustomerQuery(event.target.value)}
+              value={requestSearch}
+              onChange={event => setRequestSearch(event.target.value)}
               placeholder="Search customer, mobile or ID"
             />
           </div>
 
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="support-request-list">
             {requestsLoading && requests.length === 0 ? (
               <div className="empty-state">Loading callback requests…</div>
             ) : visibleRequests.length === 0 ? (
               <div className="empty-state">No pending callback requests.</div>
             ) : visibleRequests.map(item => (
-              <div key={item.requestId} className="detail-card" style={{ cursor: 'pointer' }} onClick={() => item.customerPublicId && void openCustomer(item.customerPublicId)}>
+              <div key={item.requestId} className="detail-card support-request-card"} onClick={() => item.customerPublicId && void openCustomer(item.customerPublicId)}>
                 <div className="detail-top">
                   <div>
                     <b>{item.customerName || 'mPay customer'}</b>
@@ -265,12 +266,14 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
                   </div>
                   <span className={'status ' + relativeStatus(item.status)}>{item.status}</span>
                 </div>
-                {item.reason && <p style={{ margin: '8px 0 0', color: '#64748b' }}>{item.reason}</p>}
+                {item.reason && <p className="support-request-reason">{item.reason}</p>}
                 <div className="detail-row">
                   <span>Request expires</span>
                   <strong>{dateTime(item.expiresAt)}</strong>
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                {item.assignedUserName && <div className="detail-row"><span>Assigned to</span><strong>{item.assignedUserName}</strong></div>}
+                {item.outcome && <div className="detail-row"><span>Outcome</span><strong>{item.outcome}</strong></div>}
+                <div className="support-request-actions">
                   <button
                     className="secondary compact"
                     onClick={event => { event.stopPropagation(); if (item.customerPublicId) void openCustomer(item.customerPublicId); }}
@@ -281,6 +284,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
                     <button
                       className="secondary compact"
                       disabled={!canCallCustomer || !!busyKey}
+                      title={!canCallCustomer ? 'CALL_CUSTOMER permission is required' : undefined}
                       onClick={event => { event.stopPropagation(); void callRequest(item); }}
                     >
                       <PhoneCall size={14} /> {busyKey === 'call:' + item.requestId ? 'Starting…' : 'Call customer'}
@@ -308,18 +312,18 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
               <p>Open the full Customer 360 support view using the mPay customer ID.</p>
             </div>
           </div>
-          <div className="form" style={{ display: 'flex', gap: 8 }}>
+          <div className="form support-customer-lookup-form">
             <input
               value={customerQuery}
               onChange={event => setCustomerQuery(event.target.value)}
               placeholder="Customer public ID"
             />
-            <button className="primary" onClick={() => void openCustomer(customerQuery.trim())} disabled={selectedLoading || !customerQuery.trim()}>
+            <button className="primary" onClick={() => void openCustomer(customerLookup.trim())} disabled={selectedLoading || !customerLookup.trim()}>
               {selectedLoading ? 'Opening…' : 'Open'}
             </button>
           </div>
-          <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: '#fff8e7', color: '#475569' }}>
-            <b style={{ display: 'block', color: '#172033', marginBottom: 4 }}>Permission model</b>
+          <div className="support-permission-box">
+            <b>Permission model</b>
             <span>SUPPORT_VIEW reads support history. SUPPORT_MANAGE handles requests and cases. CALL_CUSTOMER starts voice calls. MANAGE_CALL_ACCESS alone can grant a customer permission to request a callback.</span>
           </div>
         </section>
@@ -333,7 +337,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
               <h2>{selected.customerName || 'mPay customer'}</h2>
               <p>{selected.mobile} · {selected.customerPublicId}</p>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div className="support-header-actions">
               {canManageCallAccess && (
                 <button className={selected.callbackRequestEnabled ? 'status-toggle on' : 'status-toggle off'} disabled={!!busyKey} onClick={() => void toggleCallbackAccess()}>
                   <ShieldCheck size={14} /> Callback {selected.callbackRequestEnabled ? 'enabled' : 'disabled'}
@@ -344,6 +348,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
                   <PhoneCall size={14} /> {busyKey === 'direct-call' ? 'Starting…' : activeCallId ? 'Call active' : 'Call customer'}
                 </button>
               )}
+              {!canCallCustomer && <span className="admin-inline-hint">CALL_CUSTOMER permission required for voice calls.</span>}
               <button className="secondary compact" onClick={() => void openCustomer(selected.customerPublicId)}><RefreshCw size={14} /> Refresh</button>
             </div>
           </div>
@@ -367,7 +372,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
                 <div className="detail-row"><span>Requested</span><strong>{dateTime(selected.pendingRequest.requestedAt)}</strong></div>
                 <div className="detail-row"><span>Expires</span><strong>{dateTime(selected.pendingRequest.expiresAt)}</strong></div>
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-                  {canManageSupport && <button className="secondary compact" disabled={!canCallCustomer || !!busyKey || !!activeCallId} onClick={() => void callRequest(selected.pendingRequest!)}><PhoneCall size={14}/> Call customer</button>}
+                  {canManageSupport && <button className="secondary compact" disabled={!canCallCustomer || !!busyKey || !!activeCallId} title={!canCallCustomer ? 'CALL_CUSTOMER permission is required' : undefined} onClick={() => void callRequest(selected.pendingRequest!)}><PhoneCall size={14}/> Call customer</button>}
                   {canManageSupport && <button className="secondary compact" disabled={!!busyKey} onClick={() => void declineRequest(selected.pendingRequest!)}><PhoneOff size={14}/> Decline request</button>}
                 </div>
               </div>
@@ -392,7 +397,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
                     </div>
                     <div className="detail-row"><span>Priority</span><strong>{caseItem.priority}</strong></div>
                     <div className="detail-row"><span>Source</span><strong>{caseItem.source}</strong></div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
+                    <div className="support-case-actions">
                       <select
                         value={caseItem.status}
                         disabled={!canManageSupport || busyKey === 'case:' + caseItem.caseId}
@@ -416,7 +421,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
               <div><h3>Support timeline</h3><p>Calls and notes stay together so the next agent sees the previous context.</p></div>
               <Clock3 size={17}/>
             </div>
-            <SupportTimeline interactions={selected.interactions} notes={selected.notes}/>
+            <SupportTimeline interactions={selected.interactions} notes={selected.notes} events={selected.events}/>
           </section>
         </section>
       )}
@@ -437,16 +442,17 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
   );
 }
 
-function SupportTimeline({ interactions, notes }: { interactions: SupportInteraction[]; notes: SupportNote[] }) {
-  const events = useMemo(() => [
+function SupportTimeline({ interactions, notes, events: caseEvents }: { interactions: SupportInteraction[]; notes: SupportNote[]; events: SupportCaseEvent[] }) {
+  const timeline = useMemo(() => [
     ...interactions.map(item => ({ kind: 'interaction' as const, at: item.startedAt, item })),
     ...notes.map(note => ({ kind: 'note' as const, at: note.createdAt, item: note })),
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()), [interactions, notes]);
+    ...caseEvents.map(event => ({ kind: 'event' as const, at: event.createdAt, item: event })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()), [interactions, notes, caseEvents]);
 
-  if (events.length === 0) return <div className="empty-state">No support activity recorded yet.</div>;
+  if (timeline.length === 0) return <div className="empty-state">No support activity recorded yet.</div>;
 
-  return <div style={{ display: 'grid', gap: 8 }}>
-    {events.map((event, index) => event.kind === 'interaction' ? (
+  return <div className="support-timeline">
+    {timeline.map(event => event.kind === 'interaction' ? (
       <div className="detail-card" key={event.item.interactionId}>
         <div className="detail-top">
           <div>
@@ -456,11 +462,14 @@ function SupportTimeline({ interactions, notes }: { interactions: SupportInterac
           <span className={'status ' + relativeStatus(event.item.status)}>{event.item.status}</span>
         </div>
         <div className="detail-row"><span>Direction</span><strong>{event.item.direction}</strong></div>
+        <div className="detail-row"><span>Ring time</span><strong>{duration(event.item.ringDurationSeconds)}</strong></div>
         <div className="detail-row"><span>Talk time</span><strong>{duration(event.item.durationSeconds)}</strong></div>
+        <div className="detail-row"><span>Handling time</span><strong>{duration(event.item.handlingDurationSeconds)}</strong></div>
+        {event.item.wrapUpDurationSeconds != null && <div className="detail-row"><span>Wrap-up</span><strong>{duration(event.item.wrapUpDurationSeconds)}</strong></div>}
         <div className="detail-row"><span>Outcome</span><strong>{event.item.outcome || 'Not recorded'}</strong></div>
         {event.item.voiceCallId && <div className="detail-row"><span>Call ID</span><strong className="mono">{event.item.voiceCallId}</strong></div>}
       </div>
-    ) : (
+    ) : event.kind === 'note' ? (
       <div className="detail-card" key={'note-' + event.item.id}>
         <div className="detail-top">
           <div>
@@ -469,7 +478,18 @@ function SupportTimeline({ interactions, notes }: { interactions: SupportInterac
           </div>
           <span className="status pending">{event.item.visibility}</span>
         </div>
-        <p style={{ margin: '10px 0 0', color: '#475569', whiteSpace: 'pre-wrap' }}>{event.item.note}</p>
+        <p className="support-note-body">{event.item.note}</p>
+      </div>
+    ) : (
+      <div className="detail-card" key={'event-' + event.item.eventId}>
+        <div className="detail-top">
+          <div>
+            <b><Clock3 size={14}/> {event.item.eventType.replaceAll('_', ' ')}</b>
+            <span>{event.item.actorName || 'mPay Support'} · {dateTime(event.item.createdAt)}</span>
+          </div>
+          <span className="status pending">{event.item.visibility}</span>
+        </div>
+        <p className="support-note-body">{event.item.summary}</p>
       </div>
     ))}
   </div>
