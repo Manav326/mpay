@@ -167,8 +167,10 @@ object CallNotificationManager {
                     appContext,
                     callId.hashCode() + 4,
                     Intent(appContext, IncomingCallActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         .putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId)
-                        .putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, otherName),
+                        .putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, otherName)
+                        .putExtra(IncomingCallActivity.EXTRA_ACTIVE_CALL, true),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             )
