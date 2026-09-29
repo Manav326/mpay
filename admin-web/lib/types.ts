@@ -467,6 +467,13 @@ export interface SupportInteraction {
   endedAt?: string | null;
   durationSeconds?: number | null;
   durationLabel?: string | null;
+  ringDurationSeconds?: number | null;
+  ringDurationLabel?: string | null;
+  handlingDurationSeconds?: number | null;
+  handlingDurationLabel?: string | null;
+  wrapUpCompletedAt?: string | null;
+  wrapUpDurationSeconds?: number | null;
+  wrapUpDurationLabel?: string | null;
   outcome?: string | null;
   voiceCallId?: string | null;
   actorUserPublicId?: string | null;
@@ -483,6 +490,18 @@ export interface SupportNote {
   createdAt: string;
 }
 
+export interface SupportCaseEvent {
+  eventId: string;
+  caseId: string;
+  eventType: string;
+  visibility: string;
+  channel?: string | null;
+  summary: string;
+  actorUserPublicId?: string | null;
+  actorName?: string | null;
+  createdAt: string;
+}
+
 export interface SupportCustomer {
   customerPublicId: string;
   customerName?: string | null;
@@ -492,6 +511,7 @@ export interface SupportCustomer {
   openCases: SupportCase[];
   interactions: SupportInteraction[];
   notes: SupportNote[];
+  events: SupportCaseEvent[];
 }
 
 export interface CustomerCallbackAccess {
@@ -505,4 +525,5 @@ export interface CustomerSupportOverview {
   cases: SupportCase[];
   interactions: SupportInteraction[];
   customerNotes: SupportNote[];
+  events: SupportCaseEvent[];
 }
