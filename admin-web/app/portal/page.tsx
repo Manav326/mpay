@@ -7,7 +7,7 @@ import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRe
 import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
-  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
+  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, HeadsetMic, LogOut, Menu,
   Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
 
@@ -42,6 +42,33 @@ function portalViewFromPath(pathname: string): PortalView {
 }
 
 type Wallet = { balance: number; availableBalance: number; reservedBalance: number };
+type SupportMessage = {
+  messageId: string;
+  senderType: string;
+  message: string;
+  createdAt: string;
+};
+type SupportChat = {
+  conversationId?: string | null;
+  caseId?: string | null;
+  status: string;
+  messages: SupportMessage[];
+  unreadForCustomer: number;
+  unreadForStaff: number;
+};
+type CustomerSupportTopic = {
+  title: string;
+  description: string;
+  message: string;
+};
+const customerSupportTopics: CustomerSupportTopic[] = [
+  { title: 'Add money', description: 'Payment completed but wallet not updated', message: 'I need help with adding money to my mPay wallet.' },
+  { title: 'Withdrawal', description: 'UPI withdrawal, status or failed request', message: 'I need help with a wallet withdrawal.' },
+  { title: 'Mobile recharge', description: 'Recharge failed, pending or wrong plan', message: 'I need help with a mobile recharge.' },
+  { title: 'Car rental', description: 'Booking, cancellation or payment issue', message: 'I need help with an mPay car rental booking.' },
+  { title: 'Wallet & transactions', description: 'Balance, debit, refund or transaction history', message: 'I need help with a wallet transaction.' },
+  { title: 'Account & profile', description: 'Profile, login or account access', message: 'I need help with my mPay account or profile.' }
+];
 type Me = {
   userId?: number; publicUserId: string; mobile: string; name?: string; email?: string; profileImageUrl?: string | null;
   profileImageVersion?: number | null; role: string; commissionRate?: number; createdAt?: string; profileUpdatedAt?: string | null;
@@ -909,6 +936,12 @@ export default function Portal() {
   const [vehicleForm, setVehicleForm] = useState<any>(defaultVehicle);
   const [unavailabilityForm, setUnavailabilityForm] = useState({ reasonCode:'SERVICE_MAINTENANCE', reasonNote:'', startDate:'', endDate:'' });
 
+  const [supportChatOpen, setSupportChatOpen] = useState(false);
+  const [supportChat, setSupportChat] = useState<SupportChat>();
+  const [supportChatLoading, setSupportChatLoading] = useState(false);
+  const [supportChatBusy, setSupportChatBusy] = useState(false);
+  const [supportChatDraft, setSupportChatDraft] = useState('');
+  const [supportChatError, setSupportChatError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [homeGreeting, setHomeGreeting] = useState('Good day');
@@ -925,6 +958,49 @@ export default function Portal() {
   };
   const walletAmountClass = (item: WalletItem) => walletSigned(item) < 0 ? 'amount-debit' : 'amount-credit';
   const walletAmountLabel = (item: WalletItem) => (walletSigned(item) < 0 ? '-' : '+') + money(Math.abs(Number(item.amount || 0)));
+
+  async function loadCustomerSupportChat() {
+    setSupportChatLoading(true);
+    setSupportChatError('');
+    try {
+      const data = await api<SupportChat>('/api/v1/support/chat');
+      setSupportChat(data);
+    } catch (e:any) {
+      setSupportChatError(e.message || 'Unable to load the support chat.');
+    } finally {
+      setSupportChatLoading(false);
+    }
+  }
+
+  function openCustomerSupportChat() {
+    setSupportChatOpen(true);
+    void loadCustomerSupportChat();
+  }
+
+  async function sendCustomerSupportMessage(messageOverride?: string) {
+    const message = (messageOverride ?? supportChatDraft).trim();
+    if (!message || supportChatBusy) return;
+    setSupportChatBusy(true);
+    setSupportChatError('');
+    try {
+      await api('/api/v1/support/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify({ message })
+      });
+      setSupportChatDraft('');
+      await loadCustomerSupportChat();
+    } catch (e:any) {
+      setSupportChatError(e.message || 'Unable to send your message.');
+    } finally {
+      setSupportChatBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!supportChatOpen) return;
+    const timer = window.setInterval(() => { void loadCustomerSupportChat(); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [supportChatOpen]);
 
   async function loadHistory(
     page = 0,
@@ -3162,6 +3238,17 @@ export default function Portal() {
 
           {vendorStatus==='REJECTED' && vendor?.rejectionReason && <div className="account-review-note"><b>Admin note</b><span>{vendor.rejectionReason}</span></div>}
 
+          <section className="portal-panel account-support-card">
+            <div className="account-section-heading">
+              <div><h3>Help & Support</h3><p>Chat with mPay Support and get help with payments, recharge, wallet or rentals.</p></div>
+              <HeadsetMic size={18}/>
+            </div>
+            <div className="account-support-copy">
+              <span>Start with a guided topic, or type your question directly. Your conversation stays linked to your mPay support case.</span>
+              <button className="landing-primary" onClick={openCustomerSupportChat}><HeadsetMic size={15}/> Open support chat <ChevronRight size={15}/></button>
+            </div>
+          </section>
+
           <section className="portal-panel account-settings-card">
             <div className="account-section-heading"><div><h3>Settings & policies</h3><p>Manage your account, privacy and session</p></div><Settings size={18}/></div>
             <button className="account-action-row" onClick={()=>setEditingProfile(true)}>
@@ -3664,6 +3751,126 @@ export default function Portal() {
           </div>
         </div>;
       })()}
+        {supportChatOpen && (
+          <CustomerSupportChatModal
+            chat={supportChat}
+            loading={supportChatLoading}
+            busy={supportChatBusy}
+            draft={supportChatDraft}
+            error={supportChatError}
+            onDraftChange={value => setSupportChatDraft(value.slice(0, 4000))}
+            onSend={() => void sendCustomerSupportMessage()}
+            onChooseTopic={topic => void sendCustomerSupportMessage(topic.message)}
+            onDismiss={() => setSupportChatOpen(false)}
+            onRefresh={() => void loadCustomerSupportChat()}
+          />
+        )}
+
     </main>
   </div>;
+}
+
+
+type CustomerSupportChatModalProps = {
+  chat?: SupportChat;
+  loading: boolean;
+  busy: boolean;
+  draft: string;
+  error: string;
+  onDraftChange: (value: string) => void;
+  onSend: () => void;
+  onChooseTopic: (topic: CustomerSupportTopic) => void;
+  onDismiss: () => void;
+  onRefresh: () => void;
+};
+
+function CustomerSupportChatModal({
+  chat,
+  loading,
+  busy,
+  draft,
+  error,
+  onDraftChange,
+  onSend,
+  onChooseTopic,
+  onDismiss,
+  onRefresh
+}: CustomerSupportChatModalProps) {
+  const messagesRef = useRef<HTMLDivElement|null>(null);
+
+  useEffect(() => {
+    const node = messagesRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [chat?.messages.length]);
+
+  return (
+    <div className="customer-support-modal-backdrop" onClick={onDismiss}>
+      <div className="customer-support-modal" onClick={event => event.stopPropagation()}>
+        <div className="customer-support-modal-head">
+          <div className="customer-support-modal-brand">
+            <span><HeadsetMic size={18}/></span>
+            <div><b>mPay Support</b><small>{chat?.status === 'OPEN' ? 'Your support conversation is active' : 'Private support conversation'}</small></div>
+          </div>
+          <div className="customer-support-modal-actions">
+            <button className="icon-btn" onClick={onRefresh} disabled={loading} title="Refresh"><RefreshCw size={15}/></button>
+            <button className="icon-btn" onClick={onDismiss} title="Close"><X size={17}/></button>
+          </div>
+        </div>
+
+        {error && <div className="customer-support-error">{error}</div>}
+
+        <div className="customer-support-messages" ref={messagesRef}>
+          {!chat?.messages?.length ? (
+            <div className="customer-support-empty">
+              <div className="customer-support-welcome-icon"><HeadsetMic size={23}/></div>
+              <h3>How can we help?</h3>
+              <p>Choose a topic to send your first message, or type your own question below.</p>
+              <div className="customer-support-topics">
+                {customerSupportTopics.map(topic => (
+                  <button key={topic.title} className="customer-support-topic" onClick={() => onChooseTopic(topic)} disabled={busy}>
+                    <span><b>{topic.title}</b><small>{topic.description}</small></span>
+                    <ChevronRight size={15}/>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            chat.messages.map(item => {
+              const mine = item.senderType === 'CUSTOMER';
+              return (
+                <div key={item.messageId} className={'customer-support-row ' + (mine ? 'mine' : 'staff')}>
+                  <div className={'customer-support-bubble ' + (mine ? 'mine' : 'staff')}>
+                    <span>{mine ? 'You' : 'mPay Support'}</span>
+                    <p>{item.message}</p>
+                    <small>{dt(item.createdAt)}</small>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="customer-support-composer">
+          <textarea
+            value={draft}
+            onChange={event => onDraftChange(event.target.value)}
+            placeholder="Write a message to mPay Support…"
+            maxLength={4000}
+            rows={3}
+            disabled={busy}
+            onKeyDown={event => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                onSend();
+              }
+            }}
+          />
+          <button className="landing-primary" onClick={onSend} disabled={!draft.trim() || busy}>
+            <Send size={15}/>{busy ? 'Sending…' : 'Send'}
+          </button>
+        </div>
+        <div className="customer-support-footnote">Shift + Enter for a new line. Support replies appear here automatically.</div>
+      </div>
+    </div>
+  );
 }
