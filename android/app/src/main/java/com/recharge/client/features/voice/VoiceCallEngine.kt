@@ -46,7 +46,8 @@ data class VoiceCallEngineState(
     val phase: VoiceCallPhase = VoiceCallPhase.CONNECTING,
     val muted: Boolean = false,
     val speaker: Boolean = true,
-    val message: String = "Connecting securely…"
+    val message: String = "Connecting securely…",
+    val connectedAtEpochMillis: Long? = null
 )
 
 class VoiceCallEngine(private val context: Context) {
@@ -255,7 +256,9 @@ class VoiceCallEngine(private val context: Context) {
                         PeerConnection.IceConnectionState.COMPLETED -> {
                             stateFlow.value = stateFlow.value.copy(
                                 phase = VoiceCallPhase.CONNECTED,
-                                message = "Connected securely"
+                                message = "Connected securely",
+                                connectedAtEpochMillis = stateFlow.value.connectedAtEpochMillis
+                                    ?: System.currentTimeMillis()
                             )
                             sendType("connected")
                         }
@@ -390,6 +393,18 @@ class VoiceCallEngine(private val context: Context) {
         when (root.get("type")?.asString) {
             "status" -> {
                 when (root.get("status")?.asString) {
+                    "CONNECTED" -> {
+                        val serverConnectedAt = root.get("connectedAtEpochMillis")
+                            ?.takeIf { !it.isJsonNull }
+                            ?.asLong
+                        stateFlow.value = stateFlow.value.copy(
+                            phase = VoiceCallPhase.CONNECTED,
+                            message = "Connected securely",
+                            connectedAtEpochMillis = serverConnectedAt
+                                ?: stateFlow.value.connectedAtEpochMillis
+                                ?: System.currentTimeMillis()
+                        )
+                    }
                     "DECLINED", "MISSED", "CANCELLED", "ENDED" -> {
                         stateFlow.value = stateFlow.value.copy(
                             phase = VoiceCallPhase.ENDED,
