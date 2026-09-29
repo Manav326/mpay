@@ -464,8 +464,14 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
   }, [walletHistory, user.balance]);
 
   const statusClass = (user.status || 'UNKNOWN').toLowerCase();
+  const requestDrawerClose = () => {
+    // Do not unmount the call widget while a call is active. The widget owns
+    // the WebRTC resources and the server-side termination sequence.
+    if (voiceCallId) return;
+    onClose();
+  };
 
-  return <div className="drawer-overlay" onClick={onClose}>
+  return <div className="drawer-overlay" onClick={requestDrawerClose}>
     <aside className="user-drawer user-drawer-wide" onClick={e=>e.stopPropagation()}>
       <div className="drawer-head">
         <div className="drawer-user-heading">
@@ -476,7 +482,7 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
             <div className="drawer-subtitle"><span>{user.accountType}</span><span>{user.publicUserId}</span><span className={"status " + statusClass}>{user.status}</span></div>
           </div>
         </div>
-        <button className="icon-btn" onClick={onClose}><X/></button>
+        <button className="icon-btn" onClick={requestDrawerClose}><X/></button>
       </div>
 
       <section className="detail-grid detail-grid-3">
