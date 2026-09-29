@@ -488,3 +488,69 @@ export async function updateVoiceCallUserAccess(publicUserId: string, mode: Voic
     body: JSON.stringify({ mode }),
   });
 }
+
+
+export async function getCustomerCareRequests(): Promise<SupportCallRequest[]> {
+  return api('/api/v1/admin/customer-care/requests');
+}
+
+export async function getCustomerCareRequest(requestId: string): Promise<SupportCallRequest> {
+  return api('/api/v1/admin/customer-care/requests/' + encodeURIComponent(requestId));
+}
+
+export async function startCustomerCareCall(requestId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/admin/customer-care/requests/' + encodeURIComponent(requestId) + '/call', { method: 'POST' });
+}
+
+export async function declineCustomerCareRequest(requestId: string, note?: string): Promise<SupportCallRequest> {
+  return api('/api/v1/admin/customer-care/requests/' + encodeURIComponent(requestId) + '/decline', {
+    method: 'POST',
+    body: JSON.stringify({ note: note || null }),
+  });
+}
+
+export async function getCustomerCareCustomer(publicUserId: string): Promise<SupportCustomer> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId));
+}
+
+export async function getCustomerCallbackAccess(publicUserId: string): Promise<CustomerCallbackAccess> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/callback-access');
+}
+
+export async function updateCustomerCallbackAccess(publicUserId: string, enabled: boolean): Promise<CustomerCallbackAccess> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/callback-access', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function updateSupportCase(caseId: string, status: string, resolutionCode?: string, resolutionNote?: string): Promise<SupportCase> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId), {
+    method: 'PUT',
+    body: JSON.stringify({ status, resolutionCode: resolutionCode || null, resolutionNote: resolutionNote || null }),
+  });
+}
+
+export async function addSupportCaseNote(caseId: string, note: string, visibility: 'INTERNAL' | 'CUSTOMER' = 'INTERNAL'): Promise<SupportNote> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId) + '/notes', {
+    method: 'POST',
+    body: JSON.stringify({ note, visibility }),
+  });
+}
+
+export async function getCustomerSupportOverview(): Promise<CustomerSupportOverview> {
+  return api('/api/v1/support/overview');
+}
+
+export async function requestCustomerSupportCall(reason?: string): Promise<SupportCallRequest> {
+  return api('/api/v1/support/call-request', {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason || null }),
+  });
+}
+
+export async function cancelCustomerSupportCall(requestId: string): Promise<SupportCallRequest> {
+  return api('/api/v1/support/call-request/' + encodeURIComponent(requestId) + '/cancel', {
+    method: 'POST',
+  });
+}
