@@ -3,6 +3,7 @@ package com.recharge.client.features.voice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,8 +30,13 @@ class CallActionReceiver : BroadcastReceiver() {
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            runCatching { VoiceCallRepository(appContext).decline(callId) }
-            CallNotificationManager.cancelIncoming(appContext, callId)
+            VoiceCallRepository(appContext).decline(callId)
+                .onSuccess {
+                    CallNotificationManager.cancelIncoming(appContext, callId)
+                }
+                .onFailure { error ->
+                    Log.e("CallActionReceiver", "Failed to decline incoming call. callId=" + callId, error)
+                }
             pending.finish()
         }
     }
