@@ -852,7 +852,7 @@ private fun AppNavHost(
         }
         composable("customer-support") {
             CustomerSupportScreen(
-                context = context,
+                context = LocalContext.current,
                 onBack = { nav.popBackStack() }
             )
         }
