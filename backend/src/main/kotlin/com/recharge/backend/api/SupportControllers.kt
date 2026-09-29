@@ -2,6 +2,7 @@ package com.recharge.backend.api
 
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.service.RoleAccessService
+import com.recharge.backend.service.RoleAccessService
 import com.recharge.backend.service.SupportService
 import com.recharge.backend.service.VoiceCallService
 import jakarta.validation.Valid
@@ -43,7 +44,8 @@ class CustomerSupportController(
 class CustomerCareAdminController(
     private val users: UserRepository,
     private val support: SupportService,
-    private val voiceCalls: VoiceCallService
+    private val voiceCalls: VoiceCallService,
+    private val roleAccess: RoleAccessService
 ) {
     private fun currentUser(authentication: Authentication) =
         authentication.name.toLongOrNull()?.let {
@@ -67,6 +69,7 @@ class CustomerCareAdminController(
         @PathVariable requestId: String
     ): VoiceCallResponse {
         val viewer = currentUser(authentication)
+        roleAccess.requirePermission(viewer, SupportService.SUPPORT_MANAGE)
         val request = support.request(viewer, requestId)
         val customerPublicId = request.customerPublicId
             ?: throw IllegalStateException("Support request customer is unavailable")
