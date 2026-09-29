@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.util.Log
 import android.os.Looper
+import java.time.Instant
 
 class IncomingCallRingtoneService : Service() {
     companion object {
@@ -20,7 +21,8 @@ class IncomingCallRingtoneService : Service() {
         const val ACTION_START = "com.recharge.client.voice.RING_START"
         const val EXTRA_CALL_ID = "call_id"
         const val EXTRA_CALLER_NAME = "caller_name"
-        private const val STOP_AFTER_MS = 40_000L
+        const val EXTRA_EXPIRES_AT = "expires_at"
+        private const val DEFAULT_RINGING_MS = 30_000L
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -42,11 +44,30 @@ class IncomingCallRingtoneService : Service() {
         val incomingId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
         if (incomingId.isBlank()) return START_NOT_STICKY
 
+        val expiryText = intent.getStringExtra(EXTRA_EXPIRES_AT).orEmpty()
+        val remainingMs = runCatching {
+            if (expiryText.isBlank()) DEFAULT_RINGING_MS
+            else Instant.parse(expiryText).toEpochMilli() - System.currentTimeMillis()
+        }.getOrDefault(DEFAULT_RINGING_MS)
+
+        if (remainingMs <= 0L) {
+            stopRinging()
+            return START_NOT_STICKY
+        }
+
+        val sameCallAlreadyRinging =
+            callId == incomingId && ringtone != null && ringtone?.isPlaying == true
+
         callId = incomingId
         callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { "mPay Support" }
 
         return runCatching {
-            val notification = CallNotificationManager.buildIncomingNotification(this, callId, callerName)
+            val notification = CallNotificationManager.buildIncomingNotification(
+                this,
+                callId,
+                callerName,
+                timeoutMillis = remainingMs
+            )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     CallNotificationManager.incomingNotificationId(callId),
@@ -57,9 +78,9 @@ class IncomingCallRingtoneService : Service() {
                 startForeground(CallNotificationManager.incomingNotificationId(callId), notification)
             }
 
-            startRinging()
+            if (!sameCallAlreadyRinging) startRinging()
             handler.removeCallbacks(timeout)
-            handler.postDelayed(timeout, STOP_AFTER_MS)
+            handler.postDelayed(timeout, remainingMs)
             START_NOT_STICKY
         }.getOrElse { error ->
             Log.e(TAG, "Unable to start incoming-call ringtone service. callId=$callId", error)
