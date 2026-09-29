@@ -84,7 +84,7 @@ class CallPushService(
         // expiry/terminal-state cleanup.
         val androidConfig = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
-            .setTtl(properties.ringingTimeoutSeconds.coerceAtLeast(10) * 1000)
+            .setTtl(90_000L)
             .build()
 
         try {
