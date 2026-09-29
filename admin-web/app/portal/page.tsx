@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject, type MouseEvent } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
@@ -984,7 +984,6 @@ export default function Portal() {
   const [supportCallbackReason, setSupportCallbackReason] = useState('');
   const [supportChatMinimized, setSupportChatMinimized] = useState(false);
   const [supportChatPosition, setSupportChatPosition] = useState({ right: 22, bottom: 22 });
-  const supportChatDrag = useRef<{ startX:number; startY:number; right:number; bottom:number }>();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [homeGreeting, setHomeGreeting] = useState('Good day');
@@ -3930,8 +3929,9 @@ function CustomerSupportChatModal({
     if (node) node.scrollTop = node.scrollHeight;
   }, [chat?.messages.length]);
 
+  const supportChatDrag = useRef<{ startX:number; startY:number; right:number; bottom:number }>();
   useEffect(() => {
-    const move = (event: MouseEvent) => {
+    const move = (event: globalThis.MouseEvent) => {
       const drag = supportChatDrag.current;
       if (!drag) return;
       const right = Math.max(8, drag.right - (event.clientX - drag.startX));
@@ -3947,7 +3947,7 @@ function CustomerSupportChatModal({
     };
   }, [onMove]);
 
-  const beginDrag = (event: React.MouseEvent) => {
+  const beginDrag = (event: MouseEvent) => {
     if ((event.target as HTMLElement).closest('button')) return;
     supportChatDrag.current = {
       startX: event.clientX,
