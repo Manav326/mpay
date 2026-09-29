@@ -470,7 +470,10 @@ private fun SwipeCallAction(
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         val intended = dragAmount * directionSign
-                        offset.snapTo((offset.value + intended).coerceIn(0f, maxTravel))
+                        val next = (offset.value + intended).coerceIn(0f, maxTravel)
+                        gestureScope.launch {
+                            offset.snapTo(next)
+                        }
                     },
                     onDragCancel = {
                         gestureScope.launch {
