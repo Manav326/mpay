@@ -7,6 +7,8 @@ import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.os.Handler
 import android.os.IBinder
 import android.util.Log
@@ -25,6 +27,7 @@ class IncomingCallRingtoneService : Service() {
     private var ringtone: Ringtone? = null
     private var callId: String = ""
     private var callerName: String = "mPay Support"
+    private var vibrator: Vibrator? = null
 
     private val timeout = Runnable { stopRinging() }
 
@@ -70,28 +73,62 @@ class IncomingCallRingtoneService : Service() {
 
     private fun startRinging() {
         ringtone?.stop()
+        vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
+
         val sound = RingtoneManager.getRingtone(
             this,
             RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        ) ?: return
-
-        sound.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            sound.isLooping = true
+        if (sound != null) {
+            sound.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                sound.isLooping = true
+            }
+            ringtone = sound
+            runCatching {
+                sound.play()
+                Log.i(TAG, "Ringtone playback started. callId=" + callId + " playing=" + sound.isPlaying)
+            }.onFailure { error ->
+                Log.e(TAG, "Ringtone playback failed. callId=" + callId, error)
+            }
+        } else {
+            Log.w(TAG, "No default ringtone available. callId=" + callId)
         }
-        ringtone = sound
-        sound.play()
+
+        startVibrating()
+    }
+
+    private fun startVibrating() {
+        val pattern = longArrayOf(0L, 500L, 250L, 500L)
+        val deviceVibrator = vibrator
+        if (deviceVibrator?.hasVibrator() != true) {
+            Log.w(TAG, "Device has no vibrator. callId=" + callId)
+            return
+        }
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                deviceVibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            } else {
+                @Suppress("DEPRECATION")
+                deviceVibrator.vibrate(pattern, 0)
+            }
+            Log.i(TAG, "Vibration started. callId=" + callId)
+        }.onFailure { error ->
+            Log.e(TAG, "Vibration failed. callId=" + callId, error)
+        }
     }
 
     private fun stopRinging() {
         handler.removeCallbacks(timeout)
         ringtone?.stop()
         ringtone = null
+        vibrator?.cancel()
+        vibrator = null
         if (callId.isNotBlank()) {
             CallNotificationManager.cancelIncoming(this, callId)
         }
