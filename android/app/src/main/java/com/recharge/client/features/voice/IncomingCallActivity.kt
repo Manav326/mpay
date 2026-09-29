@@ -156,6 +156,15 @@ class IncomingCallActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val incomingId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
+        if (incomingId.isBlank() || incomingId != callId) return
+        if (intent.getStringExtra(EXTRA_ACTION) == ACTION_ANSWER) {
+            requestToAnswer()
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean("voice_call_accepted", accepted)
         super.onSaveInstanceState(outState)
