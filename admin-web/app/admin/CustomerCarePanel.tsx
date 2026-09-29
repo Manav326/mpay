@@ -101,6 +101,10 @@ export function CustomerCarePanel({ canManage }: { canManage: boolean }) {
     void getCustomerCareAgents().then(setAgents).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    void loadQueue();
+  }, [page]);
+
   async function openTicket(ticketId: string) {
     setDetailLoading(true);
     try {
