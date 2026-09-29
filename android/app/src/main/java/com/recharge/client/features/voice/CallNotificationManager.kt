@@ -21,6 +21,7 @@ object CallNotificationManager {
     private const val CHANNEL_INCOMING = "incoming_calls_v2"
     private const val CHANNEL_ACTIVE = "active_calls"
     private const val INCOMING_BASE_ID = 48000
+    const val ACTIVE_NOTIFICATION_ID = 59021
 
     private fun ringtoneUri() =
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -203,5 +204,5 @@ object CallNotificationManager {
     }
 
     fun incomingNotificationId(callId: String) = INCOMING_BASE_ID + (callId.hashCode() and 0x0FFF)
-    private fun activeNotificationId(callId: String) = incomingNotificationId(callId) + 10000
+    fun activeNotificationId(callId: String) = ACTIVE_NOTIFICATION_ID
 }
