@@ -426,3 +426,83 @@ export interface VoiceCallUserAccess {
   mode: 'DEFAULT' | 'ALLOW' | 'DENY';
   enabled: boolean;
 }
+
+
+export interface SupportCallRequest {
+  requestId: string;
+  status: string;
+  reason?: string | null;
+  requestedAt: string;
+  expiresAt: string;
+  caseId?: string | null;
+  customerPublicId?: string | null;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  voiceCallId?: string | null;
+}
+
+export interface SupportCase {
+  caseId: string;
+  customerPublicId: string;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  source: string;
+  assignedUserPublicId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  resolutionCode?: string | null;
+  resolutionNote?: string | null;
+}
+
+export interface SupportInteraction {
+  interactionId: string;
+  caseId?: string | null;
+  channel: string;
+  direction: string;
+  status: string;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+  durationLabel?: string | null;
+  outcome?: string | null;
+  voiceCallId?: string | null;
+  actorUserPublicId?: string | null;
+  actorName?: string | null;
+}
+
+export interface SupportNote {
+  id: number;
+  caseId?: string | null;
+  visibility: string;
+  note: string;
+  authorUserPublicId?: string | null;
+  authorName?: string | null;
+  createdAt: string;
+}
+
+export interface SupportCustomer {
+  customerPublicId: string;
+  customerName?: string | null;
+  mobile: string;
+  callbackRequestEnabled: boolean;
+  pendingRequest?: SupportCallRequest | null;
+  openCases: SupportCase[];
+  interactions: SupportInteraction[];
+  notes: SupportNote[];
+}
+
+export interface CustomerCallbackAccess {
+  publicUserId: string;
+  enabled: boolean;
+}
+
+export interface CustomerSupportOverview {
+  callbackRequestEnabled: boolean;
+  pendingRequest?: SupportCallRequest | null;
+  cases: SupportCase[];
+  interactions: SupportInteraction[];
+  customerNotes: SupportNote[];
+}
