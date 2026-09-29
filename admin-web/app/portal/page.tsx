@@ -3357,6 +3357,50 @@ export default function Portal() {
 
           {vendorStatus==='REJECTED' && vendor?.rejectionReason && <div className="account-review-note"><b>Admin note</b><span>{vendor.rejectionReason}</span></div>}
 
+          <section className="portal-panel account-support-card">
+            <div className="account-section-heading">
+              <div>
+                <h3>Help & Support</h3>
+                <p>Get guided help, chat with Customer Care, or request a voice callback.</p>
+              </div>
+              <Headset size={18}/>
+            </div>
+            <div className="account-support-copy">
+              <span>Start with guided help first. Your private Customer Care chat stays available while you move around the portal.</span>
+              <button className="landing-primary" onClick={openCustomerSupportChat}>
+                <Headset size={15}/> Open support chat <ChevronRight size={15}/>
+              </button>
+            </div>
+            {supportChat?.pendingCallbackRequest ? (
+              <div className="customer-support-direct-callback">
+                <div>
+                  <b>Callback requested</b>
+                  <span>{supportChat.pendingCallbackRequest.status.replaceAll('_',' ')} · Customer Care will see this conversation.</span>
+                </div>
+                <button className="landing-secondary" onClick={() => void cancelCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                  {supportCallbackBusy ? 'Updating…' : 'Cancel callback'}
+                </button>
+              </div>
+            ) : supportChat?.callbackRequestEnabled ? (
+              <div className="customer-support-direct-callback">
+                <div>
+                  <b>Prefer a call?</b>
+                  <span>Request Customer Care to call you directly for a complex or urgent issue.</span>
+                </div>
+                <div className="customer-support-direct-callback-action">
+                  <input
+                    value={supportCallbackReason}
+                    onChange={event => setSupportCallbackReason(event.target.value.slice(0, 500))}
+                    placeholder="Optional reason"
+                  />
+                  <button className="landing-secondary" onClick={() => void requestCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                    {supportCallbackBusy ? 'Requesting…' : 'Request a callback'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
           <section className="portal-panel account-settings-card">
             <div className="account-section-heading"><div><h3>Settings & policies</h3><p>Manage your account, privacy and session</p></div><Settings size={18}/></div>
             <button className="account-action-row" onClick={()=>setEditingProfile(true)}>
