@@ -119,7 +119,10 @@ object CallNotificationManager {
         persistentRinging: Boolean = true
     ) {
         val appContext = context.applicationContext
-        val notification = buildIncomingNotification(appContext, callId, callerName)
+        val notification = runCatching {
+            buildIncomingNotification(appContext, callId, callerName)
+        }.getOrNull() ?: return
+
         runCatching {
             androidx.core.app.NotificationManagerCompat.from(appContext)
                 .notify(incomingNotificationId(callId), notification)
