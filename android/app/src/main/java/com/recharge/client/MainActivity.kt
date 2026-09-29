@@ -35,6 +35,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.VoiceCallResponse
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
 import com.recharge.client.core.viewmodel.*
@@ -42,6 +43,7 @@ import com.recharge.client.features.auth.ForgotPasswordScreen
 import com.recharge.client.MpayFirebase
 import com.recharge.client.features.voice.VoiceCallPushRegistrar
 import com.recharge.client.features.voice.CallNotificationManager
+import com.recharge.client.features.voice.ActiveVoiceCallBar
 import com.recharge.client.features.voice.IncomingCallActivity
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.features.auth.LoginScreen
@@ -476,6 +478,7 @@ private fun AppRoot(
     var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
 
     var presentedIncomingCallId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeVoiceCall by remember { mutableStateOf<VoiceCallResponse?>(null) }
 
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Authenticated) {
@@ -501,31 +504,33 @@ private fun AppRoot(
                     ?.takeIf { it.isSuccessful }
                     ?.body()
 
-                if (activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId) {
-                    presentedIncomingCallId = activeCall.callId
-                    val callerName = activeCall.callerName ?: "mPay Support"
+                when {
+                    activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId -> {
+                        activeVoiceCall = null
+                        presentedIncomingCallId = activeCall.callId
+                        val callerName = activeCall.callerName ?: "mPay Support"
 
-                    // Polling is the recovery path when the FCM wake-up was delayed or
-                    // unavailable. It must reproduce the complete incoming-call alert
-                    // (notification + ringtone + vibration), not only open the UI.
-                    CallNotificationManager.showIncoming(
-                        context,
-                        activeCall.callId,
-                        callerName,
-                        expiresAt = activeCall.ringingExpiresAt,
-                        persistentRinging = true
-                    )
-
-                    runCatching {
-                        context.startActivity(
-                            Intent(context, IncomingCallActivity::class.java)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
-                                .putExtra(
-                                    IncomingCallActivity.EXTRA_CALLER_NAME,
-                                    callerName
-                                )
+                        // Polling is the recovery path when the FCM wake-up was delayed or
+                        // unavailable. It must reproduce the complete incoming-call alert
+                        // (notification + ringtone + vibration), not only open the UI.
+                        CallNotificationManager.showIncoming(
+                            context,
+                            activeCall.callId,
+                            callerName,
+                            expiresAt = activeCall.ringingExpiresAt,
+                            persistentRinging = true
                         )
+
+                        runCatching {
+                            context.startActivity(
+                                Intent(context, IncomingCallActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
+                                    .putExtra(
+                                        IncomingCallActivity.EXTRA_CALLER_NAME,
+                                        callerName
+                                    )
+                            )
                         }.onFailure { error ->
                             android.util.Log.e(
                                 "MainActivity",
@@ -533,8 +538,15 @@ private fun AppRoot(
                                 error
                             )
                         }
-                    } else if (activeCall == null) {
-                    presentedIncomingCallId = null
+                    }
+                    activeCall?.status in setOf("ACCEPTED", "CONNECTED") -> {
+                        presentedIncomingCallId = null
+                        activeVoiceCall = activeCall
+                    }
+                    else -> {
+                        presentedIncomingCallId = null
+                        activeVoiceCall = null
+                    }
                 }
 
                 kotlinx.coroutines.delay(3500L)
@@ -688,11 +700,61 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.weight(1f))
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                activeVoiceCall?.let { call ->
+                    ActiveVoiceCallBar(
+                        call = call,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        onEnded = { activeVoiceCall = null }
+                    )
+                }
+                AppNavHost(
+                    nav,
+                    currentRoute,
+                    homeViewModel,
+                    profileViewModel,
+                    rechargeViewModel,
+                    rechargeHistoryViewModel,
+                    rentalViewModel,
+                    walletViewModel,
+                    historyState,
+                    { showFundingDialog = it },
+                    paymentViewModel,
+                    highlightTransactionId,
+                    logoutAndReset,
+                    onChooseContact,
+                    Modifier.weight(1f)
+                )
+            }
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.padding(inner))
+            Column(Modifier.fillMaxSize().padding(inner)) {
+                activeVoiceCall?.let { call ->
+                    ActiveVoiceCallBar(
+                        call = call,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        onEnded = { activeVoiceCall = null }
+                    )
+                }
+                AppNavHost(
+                    nav,
+                    currentRoute,
+                    homeViewModel,
+                    profileViewModel,
+                    rechargeViewModel,
+                    rechargeHistoryViewModel,
+                    rentalViewModel,
+                    walletViewModel,
+                    historyState,
+                    { showFundingDialog = it },
+                    paymentViewModel,
+                    highlightTransactionId,
+                    logoutAndReset,
+                    onChooseContact,
+                    Modifier.weight(1f)
+                )
+            }
         }
     }
 }
