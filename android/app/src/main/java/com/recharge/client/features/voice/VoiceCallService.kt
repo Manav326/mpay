@@ -24,7 +24,6 @@ class VoiceCallService : Service() {
         const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
         const val ACTION_REMOTE_END = "com.recharge.client.voice.REMOTE_END"
         const val EXTRA_OTHER_NAME = "extra_other_name"
-        private const val NOTIFICATION_ID = 59021
     }
 
     inner class LocalBinder : Binder() {
@@ -164,7 +163,7 @@ class VoiceCallService : Service() {
             val notification = CallNotificationManager.buildActiveNotification(this, id, otherName, connected)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
-                    NOTIFICATION_ID,
+                    CallNotificationManager.ACTIVE_NOTIFICATION_ID,
                     notification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
                 )
