@@ -2,6 +2,7 @@ package com.recharge.client.features.voice
 
 import android.content.Intent
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -9,12 +10,21 @@ import com.google.firebase.messaging.RemoteMessage
 class MpayFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
+        Log.i("MpayFirebaseMessaging", "FCM token refreshed; registering with mPay backend.")
         VoiceCallPushRegistrar.sync(this)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        when (message.data["event"]) {
+        val event = message.data["event"].orEmpty()
+        Log.i(
+            "MpayFirebaseMessaging",
+            "FCM message received. event=" + event +
+                " callId=" + message.data["callId"] +
+                " priority=" + message.priority +
+                " appNotificationsEnabled=" + NotificationManagerCompat.from(this).areNotificationsEnabled()
+        )
+        when (event) {
             "CALL_INCOMING" -> {
                 if (message.priority != RemoteMessage.PRIORITY_HIGH) {
                     Log.w(
@@ -25,6 +35,10 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
                 }
                 val callId = message.data["callId"].orEmpty()
                 if (callId.isNotBlank()) {
+                    Log.i(
+                        "MpayFirebaseMessaging",
+                        "Dispatching incoming call alert. callId=" + callId + " expiresAt=" + message.data["expiresAt"]
+                    )
                     CallNotificationManager.showIncoming(
                         this,
                         callId,
