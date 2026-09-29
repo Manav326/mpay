@@ -19,6 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Car
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Send
@@ -65,6 +69,21 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+data class SupportTopicOption(
+    val title: String,
+    val description: String,
+    val message: String
+)
+
+private val supportTopicOptions = listOf(
+    SupportTopicOption("Add money", "Razorpay, PayU or payment not reflected", "I need help with adding money to my mPay wallet."),
+    SupportTopicOption("Withdrawal", "UPI withdrawal, status or failed request", "I need help with a wallet withdrawal."),
+    SupportTopicOption("Mobile recharge", "Recharge failed, pending or wrong plan", "I need help with a mobile recharge."),
+    SupportTopicOption("Car rental", "Booking, cancellation or payment issue", "I need help with an mPay car rental booking."),
+    SupportTopicOption("Wallet & transactions", "Balance, debit, refund or transaction history", "I need help with a wallet transaction."),
+    SupportTopicOption("Account & profile", "Profile, login or account access", "I need help with my mPay account or profile.")
+)
 
 @Composable
 fun CustomerSupportScreen(
@@ -134,8 +153,8 @@ fun CustomerSupportScreen(
         scope.launch { loadChat() }
     }
 
-    fun sendChatMessage() {
-        val message = chatDraft.trim()
+    fun sendChatMessage(messageOverride: String? = null) {
+        val message = (messageOverride ?: chatDraft).trim()
         if (message.isBlank() || chatBusy) return
         chatBusy = true
         chatError = null
@@ -365,7 +384,8 @@ fun CustomerSupportScreen(
             draft = chatDraft,
             error = chatError,
             onDraftChange = { chatDraft = it.take(4000) },
-            onSend = ::sendChatMessage,
+            onSend = { sendChatMessage() },
+            onChooseTopic = { topic -> sendChatMessage(topic.message) },
             onDismiss = { chatOpen = false },
             onRefresh = { scope.launch { loadChat() } }
         )
@@ -499,6 +519,49 @@ private fun SupportInteractionCard(item: SupportInteractionResponse) {
     }
 }
 
+@Composable
+private fun SupportTopicOptionCard(
+    topic: SupportTopicOption,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(11.dp),
+                color = AppColors.Primary.copy(alpha = .10f)
+            ) {
+                Icon(
+                    when {
+                        topic.title.contains("money", true) || topic.title.contains("transaction", true) -> Icons.Default.AccountBalanceWallet
+                        topic.title.contains("recharge", true) -> Icons.Default.Smartphone
+                        topic.title.contains("rental", true) -> Icons.Default.Car
+                        topic.title.contains("account", true) -> Icons.Default.Person
+                        else -> Icons.Default.HeadsetMic
+                    },
+                    contentDescription = null,
+                    tint = AppColors.PrimaryDark,
+                    modifier = Modifier.padding(9.dp).size(20.dp)
+                )
+            }
+            Spacer(Modifier.size(10.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(topic.title, fontWeight = FontWeight.SemiBold, color = AppColors.TextPrimary)
+                Text(topic.description, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.TextSecondary)
+        }
+    }
+}
+
 private fun formatSupportDate(value: String): String =
     runCatching {
         DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
@@ -516,6 +579,7 @@ private fun SupportChatDialog(
     error: String?,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
+    onChooseTopic: (SupportTopicOption) -> Unit,
     onDismiss: () -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -588,7 +652,7 @@ private fun SupportChatDialog(
                     if (chat?.messages.isNullOrEmpty()) {
                         item {
                             Column(
-                                Modifier.fillMaxWidth().padding(vertical = 50.dp),
+                                Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 10.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -600,16 +664,19 @@ private fun SupportChatDialog(
                                         Icons.Default.HeadsetMic,
                                         contentDescription = null,
                                         tint = AppColors.PrimaryDark,
-                                        modifier = Modifier.padding(12.dp).size(28.dp)
+                                        modifier = Modifier.padding(11.dp).size(27.dp)
                                     )
                                 }
-                                Text("Start a conversation", fontWeight = FontWeight.Bold)
+                                Text("How can we help?", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    "Tell us what you need help with and an mPay support member will respond here.",
+                                    "Choose a topic to start your first support message, or type your own question below.",
                                     color = AppColors.TextSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
+                        }
+                        items(supportTopicOptions, key = { it.title }) { topic ->
+                            SupportTopicOptionCard(topic = topic, onClick = { onChooseTopic(topic) })
                         }
                     } else {
                         items(chat?.messages.orEmpty(), key = { it.messageId }) { item ->
