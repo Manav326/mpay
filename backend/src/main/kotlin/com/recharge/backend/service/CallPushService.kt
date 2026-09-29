@@ -78,18 +78,13 @@ class CallPushService(
         if (tokens.isEmpty()) return
 
         val messaging = firebaseMessaging() ?: return
+        // Calls intentionally use a data-only high-priority message. This keeps
+        // foreground and background delivery on the same Android code path, where the
+        // dedicated ringtone foreground service owns sound/vibration and authoritative
+        // expiry/terminal-state cleanup.
         val androidConfig = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
             .setTtl(properties.ringingTimeoutSeconds.coerceAtLeast(10) * 1000)
-            .setNotification(
-                com.google.firebase.messaging.AndroidNotification.builder()
-                    .setTitle("Incoming mPay call")
-                    .setBody(data["callerName"] ?: "mPay Support")
-                    .setChannelId("incoming_calls_v4")
-                    .setSound("default")
-                    .setPriority(com.google.firebase.messaging.AndroidNotification.Priority.HIGH)
-                    .build()
-            )
             .build()
 
         try {
