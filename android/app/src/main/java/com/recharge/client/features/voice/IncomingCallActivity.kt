@@ -196,6 +196,7 @@ class IncomingCallActivity : ComponentActivity() {
         lifecycleScope.launch {
             repository.accept(callId).onSuccess {
                 accepted = true
+                answering = false
                 screenMessage = null
                 try {
                     CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
@@ -403,6 +404,7 @@ private fun SwipeCallAction(
 ) {
     val directionSign = if (direction == SwipeActionDirection.RIGHT) 1 else -1
     val offset = remember(direction) { Animatable(0f) }
+    val gestureScope = rememberCoroutineScope()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val maxTravel = with(density) { 206.dp.toPx() }
     val triggerTravel = maxTravel * 0.70f
@@ -422,10 +424,12 @@ private fun SwipeCallAction(
                         offset.snapTo((offset.value + intended).coerceIn(0f, maxTravel))
                     },
                     onDragCancel = {
-                        launch { offset.animateTo(0f, androidx.compose.animation.core.tween(220)) }
+                        gestureScope.launch {
+                            offset.animateTo(0f, androidx.compose.animation.core.tween(220))
+                        }
                     },
                     onDragEnd = {
-                        launch {
+                        gestureScope.launch {
                             if (offset.value >= triggerTravel) {
                                 offset.animateTo(maxTravel, androidx.compose.animation.core.tween(120))
                                 onTriggered()
