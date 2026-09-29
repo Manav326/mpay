@@ -509,6 +509,17 @@ export async function declineCustomerCareRequest(requestId: string, note?: strin
   });
 }
 
+export async function getCustomerCareChat(publicUserId: string): Promise<SupportChat> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat');
+}
+
+export async function sendCustomerCareChatMessage(publicUserId: string, message: string): Promise<SupportMessage> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat/messages', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+
 export async function getCustomerCareCustomer(publicUserId: string): Promise<SupportCustomer> {
   return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId));
 }
