@@ -503,12 +503,17 @@ private fun AppRoot(
 
                 if (activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId) {
                     presentedIncomingCallId = activeCall.callId
-                    CallNotificationManager.showIncoming(
-                        context,
-                        activeCall.callId,
-                        activeCall.callerName ?: "mPay Support",
-                        persistentRinging = false
-                    )
+                    runCatching {
+                        context.startActivity(
+                            Intent(context, IncomingCallActivity::class.java)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
+                                .putExtra(
+                                    IncomingCallActivity.EXTRA_CALLER_NAME,
+                                    activeCall.callerName ?: "mPay Support"
+                                )
+                        )
+                    }
                 } else if (activeCall == null) {
                     presentedIncomingCallId = null
                 }
