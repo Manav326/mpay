@@ -94,8 +94,6 @@ class CallPushService(
         val androidConfig = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
             .setTtl(90_000L)
-            // Allow delivery while the device is locked after reboot (direct-boot capable).
-            .setDirectBootOk(true)
             .setFcmOptions(AndroidFcmOptions.withAnalyticsLabel("voice-call"))
             .build()
 
