@@ -21,7 +21,8 @@ class AdminService(
     private val withdrawals: WalletWithdrawalRepository,
     private val commissionRates: CommissionRateService,
     private val roleAccess: RoleAccessService,
-    private val imageStorage: ProfileImageStorage
+    private val imageStorage: ProfileImageStorage,
+    private val voiceCalls: VoiceCallService
 ) {
     private val zoneId = ZoneId.of("Asia/Kolkata")
 
@@ -287,6 +288,13 @@ class AdminService(
 
         target.active = active
         users.save(target)
+
+        if (!active) {
+            // Blocking an account must also terminate any live voice support session;
+            // otherwise an already-established WebRTC connection could outlive access.
+            voiceCalls.terminateActiveCallForUser(requireId(target), "ACCOUNT_BLOCKED")
+        }
+
         return AdminUserStatusResponse(
             publicUserId = target.publicId,
             active = target.active,
