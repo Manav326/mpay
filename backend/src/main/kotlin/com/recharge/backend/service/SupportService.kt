@@ -241,7 +241,14 @@ class SupportService(
         if (interactions.findByVoiceCallId(call.callId).isPresent) return
 
         val customerId = call.calleeUserId.takeIf { it == actor.id } ?: call.calleeUserId
-        val request = supportRequestId?.let { callRequests.findByRequestId(it).orElse(null) }
+        val request = supportRequestId?.let {
+            callRequests.findByRequestId(it).orElseThrow {
+                ResponseStatusException(HttpStatus.NOT_FOUND, "Support call request not found")
+            }
+        }
+        if (request != null && request.status != PENDING) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "This callback request is no longer pending")
+        }
         val caseEntity = request?.caseId?.let { cases.findById(it).orElse(null) }
         val conversation = request?.conversationId?.let { conversations.findById(it).orElse(null) }
             ?: conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN).orElse(null)
