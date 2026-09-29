@@ -617,7 +617,9 @@ data class VoiceCallResponse(
 
 data class CreateVoiceCallRequest(
     @field:jakarta.validation.constraints.NotBlank
-    val targetPublicId: String
+    val targetPublicId: String,
+    @field:jakarta.validation.constraints.Size(max = 40)
+    val supportRequestId: String? = null
 )
 
 data class VoiceCallSignalingTokenRequest(
