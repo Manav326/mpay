@@ -43,7 +43,8 @@ import java.math.BigDecimal
 fun ProfileScreen(
     state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
     onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
-    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onCustomerCare: () -> Unit,
+    onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -152,6 +153,10 @@ fun ProfileScreen(
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Text("Settings & policies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                     ProfileActionRow(Icons.Default.Settings, "Account settings", "Update your name, email and profile photo") { editing = true }
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                    ProfileActionRow(Icons.Default.Help, "Customer Care", "Create a support case or continue an existing conversation") {
+                        onCustomerCare()
+                    }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {
                         context.startActivity(
