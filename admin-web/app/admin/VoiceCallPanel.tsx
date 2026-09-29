@@ -286,15 +286,29 @@ export function VoiceCallWidget({
   async function hangUp() {
     if (busy || endedRef.current) return;
     setBusy(true);
-    try {
-      // Send an immediate live-call hangup through signaling when available.
-      // The REST endpoint remains authoritative and is still called below.
-      const socket = socketRef.current;
-      if (socket?.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'hangup', callId }));
+    setMessage('Ending call…');
+
+    // WebSocket hang-up is a best-effort low-latency signal. A failure here must
+    // never prevent the authoritative REST termination below.
+    const socket = socketRef.current;
+    if (socket?.readyState === WebSocket.OPEN) {
+      try {
+        const accepted = socket.send(JSON.stringify({ type: 'hangup', callId }));
+        if (!accepted) {
+          setMessage('Ending call…');
+        }
+      } catch (error) {
+        console.debug('Voice-call signaling hang-up failed; continuing with REST end', error);
       }
+    }
+
+    try {
       await endVoiceCall(callId);
       finish('Call ended');
+    } catch (error: any) {
+      if (!endedRef.current) {
+        setMessage(error?.message || 'Unable to end the call. Please try again.');
+      }
     } finally {
       setBusy(false);
     }
