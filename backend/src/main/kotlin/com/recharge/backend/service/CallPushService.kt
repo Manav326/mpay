@@ -81,6 +81,15 @@ class CallPushService(
         val androidConfig = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
             .setTtl(properties.ringingTimeoutSeconds.coerceAtLeast(10) * 1000)
+            .setNotification(
+                com.google.firebase.messaging.AndroidNotification.builder()
+                    .setTitle("Incoming mPay call")
+                    .setBody(data["callerName"] ?: "mPay Support")
+                    .setChannelId("incoming_calls_v3")
+                    .setSound("default")
+                    .setPriority(com.google.firebase.messaging.AndroidNotification.Priority.HIGH)
+                    .build()
+            )
             .build()
 
         try {

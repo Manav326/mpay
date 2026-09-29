@@ -101,6 +101,7 @@ class IncomingCallActivity : ComponentActivity() {
     private var answering = false
     private var service: VoiceCallService? = null
     private var bound = false
+    private var incomingStateJob: kotlinx.coroutines.Job? = null
     private var engineState by mutableStateOf(VoiceCallEngineState())
     private var screenMessage by mutableStateOf<String?>(null)
     private val repository by lazy { VoiceCallRepository(applicationContext) }
@@ -198,6 +199,9 @@ class IncomingCallActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         activeActivity = WeakReference(this)
+        if (!accepted) {
+            startIncomingStateMonitor()
+        }
         if (accepted) {
             bindService(
                 Intent(this, VoiceCallService::class.java),
@@ -208,6 +212,8 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        incomingStateJob?.cancel()
+        incomingStateJob = null
         if (activeActivity?.get() === this) {
             activeActivity = null
         }
@@ -217,6 +223,21 @@ class IncomingCallActivity : ComponentActivity() {
             service = null
         }
         super.onStop()
+    }
+
+    private fun startIncomingStateMonitor() {
+        incomingStateJob?.cancel()
+        incomingStateJob = lifecycleScope.launch {
+            while (isActive && !accepted && callId.isNotBlank()) {
+                repository.getCall(callId).onSuccess { current ->
+                    if (current.status in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
+                        CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
+                        finish()
+                    }
+                }
+                delay(1500L)
+            }
+        }
     }
 
     private fun requestToAnswer() {
@@ -270,9 +291,17 @@ class IncomingCallActivity : ComponentActivity() {
                     finish()
                 }
                 .onFailure { error ->
-                    answering = false
-                    screenMessage = error.message?.takeIf { it.isNotBlank() }
-                        ?: "The call could not be declined. Please try again."
+                    // A concurrent admin hang-up or timeout can race the decline request.
+                    // Reconcile the authoritative state before leaving a stale screen visible.
+                    val current = repository.getCall(callId).getOrNull()
+                    if (current?.status in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
+                        CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
+                        finish()
+                    } else {
+                        answering = false
+                        screenMessage = error.message?.takeIf { it.isNotBlank() }
+                            ?: "The call could not be declined. Please try again."
+                    }
                 }
         }
     }
