@@ -578,7 +578,7 @@ class SupportService(
     }
 
     @Transactional
-    @Scheduled(fixedDelayString = "${MPAY_SUPPORT_REQUEST_SWEEP_MS:60000}")
+    @Scheduled(fixedDelayString = "\${MPAY_SUPPORT_REQUEST_SWEEP_MS:60000}")
     fun expireSupportRequests() {
         expirePendingRequests(Instant.now())
     }
