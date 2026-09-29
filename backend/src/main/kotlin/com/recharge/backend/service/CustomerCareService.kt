@@ -178,7 +178,7 @@ class CustomerCareService(
         roleAccess.requirePermission(viewer, "VIEW_CUSTOMER_CARE")
         val portalRoles = roleAccess.portalRoles()
         if (portalRoles.isEmpty()) return emptyList()
-        val visibleRoles = roleAccess.visibleRolesFor(viewer.role)
+        val visibleRoles = (roleAccess.visibleRolesFor(viewer.role) + viewer.role.uppercase())
             .filter { it in portalRoles }
             .toSet()
         if (visibleRoles.isEmpty()) return emptyList()
