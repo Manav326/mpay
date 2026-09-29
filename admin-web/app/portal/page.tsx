@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject, type MouseEvent as ReactMouseEvent } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
@@ -3971,7 +3971,7 @@ function CustomerSupportChatModal({
     };
   }, [onMove]);
 
-  function beginDrag(event: globalThis.MouseEvent) {
+  function beginDrag(event: ReactMouseEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest('button')) return;
     dragRef.current = {
       startX: event.clientX,
