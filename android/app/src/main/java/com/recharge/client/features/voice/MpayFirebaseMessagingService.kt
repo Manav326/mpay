@@ -21,6 +21,7 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
                         this,
                         callId,
                         message.data["callerName"].orEmpty().ifBlank { "mPay Support" },
+                        expiresAt = message.data["expiresAt"],
                         persistentRinging = true
                     )
                 }
