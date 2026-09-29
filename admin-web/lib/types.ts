@@ -426,3 +426,73 @@ export interface VoiceCallUserAccess {
   mode: 'DEFAULT' | 'ALLOW' | 'DENY';
   enabled: boolean;
 }
+
+
+export interface CustomerCareTicketSummary {
+  ticketId: string;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  assignedAgentPublicId?: string | null;
+  assignedAgentName?: string | null;
+  customerPublicId?: string | null;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  lastCustomerReplyAt?: string | null;
+  lastAgentReplyAt?: string | null;
+}
+
+export interface CustomerCareMessage {
+  id: number;
+  authorName?: string | null;
+  authorRole: string;
+  body: string;
+  internalNote: boolean;
+  createdAt: string;
+}
+
+export interface CustomerCareTicket {
+  ticketId: string;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  assignedAgentPublicId?: string | null;
+  assignedAgentName?: string | null;
+  customerPublicId?: string | null;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  closedAt?: string | null;
+  messages: CustomerCareMessage[];
+}
+
+export interface CustomerCareTicketPageResponse {
+  items: CustomerCareTicketSummary[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface CustomerCareAgent {
+  publicUserId: string;
+  name?: string | null;
+  role: string;
+}
+
+export interface CustomerCareQueueSummary {
+  open: number;
+  inProgress: number;
+  waitingForCustomer: number;
+  resolved: number;
+  urgent: number;
+  mine: number;
+  unassigned: number;
+}
