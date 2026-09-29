@@ -41,6 +41,7 @@ export function VoiceCallWidget({
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
+  const signalingReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const queuedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
@@ -178,15 +179,18 @@ export function VoiceCallWidget({
         localStreamRef.current = stream;
         stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
 
-        const socket = new WebSocket(webSocketUrl(token.token, token.websocketPath));
-        socketRef.current = socket;
-
         async function createOffer() {
           if (endedRef.current || offerStartedRef.current) return;
           offerStartedRef.current = true;
           setMessage('Preparing secure audio…');
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
+          const socket = socketRef.current;
+          if (socket?.readyState !== WebSocket.OPEN) {
+            offerStartedRef.current = false;
+            setMessage('Waiting for secure signaling…');
+            return;
+          }
           socket.send(JSON.stringify({
             type: 'signal',
             callId,
@@ -194,16 +198,39 @@ export function VoiceCallWidget({
           }));
         }
 
-        socket.onopen = () => {
-          setMessage('Connected to call signaling…');
-          for (const message of queuedOutgoingSignalsRef.current) {
-            socket.send(message);
-          }
-          queuedOutgoingSignalsRef.current = [];
-          socket.send(JSON.stringify({ type: 'ready', callId }));
-        };
+        function scheduleSignalingReconnect() {
+          if (
+            cancelled ||
+            endedRef.current ||
+            signalingReconnectTimerRef.current ||
+            peerRef.current?.iceConnectionState === 'connected' ||
+            peerRef.current?.iceConnectionState === 'completed'
+          ) return;
 
-        socket.onmessage = async event => {
+          setMessage('Reconnecting secure signaling…');
+          signalingReconnectTimerRef.current = setTimeout(() => {
+            signalingReconnectTimerRef.current = null;
+            connectSignaling();
+          }, 1200);
+        }
+
+        function connectSignaling() {
+          if (cancelled || endedRef.current) return;
+          socketRef.current?.close();
+          const socket = new WebSocket(webSocketUrl(token.token, token.websocketPath));
+          socketRef.current = socket;
+
+          socket.onopen = () => {
+            signalingReconnectTimerRef.current = null;
+            setMessage('Connected to call signaling…');
+            for (const message of queuedOutgoingSignalsRef.current) {
+              socket.send(message);
+            }
+            queuedOutgoingSignalsRef.current = [];
+            socket.send(JSON.stringify({ type: 'ready', callId }));
+          };
+
+          socket.onmessage = async event => {
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'ready') {
@@ -241,13 +268,16 @@ export function VoiceCallWidget({
           }
         };
 
-        socket.onclose = () => {
-          if (!endedRef.current) setMessage('Call signaling disconnected.');
-        };
+          socket.onclose = () => {
+            if (!endedRef.current) scheduleSignalingReconnect();
+          };
 
-        socket.onerror = () => {
-          if (!endedRef.current) setMessage('Call signaling is unavailable.');
-        };
+          socket.onerror = () => {
+            if (!endedRef.current) scheduleSignalingReconnect();
+          };
+        }
+
+        connectSignaling();
       } catch (error: any) {
         if (!cancelled) {
           setMessage(error?.message || 'Unable to start voice audio.');
@@ -260,6 +290,10 @@ export function VoiceCallWidget({
 
     return () => {
       cancelled = true;
+      if (signalingReconnectTimerRef.current) {
+        clearTimeout(signalingReconnectTimerRef.current);
+        signalingReconnectTimerRef.current = null;
+      }
       socketRef.current?.close();
       socketRef.current = null;
       queuedOutgoingSignalsRef.current = [];
