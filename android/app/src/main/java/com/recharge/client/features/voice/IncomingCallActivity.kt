@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -14,7 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,16 +31,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.PhoneInTalk
+import androidx.compose.material.icons.filled.SpeakerPhone
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
@@ -54,7 +57,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -64,6 +68,7 @@ import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import androidx.compose.animation.core.spring
 import kotlinx.coroutines.launch
 
 class IncomingCallActivity : ComponentActivity() {
@@ -83,6 +88,19 @@ class IncomingCallActivity : ComponentActivity() {
         const val EXTRA_ACTION = "call_action"
         const val ACTION_ANSWER = "answer"
         const val EXTRA_ACTIVE_CALL = "active_call"
+    }
+
+    private var pendingAudioRoute: String? = null
+
+    private val bluetoothPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val route = pendingAudioRoute
+        pendingAudioRoute = null
+        if (granted && route != null) {
+            service?.refreshAudioOutputs()
+            service?.setAudioOutput(route)
+        }
     }
 
     private val micPermissionLauncher = registerForActivityResult(
@@ -160,7 +178,17 @@ class IncomingCallActivity : ComponentActivity() {
                     onDecline = ::declineCall,
                     onHangUp = ::hangUp,
                     onMute = { service?.setMuted(!engineState.muted) },
-                    onSpeaker = { service?.toggleSpeaker() }
+                    onAudioOutput = { routeId ->
+                        if (routeId == "BLUETOOTH" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            pendingAudioRoute = routeId
+                            bluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+                        } else {
+                            service?.setAudioOutput(routeId)
+                        }
+                    },
+                    onOpenAudioOutput = { service?.refreshAudioOutputs() }
                 )
             }
         }
@@ -335,8 +363,10 @@ private fun IncomingCallScreen(
     onDecline: () -> Unit,
     onHangUp: () -> Unit,
     onMute: () -> Unit,
-    onSpeaker: () -> Unit
+    onAudioOutput: (String) -> Unit,
+    onOpenAudioOutput: () -> Unit
 ) {
+    var showAudioPicker by remember { mutableStateOf(false) }
     var callElapsedSeconds by remember(
         engineState.connectedAtEpochMillis,
         engineState.phase,
@@ -353,7 +383,6 @@ private fun IncomingCallScreen(
             callElapsedSeconds = 0L
             return@LaunchedEffect
         }
-
         while (isActive) {
             val endAt = engineState.endedAtEpochMillis ?: System.currentTimeMillis()
             callElapsedSeconds = ((endAt - startedAt) / 1000L).coerceAtLeast(0L)
@@ -366,7 +395,7 @@ private fun IncomingCallScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(horizontal = 20.dp, vertical = 24.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -387,14 +416,14 @@ private fun IncomingCallScreen(
                         modifier = Modifier.size(40.dp)
                     )
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(22.dp))
                 Text(
                     text = if (accepted) "mPay Support" else "Incoming mPay call",
                     style = MaterialTheme.typography.labelLarge,
                     color = AppColors.TextSecondary,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(7.dp))
                 Text(
                     text = callerName,
                     style = MaterialTheme.typography.headlineMedium,
@@ -416,49 +445,56 @@ private fun IncomingCallScreen(
                     textAlign = TextAlign.Center
                 )
                 if (accepted && engineState.phase == VoiceCallPhase.CONNECTED) {
+                    Spacer(Modifier.height(5.dp))
                     Text(
                         text = "Call time  " + formatDuration(callElapsedSeconds),
                         style = MaterialTheme.typography.labelLarge,
                         color = AppColors.TextPrimary,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(Modifier.height(10.dp))
                 }
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(if (accepted) 24.dp else 26.dp))
 
                 if (!accepted) {
                     Text(
-                        text = if (answering) "Connecting…" else "Swipe to choose",
+                        text = if (answering) "Connecting…" else "Swipe up to choose",
                         style = MaterialTheme.typography.labelMedium,
                         color = AppColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(Modifier.height(12.dp))
-                    SwipeCallAction(
-                        label = "Slide to answer",
-                        hint = "Answer call",
-                        icon = Icons.Default.Call,
-                        tint = Color(0xFF15803D),
-                        trackTint = Color(0xFFECFDF3),
-                        direction = SwipeActionDirection.RIGHT,
-                        enabled = !answering,
-                        onTriggered = onAccept
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    SwipeCallAction(
-                        label = "Slide to decline",
-                        hint = "Decline call",
-                        icon = Icons.Default.CallEnd,
-                        tint = Color(0xFFDC2626),
-                        trackTint = Color(0xFFFFF1F2),
-                        direction = SwipeActionDirection.LEFT,
-                        enabled = !answering,
-                        onTriggered = onDecline
-                    )
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        VerticalSwipeCallAction(
+                            label = "Decline",
+                            hint = "Swipe up to decline",
+                            icon = Icons.Default.CallEnd,
+                            tint = Color(0xFFDC2626),
+                            trackTint = Color(0xFFFFF1F2),
+                            enabled = !answering,
+                            onTriggered = onDecline,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.size(16.dp))
+                        VerticalSwipeCallAction(
+                            label = "Answer",
+                            hint = "Swipe up to answer",
+                            icon = Icons.Default.Call,
+                            tint = Color(0xFF15803D),
+                            trackTint = Color(0xFFECFDF3),
+                            enabled = !answering,
+                            onTriggered = onAccept,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.Top
                     ) {
                         CallControlButton(
                             label = if (engineState.muted) "Unmute" else "Mute",
@@ -466,20 +502,27 @@ private fun IncomingCallScreen(
                             icon = if (engineState.muted) Icons.Default.MicOff else Icons.Default.Mic,
                             onClick = onMute
                         )
-                        Spacer(Modifier.size(18.dp))
+                        Spacer(Modifier.size(24.dp))
                         CallControlButton(
-                            label = if (engineState.speaker) "Speaker" else "Earpiece",
-                            selected = engineState.speaker,
-                            icon = if (engineState.speaker) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                            onClick = onSpeaker
+                            label = "Audio output",
+                            selected = engineState.audioOutputId == "SPEAKER",
+                            icon = when {
+                                engineState.audioOutput.startsWith("Bluetooth", ignoreCase = true) -> Icons.Default.Bluetooth
+                                engineState.audioOutput.startsWith("Wired", ignoreCase = true) -> Icons.Default.Headset
+                                engineState.audioOutputId == "SPEAKER" -> Icons.Default.SpeakerPhone
+                                else -> Icons.Default.PhoneInTalk
+                            },
+                            onClick = {
+                                onOpenAudioOutput()
+                                showAudioPicker = true
+                            }
                         )
                     }
+
                     Spacer(Modifier.height(30.dp))
                     Button(
                         onClick = onHangUp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5484D))
                     ) {
@@ -490,7 +533,7 @@ private fun IncomingCallScreen(
                 }
 
                 if (!accepted) {
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(18.dp))
                     Text(
                         text = "mPay never records this call.",
                         style = MaterialTheme.typography.labelSmall,
@@ -500,6 +543,62 @@ private fun IncomingCallScreen(
             }
         }
     }
+
+    if (showAudioPicker && accepted) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showAudioPicker = false },
+            title = { Text("Audio output", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    engineState.audioOutputs.forEach { output ->
+                        val selected = output.id == engineState.audioOutputId
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = {
+                                onAudioOutput(output.id)
+                                showAudioPicker = false
+                            },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = if (selected) 1.5.dp else 1.dp,
+                                color = if (selected) AppColors.PrimaryDark else AppColors.NeutralTint
+                            )
+                        ) {
+                            Icon(
+                                imageVector = when {
+                                    output.id == "BLUETOOTH" -> Icons.Default.Bluetooth
+                                    output.id == "SPEAKER" -> Icons.Default.SpeakerPhone
+                                    output.id == "EARPIECE" -> Icons.Default.PhoneInTalk
+                                    else -> Icons.Default.Headset
+                                },
+                                contentDescription = null
+                            )
+                            Spacer(Modifier.size(10.dp))
+                            Text(
+                                text = output.label,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Start,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
+                            )
+                            if (selected) Icon(Icons.Default.Check, contentDescription = null)
+                        }
+                    }
+                    if (engineState.audioOutputs.isEmpty()) {
+                        Text(
+                            "Speaker and phone audio are available on this device.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AppColors.TextSecondary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { showAudioPicker = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 }
 
 private fun formatDuration(totalSeconds: Long): String {
@@ -508,84 +607,105 @@ private fun formatDuration(totalSeconds: Long): String {
     return minutes + ":" + seconds
 }
 
-private enum class SwipeActionDirection { LEFT, RIGHT }
-
 @Composable
-private fun SwipeCallAction(
+private fun VerticalSwipeCallAction(
     label: String,
     hint: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     tint: Color,
     trackTint: Color,
-    direction: SwipeActionDirection,
     enabled: Boolean,
-    onTriggered: () -> Unit
+    onTriggered: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val directionSign = if (direction == SwipeActionDirection.RIGHT) 1 else -1
-    val offset = remember(direction) { Animatable(0f) }
+    val offset = remember { Animatable(0f) }
     val gestureScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val maxTravel = with(density) { 206.dp.toPx() }
-    val triggerTravel = maxTravel * 0.70f
+    val trackHeight = 220.dp
+    val thumbSize = 62.dp
+    val maxTravel = with(density) { (trackHeight - thumbSize - 24.dp).toPx() }
+    val triggerTravel = maxTravel * 0.66f
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(70.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(trackTint)
-            .pointerInput(direction, enabled) {
-                if (!enabled) return@pointerInput
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        val intended = dragAmount * directionSign
-                        val next = (offset.value + intended).coerceIn(0f, maxTravel)
-                        gestureScope.launch {
-                            offset.snapTo(next)
-                        }
-                    },
-                    onDragCancel = {
-                        gestureScope.launch {
-                            offset.animateTo(0f, androidx.compose.animation.core.tween(220))
-                        }
-                    },
-                    onDragEnd = {
-                        gestureScope.launch {
-                            if (offset.value >= triggerTravel) {
-                                offset.animateTo(maxTravel, androidx.compose.animation.core.tween(120))
-                                onTriggered()
-                            } else {
-                                offset.animateTo(0f, androidx.compose.animation.core.tween(220))
+    androidx.compose.material3.Surface(
+        modifier = modifier.height(trackHeight),
+        shape = RoundedCornerShape(28.dp),
+        color = trackTint,
+        tonalElevation = 2.dp,
+        shadowElevation = 8.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    var hapticSent = false
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { change, dragAmount ->
+                            change.consume()
+                            val next = (offset.value - dragAmount).coerceIn(0f, maxTravel)
+                            if (next >= triggerTravel && !hapticSent) {
+                                hapticSent = true
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            if (next < triggerTravel) hapticSent = false
+                            gestureScope.launch { offset.snapTo(next) }
+                        },
+                        onDragCancel = {
+                            gestureScope.launch {
+                                offset.animateTo(
+                                    0f,
+                                    spring(stiffness = 650f, dampingRatio = 0.78f)
+                                )
+                            }
+                        },
+                        onDragEnd = {
+                            gestureScope.launch {
+                                if (offset.value >= triggerTravel) {
+                                    offset.animateTo(
+                                        maxTravel,
+                                        spring(stiffness = 900f, dampingRatio = 0.82f)
+                                    )
+                                    onTriggered()
+                                } else {
+                                    offset.animateTo(
+                                        0f,
+                                        spring(stiffness = 650f, dampingRatio = 0.78f)
+                                    )
+                                }
                             }
                         }
-                    }
+                    )
+                }
+                .padding(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    label.uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = tint,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (offset.value >= triggerTravel) "Release" else "Swipe up",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tint.copy(alpha = 0.78f)
                 )
             }
-            .padding(horizontal = 7.dp, vertical = 7.dp)
-    ) {
-        Text(
-            text = if (offset.value >= triggerTravel) "Release to continue" else label,
-            modifier = Modifier.fillMaxWidth().align(Alignment.Center),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.labelLarge,
-            color = tint,
-            fontWeight = FontWeight.Bold
-        )
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = if (direction == SwipeActionDirection.RIGHT) Arrangement.Start else Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .offset { IntOffset((directionSign * offset.value).toInt(), 0) }
-                    .clip(RoundedCornerShape(17.dp))
+                    .align(Alignment.BottomCenter)
+                    .offset { IntOffset(0, -offset.value.toInt()) }
+                    .size(thumbSize)
+                    .clip(CircleShape)
                     .background(tint),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = hint, tint = Color.White, modifier = Modifier.size(23.dp))
+                Icon(icon, contentDescription = hint, tint = Color.White, modifier = Modifier.size(25.dp))
             }
         }
     }
@@ -602,13 +722,23 @@ private fun CallControlButton(
         IconButton(
             onClick = onClick,
             modifier = Modifier
-                .size(52.dp)
+                .size(56.dp)
                 .clip(CircleShape)
                 .background(if (selected) AppColors.Primary.copy(alpha = 0.16f) else AppColors.NeutralTint)
         ) {
-            Icon(icon, contentDescription = label, tint = if (selected) AppColors.PrimaryDark else AppColors.TextPrimary)
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (selected) AppColors.PrimaryDark else AppColors.TextPrimary,
+                modifier = Modifier.size(24.dp)
+            )
         }
         Spacer(Modifier.height(5.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.TextSecondary)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = AppColors.TextSecondary,
+            textAlign = TextAlign.Center
+        )
     }
 }
