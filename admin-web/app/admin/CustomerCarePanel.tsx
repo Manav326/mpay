@@ -94,16 +94,12 @@ export function CustomerCarePanel({ canManage }: { canManage: boolean }) {
   }
 
   useEffect(() => {
-    void loadQueue(true);
-  }, [status, priority, category, assignment]);
+    void loadQueue();
+  }, [page, status, priority, category, assignment]);
 
   useEffect(() => {
     void getCustomerCareAgents().then(setAgents).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    void loadQueue();
-  }, [page]);
 
   async function openTicket(ticketId: string) {
     setDetailLoading(true);
@@ -194,10 +190,10 @@ export function CustomerCarePanel({ canManage }: { canManage: boolean }) {
                 placeholder="Search ticket or subject"
               />
             </label>
-            <CustomerCareSelect label="Status" value={status} onChange={setStatus} options={['ALL', ...STATUS_OPTIONS]} />
-            <CustomerCareSelect label="Priority" value={priority} onChange={setPriority} options={['ALL', ...PRIORITY_OPTIONS]} />
-            <CustomerCareSelect label="Category" value={category} onChange={setCategory} options={['ALL', ...CATEGORY_OPTIONS]} />
-            <CustomerCareSelect label="Owner" value={assignment} onChange={setAssignment} options={['ALL', 'MINE', 'UNASSIGNED']} />
+            <CustomerCareSelect label="Status" value={status} onChange={value => { setStatus(value); setPage(0); }} options={['ALL', ...STATUS_OPTIONS]} />
+            <CustomerCareSelect label="Priority" value={priority} onChange={value => { setPriority(value); setPage(0); }} options={['ALL', ...PRIORITY_OPTIONS]} />
+            <CustomerCareSelect label="Category" value={category} onChange={value => { setCategory(value); setPage(0); }} options={['ALL', ...CATEGORY_OPTIONS]} />
+            <CustomerCareSelect label="Owner" value={assignment} onChange={value => { setAssignment(value); setPage(0); }} options={['ALL', 'MINE', 'UNASSIGNED']} />
           </div>
 
           <div className="customer-care-queue-meta">
