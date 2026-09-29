@@ -51,6 +51,11 @@ interface SupportCallRequestRepository : JpaRepository<SupportCallRequestEntity,
     fun findAllByStatusAndExpiresAtBefore(status: String, before: Instant): List<SupportCallRequestEntity>
 }
 
+interface SupportMessageRepository : JpaRepository<SupportMessageEntity, Long> {
+    fun findAllByConversationIdOrderByCreatedAtAsc(conversationId: Long): List<SupportMessageEntity>
+    fun countByCustomerUserIdAndSenderTypeAndStaffReadAtIsNull(customerUserId: Long, senderType: String): Long
+}
+
 interface SupportCaseEventRepository : JpaRepository<SupportCaseEventEntity, Long> {
     fun findAllByCustomerUserIdAndVisibilityOrderByCreatedAtDesc(customerUserId: Long, visibility: String): List<SupportCaseEventEntity>
     fun findAllByCustomerUserIdOrderByCreatedAtDesc(customerUserId: Long): List<SupportCaseEventEntity>
