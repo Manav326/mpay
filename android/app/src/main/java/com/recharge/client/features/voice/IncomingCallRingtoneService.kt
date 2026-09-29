@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -70,6 +71,14 @@ class IncomingCallRingtoneService : Service() {
         callId = incomingId
         callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { "mPay Support" }
 
+        val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
+        Log.i(
+            TAG,
+            "Ringtone service request. callId=" + callId +
+                " remainingMs=" + remainingMs +
+                " ringerMode=" + audioManager?.ringerMode
+        )
+
         return runCatching {
             val notification = CallNotificationManager.buildIncomingNotification(
                 this,
@@ -87,6 +96,7 @@ class IncomingCallRingtoneService : Service() {
                 startForeground(CallNotificationManager.incomingNotificationId(callId), notification)
             }
 
+            Log.i(TAG, "Ringtone foreground service started. callId=" + callId + " sameCallAlreadyRinging=" + sameCallAlreadyRinging)
             if (!sameCallAlreadyRinging) startRinging()
             startCallStateMonitor()
             handler.removeCallbacks(timeout)
@@ -140,10 +150,23 @@ class IncomingCallRingtoneService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 sound.isLooping = true
             }
+            val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
+            Log.i(
+                TAG,
+                "Preparing ringtone playback. callId=" + callId +
+                    " ringerMode=" + audioManager?.ringerMode +
+                    " ringVolume=" + audioManager?.getStreamVolume(AudioManager.STREAM_RING) +
+                    " maxRingVolume=" + audioManager?.getStreamMaxVolume(AudioManager.STREAM_RING)
+            )
             ringtone = sound
             runCatching {
                 sound.play()
-                Log.i(TAG, "Ringtone playback started. callId=" + callId + " playing=" + sound.isPlaying)
+                Log.i(
+                    TAG,
+                    "Ringtone playback started. callId=" + callId +
+                        " playing=" + sound.isPlaying +
+                        " ringerMode=" + ((getSystemService(AUDIO_SERVICE) as? AudioManager)?.ringerMode)
+                )
             }.onFailure { error ->
                 Log.e(TAG, "Ringtone playback failed. callId=" + callId, error)
             }
