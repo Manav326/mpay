@@ -41,6 +41,7 @@ import com.recharge.client.core.viewmodel.*
 import com.recharge.client.features.auth.ForgotPasswordScreen
 import com.recharge.client.MpayFirebase
 import com.recharge.client.features.voice.VoiceCallPushRegistrar
+import com.recharge.client.features.voice.CallNotificationManager
 import com.recharge.client.features.voice.IncomingCallActivity
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.features.auth.LoginScreen
@@ -502,6 +503,18 @@ private fun AppRoot(
 
                 if (activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId) {
                     presentedIncomingCallId = activeCall.callId
+                    val callerName = activeCall.callerName ?: "mPay Support"
+
+                    // Polling is the recovery path when the FCM wake-up was delayed or
+                    // unavailable. It must reproduce the complete incoming-call alert
+                    // (notification + ringtone + vibration), not only open the UI.
+                    CallNotificationManager.showIncoming(
+                        context,
+                        activeCall.callId,
+                        callerName,
+                        persistentRinging = true
+                    )
+
                     runCatching {
                         context.startActivity(
                             Intent(context, IncomingCallActivity::class.java)
@@ -509,9 +522,15 @@ private fun AppRoot(
                                 .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
                                 .putExtra(
                                     IncomingCallActivity.EXTRA_CALLER_NAME,
-                                    activeCall.callerName ?: "mPay Support"
+                                    callerName
                                 )
-                        )
+                        }.onFailure { error ->
+                            android.util.Log.e(
+                                "MainActivity",
+                                "Unable to open incoming call screen. callId=" + activeCall.callId,
+                                error
+                            )
+                        }
                     }
                 } else if (activeCall == null) {
                     presentedIncomingCallId = null
