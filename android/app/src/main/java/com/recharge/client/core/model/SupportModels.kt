@@ -105,7 +105,9 @@ data class SupportChatResponse(
     val status: String = "OPEN",
     val messages: List<SupportMessageResponse> = emptyList(),
     val unreadForCustomer: Int = 0,
-    val unreadForStaff: Int = 0
+    val unreadForStaff: Int = 0,
+    val callbackRequestEnabled: Boolean = false,
+    val pendingCallbackRequest: SupportCallRequestResponse? = null
 )
 
 data class CreateSupportMessageRequest(
