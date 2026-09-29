@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -59,6 +60,7 @@ import kotlinx.coroutines.launch
 
 class IncomingCallActivity : ComponentActivity() {
     companion object {
+        private const val TAG = "IncomingCallActivity"
         const val EXTRA_CALL_ID = "call_id"
         const val EXTRA_CALLER_NAME = "caller_name"
         const val EXTRA_ACTION = "call_action"
@@ -177,12 +179,19 @@ class IncomingCallActivity : ComponentActivity() {
         accepted = true
         lifecycleScope.launch {
             repository.accept(callId).onSuccess {
-                CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
-                val intent = Intent(this@IncomingCallActivity, VoiceCallService::class.java)
-                    .putExtra(EXTRA_CALL_ID, callId)
-                    .putExtra(VoiceCallService.EXTRA_OTHER_NAME, callerName)
-                androidx.core.content.ContextCompat.startForegroundService(this@IncomingCallActivity, intent)
-                bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+                try {
+                    CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
+                    val intent = Intent(this@IncomingCallActivity, VoiceCallService::class.java)
+                        .putExtra(EXTRA_CALL_ID, callId)
+                        .putExtra(VoiceCallService.EXTRA_OTHER_NAME, callerName)
+                    androidx.core.content.ContextCompat.startForegroundService(this@IncomingCallActivity, intent)
+                    bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+                } catch (error: Exception) {
+                    Log.e(TAG, "Unable to start voice call service after accepting call. callId=$callId", error)
+                    runCatching { repository.end(callId) }
+                    accepted = false
+                    finish()
+                }
             }.onFailure {
                 accepted = false
                 finish()
