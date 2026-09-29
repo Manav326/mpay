@@ -2,6 +2,7 @@ package com.recharge.backend.api
 
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.service.RoleAccessService
+import com.recharge.backend.service.SupportAiSettingsService
 import com.recharge.backend.service.SupportService
 import com.recharge.backend.service.VoiceCallService
 import jakarta.validation.Valid
@@ -54,6 +55,7 @@ class CustomerSupportController(
 class CustomerCareAdminController(
     private val users: UserRepository,
     private val support: SupportService,
+    private val supportAiSettings: SupportAiSettingsService,
     private val voiceCalls: VoiceCallService,
     private val roleAccess: RoleAccessService
 ) {
@@ -61,6 +63,19 @@ class CustomerCareAdminController(
         authentication.name.toLongOrNull()?.let {
             users.findById(it).orElseThrow { IllegalArgumentException("User not found") }
         } ?: throw IllegalStateException("Invalid authenticated user")
+
+    @GetMapping("/ai")
+    fun aiSettings(authentication: Authentication): SupportAiSettingsResponse {
+        roleAccess.requirePermission(currentUser(authentication), SupportService.SUPPORT_VIEW)
+        return supportAiSettings.current()
+    }
+
+    @PutMapping("/ai")
+    fun updateAiSettings(
+        authentication: Authentication,
+        @Valid @RequestBody request: UpdateSupportAiSettingsRequest
+    ): SupportAiSettingsResponse =
+        supportAiSettings.update(currentUser(authentication), request.enabled)
 
     @GetMapping("/requests")
     fun requests(authentication: Authentication): List<SupportCallRequestResponse> =

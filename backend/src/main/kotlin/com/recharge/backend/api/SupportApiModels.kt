@@ -170,3 +170,14 @@ data class CreateSupportMessageRequest(
     @field:jakarta.validation.constraints.Size(max = 4000)
     val message: String
 )
+
+data class SupportAiSettingsResponse(
+    val enabled: Boolean,
+    val providerConfigured: Boolean,
+    val vectorStoreConfigured: Boolean,
+    val model: String
+)
+
+data class UpdateSupportAiSettingsRequest(
+    val enabled: Boolean
+)

@@ -82,6 +82,15 @@ app:
       contact-id: ${MPAY_RAZORPAY_PAYOUT_CONTACT_ID:}
       purpose: ${MPAY_RAZORPAY_PAYOUT_PURPOSE:payout}
       webhook-secret: ${MPAY_RAZORPAY_PAYOUT_WEBHOOK_SECRET:}
+  support-ai:
+    provider-enabled: ${MPAY_SUPPORT_AI_PROVIDER_ENABLED:false}
+    api-key: ${MPAY_OPENAI_API_KEY:}
+    model: ${MPAY_SUPPORT_AI_MODEL:gpt-5.6-luna}
+    vector-store-id: ${MPAY_SUPPORT_AI_VECTOR_STORE_ID:}
+    base-url: ${MPAY_OPENAI_BASE_URL:https://api.openai.com}
+    timeout-ms: ${MPAY_SUPPORT_AI_TIMEOUT_MS:15000}
+    max-history-messages: ${MPAY_SUPPORT_AI_MAX_HISTORY_MESSAGES:12}
+    max-knowledge-characters: ${MPAY_SUPPORT_AI_MAX_KNOWLEDGE_CHARACTERS:8000}
   calls:
     ringing-timeout-seconds: ${MPAY_CALL_RINGING_TIMEOUT_SECONDS:30}
     signaling-token-ttl-seconds: ${MPAY_CALL_SIGNALING_TOKEN_TTL_SECONDS:300}

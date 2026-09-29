@@ -24,18 +24,21 @@ import {
   getCustomerCareChat,
   getCustomerCareCustomer,
   getCustomerCareRequests,
+  getSupportAiSettings,
   sendCustomerCareChatMessage,
   startCustomerCareCall,
   updateCustomerCallbackAccess,
+  updateSupportAiSettings,
   updateSupportCase,
 } from '@/lib/api';
-import { SupportCallRequest, SupportCase, SupportCaseEvent, SupportChat, SupportCustomer, SupportInteraction, SupportNote } from '@/lib/types';
+import { SupportAiSettings, SupportCallRequest, SupportCase, SupportCaseEvent, SupportChat, SupportCustomer, SupportInteraction, SupportNote } from '@/lib/types';
 import { VoiceCallWidget } from './VoiceCallPanel';
 
 type Props = {
   canManageSupport: boolean;
   canCallCustomer: boolean;
   canManageCallAccess: boolean;
+  canManageSupportAi: boolean;
 };
 
 const dateTime = (value: string) =>
@@ -70,6 +73,8 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
   const [supportChat, setSupportChat] = useState<SupportChat | null>(null);
   const [chatDraft, setChatDraft] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [aiSettings, setAiSettings] = useState<SupportAiSettings | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
 
   async function loadRequests() {
     setRequestsLoading(true);
@@ -126,7 +131,30 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
     }
   }
 
+  async function loadAiSettings() {
+    try {
+      setAiSettings(await getSupportAiSettings());
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to load Customer Care AI settings.');
+    }
+  }
+
+  async function toggleAi() {
+    if (!canManageSupportAi || !aiSettings || aiBusy) return;
+    setAiBusy(true);
+    try {
+      const next = await updateSupportAiSettings(!aiSettings.enabled);
+      setAiSettings(next);
+      setNotice(next.enabled ? 'Customer Care AI is now available to customers.' : 'Customer Care AI has been disabled for customers.');
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to update Customer Care AI.');
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   useEffect(() => {
+    void loadAiSettings();
     void loadRequests();
     const timer = window.setInterval(() => { void loadRequests(); }, 7000);
     return () => window.clearInterval(timer);
@@ -276,6 +304,40 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
             <strong>{canManageCallAccess ? 'Admin' : 'Locked'}</strong>
             <small>Only Admin can grant callback permission</small>
           </div>
+        </div>
+
+        <div className="detail-card support-ai-control-card">
+          <div className="detail-top">
+            <div>
+              <b>AI Customer Care</b>
+              <span>{aiSettings?.providerConfigured ? 'Provider ready · ' + aiSettings.model : 'Provider not configured on the backend'}</span>
+            </div>
+            <span className={'status ' + (aiSettings?.enabled ? 'active' : 'pending')}>
+              {aiSettings?.enabled ? 'AVAILABLE' : 'OFF'}
+            </span>
+          </div>
+          <div className="detail-row">
+            <span>Customer access</span>
+            <strong>{aiSettings?.enabled ? 'AI can reply in customer chat' : 'Human support only'}</strong>
+          </div>
+          <div className="detail-row">
+            <span>Knowledge layer</span>
+            <strong>{aiSettings?.vectorStoreConfigured ? 'mPay knowledge + vector search' : 'mPay knowledge pack'}</strong>
+          </div>
+          {canManageSupportAi ? (
+            <div className="support-request-actions">
+              <button
+                className={aiSettings?.enabled ? 'status-toggle on' : 'status-toggle off'}
+                disabled={!aiSettings?.providerConfigured || aiBusy || !aiSettings}
+                onClick={() => void toggleAi()}
+                title={!aiSettings?.providerConfigured ? 'Configure the AI provider on the backend first' : undefined}
+              >
+                {aiBusy ? 'Updating…' : aiSettings?.enabled ? 'Disable AI' : 'Enable AI'}
+              </button>
+            </div>
+          ) : (
+            <div className="admin-inline-hint">Only an Admin with AI-management access can change this setting.</div>
+          )}
         </div>
       </section>
 
@@ -438,7 +500,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
                   supportChat.messages.map(message => (
                     <div key={message.messageId} className={message.senderType === 'STAFF' ? 'support-chat-bubble staff' : 'support-chat-bubble customer'}>
                       <div className="support-chat-meta">
-                        <b>{message.senderType === 'STAFF' ? 'You / mPay Support' : 'Customer'}</b>
+                        <b>{message.senderType === 'AI' ? 'mPay AI Support' : message.senderType === 'STAFF' ? 'You / mPay Support' : 'Customer'}</b>
                         <span>{dateTime(message.createdAt)}</span>
                       </div>
                       <div>{message.message}</div>

@@ -490,6 +490,17 @@ export async function updateVoiceCallUserAccess(publicUserId: string, mode: Voic
 }
 
 
+export async function getSupportAiSettings(): Promise<SupportAiSettings> {
+  return api('/api/v1/admin/customer-care/ai');
+}
+
+export async function updateSupportAiSettings(enabled: boolean): Promise<SupportAiSettings> {
+  return api('/api/v1/admin/customer-care/ai', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
 export async function getCustomerCareRequests(): Promise<SupportCallRequest[]> {
   return api('/api/v1/admin/customer-care/requests');
 }

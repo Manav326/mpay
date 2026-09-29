@@ -3,6 +3,7 @@ package com.recharge.backend.service
 import com.recharge.backend.api.*
 import com.recharge.backend.domain.*
 import com.recharge.backend.repository.*
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -24,7 +25,8 @@ class SupportService(
     private val overrides: UserPermissionOverrideRepository,
     private val voiceParticipants: VoiceCallParticipantRepository,
     private val voiceCalls: VoiceCallRepository,
-    private val messages: SupportMessageRepository
+    private val messages: SupportMessageRepository,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
     companion object {
         const val SUPPORT_VIEW = "SUPPORT_VIEW"
@@ -245,7 +247,7 @@ class SupportService(
         }
 
         messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
-            .filter { it.senderType == "STAFF" && it.customerReadAt == null }
+            .filter { it.senderType in setOf("STAFF", "AI") && it.customerReadAt == null }
             .forEach {
                 it.customerReadAt = now
                 messages.save(it)
@@ -257,7 +259,7 @@ class SupportService(
             caseId = conversation.caseId?.let { cases.findById(it).orElse(null)?.caseId },
             status = conversation.status,
             messages = messageList.map(::toMessageResponse),
-            unreadForCustomer = messageList.count { it.senderType == "STAFF" && it.customerReadAt == null },
+            unreadForCustomer = messageList.count { it.senderType in setOf("STAFF", "AI") && it.customerReadAt == null },
             unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null },
             callbackRequestEnabled = callbackRequestEnabled(customer),
             pendingCallbackRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(requireNotNull(customer.id), PENDING).orElse(null)?.let(::toRequestResponse)
@@ -330,6 +332,66 @@ class SupportService(
                 recordCaseEvent(it, conversation.id, customerId, "CUSTOMER_MESSAGE", "CUSTOMER", "CHAT", "Customer sent a support chat message", saved.messageId)
             }
         }
+
+        eventPublisher.publishEvent(
+            SupportCustomerMessageCreatedEvent(
+                messageId = saved.messageId,
+                conversationId = requireNotNull(conversation.id),
+                caseId = conversation.caseId,
+                customerUserId = customerId,
+                message = message
+            )
+        )
+        return toMessageResponse(saved)
+    }
+
+    @Transactional
+    fun appendAutomatedSupportMessage(
+        conversationId: Long,
+        caseId: Long?,
+        customerUserId: Long,
+        messageText: String
+    ): SupportMessageResponse {
+        val message = messageText.trim().take(4000)
+        if (message.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Message cannot be empty")
+        }
+
+        val conversation = conversations.findById(conversationId).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Support conversation not found")
+        }
+        if (conversation.customerUserId != customerUserId || conversation.status != OPEN) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Support conversation is no longer active")
+        }
+
+        val now = Instant.now()
+        val saved = messages.save(
+            SupportMessageEntity(
+                conversationId = conversationId,
+                caseId = caseId ?: conversation.caseId,
+                customerUserId = customerUserId,
+                senderUserId = null,
+                senderType = "AI",
+                message = message,
+                createdAt = now
+            )
+        )
+        conversation.lastActivityAt = now
+        conversations.save(conversation)
+
+        val resolvedCaseId = caseId ?: conversation.caseId
+        resolvedCaseId?.let { supportCaseId ->
+            cases.findById(supportCaseId).orElse(null)?.let {
+                if (it.status != OPEN) {
+                    it.status = OPEN
+                    it.resolvedAt = null
+                }
+                it.updatedAt = now
+                cases.save(it)
+                recordCaseEvent(it, conversationId, null, "AI_MESSAGE", "CUSTOMER", "CHAT", "mPay AI replied in support chat", saved.messageId)
+            }
+        }
+
         return toMessageResponse(saved)
     }
 

@@ -428,6 +428,13 @@ export interface VoiceCallUserAccess {
 }
 
 
+export interface SupportAiSettings {
+  enabled: boolean;
+  providerConfigured: boolean;
+  vectorStoreConfigured: boolean;
+  model: string;
+}
+
 export interface SupportCallRequest {
   requestId: string;
   status: string;
