@@ -82,12 +82,14 @@ class VoiceCallService : Service() {
         startupJob = scope.launch {
             val repository = VoiceCallRepository(applicationContext)
             Log.i(TAG, "Starting WebRTC call engine. callId=$incomingCallId")
-            val call = repository.getCall(incomingCallId).getOrElse {
+            val call = repository.getCall(incomingCallId).getOrElse { error ->
+                Log.e(TAG, "Unable to load accepted call. callId=$incomingCallId", error)
                 stateFlow.value = VoiceCallEngineState(VoiceCallPhase.ERROR, message = "Call is no longer available")
                 stopCall()
                 return@launch
             }
-            val token = repository.signalingToken(incomingCallId).getOrElse {
+            val token = repository.signalingToken(incomingCallId).getOrElse { error ->
+                Log.e(TAG, "Unable to obtain call signaling token. callId=$incomingCallId", error)
                 stateFlow.value = VoiceCallEngineState(VoiceCallPhase.ERROR, message = "Unable to secure call signaling")
                 stopCall()
                 return@launch
@@ -102,7 +104,10 @@ class VoiceCallService : Service() {
                     updateForegroundNotification(call, state)
                     if (state.phase == VoiceCallPhase.ENDED || state.phase == VoiceCallPhase.ERROR) {
                         if (state.phase == VoiceCallPhase.ERROR) {
-                            runCatching { VoiceCallRepository(applicationContext).end(incomingCallId) }
+                            VoiceCallRepository(applicationContext).end(incomingCallId)
+                                .onFailure { error ->
+                                    Log.e(TAG, "Failed to end call after client error. callId=$incomingCallId", error)
+                                }
                         }
                         kotlinx.coroutines.delay(700)
                         stopCall()
@@ -131,6 +136,7 @@ class VoiceCallService : Service() {
         val id = callId ?: return
         scope.launch {
             VoiceCallRepository(applicationContext).end(id)
+                .onFailure { error -> Log.e(TAG, "Failed to end call. callId=$id", error) }
             stopCall()
         }
     }
