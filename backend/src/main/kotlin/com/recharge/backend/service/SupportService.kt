@@ -23,7 +23,8 @@ class SupportService(
     private val roleAccess: RoleAccessService,
     private val overrides: UserPermissionOverrideRepository,
     private val voiceParticipants: VoiceCallParticipantRepository,
-    private val voiceCalls: VoiceCallRepository
+    private val voiceCalls: VoiceCallRepository,
+    private val messages: SupportMessageRepository
 ) {
     companion object {
         const val SUPPORT_VIEW = "SUPPORT_VIEW"
@@ -203,6 +204,204 @@ class SupportService(
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val customer = visibleClient(viewer, publicId)
         return customerResponse(customer, includeInternalNotes = true)
+    }
+
+    @Transactional
+    fun customerChat(customer: UserEntity): SupportChatResponse {
+        ensureClient(customer)
+        val now = Instant.now()
+        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
+            .orElse(null)
+            ?: conversations.findAllByCustomerUserIdOrderByLastActivityAtDesc(requireNotNull(customer.id)).firstOrNull()
+
+        if (conversation == null) {
+            return SupportChatResponse(
+                conversationId = null,
+                caseId = null,
+                status = OPEN,
+                messages = emptyList(),
+                unreadForCustomer = 0,
+                unreadForStaff = 0
+            )
+        }
+
+        messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+            .filter { it.senderType == "STAFF" && it.customerReadAt == null }
+            .forEach {
+                it.customerReadAt = now
+                messages.save(it)
+            }
+
+        val messageList = messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+        return SupportChatResponse(
+            conversationId = conversation.conversationId,
+            caseId = conversation.caseId?.let { cases.findById(it).orElse(null)?.caseId },
+            status = conversation.status,
+            messages = messageList.map(::toMessageResponse),
+            unreadForCustomer = messageList.count { it.senderType == "STAFF" && it.customerReadAt == null },
+            unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null }
+        )
+    }
+
+    @Transactional
+    fun sendCustomerChatMessage(customer: UserEntity, messageText: String): SupportMessageResponse {
+        ensureClient(customer)
+        val message = messageText.trim().take(4000)
+        if (message.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Message cannot be empty")
+        }
+
+        val now = Instant.now()
+        val customerId = requireNotNull(customer.id)
+        var conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN).orElse(null)
+
+        if (conversation == null) {
+            val supportCase = cases.findFirstByCustomerUserIdAndStatusInOrderByUpdatedAtDesc(customerId, listOf(OPEN, RESOLVED)).orElse(null)
+                ?: cases.save(
+                    SupportCaseEntity(
+                        customerUserId = customerId,
+                        subject = "Customer chat with mPay Support",
+                        category = "CHAT",
+                        priority = "NORMAL",
+                        status = OPEN,
+                        source = "CUSTOMER_CHAT",
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                )
+            if (supportCase.status != OPEN) {
+                supportCase.status = OPEN
+                supportCase.resolvedAt = null
+                supportCase.updatedAt = now
+                cases.save(supportCase)
+            }
+            conversation = conversations.save(
+                SupportConversationEntity(
+                    caseId = supportCase.id,
+                    customerUserId = customerId,
+                    status = OPEN,
+                    startedAt = now,
+                    lastActivityAt = now
+                )
+            )
+        }
+
+        val saved = messages.save(
+            SupportMessageEntity(
+                conversationId = requireNotNull(conversation.id),
+                caseId = conversation.caseId,
+                customerUserId = customerId,
+                senderUserId = customerId,
+                senderType = "CUSTOMER",
+                message = message,
+                createdAt = now,
+                customerReadAt = now
+            )
+        )
+        conversation.lastActivityAt = now
+        conversation.status = OPEN
+        conversations.save(conversation)
+        conversation.caseId?.let { caseId ->
+            cases.findById(caseId).orElse(null)?.let {
+                it.status = OPEN
+                it.updatedAt = now
+                cases.save(it)
+                recordCaseEvent(it, conversation.id, customerId, "CUSTOMER_MESSAGE", "CUSTOMER", "CHAT", "Customer sent a support chat message", saved.messageId)
+            }
+        }
+        return toMessageResponse(saved)
+    }
+
+    @Transactional
+    fun adminChat(viewer: UserEntity, publicId: String): SupportChatResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        val customer = visibleClient(viewer, publicId)
+        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
+            .orElseGet {
+                conversations.findAllByCustomerUserIdOrderByLastActivityAtDesc(requireNotNull(customer.id)).firstOrNull()
+            }
+            ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0)
+
+        val now = Instant.now()
+        messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+            .filter { it.senderType == "CUSTOMER" && it.staffReadAt == null }
+            .forEach {
+                it.staffReadAt = now
+                messages.save(it)
+            }
+
+        val messageList = messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+        return SupportChatResponse(
+            conversationId = conversation.conversationId,
+            caseId = conversation.caseId?.let { cases.findById(it).orElse(null)?.caseId },
+            status = conversation.status,
+            messages = messageList.map(::toMessageResponse),
+            unreadForCustomer = messageList.count { it.senderType == "STAFF" && it.customerReadAt == null },
+            unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null }
+        )
+    }
+
+    @Transactional
+    fun sendAdminChatMessage(viewer: UserEntity, publicId: String, messageText: String): SupportMessageResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
+        val customer = visibleClient(viewer, publicId)
+        val message = messageText.trim().take(4000)
+        if (message.isBlank()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Message cannot be empty")
+        }
+
+        val now = Instant.now()
+        val customerId = requireNotNull(customer.id)
+        var conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN).orElse(null)
+        if (conversation == null) {
+            val supportCase = cases.save(
+                SupportCaseEntity(
+                    customerUserId = customerId,
+                    subject = "Customer support chat",
+                    category = "CHAT",
+                    priority = "NORMAL",
+                    status = OPEN,
+                    source = "SUPPORT_CHAT",
+                    assignedUserId = viewer.id,
+                    createdAt = now,
+                    updatedAt = now
+                )
+            )
+            conversation = conversations.save(
+                SupportConversationEntity(
+                    caseId = supportCase.id,
+                    customerUserId = customerId,
+                    status = OPEN,
+                    startedAt = now,
+                    lastActivityAt = now
+                )
+            )
+        }
+
+        val saved = messages.save(
+            SupportMessageEntity(
+                conversationId = requireNotNull(conversation.id),
+                caseId = conversation.caseId,
+                customerUserId = customerId,
+                senderUserId = requireNotNull(viewer.id),
+                senderType = "STAFF",
+                message = message,
+                createdAt = now
+            )
+        )
+        conversation.lastActivityAt = now
+        conversation.status = OPEN
+        conversations.save(conversation)
+        conversation.caseId?.let { caseId ->
+            cases.findById(caseId).orElse(null)?.let {
+                it.status = OPEN
+                it.assignedUserId = viewer.id
+                it.updatedAt = now
+                cases.save(it)
+                recordCaseEvent(it, conversation.id, viewer.id, "SUPPORT_MESSAGE", "CUSTOMER", "CHAT", "mPay Support replied in chat", saved.messageId)
+            }
+        }
+        return toMessageResponse(saved)
     }
 
     fun customerOverview(customer: UserEntity): CustomerSupportOverviewResponse {
@@ -591,6 +790,14 @@ class SupportService(
             closeCase(it.caseId, "Callback request expired")
         }
     }
+
+    private fun toMessageResponse(entity: SupportMessageEntity): SupportMessageResponse =
+        SupportMessageResponse(
+            messageId = entity.messageId,
+            senderType = entity.senderType,
+            message = entity.message,
+            createdAt = entity.createdAt.toString()
+        )
 
     private fun toRequestResponse(entity: SupportCallRequestEntity): SupportCallRequestResponse {
         val customer = users.findById(entity.customerUserId).orElse(null)
