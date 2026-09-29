@@ -96,7 +96,7 @@ class VoiceCallService : Service() {
 
     private suspend fun monitorCallState(incomingCallId: String) {
         val repository = VoiceCallRepository(applicationContext)
-        while (kotlinx.coroutines.currentCoroutineContext().isActive && callId == incomingCallId) {
+        while (callId == incomingCallId) {
             kotlinx.coroutines.delay(2000)
             val result = repository.getCall(incomingCallId)
             result.onSuccess { current ->
