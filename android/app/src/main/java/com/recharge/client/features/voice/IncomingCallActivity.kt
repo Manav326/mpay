@@ -66,6 +66,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.recharge.client.MainActivity
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
 import kotlinx.coroutines.delay
@@ -301,7 +302,15 @@ class IncomingCallActivity : ComponentActivity() {
                         .putExtra(EXTRA_CALL_ID, callId)
                         .putExtra(VoiceCallService.EXTRA_OTHER_NAME, callerName)
                     androidx.core.content.ContextCompat.startForegroundService(this@IncomingCallActivity, intent)
-                    bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+
+                    // Once accepted, the call is owned by VoiceCallService. Return the user
+                    // to the normal mPay app so they can keep using wallet/recharge/rental
+                    // while the compact active-call bar stays visible.
+                    startActivity(
+                        Intent(this@IncomingCallActivity, MainActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    )
+                    finish()
                 } catch (error: Exception) {
                     Log.e(TAG, "Unable to start voice call service after accepting call. callId=$callId", error)
                     runCatching { repository.end(callId) }
