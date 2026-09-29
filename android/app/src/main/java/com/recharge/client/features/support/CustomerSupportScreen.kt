@@ -20,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Car
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.CallEnd
@@ -678,7 +678,7 @@ private fun SupportTopicOptionCard(
                     when {
                         topic.title.contains("money", true) || topic.title.contains("transaction", true) -> Icons.Default.AccountBalanceWallet
                         topic.title.contains("recharge", true) -> Icons.Default.Smartphone
-                        topic.title.contains("rental", true) -> Icons.Default.Car
+                        topic.title.contains("rental", true) -> Icons.Default.DirectionsCar
                         topic.title.contains("account", true) -> Icons.Default.Person
                         else -> Icons.Default.HeadsetMic
                     },
