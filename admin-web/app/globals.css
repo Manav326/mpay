@@ -4892,3 +4892,146 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .voice-drawer-card{align-items:stretch;flex-direction:column}
   .voice-drawer-card .primary{justify-content:center}
 }
+
+
+/* ===== Voice call popup refinement — compact, scroll-safe web UI ===== */
+.voice-call-modal-backdrop{
+  padding:12px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+.voice-call-modal{
+  width:min(370px,100%);
+  max-height:calc(100dvh - 24px);
+  padding:18px 18px 14px;
+  border-radius:22px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#d8c7a8 transparent;
+  box-sizing:border-box;
+}
+.voice-call-modal::-webkit-scrollbar{width:6px}
+.voice-call-modal::-webkit-scrollbar-track{background:transparent}
+.voice-call-modal::-webkit-scrollbar-thumb{background:#d8c7a8;border-radius:999px}
+.voice-call-topline{
+  margin-bottom:14px;
+  font-size:9px;
+}
+.voice-call-live,.voice-call-secure{
+  padding:5px 8px;
+  gap:5px;
+}
+.voice-call-live>span{
+  width:5px;
+  height:5px;
+  box-shadow:0 0 0 3px rgba(245,158,11,.11);
+}
+.voice-call-avatar{
+  width:64px;
+  height:64px;
+  margin-bottom:11px;
+  border-radius:20px;
+}
+.voice-call-avatar svg{width:24px;height:24px}
+.voice-call-kicker{
+  font-size:8px;
+  letter-spacing:.13em;
+}
+.voice-call-modal h2{
+  margin:5px 0 3px;
+  font-size:20px;
+  line-height:1.2;
+  letter-spacing:-.015em;
+}
+.voice-call-modal p{
+  min-height:18px;
+  font-size:11px;
+  line-height:1.45;
+}
+.voice-call-controls{
+  gap:10px;
+  margin:18px 0 12px;
+}
+.voice-round{
+  width:42px;
+  height:42px;
+}
+.voice-call-footnote{
+  padding-top:10px;
+  font-size:9px;
+  line-height:1.45;
+}
+.voice-call-summary-actions{
+  position:sticky;
+  bottom:-14px;
+  z-index:3;
+  display:flex;
+  justify-content:flex-end;
+  margin:12px -18px -14px;
+  padding:10px 18px 14px;
+  border-top:1px solid rgba(226,217,204,.9);
+  background:linear-gradient(180deg,rgba(255,250,242,.72),#fffaf2 36%);
+  backdrop-filter:blur(7px);
+}
+.voice-call-summary-actions .secondary{
+  min-height:34px;
+  padding:7px 13px;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:800;
+}
+.detail-grid.detail-grid-3{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:16px 0 12px;
+}
+.detail-grid.detail-grid-3>div{
+  min-width:0;
+  padding:9px 10px;
+  border-radius:11px;
+}
+.detail-grid.detail-grid-3 small{
+  font-size:9px;
+  line-height:1.25;
+}
+.detail-grid.detail-grid-3 b{
+  margin-top:3px;
+  font-size:10px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+@media(max-width:520px){
+  .voice-call-modal-backdrop{
+    padding:8px;
+  }
+  .voice-call-modal{
+    width:min(360px,100%);
+    max-height:calc(100dvh - 16px);
+    padding:16px 15px 12px;
+    border-radius:19px;
+  }
+  .voice-call-summary-actions{
+    bottom:-12px;
+    margin:10px -15px -12px;
+    padding:9px 15px 12px;
+  }
+  .detail-grid.detail-grid-3{
+    gap:7px;
+  }
+}
+@media(max-height:620px){
+  .voice-call-modal{
+    padding-top:13px;
+    padding-bottom:10px;
+  }
+  .voice-call-topline{margin-bottom:10px}
+  .voice-call-avatar{
+    width:54px;
+    height:54px;
+    margin-bottom:8px;
+  }
+  .voice-call-avatar svg{width:21px;height:21px}
+  .voice-call-controls{margin-top:12px}
+}
