@@ -58,6 +58,9 @@ class CallWebSocketRegistry {
     fun disconnectedSince(callId: String, userId: Long): Instant? =
         disconnectedSince[ParticipantKey(callId, userId)]
 
+    fun disconnectedSinceOrMarkNow(callId: String, userId: Long): Instant =
+        disconnectedSince.computeIfAbsent(ParticipantKey(callId, userId)) { Instant.now() }
+
     fun markReady(callId: String, userId: Long): Boolean =
         readyUsers.computeIfAbsent(callId) { CopyOnWriteArraySet() }.add(userId)
 
