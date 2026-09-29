@@ -148,8 +148,20 @@ fun CustomerSupportFloatingChat(
     fun clampPosition() {
         val availableWidth = configuration.screenWidthDp.toFloat()
         val availableHeight = configuration.screenHeightDp.toFloat()
-        offsetX = offsetX.coerceIn(horizontalMargin, (availableWidth - widthDp - horizontalMargin).coerceAtLeast(horizontalMargin))
-        offsetY = offsetY.coerceIn(horizontalMargin, (availableHeight - heightDp - bottomMargin).coerceAtLeast(horizontalMargin))
+        val currentWidth = if (minimized) {
+            minOf(260f, (availableWidth * 0.66f).coerceAtLeast(220f))
+        } else {
+            widthDp
+        }
+        val currentHeight = if (minimized) 56f else heightDp
+        offsetX = offsetX.coerceIn(
+            horizontalMargin,
+            (availableWidth - currentWidth - horizontalMargin).coerceAtLeast(horizontalMargin)
+        )
+        offsetY = offsetY.coerceIn(
+            horizontalMargin,
+            (availableHeight - currentHeight - bottomMargin).coerceAtLeast(horizontalMargin)
+        )
     }
 
     suspend fun loadChat() {
@@ -226,8 +238,12 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    val windowWidth = if (minimized) 258f else widthDp
-    val windowHeight = if (minimized) 58f else heightDp
+    val minimizedWidth = minOf(
+        260f,
+        (configuration.screenWidthDp.toFloat() * 0.66f).coerceAtLeast(220f)
+    )
+    val windowWidth = if (minimized) minimizedWidth else widthDp
+    val windowHeight = if (minimized) 56f else heightDp
     val boundedWidth = windowWidth.coerceAtMost(configuration.screenWidthDp.toFloat() - 16f).coerceAtLeast(minWidth)
     val boundedHeight = windowHeight.coerceAtMost(configuration.screenHeightDp.toFloat() - 16f).coerceAtLeast(minHeight)
 
@@ -263,11 +279,9 @@ fun CustomerSupportFloatingChat(
             onRequestCallback = ::requestCallback,
             onCancelCallback = ::cancelCallback,
             onDrag = { dx, dy ->
-                if (!minimized) {
-                    offsetX += dx
-                    offsetY += dy
-                    clampPosition()
-                }
+                offsetX += dx
+                offsetY += dy
+                clampPosition()
             },
             onResize = { dx, dy ->
                 if (!minimized) {
