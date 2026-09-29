@@ -21,7 +21,7 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
                         this,
                         callId,
                         message.data["callerName"].orEmpty().ifBlank { "mPay Support" },
-                        persistentRinging = message.priority == RemoteMessage.PRIORITY_HIGH
+                        persistentRinging = true
                     )
                 }
             }
