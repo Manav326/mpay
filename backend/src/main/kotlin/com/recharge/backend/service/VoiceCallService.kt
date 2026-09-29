@@ -273,15 +273,23 @@ class VoiceCallService(
         participantCallByUserId(requireNotNull(user.id), callId)
 
     private fun participantCallByUserId(userId: Long, callId: String): VoiceCallEntity {
-        val participant = participants.findByUserId(userId).orElseThrow {
-            ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
-        }
-        if (participant.callId != callId) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
-        }
-        return calls.findByCallId(callId).orElseThrow {
+        val call = calls.findByCallId(callId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Call not found")
         }
+
+        // Terminal calls may have their participant rows cleaned up. The call row
+        // itself remains the authoritative record, so a caller/callee may still
+        // fetch its final state and learn that the other side ended the call.
+        if (call.callerUserId != userId && call.calleeUserId != userId) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
+        }
+
+        val participant = participants.findByUserId(userId).orElse(null)
+        if (participant != null && participant.callId != callId && !isTerminal(call.status)) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are already in another active call")
+        }
+
+        return call
     }
 
     private fun requireCallee(call: VoiceCallEntity, user: UserEntity) {
