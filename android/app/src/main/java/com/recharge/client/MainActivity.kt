@@ -506,7 +506,8 @@ private fun AppRoot(
                     CallNotificationManager.showIncoming(
                         context,
                         activeCall.callId,
-                        activeCall.callerName ?: "mPay Support"
+                        activeCall.callerName ?: "mPay Support",
+                        persistentRinging = false
                     )
                 } else if (activeCall == null) {
                     presentedIncomingCallId = null
