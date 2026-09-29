@@ -63,6 +63,7 @@ import androidx.lifecycle.lifecycleScope
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class IncomingCallActivity : ComponentActivity() {
@@ -307,6 +308,31 @@ private fun IncomingCallScreen(
     onMute: () -> Unit,
     onSpeaker: () -> Unit
 ) {
+    var callElapsedSeconds by remember(
+        engineState.connectedAtEpochMillis,
+        engineState.phase,
+        engineState.endedAtEpochMillis
+    ) { mutableStateOf(0L) }
+
+    LaunchedEffect(
+        engineState.connectedAtEpochMillis,
+        engineState.phase,
+        engineState.endedAtEpochMillis
+    ) {
+        val startedAt = engineState.connectedAtEpochMillis
+        if (startedAt == null || engineState.phase != VoiceCallPhase.CONNECTED) {
+            callElapsedSeconds = 0L
+            return@LaunchedEffect
+        }
+
+        while (isActive) {
+            val endAt = engineState.endedAtEpochMillis ?: System.currentTimeMillis()
+            callElapsedSeconds = ((endAt - startedAt) / 1000L).coerceAtLeast(0L)
+            if (engineState.endedAtEpochMillis != null) break
+            delay(1000L)
+        }
+    }
+
     Surface(modifier = Modifier.fillMaxSize(), color = AppColors.Background) {
         Box(
             modifier = Modifier
@@ -360,6 +386,15 @@ private fun IncomingCallScreen(
                     color = AppColors.TextSecondary,
                     textAlign = TextAlign.Center
                 )
+                if (accepted && engineState.phase == VoiceCallPhase.CONNECTED) {
+                    Text(
+                        text = "Call time  " + formatDuration(callElapsedSeconds),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = AppColors.TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
                 Spacer(Modifier.height(28.dp))
 
                 if (!accepted) {
@@ -436,6 +471,12 @@ private fun IncomingCallScreen(
             }
         }
     }
+}
+
+private fun formatDuration(totalSeconds: Long): String {
+    val minutes = (totalSeconds / 60L).toString().padStart(2, '0')
+    val seconds = (totalSeconds % 60L).toString().padStart(2, '0')
+    return minutes + ":" + seconds
 }
 
 private enum class SwipeActionDirection { LEFT, RIGHT }
