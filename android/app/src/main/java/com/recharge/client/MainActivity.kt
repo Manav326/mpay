@@ -58,6 +58,7 @@ import com.recharge.client.features.rental.RentalVehicleOnboardingScreen
 import com.recharge.client.features.rental.RentalBookingScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
+import com.recharge.client.features.support.CustomerCareScreen
 import com.recharge.client.core.payment.PayUCheckoutBridge
 import com.razorpay.Checkout
 import com.razorpay.PaymentData
@@ -710,7 +711,8 @@ private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
     rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
-    authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier
+    authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier,
+    customerCareViewModel: CustomerCareViewModel = viewModel()
 ) {
     NavHost(navController = nav, startDestination = "home", modifier = modifier.fillMaxSize()) {
         composable("home") {
@@ -797,6 +799,7 @@ private fun AppNavHost(
                 onLogout = authLogout,
                 onProfileUpdated = homeViewModel::load,
                 onBecomeVendor = { nav.navigate("rental-vendor") },
+                onCustomerCare = { nav.navigate("customer-care") },
                 onDeleteAccount = { password, confirmation, closeDialog ->
                     profileViewModel.deleteAccount(password, confirmation) {
                         closeDialog()
@@ -805,6 +808,21 @@ private fun AppNavHost(
                 },
                 deletingAccount = profileViewModel.state.collectAsState().value.deletingAccount,
                 isVisible = currentRoute == "profile"
+            )
+        }
+        composable("customer-care") {
+            CustomerCareScreen(
+                state = customerCareViewModel.state.collectAsState().value,
+                onLoad = customerCareViewModel::load,
+                onOpen = customerCareViewModel::open,
+                onCreate = customerCareViewModel::create,
+                onReply = customerCareViewModel::reply,
+                onClose = customerCareViewModel::closeSelected,
+                onClearError = customerCareViewModel::clearError,
+                onBack = {
+                    customerCareViewModel.clearSelected()
+                    nav.popBackStack()
+                }
             )
         }
         composable("marketplace") {
