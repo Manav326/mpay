@@ -23,8 +23,26 @@ class CallWebSocketHandler(
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
         val userId = session.attributes["userId"] as Long
+        val callId = session.attributes["callId"]?.toString()
         registry.register(userId, session)
         userBySession[session.id] = userId
+
+        // The authenticated socket is already fully authorized for this call.
+        // Treat the connection itself as readiness, so negotiation does not depend
+        // on a one-shot client "ready" frame arriving in a particular order.
+        if (!callId.isNullOrBlank()) {
+            registry.markReady(callId, userId)
+            val otherUserId = runCatching { calls.otherParticipant(callId, userId) }.getOrNull()
+            if (otherUserId != null &&
+                registry.hasOpenSession(otherUserId) &&
+                registry.isReady(callId, otherUserId)
+            ) {
+                registry.sendToUsers(
+                    listOf(userId, otherUserId),
+                    """{"type":"ready","callId":"$callId"}"""
+                )
+            }
+        }
     }
 
     override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
