@@ -258,9 +258,17 @@ class IncomingCallActivity : ComponentActivity() {
         incomingStateJob = lifecycleScope.launch {
             while (isActive && !accepted && callId.isNotBlank()) {
                 repository.getCall(callId).onSuccess { current ->
-                    if (current.status in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
-                        CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
-                        finish()
+                    when {
+                        current.status in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED") -> {
+                            CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
+                            finish()
+                        }
+                        !answering && current.status in setOf("ACCEPTED", "CONNECTED") -> {
+                            // Another signed-in device for the same customer may have answered.
+                            // Never leave a stale incoming screen/ringtone running locally.
+                            CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
+                            finish()
+                        }
                     }
                 }
                 delay(1500L)
