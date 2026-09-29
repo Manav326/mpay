@@ -1,6 +1,8 @@
 package com.recharge.client.features.voice
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
@@ -195,6 +197,10 @@ class VoiceCallEngine(private val context: Context) {
             AudioOutputOption("SPEAKER", "Speaker")
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                outputs.add(AudioOutputOption("BLUETOOTH", "Bluetooth"))
+                return outputs
+            }
             val devices = runCatching { manager.availableCommunicationDevices }.getOrDefault(emptyList())
             devices.filter {
                 it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
@@ -524,6 +530,7 @@ class VoiceCallEngine(private val context: Context) {
 
     private fun handleMessage(text: String) {
         val root = runCatching { gson.fromJson(text, JsonObject::class.java) }.getOrNull() ?: return
+        if (root.get("callId")?.asString != callId) return
         when (root.get("type")?.asString) {
             "ready" -> {
                 Log.i(TAG, "Both call participants are ready. callId=" + callId)
