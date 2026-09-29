@@ -250,9 +250,34 @@ class SupportService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "This callback request is no longer pending")
         }
         val caseEntity = request?.caseId?.let { cases.findById(it).orElse(null) }
+            ?: cases.findFirstByCustomerUserIdAndStatusInOrderByUpdatedAtDesc(customerId, listOf(OPEN, RESOLVED)).orElse(null)
+            ?: cases.save(
+                SupportCaseEntity(
+                    customerUserId = customerId,
+                    subject = "Voice support call",
+                    category = "VOICE",
+                    priority = "NORMAL",
+                    status = OPEN,
+                    source = "STAFF_CALL",
+                    createdAt = call.createdAt,
+                    updatedAt = call.createdAt
+                )
+            )
         val conversation = request?.conversationId?.let { conversations.findById(it).orElse(null) }
             ?: conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN).orElse(null)
-            ?: conversations.save(SupportConversationEntity(customerUserId = customerId, status = OPEN))
+            ?: conversations.save(
+                SupportConversationEntity(
+                    caseId = caseEntity.id,
+                    customerUserId = customerId,
+                    status = OPEN,
+                    startedAt = call.createdAt,
+                    lastActivityAt = call.createdAt
+                )
+            )
+        if (conversation.caseId == null) {
+            conversation.caseId = caseEntity.id
+            conversations.save(conversation)
+        }
 
         val interaction = interactions.save(
             SupportInteractionEntity(
