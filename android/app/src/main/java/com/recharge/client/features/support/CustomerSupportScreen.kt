@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,25 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.HeadsetMic
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +33,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,64 +46,9 @@ import com.recharge.client.core.model.SupportInteractionResponse
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.core.theme.AppColors
 import android.content.Context
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-
-data class SupportTopicOption(
-    val title: String,
-    val description: String,
-    val message: String,
-    val steps: List<String>
-)
-
-private val supportTopicOptions = listOf(
-    SupportTopicOption(
-        "Add money",
-        "Payment completed but wallet not updated",
-        "I need help with adding money to my mPay wallet.",
-        listOf("Open Wallet and check the latest transaction.", "Confirm whether the payment shows completed, pending or failed.", "If money was paid but the wallet is still unchanged, continue to chat with mPay Support.")
-    ),
-    SupportTopicOption(
-        "Withdrawal",
-        "UPI withdrawal, status or failed request",
-        "I need help with a wallet withdrawal.",
-        listOf("Open Wallet → Withdrawals and check the latest status.", "Confirm the UPI ID used for the request.", "If the request is stuck, failed or the wallet amount needs clarification, continue to chat with mPay Support.")
-    ),
-    SupportTopicOption(
-        "Mobile recharge",
-        "Recharge failed, pending or wrong plan",
-        "I need help with a mobile recharge.",
-        listOf("Open Recharge History and select the affected recharge.", "Check the mobile number, operator, amount and transaction status.", "If the recharge is still unresolved, continue to chat with mPay Support before retrying.")
-    ),
-    SupportTopicOption(
-        "Car rental",
-        "Booking, cancellation or payment issue",
-        "I need help with an mPay car rental booking.",
-        listOf("Open My Bookings and select the affected booking.", "Check its status, trip dates and wallet payment details.", "If the booking or refund issue remains, continue to chat with mPay Support.")
-    ),
-    SupportTopicOption(
-        "Wallet & transactions",
-        "Balance, debit, refund or transaction history",
-        "I need help with a wallet transaction.",
-        listOf("Open Wallet or Transaction History and select the transaction.", "Check the amount, status, reference and description.", "If the ledger entry still needs explanation, continue to chat with mPay Support.")
-    ),
-    SupportTopicOption(
-        "Account & profile",
-        "Profile, login or account access",
-        "I need help with my mPay account or profile.",
-        listOf("Check Profile and Account Settings for the affected detail.", "Confirm that the account is active and your profile information is current.", "If you still cannot complete the action, continue to chat with mPay Support.")
-    ),
-    SupportTopicOption(
-        "Something else",
-        "Another issue not covered above",
-        "I need help with an mPay issue that is not covered by the support topics.",
-        listOf("Choose this option when your issue does not match the topics above.", "Describe what happened, including any relevant transaction, booking or error details.", "mPay Support can take over the conversation and help investigate the issue.")
-    )
-)
 
 @Composable
 fun CustomerSupportScreen(
@@ -124,7 +56,6 @@ fun CustomerSupportScreen(
     onBack: () -> Unit,
     onOpenChat: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     var overview by remember { mutableStateOf<CustomerSupportOverviewResponse?>(null) }
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
@@ -348,33 +279,6 @@ fun CustomerSupportScreen(
             }
         }
     }
-
-    if (chatOpen) {
-        SupportChatDialog(
-            chat = chat,
-            loading = chatLoading,
-            busy = chatBusy,
-            draft = chatDraft,
-            error = chatError,
-            onDraftChange = { chatDraft = it.take(4000) },
-            onSend = { sendChatMessage() },
-            onChooseTopic = { topic -> guidedTopic = topic },
-            onStartChat = {
-                guidedTopic?.let {
-                    guidedTopic = null
-                    sendChatMessage(it.message)
-                }
-            },
-            onRequestCallback = ::requestCallbackFromChat,
-            onCancelCallback = ::cancelChatCallback,
-            callbackBusy = callbackBusy,
-            guidedTopic = guidedTopic,
-            onBackToTopics = { guidedTopic = null },
-            onDismiss = { chatOpen = false },
-            onRefresh = { scope.launch { loadChat() } }
-        )
-    }
-}
 
 @Composable
 private fun SupportHero(
