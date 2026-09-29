@@ -55,6 +55,14 @@ type SupportChat = {
   messages: SupportMessage[];
   unreadForCustomer: number;
   unreadForStaff: number;
+  callbackRequestEnabled?: boolean;
+  pendingCallbackRequest?: {
+    requestId: string;
+    status: string;
+    reason?: string | null;
+    requestedAt: string;
+    expiresAt: string;
+  } | null;
 };
 type CustomerSupportTopic = {
   title: string;
