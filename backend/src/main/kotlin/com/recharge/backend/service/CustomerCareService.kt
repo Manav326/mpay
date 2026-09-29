@@ -198,6 +198,8 @@ class CustomerCareService(
         val now = Instant.now()
         if (!internalNote) {
             ticket.status = "WAITING_FOR_CUSTOMER"
+            ticket.resolvedAt = null
+            ticket.closedAt = null
             ticket.lastAgentReplyAt = now
         }
         ticket.updatedAt = now
