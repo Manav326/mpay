@@ -20,6 +20,10 @@
     *;
 }
 
+# JniZeroJni is generated/implemented on the native side and is not present as
+# a Java/Kotlin class for R8 to resolve at build time.
+-dontwarn org.jni_zero.JniZeroJni
+
 -keep class org.webrtc.** {
     *;
 }
