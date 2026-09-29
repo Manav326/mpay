@@ -20,7 +20,9 @@ class SupportService(
     private val callRequests: SupportCallRequestRepository,
     private val users: UserRepository,
     private val roleAccess: RoleAccessService,
-    private val overrides: UserPermissionOverrideRepository
+    private val overrides: UserPermissionOverrideRepository,
+    private val voiceParticipants: VoiceCallParticipantRepository,
+    private val voiceCalls: VoiceCallRepository
 ) {
     companion object {
         const val SUPPORT_VIEW = "SUPPORT_VIEW"
@@ -44,6 +46,13 @@ class SupportService(
         ensureClient(customer)
 
         val customerId = requireNotNull(customer.id)
+        val activeParticipant = voiceParticipants.findByUserId(customerId).orElse(null)
+        if (activeParticipant != null) {
+            val activeCall = voiceCalls.findByCallId(activeParticipant.callId).orElse(null)
+            if (activeCall != null && activeCall.status !in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
+                throw ResponseStatusException(HttpStatus.CONFLICT, "You already have an active support call")
+            }
+        }
         val now = Instant.now()
         val existing = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(customerId, PENDING).orElse(null)
         if (existing != null && existing.expiresAt.isAfter(now)) return toRequestResponse(existing)
