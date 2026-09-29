@@ -121,6 +121,12 @@ class SupportAiService(
 
         val reply = extractOutputText(response)?.trim()?.takeIf { it.isNotBlank() } ?: return
 
+        if (!settings.isEnabled() || !properties.providerConfigured) return
+        val currentConversation = conversations.findById(event.conversationId).orElse(null) ?: return
+        if (currentConversation.customerUserId != event.customerUserId || currentConversation.status != "OPEN") return
+        val latestAfterResponse = messages.findAllByConversationIdOrderByCreatedAtAsc(event.conversationId).lastOrNull() ?: return
+        if (latestAfterResponse.messageId != event.messageId || latestAfterResponse.senderType != "CUSTOMER") return
+
         support.appendAutomatedSupportMessage(
             conversationId = event.conversationId,
             caseId = event.caseId,
