@@ -258,7 +258,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
             ) : visibleRequests.length === 0 ? (
               <div className="empty-state">No pending callback requests.</div>
             ) : visibleRequests.map(item => (
-              <div key={item.requestId} className="detail-card support-request-card"} onClick={() => item.customerPublicId && void openCustomer(item.customerPublicId)}>
+              <div key={item.requestId} className="detail-card support-request-card" onClick={() => item.customerPublicId && void openCustomer(item.customerPublicId)}>
                 <div className="detail-top">
                   <div>
                     <b>{item.customerName || 'mPay customer'}</b>
