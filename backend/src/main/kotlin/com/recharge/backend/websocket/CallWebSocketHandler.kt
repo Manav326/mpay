@@ -45,13 +45,16 @@ class CallWebSocketHandler(
 
     override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
         val textMessage = message as? TextMessage ?: return
+        // WebRTC SDP/candidate payloads are small. Reject oversized authenticated
+        // messages before JSON parsing/relaying to limit abuse of the signaling socket.
+        if (textMessage.payload.length > 64 * 1024) return
+
         val userId = userBySession[session.id] ?: return
         val callId = session.attributes["callId"]?.toString() ?: return
         if (!calls.socketAuthorized(userId, callId)) return
 
         val node = runCatching { objectMapper.readTree(textMessage.payload) }.getOrNull() ?: return
-        val messageCallId = node.get("callId")?.asText()
-        if (!messageCallId.isNullOrBlank() && messageCallId != callId) return
+        if (node.get("callId")?.asText() != callId) return
 
         when (node.get("type")?.asText()) {
             "ready" -> {
@@ -66,6 +69,9 @@ class CallWebSocketHandler(
                 }
             }
             "signal" -> {
+                val payload = node.get("payload")
+                val kind = payload?.get("kind")?.asText()
+                if (payload == null || !payload.isObject || kind !in setOf("offer", "answer", "candidate")) return
                 val otherUserId = calls.otherParticipant(callId, userId)
                 registry.sendToCallUser(callId, otherUserId, message.payload)
             }
