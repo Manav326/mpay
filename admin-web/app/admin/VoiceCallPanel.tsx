@@ -287,6 +287,12 @@ export function VoiceCallWidget({
     if (busy || endedRef.current) return;
     setBusy(true);
     try {
+      // Send an immediate live-call hangup through signaling when available.
+      // The REST endpoint remains authoritative and is still called below.
+      const socket = socketRef.current;
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'hangup', callId }));
+      }
       await endVoiceCall(callId);
       finish('Call ended');
     } finally {
