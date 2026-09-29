@@ -6,6 +6,7 @@ import com.recharge.backend.domain.SupportCaseEntity
 import com.recharge.backend.domain.SupportConversationEntity
 import com.recharge.backend.domain.SupportInteractionEntity
 import com.recharge.backend.domain.SupportNoteEntity
+import com.recharge.backend.domain.SupportMessageEntity
 import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
