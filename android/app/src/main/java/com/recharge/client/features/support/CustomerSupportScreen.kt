@@ -113,6 +113,12 @@ private val supportTopicOptions = listOf(
         "Profile, login or account access",
         "I need help with my mPay account or profile.",
         listOf("Check Profile and Account Settings for the affected detail.", "Confirm that the account is active and your profile information is current.", "If you still cannot complete the action, continue to chat with mPay Support.")
+    ),
+    SupportTopicOption(
+        "Something else",
+        "Another issue not covered above",
+        "I need help with an mPay issue that is not covered by the support topics.",
+        listOf("Choose this option when your issue does not match the topics above.", "Describe what happened, including any relevant transaction, booking or error details.", "mPay Support can take over the conversation and help investigate the issue.")
     )
 )
 
@@ -896,10 +902,11 @@ private fun SupportChatDialog(
                     }
                 }
 
-                Surface(
-                    color = Color(0xFFF8F8F8),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                if (!chat?.messages.isNullOrEmpty()) {
+                    Surface(
+                        color = Color(0xFFF8F8F8),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                     Row(
                         Modifier.fillMaxWidth().padding(10.dp),
                         verticalAlignment = Alignment.Bottom
@@ -920,6 +927,7 @@ private fun SupportChatDialog(
                         ) {
                             Icon(Icons.Default.Send, contentDescription = "Send", tint = AppColors.PrimaryDark)
                         }
+                    }
                     }
                 }
             }
