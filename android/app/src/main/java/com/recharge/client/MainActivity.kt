@@ -755,6 +755,7 @@ private fun AppRoot(
                     highlightTransactionId,
                     logoutAndReset,
                     onChooseContact,
+                    { supportFloatingChatOpen = true },
                     Modifier.fillMaxSize()
                 )
                 activeVoiceCall?.let { call ->
@@ -764,6 +765,11 @@ private fun AppRoot(
                         onEnded = { activeVoiceCall = null }
                     )
                 }
+                CustomerSupportFloatingChat(
+                    context = context,
+                    open = supportFloatingChatOpen,
+                    onDismiss = { supportFloatingChatOpen = false }
+                )
             }
         }
     }
