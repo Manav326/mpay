@@ -197,7 +197,11 @@ export function VoiceCallWidget({
           return;
         }
         localStreamRef.current = stream;
-        stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+        // Apply the current admin mute state before the first RTP packet is sent.
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = !muted;
+          pc.addTrack(track, stream);
+        });
 
         async function createOffer() {
           if (endedRef.current || offerStartedRef.current) return;
