@@ -47,6 +47,7 @@ export function VoiceCallWidget({
   const queuedOutgoingSignalsRef = useRef<string[]>([]);
   const remoteDescriptionReadyRef = useRef(false);
   const signalingStartedRef = useRef(false);
+  const offerStartedRef = useRef(false);
   const endedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -158,7 +159,8 @@ export function VoiceCallWidget({
         socketRef.current = socket;
 
         async function createOffer() {
-          if (endedRef.current) return;
+          if (endedRef.current || offerStartedRef.current) return;
+          offerStartedRef.current = true;
           setMessage('Preparing secure audio…');
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -237,6 +239,7 @@ export function VoiceCallWidget({
       socketRef.current?.close();
       socketRef.current = null;
       queuedOutgoingSignalsRef.current = [];
+      offerStartedRef.current = false;
       peerRef.current?.close();
       peerRef.current = null;
       localStreamRef.current?.getTracks().forEach(track => track.stop());
