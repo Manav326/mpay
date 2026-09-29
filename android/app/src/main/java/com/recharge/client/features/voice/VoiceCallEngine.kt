@@ -7,6 +7,8 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -54,6 +56,9 @@ class VoiceCallEngine(private val context: Context) {
 
     private val client = OkHttpClient()
     private var webSocket: WebSocket? = null
+    private val signalingHandler = Handler(Looper.getMainLooper())
+    private var signalingRetryRunnable: Runnable? = null
+    private var signalingRetryAttempt = 0
     private var peerConnectionFactory: PeerConnectionFactory? = null
     private var peerConnection: PeerConnection? = null
     private var audioSource: AudioSource? = null
@@ -128,6 +133,9 @@ class VoiceCallEngine(private val context: Context) {
 
     fun stop() {
         if (!initialized.getAndSet(false) && peerConnection == null && webSocket == null) return
+        signalingRetryRunnable?.let(signalingHandler::removeCallbacks)
+        signalingRetryRunnable = null
+        signalingRetryAttempt = 0
         runCatching { webSocket?.close(1000, "call ended") }
         webSocket = null
         runCatching { peerConnection?.close() }
@@ -313,6 +321,10 @@ class VoiceCallEngine(private val context: Context) {
             Request.Builder().url(url).build(),
             object : WebSocketListener() {
                 override fun onOpen(socket: WebSocket, response: Response) {
+                    signalingRetryAttempt = 0
+                    signalingRetryRunnable?.let(signalingHandler::removeCallbacks)
+                    signalingRetryRunnable = null
+                    Log.i(TAG, "Signaling WebSocket connected. callId=$callId")
                     sendType("ready")
                     stateFlow.value = stateFlow.value.copy(message = "Waiting for secure audio…")
                 }
@@ -322,26 +334,55 @@ class VoiceCallEngine(private val context: Context) {
                 }
 
                 override fun onFailure(socket: WebSocket, t: Throwable, response: Response?) {
-                    Log.e(TAG, "Signaling WebSocket failed callId=$callId iceState=" + peerConnection?.iceConnectionState() + " message=" + t.message, t)
-                    // WebSocket carries signaling only. Once ICE is connected, the media path
-                    // is independent, so a later signaling failure must not tear down live audio.
+                    Log.e(
+                        TAG,
+                        "Signaling WebSocket failed callId=" + callId +
+                            " httpCode=" + (response?.code ?: -1) +
+                            " iceState=" + (peerConnection?.iceConnectionState() ?: "none") +
+                            " message=" + t.message,
+                        t
+                    )
                     if (stateFlow.value.phase != VoiceCallPhase.CONNECTED &&
                         stateFlow.value.phase != VoiceCallPhase.ENDED
                     ) {
-                        stateFlow.value = VoiceCallEngineState(
-                            phase = VoiceCallPhase.ERROR,
-                            muted = stateFlow.value.muted,
-                            speaker = stateFlow.value.speaker,
-                            message = "The secure call connection was interrupted"
-                        )
+                        scheduleSignalingReconnect(token, websocketPath)
                     }
                 }
 
                 override fun onClosing(socket: WebSocket, code: Int, reason: String) {
                     socket.close(code, reason)
                 }
+
+                override fun onClosed(socket: WebSocket, code: Int, reason: String) {
+                    if (stateFlow.value.phase != VoiceCallPhase.CONNECTED &&
+                        stateFlow.value.phase != VoiceCallPhase.ENDED
+                    ) {
+                        scheduleSignalingReconnect(token, websocketPath)
+                    }
+                }
             }
         )
+    }
+
+    private fun scheduleSignalingReconnect(token: String, websocketPath: String) {
+        if (signalingRetryRunnable != null ||
+            stateFlow.value.phase == VoiceCallPhase.CONNECTED ||
+            stateFlow.value.phase == VoiceCallPhase.ENDED
+        ) return
+
+        signalingRetryAttempt += 1
+        val delayMs = (1000L * signalingRetryAttempt.coerceAtMost(5))
+        stateFlow.value = stateFlow.value.copy(message = "Reconnecting secure signaling…")
+        val retry = Runnable {
+            signalingRetryRunnable = null
+            if (stateFlow.value.phase != VoiceCallPhase.CONNECTED &&
+                stateFlow.value.phase != VoiceCallPhase.ENDED
+            ) {
+                connectWebSocket(token, websocketPath)
+            }
+        }
+        signalingRetryRunnable = retry
+        signalingHandler.postDelayed(retry, delayMs)
     }
 
     private fun handleMessage(text: String) {
