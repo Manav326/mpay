@@ -72,6 +72,9 @@ class SupportInteractionEntity(
     @Column(length = 120) var outcome: String? = null,
     @Column(name = "voice_call_id", unique = true, length = 40) var voiceCallId: String? = null,
     @Column(name = "chat_thread_id", length = 80) var chatThreadId: String? = null,
+    @Column(name = "ring_duration_seconds") var ringDurationSeconds: Long? = null,
+    @Column(name = "handling_duration_seconds") var handlingDurationSeconds: Long? = null,
+    @Column(name = "wrap_up_completed_at") var wrapUpCompletedAt: Instant? = null,
     @Column(length = 5000) var metadata: String? = null,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
 )
@@ -116,5 +119,9 @@ class SupportCallRequestEntity(
     @Column(name = "reviewed_by_user_id") var reviewedByUserId: Long? = null,
     @Column(name = "reviewed_at") var reviewedAt: Instant? = null,
     @Column(name = "review_note", length = 1000) var reviewNote: String? = null,
-    @Column(name = "voice_call_id", length = 40) var voiceCallId: String? = null
+    @Column(name = "voice_call_id", length = 40) var voiceCallId: String? = null,
+    @Column(name = "assigned_user_id") var assignedUserId: Long? = null,
+    @Column(name = "claimed_at") var claimedAt: Instant? = null,
+    @Column(length = 60) var outcome: String? = null,
+    @Column(name = "outcome_at") var outcomeAt: Instant? = null
 )
