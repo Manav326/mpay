@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle, PhoneCall } from 'lucide-react';
+import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, MessageCircle, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle, PhoneCall } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { cancelRentalBooking, completeRentalBooking, createVoiceCall, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
