@@ -293,10 +293,7 @@ export function VoiceCallWidget({
     const socket = socketRef.current;
     if (socket?.readyState === WebSocket.OPEN) {
       try {
-        const accepted = socket.send(JSON.stringify({ type: 'hangup', callId }));
-        if (!accepted) {
-          setMessage('Ending call…');
-        }
+        socket.send(JSON.stringify({ type: 'hangup', callId }));
       } catch (error) {
         console.debug('Voice-call signaling hang-up failed; continuing with REST end', error);
       }
