@@ -1,8 +1,12 @@
 package com.recharge.client.features.voice
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.recharge.client.BuildConfig
@@ -87,8 +91,20 @@ class VoiceCallEngine(private val context: Context) {
     }
 
     fun toggleSpeaker() {
+        val manager = audioManager ?: return
         val next = !stateFlow.value.speaker
-        audioManager?.isSpeakerphoneOn = next
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (next) {
+                manager.availableCommunicationDevices
+                    .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                    ?.let { manager.setCommunicationDevice(it) }
+            } else {
+                manager.clearCommunicationDevice()
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            manager.isSpeakerphoneOn = next
+        }
         stateFlow.value = stateFlow.value.copy(speaker = next)
     }
 
@@ -114,17 +130,62 @@ class VoiceCallEngine(private val context: Context) {
         val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager = manager
         previousAudioMode = manager.mode
+        @Suppress("DEPRECATION")
         previousSpeakerState = manager.isSpeakerphoneOn
+
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+
+        val focusResult = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(attributes)
+                .setOnAudioFocusChangeListener(audioFocusListener)
+                .build()
+            audioFocusRequest = request
+            manager.requestAudioFocus(request)
+        } else {
+            @Suppress("DEPRECATION")
+            manager.requestAudioFocus(
+                audioFocusListener,
+                AudioManager.STREAM_VOICE_CALL,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
+        }
+
+        if (focusResult != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            audioFocusRequest = null
+            throw IllegalStateException("Audio focus is currently unavailable")
+        }
+
         manager.mode = AudioManager.MODE_IN_COMMUNICATION
-        manager.isSpeakerphoneOn = true
-        stateFlow.value = stateFlow.value.copy(speaker = true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            manager.clearCommunicationDevice()
+        } else {
+            @Suppress("DEPRECATION")
+            manager.isSpeakerphoneOn = false
+        }
+        stateFlow.value = stateFlow.value.copy(speaker = false)
     }
 
     private fun restoreAudio() {
         audioManager?.let { manager ->
-            manager.isSpeakerphoneOn = previousSpeakerState
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                manager.clearCommunicationDevice()
+            } else {
+                @Suppress("DEPRECATION")
+                manager.isSpeakerphoneOn = previousSpeakerState
+            }
             manager.mode = previousAudioMode
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { manager.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                manager.abandonAudioFocus(audioFocusListener)
+            }
         }
+        audioFocusRequest = null
         audioManager = null
     }
 

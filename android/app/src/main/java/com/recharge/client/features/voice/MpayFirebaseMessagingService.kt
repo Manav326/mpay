@@ -18,7 +18,8 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
                     CallNotificationManager.showIncoming(
                         this,
                         callId,
-                        message.data["callerName"].orEmpty().ifBlank { "mPay Support" }
+                        message.data["callerName"].orEmpty().ifBlank { "mPay Support" },
+                        persistentRinging = message.priority == RemoteMessage.PRIORITY_HIGH
                     )
                 }
             }

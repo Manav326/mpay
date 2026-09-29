@@ -41,6 +41,7 @@ import com.recharge.client.core.viewmodel.*
 import com.recharge.client.features.auth.ForgotPasswordScreen
 import com.recharge.client.MpayFirebase
 import com.recharge.client.features.voice.VoiceCallPushRegistrar
+import com.recharge.client.features.voice.CallNotificationManager
 import com.recharge.client.features.voice.IncomingCallActivity
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.features.auth.LoginScreen
@@ -502,11 +503,10 @@ private fun AppRoot(
 
                 if (activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId) {
                     presentedIncomingCallId = activeCall.callId
-                    context.startActivity(
-                        android.content.Intent(context, IncomingCallActivity::class.java)
-                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
-                            .putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, activeCall.callerName ?: "mPay Support")
+                    CallNotificationManager.showIncoming(
+                        context,
+                        activeCall.callId,
+                        activeCall.callerName ?: "mPay Support"
                     )
                 } else if (activeCall == null) {
                     presentedIncomingCallId = null

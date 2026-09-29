@@ -14,6 +14,7 @@ interface VoiceCallRepository : JpaRepository<VoiceCallEntity, Long> {
     fun findByCallId(callId: String): Optional<VoiceCallEntity>
 
     fun findAllByStatusAndRingingExpiresAtBefore(status: String, before: Instant): List<VoiceCallEntity>
+    fun findAllByStatusAndAcceptedAtBefore(status: String, before: Instant): List<VoiceCallEntity>
 }
 
 interface VoiceCallParticipantRepository : JpaRepository<VoiceCallParticipantEntity, Long> {

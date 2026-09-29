@@ -12,6 +12,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
+import androidx.core.content.ContextCompat
 import com.recharge.client.R
 
 object CallNotificationManager {
@@ -52,11 +53,10 @@ object CallNotificationManager {
         )
     }
 
-    fun showIncoming(context: Context, callId: String, callerName: String) {
+    fun buildIncomingNotification(context: Context, callId: String, callerName: String): Notification {
         ensureChannels(context)
         val appContext = context.applicationContext
         val ringtone = ringtoneUri()
-        val audioAttributes = ringtoneAttributes()
         val answerIntent = PendingIntent.getActivity(
             appContext,
             callId.hashCode(),
@@ -82,36 +82,58 @@ object CallNotificationManager {
                 .putExtra(IncomingCallActivity.EXTRA_CALLER_NAME, callerName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
         val person = Person.Builder()
             .setName(callerName.ifBlank { "mPay Support" })
             .setImportant(true)
             .build()
-
         val builder = NotificationCompat.Builder(appContext, CHANNEL_INCOMING)
             .setSmallIcon(R.drawable.mpay_logo)
             .setContentTitle("Incoming mPay call")
             .setContentText(callerName.ifBlank { "mPay Support" })
             .setContentIntent(openIntent)
             .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setSound(ringtone, AudioManager.STREAM_RING)
             .setVibrate(longArrayOf(0L, 500L, 250L, 500L))
             .setOngoing(true)
             .setAutoCancel(false)
-            .setTimeoutAfter(35_000L)
-            .setFullScreenIntent(openIntent, true)
-
+            .setTimeoutAfter(40_000L)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(person, declineIntent, answerIntent))
         } else {
             builder.addAction(NotificationCompat.Action.Builder(0, "Decline", declineIntent).build())
                 .addAction(NotificationCompat.Action.Builder(0, "Answer", answerIntent).build())
         }
+        val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || notificationManager.canUseFullScreenIntent) {
+            builder.setFullScreenIntent(openIntent, true)
+        }
+        return builder.build()
+    }
 
+    fun showIncoming(
+        context: Context,
+        callId: String,
+        callerName: String,
+        persistentRinging: Boolean = true
+    ) {
+        val appContext = context.applicationContext
+        val notification = buildIncomingNotification(appContext, callId, callerName)
         runCatching {
             androidx.core.app.NotificationManagerCompat.from(appContext)
-                .notify(notificationId(callId), builder.build())
+                .notify(incomingNotificationId(callId), notification)
+        }
+        if (persistentRinging) {
+            runCatching {
+                ContextCompat.startForegroundService(
+                    appContext,
+                    Intent(appContext, IncomingCallRingtoneService::class.java)
+                        .setAction(IncomingCallRingtoneService.ACTION_START)
+                        .putExtra(IncomingCallRingtoneService.EXTRA_CALL_ID, callId)
+                        .putExtra(IncomingCallRingtoneService.EXTRA_CALLER_NAME, callerName)
+                )
+            }
         }
     }
 
@@ -164,8 +186,10 @@ object CallNotificationManager {
     }
 
     fun cancelIncoming(context: Context, callId: String) {
-        androidx.core.app.NotificationManagerCompat.from(context.applicationContext)
-            .cancel(notificationId(callId))
+        val appContext = context.applicationContext
+        appContext.stopService(Intent(appContext, IncomingCallRingtoneService::class.java))
+        androidx.core.app.NotificationManagerCompat.from(appContext)
+            .cancel(incomingNotificationId(callId))
     }
 
     fun cancelActive(context: Context, callId: String) {
@@ -173,6 +197,6 @@ object CallNotificationManager {
             .cancel(activeNotificationId(callId))
     }
 
-    private fun notificationId(callId: String) = INCOMING_BASE_ID + (callId.hashCode() and 0x0FFF)
+    fun incomingNotificationId(callId: String) = INCOMING_BASE_ID + (callId.hashCode() and 0x0FFF)
     private fun activeNotificationId(callId: String) = notificationId(callId) + 10000
 }

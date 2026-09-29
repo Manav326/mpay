@@ -233,6 +233,26 @@ class VoiceCallService(
         calls.findAllByStatusAndRingingExpiresAtBefore(RINGING, Instant.now()).forEach { expireCall(it) }
     }
 
+    @Transactional
+    @Scheduled(fixedDelayString = "${MPAY_CALL_EXPIRY_SWEEP_MS:5000}")
+    fun expireUnconnectedCalls() {
+        val cutoff = Instant.now().minusSeconds(properties.connectTimeoutSeconds.coerceAtLeast(15))
+        calls.findAllByStatusAndAcceptedAtBefore(ACCEPTED, cutoff).forEach { expireUnconnectedCall(it) }
+    }
+
+    private fun expireUnconnectedCall(call: VoiceCallEntity) {
+        if (call.status != ACCEPTED) return
+
+        call.status = ENDED
+        call.endedAt = Instant.now()
+        call.endedReason = "CONNECT_TIMEOUT"
+        calls.save(call)
+        participants.deleteAllByCallId(call.callId)
+        broadcastStatus(call)
+        push.sendCallEnded(call.callerUserId, call.callId, call.status)
+        push.sendCallEnded(call.calleeUserId, call.callId, call.status)
+    }
+
     private fun isTerminal(status: String): Boolean =
         status in setOf(DECLINED, MISSED, CANCELLED, ENDED)
 

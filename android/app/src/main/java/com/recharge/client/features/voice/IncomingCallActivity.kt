@@ -205,7 +205,9 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        CallNotificationManager.cancelIncoming(this, callId)
+        if (isFinishing) {
+            CallNotificationManager.cancelIncoming(this, callId)
+        }
         super.onDestroy()
     }
 }

@@ -92,6 +92,9 @@ class VoiceCallService : Service() {
                     stateFlow.value = state
                     updateForegroundNotification(call, state)
                     if (state.phase == VoiceCallPhase.ENDED || state.phase == VoiceCallPhase.ERROR) {
+                        if (state.phase == VoiceCallPhase.ERROR) {
+                            runCatching { VoiceCallRepository(applicationContext).end(incomingCallId) }
+                        }
                         kotlinx.coroutines.delay(700)
                         stopCall()
                     }

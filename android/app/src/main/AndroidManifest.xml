@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- PayU Checkout Pro declares a default application label and theme. -->
@@ -45,6 +46,11 @@
             android:name=".features.voice.VoiceCallService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <service
+            android:name=".features.voice.IncomingCallRingtoneService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <service
             android:name=".features.voice.MpayFirebaseMessagingService"
