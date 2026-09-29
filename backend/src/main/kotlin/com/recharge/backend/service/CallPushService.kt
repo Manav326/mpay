@@ -76,7 +76,15 @@ class CallPushService(
 
     private fun send(userId: Long, data: Map<String, String>) {
         val tokens = devices.findAllByUserIdAndActiveTrue(userId).map { it.token }.distinct()
-        if (tokens.isEmpty()) return
+        if (tokens.isEmpty()) {
+            log.warn(
+                "FCM voice-call send skipped: no active device tokens. event={} callId={} userId={}",
+                data["event"],
+                data["callId"],
+                userId
+            )
+            return
+        }
 
         val messaging = firebaseMessaging() ?: return
         // Calls intentionally use a data-only high-priority message. This keeps
