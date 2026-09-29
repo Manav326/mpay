@@ -287,10 +287,10 @@ class VoiceCallEngine(private val context: Context) {
                 override fun onDataChannel(dataChannel: DataChannel) = Unit
                 override fun onRenegotiationNeeded() = Unit
                 override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<MediaStream>) {
-                    Log.i(TAG, "Remote RTP track received kind=" + receiver.track()?.kind() + " callId=" + callId)
+                    Log.i(TAG, "Remote RTP track received. callId=" + callId)
                 }
                 override fun onTrack(transceiver: RtpTransceiver) {
-                    Log.i(TAG, "Remote RTP transceiver received mediaType=" + transceiver.mediaType + " callId=" + callId)
+                    Log.i(TAG, "Remote RTP transceiver received. callId=" + callId)
                 }
             }
         )
