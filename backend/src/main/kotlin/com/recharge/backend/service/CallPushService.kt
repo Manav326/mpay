@@ -85,7 +85,7 @@ class CallPushService(
                 com.google.firebase.messaging.AndroidNotification.builder()
                     .setTitle("Incoming mPay call")
                     .setBody(data["callerName"] ?: "mPay Support")
-                    .setChannelId("incoming_calls_v3")
+                    .setChannelId("incoming_calls_v4")
                     .setSound("default")
                     .setPriority(com.google.firebase.messaging.AndroidNotification.Priority.HIGH)
                     .build()
