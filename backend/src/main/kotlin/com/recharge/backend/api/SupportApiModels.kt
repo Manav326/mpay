@@ -145,3 +145,26 @@ data class SupportRequestDecisionRequest(
     @field:jakarta.validation.constraints.Size(max = 1000)
     val note: String? = null
 )
+
+
+data class SupportMessageResponse(
+    val messageId: String,
+    val senderType: String,
+    val message: String,
+    val createdAt: String
+)
+
+data class SupportChatResponse(
+    val conversationId: String?,
+    val caseId: String?,
+    val status: String,
+    val messages: List<SupportMessageResponse>,
+    val unreadForCustomer: Int,
+    val unreadForStaff: Int
+)
+
+data class CreateSupportMessageRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    @field:jakarta.validation.constraints.Size(max = 4000)
+    val message: String
+)
