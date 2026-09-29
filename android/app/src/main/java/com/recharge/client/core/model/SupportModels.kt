@@ -90,3 +90,24 @@ data class CustomerSupportOverviewResponse(
 data class CreateSupportCallRequest(
     val reason: String? = null
 )
+
+
+data class SupportMessageResponse(
+    val messageId: String,
+    val senderType: String,
+    val message: String,
+    val createdAt: String
+)
+
+data class SupportChatResponse(
+    val conversationId: String? = null,
+    val caseId: String? = null,
+    val status: String = "OPEN",
+    val messages: List<SupportMessageResponse> = emptyList(),
+    val unreadForCustomer: Int = 0,
+    val unreadForStaff: Int = 0
+)
+
+data class CreateSupportMessageRequest(
+    val message: String
+)
