@@ -9,6 +9,9 @@ data class SupportCallRequestResponse(
     val requestedAt: String,
     val expiresAt: String,
     val caseId: String?,
+    val customerPublicId: String? = null,
+    val customerName: String? = null,
+    val customerMobile: String? = null,
     val voiceCallId: String? = null
 )
 
@@ -110,4 +113,10 @@ data class CustomerCallbackAccessRequest(
 
 data class VoiceCallSupportRequest(
     val supportRequestId: String? = null
+)
+
+
+data class SupportRequestDecisionRequest(
+    @field:jakarta.validation.constraints.Size(max = 1000)
+    val note: String? = null
 )
