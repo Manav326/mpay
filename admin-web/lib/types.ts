@@ -494,6 +494,22 @@ export interface SupportNote {
   createdAt: string;
 }
 
+export interface SupportMessage {
+  messageId: string;
+  senderType: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface SupportChat {
+  conversationId?: string | null;
+  caseId?: string | null;
+  status: string;
+  messages: SupportMessage[];
+  unreadForCustomer: number;
+  unreadForStaff: number;
+}
+
 export interface SupportCaseEvent {
   eventId: string;
   caseId: string;
