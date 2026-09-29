@@ -10,7 +10,11 @@ data class SupportCallRequestResponse(
     val customerPublicId: String? = null,
     val customerName: String? = null,
     val customerMobile: String? = null,
-    val voiceCallId: String? = null
+    val voiceCallId: String? = null,
+    val assignedUserPublicId: String? = null,
+    val assignedUserName: String? = null,
+    val claimedAt: String? = null,
+    val outcome: String? = null
 )
 
 data class SupportCaseResponse(
@@ -39,6 +43,13 @@ data class SupportInteractionResponse(
     val endedAt: String? = null,
     val durationSeconds: Long? = null,
     val durationLabel: String? = null,
+    val ringDurationSeconds: Long? = null,
+    val ringDurationLabel: String? = null,
+    val handlingDurationSeconds: Long? = null,
+    val handlingDurationLabel: String? = null,
+    val wrapUpCompletedAt: String? = null,
+    val wrapUpDurationSeconds: Long? = null,
+    val wrapUpDurationLabel: String? = null,
     val outcome: String? = null,
     val voiceCallId: String? = null,
     val actorUserPublicId: String? = null,
@@ -55,12 +66,25 @@ data class SupportNoteResponse(
     val createdAt: String
 )
 
+data class SupportCaseEventResponse(
+    val eventId: String,
+    val caseId: String,
+    val eventType: String,
+    val visibility: String,
+    val channel: String? = null,
+    val summary: String,
+    val actorUserPublicId: String? = null,
+    val actorName: String? = null,
+    val createdAt: String
+)
+
 data class CustomerSupportOverviewResponse(
     val callbackRequestEnabled: Boolean,
     val pendingRequest: SupportCallRequestResponse? = null,
     val cases: List<SupportCaseResponse> = emptyList(),
     val interactions: List<SupportInteractionResponse> = emptyList(),
-    val customerNotes: List<SupportNoteResponse> = emptyList()
+    val customerNotes: List<SupportNoteResponse> = emptyList(),
+    val events: List<SupportCaseEventResponse> = emptyList()
 )
 
 data class CreateSupportCallRequest(
