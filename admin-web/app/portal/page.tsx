@@ -7,7 +7,7 @@ import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRe
 import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
-  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, HeadsetMic, LogOut, Menu,
+  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, Headset, LogOut, Menu,
   Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X
 } from 'lucide-react';
 
@@ -3990,7 +3990,7 @@ function CustomerSupportChatModal({
       >
         <div className="customer-support-modal-head" onMouseDown={beginDrag}>
           <div className="customer-support-modal-brand">
-            <span><HeadsetMic size={18}/></span>
+            <span><Headset size={18}/></span>
             <div>
               <b>mPay Support</b>
               <small>{chat?.status === 'OPEN' ? 'Your support conversation is active' : 'Private support conversation'}</small>
@@ -4010,7 +4010,7 @@ function CustomerSupportChatModal({
             <div className="customer-support-messages" ref={messagesRef}>
               {!chat?.messages?.length && !guidedTopic ? (
                 <div className="customer-support-empty">
-                  <div className="customer-support-welcome-icon"><HeadsetMic size={23}/></div>
+                  <div className="customer-support-welcome-icon"><Headset size={23}/></div>
                   <h3>How can we help?</h3>
                   <p>Start with a support topic. We’ll walk you through the common fix before connecting you to Customer Care.</p>
                   <div className="customer-support-topics">
@@ -4036,7 +4036,7 @@ function CustomerSupportChatModal({
                     ))}
                   </div>
                   <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
-                  <button className="landing-primary customer-support-guided-cta" onClick={onStartChat} disabled={busy}><HeadsetMic size={15}/> Chat with mPay Support</button>
+                  <button className="landing-primary customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/> Chat with mPay Support</button>
                 </div>
               ) : (
                 chat?.messages?.map(item => {
