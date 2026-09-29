@@ -524,6 +524,7 @@ private fun AppRoot(
                                     IncomingCallActivity.EXTRA_CALLER_NAME,
                                     callerName
                                 )
+                        )
                         }.onFailure { error ->
                             android.util.Log.e(
                                 "MainActivity",
