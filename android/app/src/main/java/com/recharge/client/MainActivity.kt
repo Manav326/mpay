@@ -532,8 +532,7 @@ private fun AppRoot(
                                 error
                             )
                         }
-                    }
-                } else if (activeCall == null) {
+                    else if (activeCall == null) {
                     presentedIncomingCallId = null
                 }
 
