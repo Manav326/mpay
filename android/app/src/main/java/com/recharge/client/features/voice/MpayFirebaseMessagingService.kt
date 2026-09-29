@@ -1,6 +1,7 @@
 package com.recharge.client.features.voice
 
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
@@ -31,10 +32,16 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
                     CallNotificationManager.cancelActive(this, callId)
                     // The backend has already made the terminal state authoritative.
                     // Tear down any local WebRTC service and visible call screen immediately.
-                    stopService(
-                        Intent(this, VoiceCallService::class.java)
-                            .putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId)
-                    )
+                    val remoteEndIntent = Intent(this, VoiceCallService::class.java)
+                        .setAction(VoiceCallService.ACTION_REMOTE_END)
+                        .putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId)
+                    runCatching {
+                        startService(remoteEndIntent)
+                    }.onFailure {
+                        runCatching {
+                            ContextCompat.startForegroundService(this, remoteEndIntent)
+                        }
+                    }
                     IncomingCallActivity.finishRemoteCall(callId)
                 }
             }
