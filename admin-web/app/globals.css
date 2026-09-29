@@ -5035,3 +5035,26 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .voice-call-avatar svg{width:21px;height:21px}
   .voice-call-controls{margin-top:12px}
 }
+
+/* Customer Care polish */
+.support-metrics { margin-top: 16px; }
+.support-request-filter { margin-bottom: 12px; }
+.support-request-list { display: grid; gap: 10px; }
+.support-request-card { cursor: pointer; }
+.support-request-reason { margin: 8px 0 0; color: #64748b; }
+.support-request-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+.support-case-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.support-header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.support-customer-lookup-form { display: flex; gap: 8px; }
+.support-permission-box { margin-top: 16px; padding: 14px; border-radius: 16px; background: #fff8e7; color: #475569; }
+.support-permission-box b { display: block; color: #172033; margin-bottom: 4px; }
+.support-timeline { display: grid; gap: 8px; }
+.support-note-body { margin: 10px 0 0; color: #475569; white-space: pre-wrap; }
+.admin-inline-hint { color: #94a3b8; font-size: 12px; line-height: 1.35; }
+@media (max-width: 760px) {
+  .support-request-actions,
+  .support-header-actions { justify-content: stretch; }
+  .support-request-actions button,
+  .support-header-actions button { flex: 1; }
+  .support-customer-lookup-form { flex-direction: column; }
+}
