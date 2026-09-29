@@ -18,7 +18,7 @@ import com.recharge.client.R
 object CallNotificationManager {
     const val ACTION_DECLINE = "com.recharge.client.voice.DECLINE"
     const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
-    private const val CHANNEL_INCOMING = "incoming_calls_v2"
+    private const val CHANNEL_INCOMING = "incoming_calls_v3"
     private const val CHANNEL_ACTIVE = "active_calls"
     private const val INCOMING_BASE_ID = 48000
     const val ACTIVE_NOTIFICATION_ID = 59021
@@ -95,6 +95,7 @@ object CallNotificationManager {
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setSound(ringtone, AudioManager.STREAM_RING)
             .setVibrate(longArrayOf(0L, 500L, 250L, 500L))
             .setOngoing(true)
