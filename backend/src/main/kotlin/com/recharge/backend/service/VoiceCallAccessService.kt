@@ -17,7 +17,8 @@ class VoiceCallAccessService(
     private val roleAccess: RoleAccessService,
     private val rolePermissions: RolePermissionRepository,
     private val overrides: UserPermissionOverrideRepository,
-    private val users: UserRepository
+    private val users: UserRepository,
+    private val voiceCalls: VoiceCallService
 ) {
     fun roleAccess(viewer: UserEntity): List<VoiceCallRoleAccessResponse> {
         requireAdmin(viewer)
@@ -48,6 +49,8 @@ class VoiceCallAccessService(
             }
         } else {
             rolePermissions.deleteByRoleIgnoreCaseAndPermissionIgnoreCase(normalized, "CALL_CUSTOMER")
+            users.findAllByRoleInOrderByCreatedAtDesc(listOf(normalized))
+                .forEach { voiceCalls.terminateActiveCallForUser(requireNotNull(it.id), "CALL_ACCESS_REVOKED") }
         }
 
         return VoiceCallRoleAccessResponse(normalized, enabled || normalized == "ADMIN")
@@ -77,7 +80,10 @@ class VoiceCallAccessService(
             "DEFAULT", "INHERIT" -> overrides.findByUserIdAndPermissionIgnoreCase(requireNotNull(target.id), "CALL_CUSTOMER")
                 ?.let { overrides.delete(it) }
             "ALLOW" -> saveOverride(target, true, viewer)
-            "DENY" -> saveOverride(target, false, viewer)
+            "DENY" -> {
+                saveOverride(target, false, viewer)
+                voiceCalls.terminateActiveCallForUser(requireNotNull(target.id), "CALL_ACCESS_REVOKED")
+            }
             else -> throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Mode must be DEFAULT, ALLOW, or DENY")
         }
 
