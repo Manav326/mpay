@@ -300,7 +300,7 @@ private fun IncomingCallScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = when {
+                    text = screenMessage ?: when {
                         !accepted && answering -> "Connecting the secure call…"
                         !accepted -> "mPay Support is calling you"
                         engineState.phase == VoiceCallPhase.CONNECTED -> "Connected securely"
