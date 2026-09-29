@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import java.lang.ref.WeakReference
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -67,6 +68,15 @@ import kotlinx.coroutines.launch
 class IncomingCallActivity : ComponentActivity() {
     companion object {
         private const val TAG = "IncomingCallActivity"
+        private var activeActivity: WeakReference<IncomingCallActivity>? = null
+
+        fun finishRemoteCall(callId: String) {
+            activeActivity?.get()?.let { activity ->
+                if (!activity.isFinishing && activity.callId == callId) {
+                    activity.runOnUiThread { activity.finish() }
+                }
+            }
+        }
         const val EXTRA_CALL_ID = "call_id"
         const val EXTRA_CALLER_NAME = "caller_name"
         const val EXTRA_ACTION = "call_action"
@@ -172,6 +182,7 @@ class IncomingCallActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        activeActivity = WeakReference(this)
         if (accepted) {
             bindService(
                 Intent(this, VoiceCallService::class.java),
@@ -182,6 +193,9 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        if (activeActivity?.get() === this) {
+            activeActivity = null
+        }
         if (bound) {
             runCatching { unbindService(serviceConnection) }
             bound = false
@@ -249,6 +263,9 @@ class IncomingCallActivity : ComponentActivity() {
     override fun onDestroy() {
         if (isFinishing) {
             CallNotificationManager.cancelIncoming(this, callId)
+        }
+        if (activeActivity?.get() === this) {
+            activeActivity = null
         }
         super.onDestroy()
     }
