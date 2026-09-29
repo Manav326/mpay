@@ -81,6 +81,7 @@ class IncomingCallActivity : ComponentActivity() {
         const val EXTRA_CALLER_NAME = "caller_name"
         const val EXTRA_ACTION = "call_action"
         const val ACTION_ANSWER = "answer"
+        const val EXTRA_ACTIVE_CALL = "active_call"
     }
 
     private val micPermissionLauncher = registerForActivityResult(
@@ -136,7 +137,8 @@ class IncomingCallActivity : ComponentActivity() {
                 android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
 
-        accepted = savedInstanceState?.getBoolean("voice_call_accepted", false) == true
+        accepted = savedInstanceState?.getBoolean("voice_call_accepted", false) == true ||
+            intent.getBooleanExtra(EXTRA_ACTIVE_CALL, false)
         callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
         callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { "mPay Support" }
         if (callId.isBlank()) {
@@ -170,6 +172,11 @@ class IncomingCallActivity : ComponentActivity() {
         super.onNewIntent(intent)
         val incomingId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
         if (incomingId.isBlank() || incomingId != callId) return
+        callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { callerName }
+        if (intent.getBooleanExtra(EXTRA_ACTIVE_CALL, false)) {
+            accepted = true
+            answering = false
+        }
         if (intent.getStringExtra(EXTRA_ACTION) == ACTION_ANSWER) {
             requestToAnswer()
         }
