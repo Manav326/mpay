@@ -228,8 +228,8 @@ fun CustomerSupportFloatingChat(
 
     val windowWidth = if (minimized) 258f else widthDp
     val windowHeight = if (minimized) 58f else heightDp
-    val boundedWidth = windowWidth.coerceAtMost((configuration.screenWidthDp - 16).coerceAtLeast(minWidth).toFloat())
-    val boundedHeight = windowHeight.coerceAtMost((configuration.screenHeightDp - 16).coerceAtLeast(minHeight).toFloat())
+    val boundedWidth = windowWidth.coerceAtMost(configuration.screenWidthDp.toFloat() - 16f).coerceAtLeast(minWidth)
+    val boundedHeight = windowHeight.coerceAtMost(configuration.screenHeightDp.toFloat() - 16f).coerceAtLeast(minHeight)
 
     Box(
         modifier = Modifier
@@ -299,7 +299,7 @@ private fun FloatingChatWindow(
     onRefresh: () -> Unit,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
-    onChooseTopic: (FloatingSupportTopic) -> Unit,
+    onChooseTopic: (FloatingSupportTopic?) -> Unit,
     onStartChat: () -> Unit,
     onRequestCallback: () -> Unit,
     onCancelCallback: (SupportCallRequestResponse) -> Unit,
