@@ -22,8 +22,10 @@ class VoiceCallService : Service() {
         private const val TAG = "VoiceCallService"
         const val ACTION_START = "com.recharge.client.voice.START"
         const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
+        const val ACTION_SET_MUTED = "com.recharge.client.voice.SET_MUTED"
         const val ACTION_REMOTE_END = "com.recharge.client.voice.REMOTE_END"
         const val EXTRA_OTHER_NAME = "extra_other_name"
+        const val EXTRA_MUTED = "extra_muted"
     }
 
     inner class LocalBinder : Binder() {
@@ -65,6 +67,13 @@ class VoiceCallService : Service() {
             )
             stopCall()
             return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_SET_MUTED) {
+            if (incomingCallId.isNotBlank() && (callId == null || callId == incomingCallId)) {
+                setMuted(intent.getBooleanExtra(EXTRA_MUTED, stateFlow.value.muted))
+            }
+            return START_STICKY
         }
 
         if (intent?.action == ACTION_HANGUP) {
@@ -182,6 +191,7 @@ class VoiceCallService : Service() {
     }
 
     fun setMuted(value: Boolean) {
+        stateFlow.value = stateFlow.value.copy(muted = value)
         engine?.setMuted(value)
     }
 
