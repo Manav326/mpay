@@ -561,7 +561,7 @@ class VoiceCallController(
 
     @PostMapping
     fun create(authentication: Authentication, @Valid @RequestBody request: CreateVoiceCallRequest): VoiceCallResponse =
-        calls.create(currentUser(authentication), request.targetPublicId)
+        calls.create(currentUser(authentication), request.targetPublicId, request.supportRequestId)
 
     @GetMapping("/active")
     fun active(authentication: Authentication): VoiceCallResponse? =
