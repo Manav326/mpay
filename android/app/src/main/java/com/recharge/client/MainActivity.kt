@@ -51,6 +51,7 @@ import com.recharge.client.features.auth.RegisterScreen
 import com.recharge.client.features.home.HomeScreen
 import com.recharge.client.features.profile.ProfileScreen
 import com.recharge.client.features.support.CustomerSupportScreen
+import com.recharge.client.features.support.CustomerSupportFloatingChat
 import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
@@ -477,6 +478,7 @@ private fun AppRoot(
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var supportFloatingChatOpen by rememberSaveable { mutableStateOf(false) }
 
     var presentedIncomingCallId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeVoiceCall by remember { mutableStateOf<VoiceCallResponse?>(null) }
@@ -638,6 +640,7 @@ private fun AppRoot(
         launchedWalletOrderId = null
         launchedRechargeOrderId = null
         showFundingDialog = false
+        supportFloatingChatOpen = false
         authViewModel.logout()
     }
 
@@ -717,6 +720,7 @@ private fun AppRoot(
                     highlightTransactionId,
                     logoutAndReset,
                     onChooseContact,
+                    { supportFloatingChatOpen = true },
                     Modifier.fillMaxSize()
                 )
                 activeVoiceCall?.let { call ->
@@ -726,6 +730,11 @@ private fun AppRoot(
                         onEnded = { activeVoiceCall = null }
                     )
                 }
+                CustomerSupportFloatingChat(
+                    context = context,
+                    open = supportFloatingChatOpen,
+                    onDismiss = { supportFloatingChatOpen = false }
+                )
             }
         }
     } else {
@@ -774,7 +783,10 @@ private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
     rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
-    authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier
+    authLogout: () -> Unit,
+    onChooseContact: () -> Unit,
+    onOpenSupportChat: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     NavHost(navController = nav, startDestination = "home", modifier = modifier.fillMaxSize()) {
         composable("home") {
@@ -853,7 +865,8 @@ private fun AppNavHost(
         composable("customer-support") {
             CustomerSupportScreen(
                 context = LocalContext.current,
-                onBack = { nav.popBackStack() }
+                onBack = { nav.popBackStack() },
+                onOpenChat = onOpenSupportChat
             )
         }
         composable("profile") {
