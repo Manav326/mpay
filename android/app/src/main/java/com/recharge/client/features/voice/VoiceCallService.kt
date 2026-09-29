@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import com.recharge.client.core.model.VoiceCallResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 class VoiceCallService : Service() {
     companion object {
+        private const val TAG = "VoiceCallService"
         const val ACTION_START = "com.recharge.client.voice.START"
         const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
         const val EXTRA_OTHER_NAME = "extra_other_name"
@@ -62,7 +64,13 @@ class VoiceCallService : Service() {
 
         if (incomingCallId.isNotBlank() && callId != incomingCallId) {
             callId = incomingCallId
-            startAsForeground(connected = false)
+            if (!startAsForeground(connected = false)) {
+                scope.launch {
+                    runCatching { VoiceCallRepository(applicationContext).end(incomingCallId) }
+                    stopCall()
+                }
+                return START_NOT_STICKY
+            }
             startVoiceCall(incomingCallId)
         }
 
@@ -73,6 +81,7 @@ class VoiceCallService : Service() {
         startupJob?.cancel()
         startupJob = scope.launch {
             val repository = VoiceCallRepository(applicationContext)
+            Log.i(TAG, "Starting WebRTC call engine. callId=$incomingCallId")
             val call = repository.getCall(incomingCallId).getOrElse {
                 stateFlow.value = VoiceCallEngineState(VoiceCallPhase.ERROR, message = "Call is no longer available")
                 stopCall()
@@ -126,17 +135,27 @@ class VoiceCallService : Service() {
         }
     }
 
-    private fun startAsForeground(connected: Boolean) {
-        val id = callId ?: return
-        val notification = CallNotificationManager.buildActiveNotification(this, id, otherName, connected)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+    private fun startAsForeground(connected: Boolean): Boolean {
+        val id = callId ?: return false
+        return runCatching {
+            val notification = CallNotificationManager.buildActiveNotification(this, id, otherName, connected)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            true
+        }.getOrElse { error ->
+            Log.e(TAG, "Unable to promote voice call service to foreground. callId=$id", error)
+            stateFlow.value = VoiceCallEngineState(
+                phase = VoiceCallPhase.ERROR,
+                message = "Unable to start the call microphone service"
             )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+            false
         }
     }
 
