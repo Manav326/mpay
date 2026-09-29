@@ -263,6 +263,14 @@ class SupportService(
                     updatedAt = call.createdAt
                 )
             )
+        if (caseEntity.status != OPEN) {
+            caseEntity.status = OPEN
+            caseEntity.resolvedAt = null
+            caseEntity.resolutionCode = null
+            caseEntity.resolutionNote = null
+            caseEntity.updatedAt = call.createdAt
+            cases.save(caseEntity)
+        }
         val conversation = request?.conversationId?.let { conversations.findById(it).orElse(null) }
             ?: conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN).orElse(null)
             ?: conversations.save(
