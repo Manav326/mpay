@@ -314,8 +314,8 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
           </div>
           <div className="form support-customer-lookup-form">
             <input
-              value={customerQuery}
-              onChange={event => setCustomerQuery(event.target.value)}
+              value={customerLookup}
+              onChange={event => setCustomerLookup(event.target.value)}
               placeholder="Customer public ID"
             />
             <button className="primary" onClick={() => void openCustomer(customerLookup.trim())} disabled={selectedLoading || !customerLookup.trim()}>
