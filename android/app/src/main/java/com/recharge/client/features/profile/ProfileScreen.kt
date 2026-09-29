@@ -150,16 +150,19 @@ fun ProfileScreen(
         }
         item {
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                ProfileActionRow(
+                    icon = Icons.Default.HeadsetMic,
+                    title = "Help & Support",
+                    subtitle = "Request a callback and view your mPay support history",
+                    onClick = onHelpSupport
+                )
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Text("Settings & policies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                     ProfileActionRow(Icons.Default.Settings, "Account settings", "Update your name, email and profile photo") { editing = true }
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                    ProfileActionRow(
-                        icon = Icons.Default.HeadsetMic,
-                        title = "Help & Support",
-                        subtitle = "Request a callback and view your mPay support history",
-                        onClick = onHelpSupport
-                    )
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {
                         context.startActivity(
