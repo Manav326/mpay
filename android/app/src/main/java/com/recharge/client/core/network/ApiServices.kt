@@ -80,6 +80,12 @@ interface ClientApi {
     @GET("api/v1/support/overview")
     suspend fun customerSupportOverview(): Response<CustomerSupportOverviewResponse>
 
+    @GET("api/v1/support/chat")
+    suspend fun customerSupportChat(): Response<SupportChatResponse>
+
+    @POST("api/v1/support/chat/messages")
+    suspend fun sendCustomerSupportChatMessage(@Body request: CreateSupportMessageRequest): Response<SupportMessageResponse>
+
     @POST("api/v1/support/call-request")
     suspend fun requestCustomerSupportCall(@Body request: CreateSupportCallRequest): Response<SupportCallRequestResponse>
 
