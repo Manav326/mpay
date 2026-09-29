@@ -47,7 +47,8 @@ data class VoiceCallEngineState(
     val muted: Boolean = false,
     val speaker: Boolean = true,
     val message: String = "Connecting securely…",
-    val connectedAtEpochMillis: Long? = null
+    val connectedAtEpochMillis: Long? = null,
+    val endedAtEpochMillis: Long? = null
 )
 
 class VoiceCallEngine(private val context: Context) {
@@ -413,7 +414,11 @@ class VoiceCallEngine(private val context: Context) {
                                 "MISSED" -> "Call missed"
                                 "CANCELLED" -> "Call cancelled"
                                 else -> "Call ended"
-                            }
+                            },
+                            endedAtEpochMillis = root.get("endedAtEpochMillis")
+                                ?.takeIf { !it.isJsonNull }
+                                ?.asLong
+                                ?: System.currentTimeMillis()
                         )
                     }
                 }
