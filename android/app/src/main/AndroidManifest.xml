@@ -37,6 +37,7 @@
             tools:replace="android:theme" />
         <activity
             android:name=".features.voice.IncomingCallActivity"
+            android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:exported="false"
             android:showWhenLocked="true"
