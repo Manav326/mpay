@@ -439,6 +439,10 @@ export interface SupportCallRequest {
   customerName?: string | null;
   customerMobile?: string | null;
   voiceCallId?: string | null;
+  assignedUserPublicId?: string | null;
+  assignedUserName?: string | null;
+  claimedAt?: string | null;
+  outcome?: string | null;
 }
 
 export interface SupportCase {
