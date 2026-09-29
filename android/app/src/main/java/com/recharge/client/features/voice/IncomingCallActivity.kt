@@ -260,10 +260,19 @@ class IncomingCallActivity : ComponentActivity() {
 
     private fun declineCall() {
         if (accepted || answering) return
+        answering = true
+        screenMessage = null
         lifecycleScope.launch {
             repository.decline(callId)
-            CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
-            finish()
+                .onSuccess {
+                    CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
+                    finish()
+                }
+                .onFailure { error ->
+                    answering = false
+                    screenMessage = error.message?.takeIf { it.isNotBlank() }
+                        ?: "The call could not be declined. Please try again."
+                }
         }
     }
 
