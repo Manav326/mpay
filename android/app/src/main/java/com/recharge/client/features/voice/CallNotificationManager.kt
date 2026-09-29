@@ -106,7 +106,7 @@ object CallNotificationManager {
                 .addAction(NotificationCompat.Action.Builder(0, "Answer", answerIntent).build())
         }
         val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || notificationManager.canUseFullScreenIntent) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || notificationManager.canUseFullScreenIntent()) {
             builder.setFullScreenIntent(openIntent, true)
         }
         return builder.build()
