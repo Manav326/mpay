@@ -31,7 +31,7 @@ class SupportAiCustomerContextService(
         val latestWalletTransaction = walletTransactions.findTop10ByUserIdOrderByCreatedAtDesc(customerUserId).firstOrNull()
         val latestRecharge = recharges.findTopByUserIdOrderByCreatedAtDesc(customerUserId)
         val latestWithdrawal = withdrawals.findTop20ByUserIdOrderByCreatedAtDesc(customerUserId).firstOrNull()
-        val latestPayment = payments.findTopByUserIdOrderByCreatedAtDesc(customerUserId).orElse(null)
+        val latestPayment = payments.findTopByUserIdOrderByCreatedAtDesc(customerUserId)
         val latestBooking = bookings.findAllByUserIdOrderByCreatedAtDesc(customerUserId, PageRequest.of(0, 1)).content.firstOrNull()
 
         return buildString {

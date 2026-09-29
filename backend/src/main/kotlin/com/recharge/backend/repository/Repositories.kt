@@ -288,6 +288,8 @@ interface RechargeOfferCacheRepository : JpaRepository<RechargeOfferCacheEntity,
 }
 
 interface PaymentOrderRepository : JpaRepository<PaymentOrderEntity, Long> {
+    fun findTopByUserIdOrderByCreatedAtDesc(userId: Long): PaymentOrderEntity?
+
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<PaymentOrderEntity>
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
