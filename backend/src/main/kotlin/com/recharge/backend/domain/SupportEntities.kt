@@ -125,3 +125,26 @@ class SupportCallRequestEntity(
     @Column(length = 60) var outcome: String? = null,
     @Column(name = "outcome_at") var outcomeAt: Instant? = null
 )
+
+
+@Entity
+@Table(
+    name = "support_messages",
+    indexes = [
+        Index(name = "idx_support_messages_conversation_created", columnList = "conversation_id,created_at"),
+        Index(name = "idx_support_messages_customer_created", columnList = "customer_user_id,created_at")
+    ]
+)
+class SupportMessageEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "message_id", nullable = false, unique = true, length = 40) var messageId: String = UUID.randomUUID().toString(),
+    @Column(name = "conversation_id", nullable = false) var conversationId: Long = 0,
+    @Column(name = "case_id") var caseId: Long? = null,
+    @Column(name = "customer_user_id", nullable = false) var customerUserId: Long = 0,
+    @Column(name = "sender_user_id") var senderUserId: Long? = null,
+    @Column(name = "sender_type", nullable = false, length = 20) var senderType: String = "CUSTOMER",
+    @Column(nullable = false, length = 4000) var message: String = "",
+    @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now(),
+    @Column(name = "customer_read_at") var customerReadAt: Instant? = null,
+    @Column(name = "staff_read_at") var staffReadAt: Instant? = null
+)
