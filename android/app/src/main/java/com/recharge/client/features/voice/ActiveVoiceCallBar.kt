@@ -47,7 +47,8 @@ import java.time.Instant
 fun ActiveVoiceCallBar(
     call: VoiceCallResponse,
     modifier: Modifier = Modifier,
-    onOpenCall: (() -> Unit)? = null
+    onOpenCall: (() -> Unit)? = null,
+    onEnded: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val callId = call.callId
@@ -101,7 +102,7 @@ fun ActiveVoiceCallBar(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = call.calleeName ?: call.callerName ?: "mPay Support",
+                text = call.callerName ?: call.calleeName ?: "mPay Support",
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
@@ -136,6 +137,7 @@ fun ActiveVoiceCallBar(
         IconButton(
             onClick = {
                 sendVoiceHangupCommand(context, callId)
+                onEnded?.invoke()
             }
         ) {
             Icon(
