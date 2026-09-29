@@ -59,7 +59,12 @@ function duration(seconds?: number | null) {
   return minutes + ':' + String(remainder).padStart(2, '0');
 }
 
-export default function CustomerCarePanel({ canManageSupport, canCallCustomer, canManageCallAccess }: Props) {
+export default function CustomerCarePanel({
+  canManageSupport,
+  canCallCustomer,
+  canManageCallAccess,
+  canManageSupportAi,
+}: Props) {
   const [requests, setRequests] = useState<SupportCallRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [selected, setSelected] = useState<SupportCustomer | null>(null);
