@@ -40,8 +40,15 @@ class CallWebSocketHandler(
         when (node.get("type")?.asText()) {
             "ready" -> {
                 val otherUserId = calls.otherParticipant(callId, userId)
-                if (registry.hasOpenSession(otherUserId)) {
-                    registry.sendToUsers(listOf(userId, otherUserId), message.payload)
+                registry.markReady(callId, userId)
+
+                // Readiness is state, not a one-shot event. Either participant may
+                // connect first; once both are ready, start negotiation.
+                if (registry.hasOpenSession(otherUserId) && registry.isReady(callId, otherUserId)) {
+                    registry.sendToUsers(
+                        listOf(userId, otherUserId),
+                        """{"type":"ready","callId":"$callId"}"""
+                    )
                 }
             }
             "signal" -> {
@@ -60,7 +67,11 @@ class CallWebSocketHandler(
 
     override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
         val userId = userBySession.remove(session.id) ?: return
+        val callId = session.attributes["callId"]?.toString()
         registry.unregister(userId, session)
+        if (!callId.isNullOrBlank()) {
+            registry.clearReady(callId, userId)
+        }
     }
 
     override fun supportsPartialMessages(): Boolean = false
