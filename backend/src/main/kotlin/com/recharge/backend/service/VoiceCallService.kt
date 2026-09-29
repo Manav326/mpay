@@ -398,6 +398,7 @@ class VoiceCallService(
                 it.status in setOf(ACCEPTED, CONNECTED) &&
                     (userId == it.callerUserId || userId == it.calleeUserId)
             }
+            .filter { users.findById(userId).map { user -> user.active && user.deletedAt == null }.orElse(false) }
             .orElse(false)
 
     private fun broadcastStatus(call: VoiceCallEntity) {
