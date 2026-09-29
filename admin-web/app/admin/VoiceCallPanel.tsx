@@ -44,6 +44,7 @@ export function VoiceCallWidget({
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const queuedCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const queuedOutgoingSignalsRef = useRef<string[]>([]);
   const remoteDescriptionReadyRef = useRef(false);
   const signalingStartedRef = useRef(false);
   const endedRef = useRef(false);
@@ -107,7 +108,7 @@ export function VoiceCallWidget({
 
         pc.onicecandidate = event => {
           if (!event.candidate) return;
-          socketRef.current?.send(JSON.stringify({
+          const message = JSON.stringify({
             type: 'signal',
             callId,
             payload: {
@@ -116,7 +117,13 @@ export function VoiceCallWidget({
               sdpMid: event.candidate.sdpMid,
               sdpMLineIndex: event.candidate.sdpMLineIndex,
             },
-          }));
+          });
+          const socket = socketRef.current;
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(message);
+          } else {
+            queuedOutgoingSignalsRef.current.push(message);
+          }
         };
 
         pc.ontrack = event => {
@@ -164,6 +171,11 @@ export function VoiceCallWidget({
 
         socket.onopen = () => {
           setMessage('Waiting for secure audio…');
+          for (const message of queuedOutgoingSignalsRef.current) {
+            socket.send(message);
+          }
+          queuedOutgoingSignalsRef.current = [];
+          socket.send(JSON.stringify({ type: 'ready', callId }));
         };
 
         socket.onmessage = async event => {
@@ -224,6 +236,7 @@ export function VoiceCallWidget({
       cancelled = true;
       socketRef.current?.close();
       socketRef.current = null;
+      queuedOutgoingSignalsRef.current = [];
       peerRef.current?.close();
       peerRef.current = null;
       localStreamRef.current?.getTracks().forEach(track => track.stop());
