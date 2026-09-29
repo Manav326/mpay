@@ -34,13 +34,11 @@ class CallWebSocketHandler(
             registry.markReady(callId, userId)
             val otherUserId = runCatching { calls.otherParticipant(callId, userId) }.getOrNull()
             if (otherUserId != null &&
-                registry.hasOpenSession(otherUserId) &&
+                registry.hasOpenSession(callId, otherUserId) &&
                 registry.isReady(callId, otherUserId)
             ) {
-                registry.sendToUsers(
-                    listOf(userId, otherUserId),
-                    """{"type":"ready","callId":"$callId"}"""
-                )
+                registry.sendToCallUser(callId, userId, """{"type":"ready","callId":"$callId"}""")
+                registry.sendToCallUser(callId, otherUserId, """{"type":"ready","callId":"$callId"}""")
             }
         }
     }
