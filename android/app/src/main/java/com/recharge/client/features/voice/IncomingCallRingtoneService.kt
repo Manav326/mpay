@@ -30,6 +30,7 @@ class IncomingCallRingtoneService : Service() {
     private var callId: String = ""
     private var callerName: String = "mPay Support"
     private var vibrator: Vibrator? = null
+    private var ringSessionActive = false
 
     private val timeout = Runnable { stopRinging() }
 
@@ -55,8 +56,7 @@ class IncomingCallRingtoneService : Service() {
             return START_NOT_STICKY
         }
 
-        val sameCallAlreadyRinging =
-            callId == incomingId && ringtone != null && ringtone?.isPlaying == true
+        val sameCallAlreadyRinging = callId == incomingId && ringSessionActive
 
         callId = incomingId
         callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { "mPay Support" }
@@ -93,6 +93,7 @@ class IncomingCallRingtoneService : Service() {
     }
 
     private fun startRinging() {
+        ringSessionActive = true
         ringtone?.stop()
         vibrator = getSystemService(VIBRATOR_SERVICE) as? Vibrator
 
@@ -146,6 +147,7 @@ class IncomingCallRingtoneService : Service() {
 
     private fun stopRinging() {
         handler.removeCallbacks(timeout)
+        ringSessionActive = false
         ringtone?.stop()
         ringtone = null
         vibrator?.cancel()
@@ -159,8 +161,11 @@ class IncomingCallRingtoneService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(timeout)
+        ringSessionActive = false
         ringtone?.stop()
         ringtone = null
+        vibrator?.cancel()
+        vibrator = null
         super.onDestroy()
     }
 
