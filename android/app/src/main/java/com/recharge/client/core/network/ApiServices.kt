@@ -47,6 +47,28 @@ interface AuthApi {
 }
 
 interface ClientApi {
+    @POST("api/v1/support/tickets")
+    suspend fun createSupportTicket(@Body request: CreateSupportTicketRequest): Response<SupportTicketResponse>
+
+    @GET("api/v1/support/tickets")
+    suspend fun supportTickets(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+        @Query("status") status: String? = null
+    ): Response<SupportTicketPageResponse>
+
+    @GET("api/v1/support/tickets/{ticketId}")
+    suspend fun supportTicket(@Path("ticketId") ticketId: String): Response<SupportTicketResponse>
+
+    @POST("api/v1/support/tickets/{ticketId}/messages")
+    suspend fun addSupportMessage(
+        @Path("ticketId") ticketId: String,
+        @Body request: SupportMessageRequest
+    ): Response<SupportTicketResponse>
+
+    @POST("api/v1/support/tickets/{ticketId}/close")
+    suspend fun closeSupportTicket(@Path("ticketId") ticketId: String): Response<SupportTicketResponse>
+
     @POST("api/v1/account/deletion")
     suspend fun deleteAccount(@Body request: AccountDeletionRequest): Response<AccountDeletionResponse>
 
