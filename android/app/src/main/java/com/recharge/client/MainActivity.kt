@@ -512,6 +512,7 @@ private fun AppRoot(
                         context,
                         activeCall.callId,
                         callerName,
+                        expiresAt = activeCall.ringingExpiresAt,
                         persistentRinging = true
                     )
 
