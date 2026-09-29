@@ -700,14 +700,7 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            Column(Modifier.weight(1f).fillMaxHeight()) {
-                activeVoiceCall?.let { call ->
-                    ActiveVoiceCallBar(
-                        call = call,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        onEnded = { activeVoiceCall = null }
-                    )
-                }
+            Box(Modifier.weight(1f).fillMaxHeight()) {
                 AppNavHost(
                     nav,
                     currentRoute,
@@ -723,20 +716,20 @@ private fun AppRoot(
                     highlightTransactionId,
                     logoutAndReset,
                     onChooseContact,
-                    Modifier.weight(1f)
+                    Modifier.fillMaxSize()
                 )
+                activeVoiceCall?.let { call ->
+                    ActiveVoiceCallBar(
+                        call = call,
+                        modifier = Modifier.fillMaxSize(),
+                        onEnded = { activeVoiceCall = null }
+                    )
+                }
             }
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            Column(Modifier.fillMaxSize().padding(inner)) {
-                activeVoiceCall?.let { call ->
-                    ActiveVoiceCallBar(
-                        call = call,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        onEnded = { activeVoiceCall = null }
-                    )
-                }
+            Box(Modifier.fillMaxSize().padding(inner)) {
                 AppNavHost(
                     nav,
                     currentRoute,
@@ -752,8 +745,15 @@ private fun AppRoot(
                     highlightTransactionId,
                     logoutAndReset,
                     onChooseContact,
-                    Modifier.weight(1f)
+                    Modifier.fillMaxSize()
                 )
+                activeVoiceCall?.let { call ->
+                    ActiveVoiceCallBar(
+                        call = call,
+                        modifier = Modifier.fillMaxSize(),
+                        onEnded = { activeVoiceCall = null }
+                    )
+                }
             }
         }
     }
