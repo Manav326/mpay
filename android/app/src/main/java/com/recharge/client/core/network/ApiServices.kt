@@ -77,6 +77,15 @@ interface ClientApi {
     @PUT("api/v1/calls/push-token")
     suspend fun registerCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
 
+    @GET("api/v1/support/overview")
+    suspend fun customerSupportOverview(): Response<CustomerSupportOverviewResponse>
+
+    @POST("api/v1/support/call-request")
+    suspend fun requestCustomerSupportCall(@Body request: CreateSupportCallRequest): Response<SupportCallRequestResponse>
+
+    @POST("api/v1/support/call-request/{requestId}/cancel")
+    suspend fun cancelCustomerSupportCall(@Path("requestId") requestId: String): Response<SupportCallRequestResponse>
+
 
     @GET("api/v1/history/pdf-access")
     suspend fun historyPdfAccess(): Response<HistoryPdfAccessResponse>
