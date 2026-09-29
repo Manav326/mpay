@@ -18,7 +18,7 @@ import com.recharge.client.R
 object CallNotificationManager {
     const val ACTION_DECLINE = "com.recharge.client.voice.DECLINE"
     const val ACTION_HANGUP = "com.recharge.client.voice.HANGUP"
-    private const val CHANNEL_INCOMING = "incoming_calls_v3"
+    private const val CHANNEL_INCOMING = "incoming_calls_v4"
     private const val CHANNEL_ACTIVE = "active_calls"
     private const val INCOMING_BASE_ID = 48000
     const val ACTIVE_NOTIFICATION_ID = 59021
@@ -41,9 +41,10 @@ object CallNotificationManager {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_INCOMING, "Incoming mPay calls", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Incoming support and account-service calls from mPay"
-                setSound(ringtone, audioAttributes)
-                enableVibration(true)
-                setVibrationPattern(longArrayOf(0L, 500L, 250L, 500L))
+                // The dedicated ringtone foreground service is the single source of
+                // ringing sound/vibration, avoiding overlapping notification alerts.
+                setSound(null, null)
+                enableVibration(false)
             }
         )
         manager.createNotificationChannel(
@@ -54,7 +55,7 @@ object CallNotificationManager {
         )
     }
 
-    fun buildIncomingNotification(context: Context, callId: String, callerName: String): Notification {
+    fun buildIncomingNotification(context: Context, callId: String, callerName: String, timeoutMillis: Long = 30_000L): Notification {
         ensureChannels(context)
         val appContext = context.applicationContext
         val ringtone = ringtoneUri()
@@ -95,12 +96,9 @@ object CallNotificationManager {
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setSound(ringtone, AudioManager.STREAM_RING)
-            .setVibrate(longArrayOf(0L, 500L, 250L, 500L))
             .setOngoing(true)
             .setAutoCancel(false)
-            .setTimeoutAfter(40_000L)
+            .setTimeoutAfter(timeoutMillis.coerceAtLeast(250L))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(person, declineIntent, answerIntent))
         } else {
@@ -118,11 +116,17 @@ object CallNotificationManager {
         context: Context,
         callId: String,
         callerName: String,
+        expiresAt: String? = null,
         persistentRinging: Boolean = true
     ) {
         val appContext = context.applicationContext
         val notification = runCatching {
-            buildIncomingNotification(appContext, callId, callerName)
+            buildIncomingNotification(
+                appContext,
+                callId,
+                callerName,
+                timeoutMillis = remainingMillisUntil(expiresAt)
+            )
         }.getOrNull() ?: return
 
         runCatching {
@@ -137,9 +141,17 @@ object CallNotificationManager {
                         .setAction(IncomingCallRingtoneService.ACTION_START)
                         .putExtra(IncomingCallRingtoneService.EXTRA_CALL_ID, callId)
                         .putExtra(IncomingCallRingtoneService.EXTRA_CALLER_NAME, callerName)
+                        .putExtra(IncomingCallRingtoneService.EXTRA_EXPIRES_AT, expiresAt.orEmpty())
                 )
             }
         }
+    }
+
+    private fun remainingMillisUntil(expiresAt: String?): Long {
+        return runCatching {
+            if (expiresAt.isNullOrBlank()) 30_000L
+            else java.time.Instant.parse(expiresAt).toEpochMilli() - System.currentTimeMillis()
+        }.getOrDefault(30_000L).coerceAtLeast(250L)
     }
 
     fun buildActiveNotification(context: Context, callId: String, otherName: String, connected: Boolean): Notification {
