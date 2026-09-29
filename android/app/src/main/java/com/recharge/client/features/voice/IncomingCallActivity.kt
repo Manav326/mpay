@@ -478,25 +478,45 @@ private fun IncomingCallScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.Top
                     ) {
-                        VerticalSwipeCallAction(
-                            label = "Decline",
-                            hint = "Swipe up to decline",
-                            icon = Icons.Default.CallEnd,
-                            tint = Color(0xFFDC2626),
-                            trackTint = Color(0xFFFFF1F2),
-                            enabled = !answering,
-                            onTriggered = onDecline
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            VerticalSwipeCallAction(
+                                hint = "Swipe up to reject",
+                                icon = Icons.Default.CallEnd,
+                                tint = Color(0xFFDC2626),
+                                trackTint = Color(0xFFFFF1F2),
+                                enabled = !answering,
+                                onTriggered = onDecline
+                            )
+                            Spacer(Modifier.height(7.dp))
+                            Text(
+                                text = "REJECT",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFDC2626),
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
                         Spacer(Modifier.size(22.dp))
-                        VerticalSwipeCallAction(
-                            label = "Answer",
-                            hint = "Swipe up to answer",
-                            icon = Icons.Default.Call,
-                            tint = Color(0xFF15803D),
-                            trackTint = Color(0xFFECFDF3),
-                            enabled = !answering,
-                            onTriggered = onAccept
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            VerticalSwipeCallAction(
+                                hint = "Swipe up to accept",
+                                icon = Icons.Default.Call,
+                                tint = Color(0xFF15803D),
+                                trackTint = Color(0xFFECFDF3),
+                                enabled = !answering,
+                                onTriggered = onAccept
+                            )
+                            Spacer(Modifier.height(7.dp))
+                            Text(
+                                text = "ACCEPT",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF15803D),
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
                     }
                 } else {
                     Row(
@@ -617,7 +637,6 @@ private fun formatDuration(totalSeconds: Long): String {
 
 @Composable
 private fun VerticalSwipeCallAction(
-    label: String,
     hint: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     tint: Color,
@@ -694,23 +713,13 @@ private fun VerticalSwipeCallAction(
                 }
                 .padding(12.dp)
         ) {
-            Column(
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    label.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = tint,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    if (offset.value >= triggerTravel) "Release" else "Swipe up",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = tint.copy(alpha = 0.78f)
-                )
-            }
+            Text(
+                text = if (offset.value >= triggerTravel) "Release" else "Swipe",
+                style = MaterialTheme.typography.labelSmall,
+                color = tint.copy(alpha = 0.78f),
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
+            )
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
