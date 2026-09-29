@@ -490,6 +490,16 @@ export async function updateVoiceCallUserAccess(publicUserId: string, mode: Voic
 }
 
 
+const customerCareDemoSummary: import('./types').CustomerCareQueueSummary = {
+  open: 0,
+  inProgress: 0,
+  waitingForCustomer: 0,
+  resolved: 0,
+  urgent: 0,
+  mine: 0,
+  unassigned: 0,
+};
+
 export async function getCustomerCareTickets(
   page = 0,
   size = 25,
@@ -504,18 +514,22 @@ export async function getCustomerCareTickets(
   if (priority !== 'ALL') params.set('priority', priority);
   if (category !== 'ALL') params.set('category', category);
   if (query.trim()) params.set('q', query.trim());
+  if (demo) return { items: [], page: 0, size, totalItems: 0, totalPages: 0, hasNext: false };
   return api('/api/v1/admin/customer-care/tickets?' + params.toString());
 }
 
 export async function getCustomerCareTicket(ticketId: string): Promise<import('./types').CustomerCareTicket> {
+  if (demo) throw new Error('Customer Care detail is unavailable in demo mode.');
   return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId));
 }
 
 export async function getCustomerCareQueueSummary(): Promise<import('./types').CustomerCareQueueSummary> {
+  if (demo) return customerCareDemoSummary;
   return api('/api/v1/admin/customer-care/summary');
 }
 
 export async function getCustomerCareAgents(): Promise<import('./types').CustomerCareAgent[]> {
+  if (demo) return [{ publicUserId: 'demo-admin', name: 'mPay Admin', role: 'ADMIN' }];
   return api('/api/v1/admin/customer-care/agents');
 }
 
