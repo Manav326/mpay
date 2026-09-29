@@ -125,6 +125,31 @@ class VoiceCallService(
     }
 
     @Transactional
+    fun terminateActiveCallForUser(userId: Long, reason: String) {
+        val participant = participants.findByUserId(userId).orElse(null) ?: return
+        val call = calls.findByCallIdForUpdate(participant.callId).orElse(null) ?: run {
+            participants.delete(participant)
+            return
+        }
+
+        if (isTerminal(call.status)) {
+            participants.deleteAllByCallId(call.callId)
+            websocket.clearCall(call.callId)
+            return
+        }
+
+        val otherUserId = otherParticipant(call, userId)
+        call.status = ENDED
+        call.endedAt = Instant.now()
+        call.endedByUserId = userId
+        call.endedReason = reason.take(80)
+        calls.save(call)
+        participants.deleteAllByCallId(call.callId)
+        broadcastStatus(call)
+        push.sendCallEnded(otherUserId, call.callId, call.status)
+    }
+
+    @Transactional
     fun accept(user: UserEntity, callId: String): VoiceCallResponse {
         val call = participantCallForUpdate(user, callId)
         requireCallee(call, user)
