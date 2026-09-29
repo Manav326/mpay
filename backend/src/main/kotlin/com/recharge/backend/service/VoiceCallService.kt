@@ -38,6 +38,7 @@ class VoiceCallService(
         const val MISSED = "MISSED"
         const val CANCELLED = "CANCELLED"
         const val ENDED = "ENDED"
+        const val CONNECTED_DISCONNECT_GRACE_SECONDS = 20L
     }
 
     @Transactional
@@ -125,7 +126,7 @@ class VoiceCallService(
 
     @Transactional
     fun accept(user: UserEntity, callId: String): VoiceCallResponse {
-        val call = participantCall(user, callId)
+        val call = participantCallForUpdate(user, callId)
         requireCallee(call, user)
 
         if (call.status != RINGING) {
@@ -144,7 +145,7 @@ class VoiceCallService(
 
     @Transactional
     fun decline(user: UserEntity, callId: String): VoiceCallResponse {
-        val call = participantCall(user, callId)
+        val call = participantCallForUpdate(user, callId)
         requireCallee(call, user)
 
         if (call.status != RINGING) {
@@ -165,7 +166,7 @@ class VoiceCallService(
 
     @Transactional
     fun end(user: UserEntity, callId: String): VoiceCallResponse {
-        val call = participantCall(user, callId)
+        val call = participantCallForUpdate(user, callId)
         val userId = requireNotNull(user.id)
 
         if (call.status in setOf(DECLINED, MISSED, CANCELLED, ENDED)) return response(call)
@@ -185,7 +186,7 @@ class VoiceCallService(
 
     @Transactional
     fun markConnected(userId: Long, callId: String): VoiceCallResponse {
-        val call = participantCallByUserId(userId, callId)
+        val call = participantCallForUpdateByUserId(userId, callId)
         if (call.status == ACCEPTED) {
             call.status = CONNECTED
             call.connectedAt = Instant.now()
@@ -213,6 +214,9 @@ class VoiceCallService(
 
     fun signalingToken(user: UserEntity, callId: String): VoiceCallSignalingTokenResponse {
         val call = participantCall(user, callId)
+        if (call.status !in setOf(ACCEPTED, CONNECTED)) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Call audio is not active")
+        }
         val token = jwtService.createCallSignalingToken(
             userId = requireNotNull(user.id),
             mobile = user.mobile,
@@ -235,9 +239,36 @@ class VoiceCallService(
 
     @Transactional
     @Scheduled(fixedDelayString = "\${MPAY_CALL_EXPIRY_SWEEP_MS:5000}")
+    fun expireDisconnectedConnectedCalls() {
+        val now = Instant.now()
+        calls.findAllByStatus(CONNECTED).forEach { call ->
+            val disconnectedUserId = listOf(call.callerUserId, call.calleeUserId)
+                .firstOrNull { !websocket.hasOpenSession(call.callId, it) }
+                ?: return@forEach
+
+            val disconnectedAt = websocket.disconnectedSinceOrMarkNow(call.callId, disconnectedUserId)
+            if (!disconnectedAt.plusSeconds(CONNECTED_DISCONNECT_GRACE_SECONDS).isAfter(now)) {
+                expireDisconnectedConnectedCall(call)
+            }
+        }
+    }
+
+    @Transactional
+    @Scheduled(fixedDelayString = "\${MPAY_CALL_EXPIRY_SWEEP_MS:5000}")
     fun expireUnconnectedCalls() {
         val cutoff = Instant.now().minusSeconds(properties.connectTimeoutSeconds.coerceAtLeast(15))
         calls.findAllByStatusAndAcceptedAtBefore(ACCEPTED, cutoff).forEach { expireUnconnectedCall(it) }
+    }
+
+    private fun expireDisconnectedConnectedCall(call: VoiceCallEntity) {
+        if (call.status != CONNECTED) return
+
+        call.status = ENDED
+        call.endedAt = Instant.now()
+        call.endedReason = "SIGNALING_DISCONNECT"
+        calls.save(call)
+        participants.deleteAllByCallId(call.callId)
+        broadcastStatus(call)
     }
 
     private fun expireUnconnectedCall(call: VoiceCallEntity) {
@@ -272,6 +303,9 @@ class VoiceCallService(
     private fun participantCall(user: UserEntity, callId: String): VoiceCallEntity =
         participantCallByUserId(requireNotNull(user.id), callId)
 
+    private fun participantCallForUpdate(user: UserEntity, callId: String): VoiceCallEntity =
+        participantCallForUpdateByUserId(requireNotNull(user.id), callId)
+
     private fun participantCallByUserId(userId: Long, callId: String): VoiceCallEntity {
         val call = calls.findByCallId(callId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Call not found")
@@ -280,6 +314,23 @@ class VoiceCallService(
         // Terminal calls may have their participant rows cleaned up. The call row
         // itself remains the authoritative record, so a caller/callee may still
         // fetch its final state and learn that the other side ended the call.
+        if (call.callerUserId != userId && call.calleeUserId != userId) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
+        }
+
+        val participant = participants.findByUserId(userId).orElse(null)
+        if (participant != null && participant.callId != callId && !isTerminal(call.status)) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are already in another active call")
+        }
+
+        return call
+    }
+
+    private fun participantCallForUpdateByUserId(userId: Long, callId: String): VoiceCallEntity {
+        val call = calls.findByCallIdForUpdate(callId).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Call not found")
+        }
+
         if (call.callerUserId != userId && call.calleeUserId != userId) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
         }
@@ -314,14 +365,22 @@ class VoiceCallService(
 
     fun socketAuthorized(userId: Long, callId: String): Boolean =
         calls.findByCallId(callId)
-            .map { userId == it.callerUserId || userId == it.calleeUserId }
+            .map {
+                it.status in setOf(ACCEPTED, CONNECTED) &&
+                    (userId == it.callerUserId || userId == it.calleeUserId)
+            }
             .orElse(false)
 
     private fun broadcastStatus(call: VoiceCallEntity) {
         val connectedAtEpochMillis = call.connectedAt?.toEpochMilli()?.toString() ?: "null"
         val endedAtEpochMillis = call.endedAt?.toEpochMilli()?.toString() ?: "null"
         val payload = """{"type":"status","callId":"${call.callId}","status":"${call.status}","connectedAtEpochMillis":$connectedAtEpochMillis,"endedAtEpochMillis":$endedAtEpochMillis}"""
-        websocket.sendToUsers(listOf(call.callerUserId, call.calleeUserId), payload)
+        websocket.sendToCallUser(call.callId, call.callerUserId, payload)
+        websocket.sendToCallUser(call.callId, call.calleeUserId, payload)
+        if (isTerminal(call.status)) {
+            websocket.closeCall(call.callId)
+            websocket.clearCall(call.callId)
+        }
     }
 
     private fun response(call: VoiceCallEntity): VoiceCallResponse {
