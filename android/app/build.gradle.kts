@@ -57,6 +57,14 @@ android {
         targetSdk = 36
         versionCode = 2
         versionName = "1.0.0"
+
+        // Ship only Android ARM ABIs. WebRTC also publishes x86/x86_64
+        // native binaries for emulators, which are not needed in the
+        // production mobile distribution and materially increase size.
+        ndk {
+            abiFilters += setOf("arm64-v8a", "armeabi-v7a")
+        }
+
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
         buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseApiKey.get()}\"")
