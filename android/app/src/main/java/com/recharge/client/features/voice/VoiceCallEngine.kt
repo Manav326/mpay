@@ -42,10 +42,18 @@ enum class VoiceCallPhase {
     ERROR
 }
 
+data class AudioOutputOption(
+    val id: String,
+    val label: String
+)
+
 data class VoiceCallEngineState(
     val phase: VoiceCallPhase = VoiceCallPhase.CONNECTING,
     val muted: Boolean = false,
-    val speaker: Boolean = true,
+    val speaker: Boolean = false,
+    val audioOutputId: String = "EARPIECE",
+    val audioOutput: String = "Phone",
+    val audioOutputs: List<AudioOutputOption> = emptyList(),
     val message: String = "Connecting securely…",
     val connectedAtEpochMillis: Long? = null,
     val endedAtEpochMillis: Long? = null
@@ -117,21 +125,100 @@ class VoiceCallEngine(private val context: Context) {
     }
 
     fun toggleSpeaker() {
+        setAudioOutput(if (stateFlow.value.speaker) "EARPIECE" else "SPEAKER")
+    }
+
+    fun refreshAudioOutputs() {
         val manager = audioManager ?: return
-        val next = !stateFlow.value.speaker
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (next) {
-                manager.availableCommunicationDevices
-                    .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-                    ?.let { manager.setCommunicationDevice(it) }
+        stateFlow.value = stateFlow.value.copy(audioOutputs = buildAudioOutputs(manager))
+    }
+
+    fun setAudioOutput(outputId: String) {
+        val manager = audioManager ?: return
+        val output = buildAudioOutputs(manager).firstOrNull { it.id == outputId } ?: return
+        val applied = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val deviceTypes = when (outputId) {
+                    "EARPIECE" -> setOf(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
+                    "SPEAKER" -> setOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
+                    "BLUETOOTH" -> setOf(
+                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                        AudioDeviceInfo.TYPE_BLE_HEADSET,
+                        AudioDeviceInfo.TYPE_HEARING_AID
+                    )
+                    else -> setOf(
+                        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                        AudioDeviceInfo.TYPE_USB_HEADSET
+                    )
+                }
+                val device = manager.availableCommunicationDevices.firstOrNull { it.type in deviceTypes }
+                device != null && manager.setCommunicationDevice(device)
             } else {
-                manager.clearCommunicationDevice()
+                @Suppress("DEPRECATION")
+                when (outputId) {
+                    "SPEAKER" -> {
+                        manager.stopBluetoothSco()
+                        manager.isBluetoothScoOn = false
+                        manager.isSpeakerphoneOn = true
+                        true
+                    }
+                    "BLUETOOTH" -> {
+                        manager.startBluetoothSco()
+                        manager.isBluetoothScoOn = true
+                        true
+                    }
+                    else -> {
+                        manager.stopBluetoothSco()
+                        manager.isBluetoothScoOn = false
+                        manager.isSpeakerphoneOn = false
+                        true
+                    }
+                }
+            }
+        }.getOrDefault(false)
+
+        if (applied) {
+            stateFlow.value = stateFlow.value.copy(
+                speaker = outputId == "SPEAKER",
+                audioOutputId = outputId,
+                audioOutput = output.label
+            )
+        } else if (outputId == "BLUETOOTH") {
+            stateFlow.value = stateFlow.value.copy(message = "Connect a Bluetooth audio device and try again")
+        }
+    }
+
+    private fun buildAudioOutputs(manager: AudioManager): List<AudioOutputOption> {
+        val outputs = mutableListOf(
+            AudioOutputOption("EARPIECE", "Phone"),
+            AudioOutputOption("SPEAKER", "Speaker")
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val devices = runCatching { manager.availableCommunicationDevices }.getOrDefault(emptyList())
+            devices.filter {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_HEARING_AID
+            }.mapNotNull { device ->
+                val name = device.productName?.toString()?.trim().orEmpty()
+                AudioOutputOption("BLUETOOTH", if (name.isBlank()) "Bluetooth" else "Bluetooth · $name")
+            }.distinctBy { it.label }.firstOrNull()?.let { outputs.add(it) }
+
+            if (devices.any {
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                }) {
+                outputs.add(AudioOutputOption("WIRED", "Wired headset"))
             }
         } else {
             @Suppress("DEPRECATION")
-            manager.isSpeakerphoneOn = next
+            if (manager.isBluetoothScoAvailableOffCall) {
+                outputs.add(AudioOutputOption("BLUETOOTH", "Bluetooth"))
+            }
         }
-        stateFlow.value = stateFlow.value.copy(speaker = next)
+        return outputs
     }
 
     fun stop() {
@@ -191,13 +278,28 @@ class VoiceCallEngine(private val context: Context) {
         }
 
         manager.mode = AudioManager.MODE_IN_COMMUNICATION
+        val outputs = buildAudioOutputs(manager)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            manager.clearCommunicationDevice()
+            val earpiece = runCatching {
+                manager.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+                }
+            }.getOrNull()
+            if (earpiece != null) {
+                runCatching { manager.setCommunicationDevice(earpiece) }
+            } else {
+                runCatching { manager.clearCommunicationDevice() }
+            }
         } else {
             @Suppress("DEPRECATION")
             manager.isSpeakerphoneOn = false
         }
-        stateFlow.value = stateFlow.value.copy(speaker = false)
+        stateFlow.value = stateFlow.value.copy(
+            speaker = false,
+            audioOutputId = "EARPIECE",
+            audioOutput = "Phone",
+            audioOutputs = outputs
+        )
     }
 
     private fun restoreAudio() {
