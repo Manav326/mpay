@@ -100,6 +100,17 @@ class VoiceCallService : Service() {
             kotlinx.coroutines.delay(2000)
             val result = repository.getCall(incomingCallId)
             result.onSuccess { current ->
+                if (current.connectedAt != null && stateFlow.value.connectedAtEpochMillis == null) {
+                    runCatching {
+                        java.time.Instant.parse(current.connectedAt).toEpochMilli()
+                    }.onSuccess { connectedAt ->
+                        stateFlow.value = stateFlow.value.copy(
+                            phase = if (current.status == "CONNECTED") VoiceCallPhase.CONNECTED else stateFlow.value.phase,
+                            connectedAtEpochMillis = connectedAt
+                        )
+                    }
+                }
+
                 if (current.status in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
                     Log.i(TAG, "Authoritative call state became terminal: " + current.status + " callId=" + incomingCallId)
                     stateFlow.value = stateFlow.value.copy(
