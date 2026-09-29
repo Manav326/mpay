@@ -29,6 +29,7 @@ interface SupportInteractionRepository : JpaRepository<SupportInteractionEntity,
     fun findByVoiceCallId(voiceCallId: String): Optional<SupportInteractionEntity>
     fun findAllByCustomerUserIdOrderByStartedAtDesc(customerUserId: Long): List<SupportInteractionEntity>
     fun findAllByConversationIdOrderByStartedAtDesc(conversationId: Long): List<SupportInteractionEntity>
+    fun findFirstByCaseIdAndChannelOrderByStartedAtDesc(caseId: Long, channel: String): Optional<SupportInteractionEntity>
 }
 
 interface SupportNoteRepository : JpaRepository<SupportNoteEntity, Long> {
