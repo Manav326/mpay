@@ -234,7 +234,7 @@ class VoiceCallService(
     }
 
     @Transactional
-    @Scheduled(fixedDelayString = "${MPAY_CALL_EXPIRY_SWEEP_MS:5000}")
+    @Scheduled(fixedDelayString = "\${MPAY_CALL_EXPIRY_SWEEP_MS:5000}")
     fun expireUnconnectedCalls() {
         val cutoff = Instant.now().minusSeconds(properties.connectTimeoutSeconds.coerceAtLeast(15))
         calls.findAllByStatusAndAcceptedAtBefore(ACCEPTED, cutoff).forEach { expireUnconnectedCall(it) }

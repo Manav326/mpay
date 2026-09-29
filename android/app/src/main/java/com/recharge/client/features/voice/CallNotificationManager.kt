@@ -198,5 +198,5 @@ object CallNotificationManager {
     }
 
     fun incomingNotificationId(callId: String) = INCOMING_BASE_ID + (callId.hashCode() and 0x0FFF)
-    private fun activeNotificationId(callId: String) = notificationId(callId) + 10000
+    private fun activeNotificationId(callId: String) = incomingNotificationId(callId) + 10000
 }

@@ -63,6 +63,22 @@ class VoiceCallEngine(private val context: Context) {
     private var audioManager: AudioManager? = null
     private var previousAudioMode: Int = AudioManager.MODE_NORMAL
     private var previousSpeakerState: Boolean = false
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                if (stateFlow.value.phase != VoiceCallPhase.ENDED) {
+                    stateFlow.value = stateFlow.value.copy(message = "Audio is temporarily unavailable…")
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (stateFlow.value.phase == VoiceCallPhase.CONNECTED) {
+                    stateFlow.value = stateFlow.value.copy(message = "Connected securely")
+                }
+            }
+        }
+    }
     private var callId: String = ""
 
     companion object {
