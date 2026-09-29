@@ -12,6 +12,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +48,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +61,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class IncomingCallActivity : ComponentActivity() {
@@ -72,19 +78,19 @@ class IncomingCallActivity : ComponentActivity() {
     ) { granted ->
         if (granted) answerCall()
         else {
-            lifecycleScope.launch {
-                repository.decline(callId)
-            }
-            finish()
+            answering = false
+            screenMessage = "Microphone permission is required to answer this call."
         }
     }
 
     private var callId: String = ""
     private var callerName: String = "mPay Support"
     private var accepted = false
+    private var answering = false
     private var service: VoiceCallService? = null
     private var bound = false
     private var engineState by mutableStateOf(VoiceCallEngineState())
+    private var screenMessage by mutableStateOf<String?>(null)
     private val repository by lazy { VoiceCallRepository(applicationContext) }
 
     private val serviceConnection = object : ServiceConnection {
@@ -95,9 +101,11 @@ class IncomingCallActivity : ComponentActivity() {
                 lifecycleScope.launch {
                     svc.state.collect {
                         engineState = it
-                        if (it.phase == VoiceCallPhase.ENDED || it.phase == VoiceCallPhase.ERROR) {
-                            kotlinx.coroutines.delay(500)
+                        if (it.phase == VoiceCallPhase.ENDED) {
+                            delay(350)
                             if (!isFinishing) finish()
+                        } else if (it.phase == VoiceCallPhase.ERROR) {
+                            screenMessage = it.message
                         }
                     }
                 }
@@ -118,6 +126,7 @@ class IncomingCallActivity : ComponentActivity() {
                 android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
 
+        accepted = savedInstanceState?.getBoolean("voice_call_accepted", false) == true
         callId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
         callerName = intent.getStringExtra(EXTRA_CALLER_NAME).orEmpty().ifBlank { "mPay Support" }
         if (callId.isBlank()) {
@@ -130,7 +139,9 @@ class IncomingCallActivity : ComponentActivity() {
                 IncomingCallScreen(
                     callerName = callerName,
                     accepted = accepted,
+                    answering = answering,
                     engineState = engineState,
+                    screenMessage = screenMessage,
                     onAccept = ::requestToAnswer,
                     onDecline = ::declineCall,
                     onHangUp = ::hangUp,
@@ -143,6 +154,11 @@ class IncomingCallActivity : ComponentActivity() {
         if (intent.getStringExtra(EXTRA_ACTION) == ACTION_ANSWER) {
             requestToAnswer()
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("voice_call_accepted", accepted)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onStart() {
@@ -166,7 +182,8 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     private fun requestToAnswer() {
-        if (accepted) return
+        if (accepted || answering) return
+        answering = true
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
@@ -175,10 +192,11 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     private fun answerCall() {
-        if (accepted) return
-        accepted = true
+        if (accepted || !answering) return
         lifecycleScope.launch {
             repository.accept(callId).onSuccess {
+                accepted = true
+                screenMessage = null
                 try {
                     CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
                     val intent = Intent(this@IncomingCallActivity, VoiceCallService::class.java)
@@ -190,16 +208,20 @@ class IncomingCallActivity : ComponentActivity() {
                     Log.e(TAG, "Unable to start voice call service after accepting call. callId=$callId", error)
                     runCatching { repository.end(callId) }
                     accepted = false
-                    finish()
+                    answering = false
+                    screenMessage = "The call could not be started on this device."
                 }
-            }.onFailure {
+            }.onFailure { error ->
                 accepted = false
-                finish()
+                answering = false
+                screenMessage = error.message?.takeIf { it.isNotBlank() }
+                    ?: "The call could not be answered. Please try again."
             }
         }
     }
 
     private fun declineCall() {
+        if (accepted || answering) return
         lifecycleScope.launch {
             repository.decline(callId)
             CallNotificationManager.cancelIncoming(this@IncomingCallActivity, callId)
@@ -208,6 +230,7 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     private fun hangUp() {
+        answering = false
         service?.hangUp() ?: lifecycleScope.launch { repository.end(callId) }
         CallNotificationManager.cancelIncoming(this, callId)
         finish()
@@ -225,7 +248,9 @@ class IncomingCallActivity : ComponentActivity() {
 private fun IncomingCallScreen(
     callerName: String,
     accepted: Boolean,
+    answering: Boolean,
     engineState: VoiceCallEngineState,
+    screenMessage: String?,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onHangUp: () -> Unit,
@@ -275,7 +300,8 @@ private fun IncomingCallScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = when {
-                        !accepted -> "You choose whether to answer this call."
+                        !accepted && answering -> "Connecting the secure call…"
+                        !accepted -> "mPay Support is calling you"
                         engineState.phase == VoiceCallPhase.CONNECTED -> "Connected securely"
                         engineState.phase == VoiceCallPhase.ERROR -> engineState.message
                         else -> engineState.message
@@ -287,47 +313,34 @@ private fun IncomingCallScreen(
                 Spacer(Modifier.height(28.dp))
 
                 if (!accepted) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(28.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(
-                                onClick = onDecline,
-                                modifier = Modifier
-                                    .size(68.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFE5484D))
-                            ) {
-                                Icon(Icons.Default.CallEnd, contentDescription = "Decline call", tint = Color.White)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = "Decline",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = AppColors.TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(
-                                onClick = onAccept,
-                                modifier = Modifier
-                                    .size(68.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF16A34A))
-                            ) {
-                                Icon(Icons.Default.Call, contentDescription = "Answer call", tint = Color.White)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = "Answer",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = AppColors.TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                    Text(
+                        text = if (answering) "Connecting…" else "Swipe to choose",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AppColors.TextSecondary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    SwipeCallAction(
+                        label = "Slide to answer",
+                        hint = "Answer call",
+                        icon = Icons.Default.Call,
+                        tint = Color(0xFF15803D),
+                        trackTint = Color(0xFFECFDF3),
+                        direction = SwipeActionDirection.RIGHT,
+                        enabled = !answering,
+                        onTriggered = onAccept
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    SwipeCallAction(
+                        label = "Slide to decline",
+                        hint = "Decline call",
+                        icon = Icons.Default.CallEnd,
+                        tint = Color(0xFFDC2626),
+                        trackTint = Color(0xFFFFF1F2),
+                        direction = SwipeActionDirection.LEFT,
+                        enabled = !answering,
+                        onTriggered = onDecline
+                    )
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -370,6 +383,83 @@ private fun IncomingCallScreen(
                         color = AppColors.TextSecondary
                     )
                 }
+            }
+        }
+    }
+}
+
+private enum class SwipeActionDirection { LEFT, RIGHT }
+
+@Composable
+private fun SwipeCallAction(
+    label: String,
+    hint: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    trackTint: Color,
+    direction: SwipeActionDirection,
+    enabled: Boolean,
+    onTriggered: () -> Unit
+) {
+    val directionSign = if (direction == SwipeActionDirection.RIGHT) 1 else -1
+    val offset = remember(direction) { Animatable(0f) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val maxTravel = with(density) { 206.dp.toPx() }
+    val triggerTravel = maxTravel * 0.70f
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(70.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(trackTint)
+            .pointerInput(direction, enabled) {
+                if (!enabled) return@pointerInput
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        val intended = dragAmount * directionSign
+                        offset.snapTo((offset.value + intended).coerceIn(0f, maxTravel))
+                    },
+                    onDragCancel = {
+                        launch { offset.animateTo(0f, androidx.compose.animation.core.tween(220)) }
+                    },
+                    onDragEnd = {
+                        launch {
+                            if (offset.value >= triggerTravel) {
+                                offset.animateTo(maxTravel, androidx.compose.animation.core.tween(120))
+                                onTriggered()
+                            } else {
+                                offset.animateTo(0f, androidx.compose.animation.core.tween(220))
+                            }
+                        }
+                    }
+                )
+            }
+            .padding(horizontal = 7.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = if (offset.value >= triggerTravel) "Release to continue" else label,
+            modifier = Modifier.fillMaxWidth().align(Alignment.Center),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelLarge,
+            color = tint,
+            fontWeight = FontWeight.Bold
+        )
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = if (direction == SwipeActionDirection.RIGHT) Arrangement.Start else Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .offset { IntOffset((directionSign * offset.value).toInt(), 0) }
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(tint),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = hint, tint = Color.White, modifier = Modifier.size(23.dp))
             }
         }
     }
