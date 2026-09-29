@@ -488,3 +488,68 @@ export async function updateVoiceCallUserAccess(publicUserId: string, mode: Voic
     body: JSON.stringify({ mode }),
   });
 }
+
+
+export async function getCustomerCareTickets(
+  page = 0,
+  size = 25,
+  status = 'ALL',
+  priority = 'ALL',
+  category = 'ALL',
+  assignment = 'ALL',
+  query = '',
+): Promise<import('./types').CustomerCareTicketPageResponse> {
+  const params = new URLSearchParams({ page: String(page), size: String(size), assignment });
+  if (status !== 'ALL') params.set('status', status);
+  if (priority !== 'ALL') params.set('priority', priority);
+  if (category !== 'ALL') params.set('category', category);
+  if (query.trim()) params.set('q', query.trim());
+  return api('/api/v1/admin/customer-care/tickets?' + params.toString());
+}
+
+export async function getCustomerCareTicket(ticketId: string): Promise<import('./types').CustomerCareTicket> {
+  return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId));
+}
+
+export async function getCustomerCareQueueSummary(): Promise<import('./types').CustomerCareQueueSummary> {
+  return api('/api/v1/admin/customer-care/summary');
+}
+
+export async function getCustomerCareAgents(): Promise<import('./types').CustomerCareAgent[]> {
+  return api('/api/v1/admin/customer-care/agents');
+}
+
+export async function addCustomerCareAdminMessage(ticketId: string, message: string): Promise<import('./types').CustomerCareTicket> {
+  return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId) + '/messages', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function addCustomerCareAdminNote(ticketId: string, message: string): Promise<import('./types').CustomerCareTicket> {
+  return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId) + '/notes', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function updateCustomerCareStatus(ticketId: string, status: string): Promise<import('./types').CustomerCareTicket> {
+  return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId) + '/status', {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function updateCustomerCarePriority(ticketId: string, priority: string): Promise<import('./types').CustomerCareTicket> {
+  return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId) + '/priority', {
+    method: 'PUT',
+    body: JSON.stringify({ priority }),
+  });
+}
+
+export async function updateCustomerCareAssignment(ticketId: string, agentPublicId: string | null): Promise<import('./types').CustomerCareTicket> {
+  return api('/api/v1/admin/customer-care/tickets/' + encodeURIComponent(ticketId) + '/assignment', {
+    method: 'PUT',
+    body: JSON.stringify({ agentPublicId }),
+  });
+}
