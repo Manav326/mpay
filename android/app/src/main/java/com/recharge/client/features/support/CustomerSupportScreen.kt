@@ -567,7 +567,7 @@ private fun SupportChatDialog(
                     }
                 }
 
-                androidx.compose.foundation.layout.HorizontalDivider()
+                androidx.compose.material3.HorizontalDivider()
 
                 if (error != null) {
                     Text(
