@@ -195,7 +195,7 @@ export function VoiceCallWidget({
         }
 
         socket.onopen = () => {
-          setMessage('Waiting for secure audio…');
+          setMessage('Connected to call signaling…');
           for (const message of queuedOutgoingSignalsRef.current) {
             socket.send(message);
           }
@@ -207,6 +207,7 @@ export function VoiceCallWidget({
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'ready') {
+              setMessage('Customer connected. Preparing secure audio…');
               await createOffer();
               return;
             }
