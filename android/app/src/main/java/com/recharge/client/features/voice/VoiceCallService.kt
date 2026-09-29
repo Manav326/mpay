@@ -40,6 +40,7 @@ class VoiceCallService : Service() {
     private var engine: VoiceCallEngine? = null
     private var startupJob: kotlinx.coroutines.Job? = null
     private var observerJob: kotlinx.coroutines.Job? = null
+    private var callMonitorJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -93,6 +94,28 @@ class VoiceCallService : Service() {
         return START_STICKY
     }
 
+    private suspend fun monitorCallState(incomingCallId: String) {
+        val repository = VoiceCallRepository(applicationContext)
+        while (kotlinx.coroutines.currentCoroutineContext().isActive && callId == incomingCallId) {
+            kotlinx.coroutines.delay(2000)
+            val result = repository.getCall(incomingCallId)
+            result.onSuccess { current ->
+                if (current.status in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
+                    Log.i(TAG, "Authoritative call state became terminal: " + current.status + " callId=" + incomingCallId)
+                    stateFlow.value = stateFlow.value.copy(
+                        phase = VoiceCallPhase.ENDED,
+                        message = "Call ended"
+                    )
+                    stopCall()
+                }
+            }.onFailure { error ->
+                // A transient network failure must not end a live call. WebSocket/FCM
+                // normally delivers the remote end immediately; polling is the safety net.
+                Log.d(TAG, "Call-state fallback check failed for callId=" + incomingCallId + ": " + error.message)
+            }
+        }
+    }
+
     private fun startVoiceCall(incomingCallId: String) {
         startupJob?.cancel()
         startupJob = scope.launch {
@@ -114,6 +137,10 @@ class VoiceCallService : Service() {
             val newEngine = VoiceCallEngine(applicationContext)
             engine = newEngine
             observerJob?.cancel()
+            callMonitorJob?.cancel()
+            callMonitorJob = scope.launch {
+                monitorCallState(incomingCallId)
+            }
             observerJob = scope.launch {
                 newEngine.state.collect { state ->
                     stateFlow.value = state
@@ -190,7 +217,7 @@ class VoiceCallService : Service() {
             state.phase == VoiceCallPhase.CONNECTED
         )
         val manager = androidx.core.app.NotificationManagerCompat.from(this)
-        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        runCatching { manager.notify(CallNotificationManager.ACTIVE_NOTIFICATION_ID, notification) }
     }
 
     private fun stopCall() {
@@ -198,6 +225,8 @@ class VoiceCallService : Service() {
         startupJob = null
         observerJob?.cancel()
         observerJob = null
+        callMonitorJob?.cancel()
+        callMonitorJob = null
         engine?.stop()
         engine = null
         callId?.let { CallNotificationManager.cancelActive(this, it) }
