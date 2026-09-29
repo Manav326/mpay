@@ -508,6 +508,8 @@ export interface SupportChat {
   messages: SupportMessage[];
   unreadForCustomer: number;
   unreadForStaff: number;
+  callbackRequestEnabled?: boolean;
+  pendingCallbackRequest?: SupportCallRequest | null;
 }
 
 export interface SupportCaseEvent {
