@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.HeadsetMic
@@ -41,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +58,8 @@ import com.recharge.client.core.model.SupportInteractionResponse
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.core.theme.AppColors
 import android.content.Context
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -70,6 +76,12 @@ fun CustomerSupportScreen(
     var busy by remember { mutableStateOf(false) }
     var reason by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var chatOpen by remember { mutableStateOf(false) }
+    var chatLoading by remember { mutableStateOf(false) }
+    var chatBusy by remember { mutableStateOf(false) }
+    var chatDraft by remember { mutableStateOf("") }
+    var chatError by remember { mutableStateOf<String?>(null) }
+    var chat by remember { mutableStateOf<com.recharge.client.core.model.SupportChatResponse?>(null) }
 
     suspend fun load() {
         loading = true
@@ -89,6 +101,61 @@ fun CustomerSupportScreen(
     }
 
     LaunchedEffect(Unit) { load() }
+
+    suspend fun loadChat() {
+        chatLoading = true
+        chatError = null
+        runCatching {
+            NetworkModule.clientApi(context).customerSupportChat()
+        }.onSuccess { response ->
+            if (response.isSuccessful) {
+                chat = response.body()
+            } else {
+                chatError = "Unable to load the support chat."
+            }
+        }.onFailure {
+            chatError = it.message ?: "Unable to load the support chat."
+        }
+        chatLoading = false
+    }
+
+    LaunchedEffect(chatOpen) {
+        if (chatOpen) {
+            while (isActive) {
+                loadChat()
+                delay(5000)
+            }
+        }
+    }
+
+    fun openChat() {
+        chatOpen = true
+        scope.launch { loadChat() }
+    }
+
+    fun sendChatMessage() {
+        val message = chatDraft.trim()
+        if (message.isBlank() || chatBusy) return
+        chatBusy = true
+        chatError = null
+        scope.launch {
+            runCatching {
+                NetworkModule.clientApi(context).sendCustomerSupportChatMessage(
+                    com.recharge.client.core.model.CreateSupportMessageRequest(message)
+                )
+            }.onSuccess { response ->
+                if (response.isSuccessful) {
+                    chatDraft = ""
+                    loadChat()
+                } else {
+                    chatError = "Unable to send your message."
+                }
+            }.onFailure {
+                chatError = it.message ?: "Unable to send your message."
+            }
+            chatBusy = false
+        }
+    }
 
     fun requestCall() {
         if (busy) return
@@ -175,6 +242,7 @@ fun CustomerSupportScreen(
                 item {
                     SupportHero(
                         enabled = overview?.callbackRequestEnabled == true,
+                        onOpenChat = ::openChat,
                         pending = overview?.pendingRequest,
                         busy = busy,
                         onRequest = ::requestCall,
@@ -287,11 +355,26 @@ fun CustomerSupportScreen(
             }
         }
     }
+
+    if (chatOpen) {
+        SupportChatDialog(
+            chat = chat,
+            loading = chatLoading,
+            busy = chatBusy,
+            draft = chatDraft,
+            error = chatError,
+            onDraftChange = { chatDraft = it.take(4000) },
+            onSend = ::sendChatMessage,
+            onDismiss = { chatOpen = false },
+            onRefresh = { scope.launch { loadChat() } }
+        )
+    }
 }
 
 @Composable
 private fun SupportHero(
     enabled: Boolean,
+    onOpenChat: () -> Unit,
     pending: SupportCallRequestResponse?,
     busy: Boolean,
     onRequest: () -> Unit,
@@ -300,6 +383,7 @@ private fun SupportHero(
     onCancel: (SupportCallRequestResponse) -> Unit
 ) {
     Card(
+        onClick = onOpenChat,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)),
@@ -313,8 +397,18 @@ private fun SupportHero(
                 Spacer(Modifier.size(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Talk to mPay Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                    Text("Request a callback. A support team member will decide when to place the call.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("Chat with mPay Support or request a callback when you need a voice conversation.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
+            }
+
+            Button(
+                onClick = onOpenChat,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(Icons.Default.HeadsetMic, contentDescription = null)
+                Spacer(Modifier.size(7.dp))
+                Text("Open support chat", fontWeight = FontWeight.Bold)
             }
 
             when {
@@ -410,3 +504,177 @@ private fun formatSupportDate(value: String): String =
             .withZone(ZoneId.systemDefault())
             .format(Instant.parse(value))
     }.getOrDefault(value)
+
+
+@Composable
+private fun SupportChatDialog(
+    chat: com.recharge.client.core.model.SupportChatResponse?,
+    loading: Boolean,
+    busy: Boolean,
+    draft: String,
+    error: String?,
+    onDraftChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onDismiss: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    LaunchedEffect(chat?.messages?.size) {
+        val size = chat?.messages?.size ?: 0
+        if (size > 0) {
+            listState.animateScrollToItem(size - 1)
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.94f).fillMaxHeight(0.82f),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            tonalElevation = 4.dp
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = AppColors.Primary.copy(alpha = .12f)
+                    ) {
+                        Icon(
+                            Icons.Default.HeadsetMic,
+                            contentDescription = null,
+                            tint = AppColors.PrimaryDark,
+                            modifier = Modifier.padding(9.dp).size(21.dp)
+                        )
+                    }
+                    Spacer(Modifier.size(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("mPay Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (chat?.status == "OPEN") "Usually replies through this chat" else "Support conversation",
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    IconButton(onClick = onRefresh, enabled = !loading) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+
+                androidx.compose.foundation.layout.HorizontalDivider()
+
+                if (error != null) {
+                    Text(
+                        error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (chat?.messages.isNullOrEmpty()) {
+                        item {
+                            Column(
+                                Modifier.fillMaxWidth().padding(vertical = 50.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = AppColors.Primary.copy(alpha = .10f)
+                                ) {
+                                    Icon(
+                                        Icons.Default.HeadsetMic,
+                                        contentDescription = null,
+                                        tint = AppColors.PrimaryDark,
+                                        modifier = Modifier.padding(12.dp).size(28.dp)
+                                    )
+                                }
+                                Text("Start a conversation", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Tell us what you need help with and an mPay support member will respond here.",
+                                    color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    } else {
+                        items(chat?.messages.orEmpty(), key = { it.messageId }) { item ->
+                            val mine = item.senderType == "CUSTOMER"
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
+                            ) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(0.82f),
+                                    shape = RoundedCornerShape(
+                                        topStart = 16.dp,
+                                        topEnd = 16.dp,
+                                        bottomStart = if (mine) 16.dp else 4.dp,
+                                        bottomEnd = if (mine) 4.dp else 16.dp
+                                    ),
+                                    color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF4F5F7)
+                                ) {
+                                    Column(Modifier.padding(horizontal = 13.dp, vertical = 9.dp)) {
+                                        Text(
+                                            if (mine) "You" else "mPay Support",
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (mine) AppColors.PrimaryDark else AppColors.TextPrimary,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                        Text(item.message, color = AppColors.TextPrimary)
+                                        Spacer(Modifier.size(2.dp))
+                                        Text(
+                                            formatSupportDate(item.createdAt),
+                                            color = AppColors.TextSecondary,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Surface(
+                    color = Color(0xFFF8F8F8),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(10.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        OutlinedTextField(
+                            value = draft,
+                            onValueChange = onDraftChange,
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Write a message…") },
+                            maxLines = 4,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        IconButton(
+                            onClick = onSend,
+                            enabled = draft.isNotBlank() && !busy,
+                            modifier = Modifier.size(50.dp)
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Send", tint = AppColors.PrimaryDark)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
