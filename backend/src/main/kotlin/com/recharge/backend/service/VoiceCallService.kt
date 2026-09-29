@@ -319,7 +319,8 @@ class VoiceCallService(
 
     private fun broadcastStatus(call: VoiceCallEntity) {
         val connectedAtEpochMillis = call.connectedAt?.toEpochMilli()?.toString() ?: "null"
-        val payload = """{"type":"status","callId":"${call.callId}","status":"${call.status}","connectedAtEpochMillis":$connectedAtEpochMillis}"""
+        val endedAtEpochMillis = call.endedAt?.toEpochMilli()?.toString() ?: "null"
+        val payload = """{"type":"status","callId":"${call.callId}","status":"${call.status}","connectedAtEpochMillis":$connectedAtEpochMillis,"endedAtEpochMillis":$endedAtEpochMillis}"""
         websocket.sendToUsers(listOf(call.callerUserId, call.calleeUserId), payload)
     }
 
