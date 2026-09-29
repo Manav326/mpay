@@ -24,8 +24,6 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.HeadsetMic
@@ -49,10 +47,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -125,7 +121,8 @@ private val supportTopicOptions = listOf(
 @Composable
 fun CustomerSupportScreen(
     context: Context,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenChat: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var overview by remember { mutableStateOf<CustomerSupportOverviewResponse?>(null) }
@@ -133,14 +130,6 @@ fun CustomerSupportScreen(
     var busy by remember { mutableStateOf(false) }
     var reason by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var chatOpen by remember { mutableStateOf(false) }
-    var chatLoading by remember { mutableStateOf(false) }
-    var chatBusy by remember { mutableStateOf(false) }
-    var chatDraft by remember { mutableStateOf("") }
-    var chatError by remember { mutableStateOf<String?>(null) }
-    var chat by remember { mutableStateOf<com.recharge.client.core.model.SupportChatResponse?>(null) }
-    var guidedTopic by remember { mutableStateOf<SupportTopicOption?>(null) }
-    var callbackBusy by remember { mutableStateOf(false) }
 
     suspend fun load() {
         loading = true
@@ -160,61 +149,6 @@ fun CustomerSupportScreen(
     }
 
     LaunchedEffect(Unit) { load() }
-
-    suspend fun loadChat() {
-        chatLoading = true
-        chatError = null
-        runCatching {
-            NetworkModule.clientApi(context).customerSupportChat()
-        }.onSuccess { response ->
-            if (response.isSuccessful) {
-                chat = response.body()
-            } else {
-                chatError = "Unable to load the support chat."
-            }
-        }.onFailure {
-            chatError = it.message ?: "Unable to load the support chat."
-        }
-        chatLoading = false
-    }
-
-    LaunchedEffect(chatOpen) {
-        if (chatOpen) {
-            while (isActive) {
-                loadChat()
-                delay(5000)
-            }
-        }
-    }
-
-    fun openChat() {
-        chatOpen = true
-        scope.launch { loadChat() }
-    }
-
-    fun sendChatMessage(messageOverride: String? = null) {
-        val message = (messageOverride ?: chatDraft).trim()
-        if (message.isBlank() || chatBusy) return
-        chatBusy = true
-        chatError = null
-        scope.launch {
-            runCatching {
-                NetworkModule.clientApi(context).sendCustomerSupportChatMessage(
-                    com.recharge.client.core.model.CreateSupportMessageRequest(message)
-                )
-            }.onSuccess { response ->
-                if (response.isSuccessful) {
-                    chatDraft = ""
-                    loadChat()
-                } else {
-                    chatError = "Unable to send your message."
-                }
-            }.onFailure {
-                chatError = it.message ?: "Unable to send your message."
-            }
-            chatBusy = false
-        }
-    }
 
     fun requestCall() {
         if (busy) return
@@ -251,48 +185,6 @@ fun CustomerSupportScreen(
                 error = it.message ?: "Unable to cancel the callback request."
             }
             busy = false
-        }
-    }
-
-    fun requestCallbackFromChat() {
-        if (callbackBusy || chat?.pendingCallbackRequest != null || chat?.callbackRequestEnabled != true) return
-        callbackBusy = true
-        chatError = null
-        scope.launch {
-            runCatching {
-                NetworkModule.clientApi(context).requestCustomerSupportCall(CreateSupportCallRequest(null))
-            }.onSuccess { response ->
-                if (response.isSuccessful) {
-                    loadChat()
-                    load()
-                } else {
-                    chatError = "mPay could not create the callback request."
-                }
-            }.onFailure {
-                chatError = it.message ?: "Unable to request a support callback."
-            }
-            callbackBusy = false
-        }
-    }
-
-    fun cancelChatCallback(request: SupportCallRequestResponse) {
-        if (callbackBusy) return
-        callbackBusy = true
-        chatError = null
-        scope.launch {
-            runCatching {
-                NetworkModule.clientApi(context).cancelCustomerSupportCall(request.requestId)
-            }.onSuccess { response ->
-                if (response.isSuccessful) {
-                    loadChat()
-                    load()
-                } else {
-                    chatError = "Unable to cancel the callback request."
-                }
-            }.onFailure {
-                chatError = it.message ?: "Unable to cancel the callback request."
-            }
-            callbackBusy = false
         }
     }
 
@@ -343,7 +235,7 @@ fun CustomerSupportScreen(
                 item {
                     SupportHero(
                         enabled = overview?.callbackRequestEnabled == true,
-                        onOpenChat = ::openChat,
+                        onOpenChat = onOpenChat,
                         pending = overview?.pendingRequest,
                         busy = busy,
                         onRequest = ::requestCall,
@@ -703,234 +595,3 @@ private fun formatSupportDate(value: String): String =
             .withZone(ZoneId.systemDefault())
             .format(Instant.parse(value))
     }.getOrDefault(value)
-
-
-@Composable
-private fun SupportChatDialog(
-    chat: com.recharge.client.core.model.SupportChatResponse?,
-    loading: Boolean,
-    busy: Boolean,
-    draft: String,
-    error: String?,
-    onDraftChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onChooseTopic: (SupportTopicOption) -> Unit,
-    onStartChat: () -> Unit,
-    onRequestCallback: () -> Unit,
-    onCancelCallback: (SupportCallRequestResponse) -> Unit,
-    callbackBusy: Boolean,
-    guidedTopic: SupportTopicOption?,
-    onBackToTopics: () -> Unit,
-    onDismiss: () -> Unit,
-    onRefresh: () -> Unit
-) {
-    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-
-    LaunchedEffect(chat?.messages?.size) {
-        val size = chat?.messages?.size ?: 0
-        if (size > 0) {
-            listState.animateScrollToItem(size - 1)
-        }
-    }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.94f).fillMaxHeight(0.82f),
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            tonalElevation = 4.dp
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = AppColors.Primary.copy(alpha = .12f)
-                    ) {
-                        Icon(
-                            Icons.Default.HeadsetMic,
-                            contentDescription = null,
-                            tint = AppColors.PrimaryDark,
-                            modifier = Modifier.padding(9.dp).size(21.dp)
-                        )
-                    }
-                    Spacer(Modifier.size(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("mPay Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            if (chat?.status == "OPEN") "Usually replies through this chat" else "Support conversation",
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                    IconButton(onClick = onRefresh, enabled = !loading) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-
-                androidx.compose.material3.HorizontalDivider()
-
-                if (error != null) {
-                    Text(
-                        error,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (chat?.messages.isNullOrEmpty() && guidedTopic != null) {
-                        item {
-                            SupportGuidedHelp(
-                                topic = requireNotNull(guidedTopic),
-                                onBack = onBackToTopics,
-                                onStartChat = onStartChat
-                            )
-                        }
-                    } else if (chat?.messages.isNullOrEmpty()) {
-                        item {
-                            Column(
-                                Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 10.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = AppColors.Primary.copy(alpha = .10f)
-                                ) {
-                                    Icon(
-                                        Icons.Default.HeadsetMic,
-                                        contentDescription = null,
-                                        tint = AppColors.PrimaryDark,
-                                        modifier = Modifier.padding(11.dp).size(27.dp)
-                                    )
-                                }
-                                Text("How can we help?", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Choose a topic to start your first support message, or type your own question below.",
-                                    color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-                        items(supportTopicOptions, key = { it.title }) { topic ->
-                            SupportTopicOptionCard(topic = topic, onClick = { onChooseTopic(topic) })
-                        }
-                    } else {
-                        items(chat?.messages.orEmpty(), key = { it.messageId }) { item ->
-                            val mine = item.senderType == "CUSTOMER"
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
-                            ) {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(0.82f),
-                                    shape = RoundedCornerShape(
-                                        topStart = 16.dp,
-                                        topEnd = 16.dp,
-                                        bottomStart = if (mine) 16.dp else 4.dp,
-                                        bottomEnd = if (mine) 4.dp else 16.dp
-                                    ),
-                                    color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF4F5F7)
-                                ) {
-                                    Column(Modifier.padding(horizontal = 13.dp, vertical = 9.dp)) {
-                                        Text(
-                                            if (mine) "You" else "mPay Support",
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (mine) AppColors.PrimaryDark else AppColors.TextPrimary,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                        Text(item.message, color = AppColors.TextPrimary)
-                                        Spacer(Modifier.size(2.dp))
-                                        Text(
-                                            formatSupportDate(item.createdAt),
-                                            color = AppColors.TextSecondary,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
-                    Surface(
-                        color = Color(0xFFFFFBF3),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            if (chat?.pendingCallbackRequest != null) {
-                                Text("Callback requested", color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                                Text("Customer Care will handle the voice request from the same support case.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                OutlinedButton(
-                                    onClick = { onCancelCallback(requireNotNull(chat?.pendingCallbackRequest)) },
-                                    enabled = !callbackBusy,
-                                    shape = RoundedCornerShape(11.dp)
-                                ) {
-                                    Icon(Icons.Default.CallEnd, contentDescription = null)
-                                    Spacer(Modifier.size(5.dp))
-                                    Text("Cancel callback")
-                                }
-                            } else if (chat?.callbackRequestEnabled == true) {
-                                OutlinedButton(
-                                    onClick = onRequestCallback,
-                                    enabled = !callbackBusy,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(Icons.Default.Call, contentDescription = null)
-                                    Spacer(Modifier.size(6.dp))
-                                    Text(if (callbackBusy) "Requesting callback…" else "Still need help? Request a callback", fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (!chat?.messages.isNullOrEmpty()) {
-                    Surface(
-                        color = Color(0xFFF8F8F8),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(10.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        OutlinedTextField(
-                            value = draft,
-                            onValueChange = onDraftChange,
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Write a message…") },
-                            maxLines = 4,
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                        Spacer(Modifier.size(8.dp))
-                        IconButton(
-                            onClick = onSend,
-                            enabled = draft.isNotBlank() && !busy,
-                            modifier = Modifier.size(50.dp)
-                        ) {
-                            Icon(Icons.Default.Send, contentDescription = "Send", tint = AppColors.PrimaryDark)
-                        }
-                    }
-                    }
-                }
-            }
-        }
-    }
-}
