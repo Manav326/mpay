@@ -38,7 +38,13 @@ class CallWebSocketHandler(
         if (!messageCallId.isNullOrBlank() && messageCallId != callId) return
 
         when (node.get("type")?.asText()) {
-            "ready", "signal" -> {
+            "ready" -> {
+                val otherUserId = calls.otherParticipant(callId, userId)
+                if (registry.hasOpenSession(otherUserId)) {
+                    registry.sendToUsers(listOf(userId, otherUserId), message.payload)
+                }
+            }
+            "signal" -> {
                 val otherUserId = calls.otherParticipant(callId, userId)
                 registry.sendToUser(otherUserId, message.payload)
             }
