@@ -20,14 +20,20 @@ object CallNotificationManager {
     private const val CHANNEL_ACTIVE = "active_calls"
     private const val INCOMING_BASE_ID = 48000
 
-    fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        val audioAttributes = AudioAttributes.Builder()
+    private fun ringtoneUri() =
+        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+
+    private fun ringtoneAttributes() =
+        AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
+
+    fun ensureChannels(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val ringtone = ringtoneUri()
+        val audioAttributes = ringtoneAttributes()
 
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_INCOMING, "Incoming mPay calls", NotificationManager.IMPORTANCE_HIGH).apply {
@@ -48,6 +54,8 @@ object CallNotificationManager {
     fun showIncoming(context: Context, callId: String, callerName: String) {
         ensureChannels(context)
         val appContext = context.applicationContext
+        val ringtone = ringtoneUri()
+        val audioAttributes = ringtoneAttributes()
         val answerIntent = PendingIntent.getActivity(
             appContext,
             callId.hashCode(),
