@@ -1,6 +1,7 @@
 package com.recharge.backend.repository
 
 import com.recharge.backend.domain.SupportCallRequestEntity
+import com.recharge.backend.domain.SupportCaseEventEntity
 import com.recharge.backend.domain.SupportCaseEntity
 import com.recharge.backend.domain.SupportConversationEntity
 import com.recharge.backend.domain.SupportInteractionEntity
