@@ -229,7 +229,12 @@ class VoiceCallService : Service() {
         callMonitorJob = null
         engine?.stop()
         engine = null
-        callId?.let { CallNotificationManager.cancelActive(this, it) }
+        callId?.let {
+            // Terminal cleanup owns both notification surfaces. This keeps a stale
+            // incoming alert from surviving a remote/local end race.
+            CallNotificationManager.cancelIncoming(this, it)
+            CallNotificationManager.cancelActive(this, it)
+        }
         callId = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
