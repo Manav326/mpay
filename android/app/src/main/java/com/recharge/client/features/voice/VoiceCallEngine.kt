@@ -60,6 +60,7 @@ class VoiceCallEngine(private val context: Context) {
     private var webSocket: WebSocket? = null
     private val signalingHandler = Handler(Looper.getMainLooper())
     private var signalingRetryRunnable: Runnable? = null
+    private var signalingConnectWatchdog: Runnable? = null
     private var signalingRetryAttempt = 0
     private var peerConnectionFactory: PeerConnectionFactory? = null
     private var peerConnection: PeerConnection? = null
@@ -137,6 +138,8 @@ class VoiceCallEngine(private val context: Context) {
         if (!initialized.getAndSet(false) && peerConnection == null && webSocket == null) return
         signalingRetryRunnable?.let(signalingHandler::removeCallbacks)
         signalingRetryRunnable = null
+        signalingConnectWatchdog?.let(signalingHandler::removeCallbacks)
+        signalingConnectWatchdog = null
         signalingRetryAttempt = 0
         runCatching { webSocket?.close(1000, "call ended") }
         webSocket = null
@@ -320,11 +323,16 @@ class VoiceCallEngine(private val context: Context) {
             else -> base
         }
         val url = socketBase + websocketPath + "?token=" + Uri.encode(token)
+        stateFlow.value = stateFlow.value.copy(message = "Connecting to secure signaling…")
+        val opening = AtomicBoolean(true)
 
         webSocket = client.newWebSocket(
             Request.Builder().url(url).build(),
             object : WebSocketListener() {
                 override fun onOpen(socket: WebSocket, response: Response) {
+                    opening.set(false)
+                    signalingConnectWatchdog?.let(signalingHandler::removeCallbacks)
+                    signalingConnectWatchdog = null
                     signalingRetryAttempt = 0
                     signalingRetryRunnable?.let(signalingHandler::removeCallbacks)
                     signalingRetryRunnable = null
@@ -334,10 +342,20 @@ class VoiceCallEngine(private val context: Context) {
                 }
 
                 override fun onMessage(socket: WebSocket, text: String) {
+                    Log.i(
+                        TAG,
+                        "Signaling message received. callId=" + callId +
+                            " type=" + (runCatching {
+                                gson.fromJson(text, JsonObject::class.java)?.get("type")?.asString
+                            }.getOrNull() ?: "unknown")
+                    )
                     handleMessage(text)
                 }
 
                 override fun onFailure(socket: WebSocket, t: Throwable, response: Response?) {
+                    opening.set(false)
+                    signalingConnectWatchdog?.let(signalingHandler::removeCallbacks)
+                    signalingConnectWatchdog = null
                     Log.e(
                         TAG,
                         "Signaling WebSocket failed callId=" + callId +
@@ -358,6 +376,9 @@ class VoiceCallEngine(private val context: Context) {
                 }
 
                 override fun onClosed(socket: WebSocket, code: Int, reason: String) {
+                    opening.set(false)
+                    signalingConnectWatchdog?.let(signalingHandler::removeCallbacks)
+                    signalingConnectWatchdog = null
                     if (stateFlow.value.phase != VoiceCallPhase.CONNECTED &&
                         stateFlow.value.phase != VoiceCallPhase.ENDED
                     ) {
@@ -366,6 +387,16 @@ class VoiceCallEngine(private val context: Context) {
                 }
             }
         )
+
+        val watchdog = Runnable {
+            if (opening.compareAndSet(true, false)) {
+                Log.w(TAG, "Signaling WebSocket open timeout. callId=" + callId)
+                stateFlow.value = stateFlow.value.copy(message = "Reconnecting secure signaling…")
+                webSocket?.cancel()
+            }
+        }
+        signalingConnectWatchdog = watchdog
+        signalingHandler.postDelayed(watchdog, 12_000L)
     }
 
     private fun scheduleSignalingReconnect(token: String, websocketPath: String) {
@@ -392,6 +423,10 @@ class VoiceCallEngine(private val context: Context) {
     private fun handleMessage(text: String) {
         val root = runCatching { gson.fromJson(text, JsonObject::class.java) }.getOrNull() ?: return
         when (root.get("type")?.asString) {
+            "ready" -> {
+                Log.i(TAG, "Both call participants are ready. callId=" + callId)
+                stateFlow.value = stateFlow.value.copy(message = "Preparing secure audio…")
+            }
             "status" -> {
                 when (root.get("status")?.asString) {
                     "CONNECTED" -> {
