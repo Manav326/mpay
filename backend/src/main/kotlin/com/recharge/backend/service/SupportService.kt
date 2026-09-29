@@ -115,6 +115,17 @@ class SupportService(
         return callRequests.findAllByStatusOrderByRequestedAtAsc(PENDING).map(::toRequestResponse)
     }
 
+    fun request(viewer: UserEntity, requestId: String): SupportCallRequestResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        val request = requestById(requestId)
+        val customer = users.findById(request.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
+        roleAccess.requireCanView(viewer, customer)
+        if (request.status == PENDING && request.expiresAt.isBefore(Instant.now())) {
+            expirePendingRequests(Instant.now())
+        }
+        return toRequestResponse(requestById(requestId))
+    }
+
     @Transactional
     fun markRequestCallStarted(viewer: UserEntity, requestId: String, callId: String): SupportCallRequestResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
@@ -441,16 +452,21 @@ class SupportService(
         }
     }
 
-    private fun toRequestResponse(entity: SupportCallRequestEntity) =
-        SupportCallRequestResponse(
+    private fun toRequestResponse(entity: SupportCallRequestEntity): SupportCallRequestResponse {
+        val customer = users.findById(entity.customerUserId).orElse(null)
+        return SupportCallRequestResponse(
             requestId = entity.requestId,
             status = entity.status,
             reason = entity.reason,
             requestedAt = entity.requestedAt.toString(),
             expiresAt = entity.expiresAt.toString(),
             caseId = entity.caseId?.let { cases.findById(it).orElse(null)?.caseId },
+            customerPublicId = customer?.publicId,
+            customerName = customer?.name,
+            customerMobile = customer?.mobile,
             voiceCallId = entity.voiceCallId
         )
+    }
 
     private fun toCaseResponse(entity: SupportCaseEntity, customer: UserEntity) =
         SupportCaseResponse(
