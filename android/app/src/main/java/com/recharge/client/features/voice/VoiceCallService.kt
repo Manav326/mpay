@@ -189,6 +189,14 @@ class VoiceCallService : Service() {
         engine?.toggleSpeaker()
     }
 
+    fun refreshAudioOutputs() {
+        engine?.refreshAudioOutputs()
+    }
+
+    fun setAudioOutput(outputId: String) {
+        engine?.setAudioOutput(outputId)
+    }
+
     fun hangUp() {
         val id = callId ?: return
         scope.launch {
