@@ -130,7 +130,7 @@ export default function CustomerCarePanel({ canManageSupport, canCallCustomer, c
     void loadRequests();
     const timer = window.setInterval(() => { void loadRequests(); }, 7000);
     return () => window.clearInterval(timer);
-  }, [selected?.customerPublicId]);
+  }, []);
 
   useEffect(() => {
     if (!selected?.customerPublicId) {
