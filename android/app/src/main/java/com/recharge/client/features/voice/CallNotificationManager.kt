@@ -10,6 +10,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
@@ -47,6 +48,12 @@ object CallNotificationManager {
                 enableVibration(true)
                 setVibrationPattern(longArrayOf(0L, 500L, 250L, 500L))
             }
+        )
+        val incomingChannel = manager.getNotificationChannel(CHANNEL_INCOMING)
+        Log.i(
+            "CallNotificationManager",
+            "Incoming channel state. importance=" + incomingChannel?.importance +
+                " soundSet=" + (incomingChannel?.sound != null)
         )
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ACTIVE, "Active mPay calls", NotificationManager.IMPORTANCE_LOW).apply {
@@ -122,6 +129,12 @@ object CallNotificationManager {
         persistentRinging: Boolean = true
     ) {
         val appContext = context.applicationContext
+        Log.i(
+            "CallNotificationManager",
+            "Showing incoming call. callId=" + callId +
+                " notificationsEnabled=" + NotificationManagerCompat.from(appContext).areNotificationsEnabled() +
+                " persistentRinging=" + persistentRinging
+        )
         val remaining = remainingMillisUntil(expiresAt)
         val notification = runCatching {
             buildIncomingNotification(
@@ -135,6 +148,7 @@ object CallNotificationManager {
         runCatching {
             androidx.core.app.NotificationManagerCompat.from(appContext)
                 .notify(incomingNotificationId(callId), notification)
+            Log.i("CallNotificationManager", "Incoming call notification posted. callId=" + callId)
         }.onFailure {
             android.util.Log.e("CallNotificationManager", "Unable to post incoming call notification. callId=$callId", it)
         }
