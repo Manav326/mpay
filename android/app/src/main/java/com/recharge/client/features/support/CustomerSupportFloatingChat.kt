@@ -2,6 +2,7 @@ package com.recharge.client.features.support
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -148,11 +150,7 @@ fun CustomerSupportFloatingChat(
     fun clampPosition() {
         val availableWidth = configuration.screenWidthDp.toFloat()
         val availableHeight = configuration.screenHeightDp.toFloat()
-        val currentWidth = if (minimized) {
-            minOf(260f, (availableWidth * 0.66f).coerceAtLeast(220f))
-        } else {
-            widthDp
-        }
+        val currentWidth = if (minimized) 56f else widthDp
         val currentHeight = if (minimized) 56f else heightDp
         offsetX = offsetX.coerceIn(
             horizontalMargin,
@@ -238,15 +236,11 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    val minimizedWidth = minOf(
-        260f,
-        (configuration.screenWidthDp.toFloat() * 0.66f).coerceAtLeast(220f)
-    )
-    val windowWidth = if (minimized) minimizedWidth else widthDp
+    val windowWidth = if (minimized) 56f else widthDp
     val windowHeight = if (minimized) 56f else heightDp
     val boundedWidth = windowWidth
         .coerceAtMost(configuration.screenWidthDp.toFloat() - 16f)
-        .coerceAtLeast(if (minimized) minimizedWidth else minWidth)
+        .coerceAtLeast(if (minimized) 56f else minWidth)
     val boundedHeight = windowHeight
         .coerceAtMost(configuration.screenHeightDp.toFloat() - 16f)
         .coerceAtLeast(if (minimized) 56f else minHeight)
@@ -329,6 +323,49 @@ private fun FloatingChatWindow(
     LaunchedEffect(chat?.messages?.size) {
         val size = chat?.messages?.size ?: 0
         if (size > 0) listState.animateScrollToItem(size - 1)
+    }
+
+    if (minimized) {
+        Surface(
+            modifier = modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onMinimize)
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(
+                                with(density) { dragAmount.x.toDp().value },
+                                with(density) { dragAmount.y.toDp().value }
+                            )
+                        }
+                    )
+                },
+            shape = CircleShape,
+            color = Color(0xFFFFFAF1),
+            shadowElevation = 16.dp,
+            tonalElevation = 3.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0E4D0))
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFFFFEFCF)
+                ) {
+                    Icon(
+                        Icons.Default.HeadsetMic,
+                        contentDescription = "Open mPay Support",
+                        tint = AppColors.PrimaryDark,
+                        modifier = Modifier.padding(11.dp).size(28.dp)
+                    )
+                }
+            }
+        }
+        return
     }
 
     Surface(
