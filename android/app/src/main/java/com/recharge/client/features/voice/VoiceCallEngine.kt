@@ -7,6 +7,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.recharge.client.BuildConfig
@@ -82,6 +83,7 @@ class VoiceCallEngine(private val context: Context) {
     private var callId: String = ""
 
     companion object {
+        private const val TAG = "VoiceCallEngine"
         private val factoryInitialized = AtomicBoolean(false)
     }
 
@@ -239,6 +241,7 @@ class VoiceCallEngine(private val context: Context) {
                 override fun onSignalingChange(newState: PeerConnection.SignalingState) = Unit
 
                 override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState) {
+                    Log.i(TAG, "ICE state=$newState callId=$callId")
                     when (newState) {
                         PeerConnection.IceConnectionState.CONNECTED,
                         PeerConnection.IceConnectionState.COMPLETED -> {
@@ -283,8 +286,12 @@ class VoiceCallEngine(private val context: Context) {
                 override fun onRemoveStream(stream: MediaStream) = Unit
                 override fun onDataChannel(dataChannel: DataChannel) = Unit
                 override fun onRenegotiationNeeded() = Unit
-                override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<MediaStream>) = Unit
-                override fun onTrack(transceiver: RtpTransceiver) = Unit
+                override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<MediaStream>) {
+                    Log.i(TAG, "Remote RTP track received kind=" + receiver.track()?.kind() + " callId=" + callId)
+                }
+                override fun onTrack(transceiver: RtpTransceiver) {
+                    Log.i(TAG, "Remote RTP transceiver received mediaType=" + transceiver.mediaType + " callId=" + callId)
+                }
             }
         )
 
@@ -315,7 +322,12 @@ class VoiceCallEngine(private val context: Context) {
                 }
 
                 override fun onFailure(socket: WebSocket, t: Throwable, response: Response?) {
-                    if (stateFlow.value.phase != VoiceCallPhase.ENDED) {
+                    Log.e(TAG, "Signaling WebSocket failed callId=$callId iceState=" + peerConnection?.iceConnectionState + " message=" + t.message, t)
+                    // WebSocket carries signaling only. Once ICE is connected, the media path
+                    // is independent, so a later signaling failure must not tear down live audio.
+                    if (stateFlow.value.phase != VoiceCallPhase.CONNECTED &&
+                        stateFlow.value.phase != VoiceCallPhase.ENDED
+                    ) {
                         stateFlow.value = VoiceCallEngineState(
                             phase = VoiceCallPhase.ERROR,
                             muted = stateFlow.value.muted,
