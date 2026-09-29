@@ -195,7 +195,7 @@ class VoiceCallService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
                 )
             } else {
-                startForeground(NOTIFICATION_ID, notification)
+                startForeground(CallNotificationManager.ACTIVE_NOTIFICATION_ID, notification)
             }
             true
         }.getOrElse { error ->
