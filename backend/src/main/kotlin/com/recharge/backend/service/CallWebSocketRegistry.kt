@@ -27,6 +27,10 @@ class CallWebSocketRegistry {
         }
     }
 
+    fun hasOpenSession(userId: Long): Boolean =
+        sessions[userId]?.any { it.isOpen } == true
+
+
     fun sendToUsers(userIds: Collection<Long>, payload: String, exceptSession: WebSocketSession? = null) {
         userIds.distinct().forEach { sendToUser(it, payload, exceptSession) }
     }
