@@ -12,6 +12,13 @@ import android.os.Vibrator
 import android.os.Handler
 import android.os.IBinder
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import android.os.Looper
 import java.time.Instant
 
@@ -31,6 +38,8 @@ class IncomingCallRingtoneService : Service() {
     private var callerName: String = "mPay Support"
     private var vibrator: Vibrator? = null
     private var ringSessionActive = false
+    private val monitorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var monitorJob: kotlinx.coroutines.Job? = null
 
     private val timeout = Runnable { stopRinging() }
 
@@ -79,6 +88,7 @@ class IncomingCallRingtoneService : Service() {
             }
 
             if (!sameCallAlreadyRinging) startRinging()
+            startCallStateMonitor()
             handler.removeCallbacks(timeout)
             handler.postDelayed(timeout, remainingMs)
             START_NOT_STICKY
@@ -89,6 +99,25 @@ class IncomingCallRingtoneService : Service() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             START_NOT_STICKY
+        }
+    }
+
+    private fun startCallStateMonitor() {
+        monitorJob?.cancel()
+        val monitoredCallId = callId
+        monitorJob = monitorScope.launch {
+            val repository = VoiceCallRepository(applicationContext)
+            while (isActive && ringSessionActive && callId == monitoredCallId) {
+                repository.getCall(monitoredCallId).onSuccess { current ->
+                    when (current.status) {
+                        "RINGING" -> Unit
+                        "ACCEPTED", "CONNECTED", "DECLINED", "MISSED", "CANCELLED", "ENDED" -> {
+                            handler.post { stopRinging() }
+                        }
+                    }
+                }
+                delay(1500L)
+            }
         }
     }
 
@@ -148,6 +177,8 @@ class IncomingCallRingtoneService : Service() {
     private fun stopRinging() {
         handler.removeCallbacks(timeout)
         ringSessionActive = false
+        monitorJob?.cancel()
+        monitorJob = null
         ringtone?.stop()
         ringtone = null
         vibrator?.cancel()
@@ -166,6 +197,9 @@ class IncomingCallRingtoneService : Service() {
         ringtone = null
         vibrator?.cancel()
         vibrator = null
+        monitorJob?.cancel()
+        monitorJob = null
+        monitorScope.cancel()
         super.onDestroy()
     }
 
