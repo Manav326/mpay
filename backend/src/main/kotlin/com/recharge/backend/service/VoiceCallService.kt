@@ -66,6 +66,10 @@ class VoiceCallService(
 
         val now = Instant.now()
 
+        if (supportRequestId != null) {
+            support.claimSupportRequestForCall(caller, supportRequestId, target.publicId)
+        }
+
         val callerParticipant = participants.findByUserId(callerId).orElse(null)
         if (callerParticipant != null) {
             val existingCall = calls.findByCallId(callerParticipant.callId).orElse(null)
