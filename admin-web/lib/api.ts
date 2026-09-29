@@ -111,6 +111,8 @@ export async function login(mobile: string, password: string, role: string) {
               'MANAGE_RENTAL_OPERATIONS',
               'VIEW_FINANCIAL_OPERATIONS',
               'MANAGE_HISTORY_PDF_ACCESS',
+              'VIEW_CUSTOMER_CARE',
+              'MANAGE_CUSTOMER_CARE',
             ]
           : [
               'PORTAL_LOGIN',
@@ -118,6 +120,8 @@ export async function login(mobile: string, password: string, role: string) {
               'VIEW_USERS',
               'VIEW_USER_DETAIL',
               'VIEW_FINANCIAL_OPERATIONS',
+              'VIEW_CUSTOMER_CARE',
+              'MANAGE_CUSTOMER_CARE',
             ],
     };
   }
