@@ -304,7 +304,7 @@ class SupportService(
 
     @Transactional
     fun claimSupportRequestForCall(viewer: EmployeeEntity, requestId: String, targetPublicId: String): SupportCallRequestEntity {
-        roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
+        roleAccess.requirePermission(viewer, "CALL_CUSTOMER")
         val request = callRequests.findByRequestIdForUpdate(requestId.trim()).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support call request not found")
         }
