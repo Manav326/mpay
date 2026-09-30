@@ -8,7 +8,7 @@ import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, Headset, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X
+  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X, PhoneCall, PhoneOff
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -1029,9 +1029,14 @@ export default function Portal() {
   const [supportChatError, setSupportChatError] = useState('');
   const [supportGuidedTopic, setSupportGuidedTopic] = useState<CustomerSupportTopic>();
   const [supportCallbackBusy, setSupportCallbackBusy] = useState(false);
-  const [supportCallbackReason, setSupportCallbackReason] = useState('');
   const [supportChatMinimized, setSupportChatMinimized] = useState(false);
-  const [supportChatPosition, setSupportChatPosition] = useState({ right: 24, bottom: 24 });
+  const [supportChatPosition, setSupportChatPosition] = useState({
+    x: 12,
+    y: 72,
+    width: 390,
+    height: 360,
+    autoSizeEnabled: true
+  });
 
   const walletSigned = (item: WalletItem) => {
     const amount = Math.abs(Number(item.amount || 0));
@@ -1059,6 +1064,7 @@ export default function Portal() {
     window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY, '1');
     setSupportChatOpen(true);
     setSupportChatMinimized(false);
+    setSupportChatPosition(value => ({ ...value, autoSizeEnabled: true }));
     void loadCustomerSupportChat();
   }
 
@@ -1086,16 +1092,15 @@ export default function Portal() {
     }
   }
 
-  async function requestCustomerSupportCallback(reasonOverride?: string) {
+  async function requestCustomerSupportCallback() {
     if (!supportChat?.callbackRequestEnabled || supportCallbackBusy) return;
     setSupportCallbackBusy(true);
     setSupportChatError('');
     try {
       await api('/api/v1/support/call-request', {
         method: 'POST',
-        body: JSON.stringify({ reason: (reasonOverride ?? supportCallbackReason).trim() || null })
+        body: JSON.stringify({ reason: null })
       });
-      setSupportCallbackReason('');
       await loadCustomerSupportChat();
     } catch (e:any) {
       setSupportChatError(e.message || 'Unable to request a callback.');
@@ -1134,6 +1139,35 @@ export default function Portal() {
     const timer = window.setInterval(() => { void loadCustomerSupportChat(); }, 5000);
     return () => window.clearInterval(timer);
   }, [supportChatOpen]);
+
+  useEffect(() => {
+    if (!supportChatOpen || supportChatMinimized || !supportChatPosition.autoSizeEnabled) return;
+    const messageCount = supportChat?.messages?.length ?? 0;
+    const targetHeight = supportGuidedTopic
+      ? 500
+      : messageCount <= 0
+        ? 360
+        : messageCount <= 2
+          ? 390
+          : messageCount <= 4
+            ? 460
+            : messageCount <= 7
+              ? 540
+              : 600;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const maxHeight = Math.max(320, viewportHeight - 16);
+    const nextHeight = Math.min(targetHeight, maxHeight);
+    if (Math.abs(nextHeight - supportChatPosition.height) > 0.5) {
+      setSupportChatPosition(value => ({ ...value, height: nextHeight }));
+    }
+  }, [
+    supportChatOpen,
+    supportChatMinimized,
+    supportChat?.messages?.length,
+    supportGuidedTopic,
+    supportChatPosition.autoSizeEnabled,
+    supportChatPosition.height
+  ]);
 
   async function loadHistory(
     page = 0,
@@ -3942,11 +3976,28 @@ export default function Portal() {
           onRequestCallback={() => void requestCustomerSupportCallback()}
           onCancelCallback={() => void cancelCustomerSupportCallback()}
           onBackToTopics={() => setSupportGuidedTopic(undefined)}
-          onMinimize={() => setSupportChatMinimized(value => !value)}
-          onMove={(right, bottom) => setSupportChatPosition({ right, bottom })}
+          onMinimize={() => {
+            if (!supportChatMinimized) {
+              const width = window.visualViewport?.width ?? window.innerWidth;
+              const height = window.visualViewport?.height ?? window.innerHeight;
+              setSupportChatPosition(value => ({
+                ...value,
+                x: Math.max(8, width - 56 - 12),
+                y: Math.max(8, height - 56 - 12),
+                autoSizeEnabled: value.autoSizeEnabled
+              }));
+            }
+            setSupportChatMinimized(value => !value);
+          }}
+          onMove={(x, y) => setSupportChatPosition(value => ({ ...value, x, y }))}
+          onResize={(width, height) => setSupportChatPosition(value => ({
+            ...value,
+            width,
+            height,
+            autoSizeEnabled: false
+          }))}
           onDismiss={closeCustomerSupportChat}
           onRefresh={() => void loadCustomerSupportChat()}
-          onCallbackReasonChange={value => setSupportCallbackReason(value.slice(0, 500))}
         />
       )}
     </main>
@@ -3961,10 +4012,9 @@ type CustomerSupportChatModalProps = {
   draft: string;
   error: string;
   guidedTopic?: CustomerSupportTopic;
-  callbackReason: string;
   callbackBusy: boolean;
   minimized: boolean;
-  position: { right: number; bottom: number };
+  position: { x: number; y: number; width: number; height: number; autoSizeEnabled: boolean };
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onChooseTopic: (topic: CustomerSupportTopic) => void;
@@ -3973,239 +4023,154 @@ type CustomerSupportChatModalProps = {
   onCancelCallback: () => void;
   onBackToTopics: () => void;
   onMinimize: () => void;
-  onMove: (right: number, bottom: number) => void;
+  onMove: (x: number, y: number) => void;
+  onResize: (width: number, height: number) => void;
   onDismiss: () => void;
   onRefresh: () => void;
-  onCallbackReasonChange: (value: string) => void;
 };
 
 function CustomerSupportChatModal({
-  chat,
-  loading,
-  busy,
-  draft,
-  error,
-  guidedTopic,
-  callbackReason,
-  callbackBusy,
-  minimized,
-  position,
-  onDraftChange,
-  onSend,
-  onChooseTopic,
-  onStartChat,
-  onRequestCallback,
-  onCancelCallback,
-  onBackToTopics,
-  onMinimize,
-  onMove,
-  onDismiss,
-  onRefresh,
-  onCallbackReasonChange
+  chat, loading, busy, draft, error, guidedTopic, callbackBusy, minimized, position,
+  onDraftChange, onSend, onChooseTopic, onStartChat, onRequestCallback, onCancelCallback,
+  onBackToTopics, onMinimize, onMove, onResize, onDismiss, onRefresh
 }: CustomerSupportChatModalProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; right: number; bottom: number } | null>(null);
-  const floatingEdgeGap = 8;
-  // Keep the workspace below the portal header on every form factor.
-  const floatingSafeTop = 86;
+  const dragRef = useRef<{ startX:number; startY:number; x:number; y:number } | null>(null);
+  const resizeRef = useRef<{ startX:number; startY:number; width:number; height:number } | null>(null);
+  const edgeGap = 8;
+  const supportPresent = chat?.status === 'OPEN' && chat.messages.some(item => item.senderType === 'STAFF' || item.senderType === 'AI');
 
   useEffect(() => {
-    const node = messagesRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
+    if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
   }, [chat?.messages.length]);
 
-  function clampFloatingPosition(nextRight: number, nextBottom: number) {
-    if (typeof window === 'undefined') return;
-
-    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const rect = modalRef.current?.getBoundingClientRect();
-    const width = rect?.width ?? (minimized ? 260 : 520);
-    const height = rect?.height ?? (minimized ? 60 : 650);
-    const maxRight = Math.max(floatingEdgeGap, viewportWidth - width - floatingEdgeGap);
-    const maxBottom = Math.max(
-      floatingEdgeGap,
-      viewportHeight - height - floatingSafeTop
-    );
-    const clampedRight = Math.min(Math.max(nextRight, floatingEdgeGap), maxRight);
-    const clampedBottom = Math.min(Math.max(nextBottom, floatingEdgeGap), maxBottom);
-
-    if (
-      Math.abs(clampedRight - position.right) > 0.5 ||
-      Math.abs(clampedBottom - position.bottom) > 0.5
-    ) {
-      onMove(clampedRight, clampedBottom);
-    }
-  }
-
   useEffect(() => {
-    const move = (event: globalThis.PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      clampFloatingPosition(
-        drag.right - (event.clientX - drag.startX),
-        drag.bottom - (event.clientY - drag.startY)
-      );
-    };
-    const up = () => { dragRef.current = null; };
-    const handleViewportChange = () => clampFloatingPosition(position.right, position.bottom);
-
     const viewport = window.visualViewport;
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('resize', handleViewportChange);
-    viewport?.addEventListener('resize', handleViewportChange);
-    viewport?.addEventListener('scroll', handleViewportChange);
-
-    const node = modalRef.current;
-    const resizeObserver = typeof ResizeObserver !== 'undefined' && node
-      ? new ResizeObserver(() => clampFloatingPosition(position.right, position.bottom))
-      : null;
-    if (resizeObserver && node) resizeObserver.observe(node);
-
-    handleViewportChange();
-
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('resize', handleViewportChange);
-      viewport?.removeEventListener('resize', handleViewportChange);
-      viewport?.removeEventListener('scroll', handleViewportChange);
-      resizeObserver?.disconnect();
+    const clamp = () => {
+      const vw = viewport?.width ?? window.innerWidth;
+      const vh = viewport?.height ?? window.innerHeight;
+      const rect = modalRef.current?.getBoundingClientRect();
+      const w = rect?.width ?? (minimized ? 56 : position.width);
+      const h = rect?.height ?? (minimized ? 56 : position.height);
+      const nx = Math.min(Math.max(position.x, edgeGap), Math.max(edgeGap, vw - w - edgeGap));
+      const ny = Math.min(Math.max(position.y, edgeGap), Math.max(edgeGap, vh - h - edgeGap));
+      if (Math.abs(nx-position.x)>0.5 || Math.abs(ny-position.y)>0.5) onMove(nx,ny);
     };
-  }, [minimized, onMove, position.bottom, position.right]);
+    const move = (event: globalThis.PointerEvent) => {
+      if (dragRef.current) {
+        const d=dragRef.current, vw=viewport?.width ?? window.innerWidth, vh=viewport?.height ?? window.innerHeight;
+        const rect=modalRef.current?.getBoundingClientRect();
+        const w=rect?.width ?? (minimized?56:position.width), h=rect?.height ?? (minimized?56:position.height);
+        onMove(
+          Math.min(Math.max(d.x+(event.clientX-d.startX),edgeGap),Math.max(edgeGap,vw-w-edgeGap)),
+          Math.min(Math.max(d.y+(event.clientY-d.startY),edgeGap),Math.max(edgeGap,vh-h-edgeGap))
+        );
+      }
+      if (resizeRef.current && !minimized) {
+        const d=resizeRef.current, vw=viewport?.width ?? window.innerWidth, vh=viewport?.height ?? window.innerHeight;
+        const minW=Math.min(300,Math.max(1,vw-16)), minH=Math.min(320,Math.max(1,vh-16));
+        onResize(
+          Math.min(Math.max(minW,d.width+(event.clientX-d.startX)),Math.max(minW,vw-position.x-edgeGap)),
+          Math.min(Math.max(minH,d.height+(event.clientY-d.startY)),Math.max(minH,vh-position.y-edgeGap))
+        );
+      }
+    };
+    const up=()=>{dragRef.current=null;resizeRef.current=null;};
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',up);
+    window.addEventListener('resize',clamp);
+    viewport?.addEventListener('resize',clamp);
+    viewport?.addEventListener('scroll',clamp);
+    clamp();
+    return ()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('resize',clamp);viewport?.removeEventListener('resize',clamp);viewport?.removeEventListener('scroll',clamp);};
+  }, [minimized,position.x,position.y,position.width,position.height,onMove,onResize]);
 
-  function beginDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest('button')) return;
+  const beginDrag=(event:ReactPointerEvent<HTMLDivElement>)=>{
+    if((event.target as HTMLElement).closest('button')) return;
     event.preventDefault();
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      right: position.right,
-      bottom: position.bottom
-    };
+    dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};
+  };
+  const beginResize=(event:ReactPointerEvent<HTMLDivElement>)=>{
+    event.preventDefault(); event.stopPropagation();
+    resizeRef.current={startX:event.clientX,startY:event.clientY,width:position.width,height:position.height};
+  };
+  const topicIcon=(topic:CustomerSupportTopic)=>{
+    const t=topic.title.toLowerCase();
+    if(t.includes('money')||t.includes('transaction')) return <WalletCards size={19}/>;
+    if(t.includes('recharge')) return <Smartphone size={19}/>;
+    if(t.includes('rental')) return <CarFront size={19}/>;
+    if(t.includes('account')) return <UserRound size={19}/>;
+    return <Headset size={19}/>;
+  };
+
+  if(minimized){
+    return <div className="customer-support-floating-layer">
+      <div ref={modalRef} className="customer-support-modal minimized" style={{left:position.x,top:position.y}}
+        onPointerDown={event=>{event.preventDefault();dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};}}
+        onClick={event=>{event.stopPropagation();onMinimize();}}>
+        <div className="customer-support-minimized-icon"><Headset size={28}/></div>
+        {supportPresent && <span className="customer-support-live-dot"/>}
+      </div>
+    </div>;
   }
 
-  return (
-    <div className="customer-support-floating-layer">
-      <div
-        className={'customer-support-modal ' + (minimized ? 'minimized' : '')}
-        ref={modalRef}
-        style={{ right: position.right, bottom: position.bottom }}
-        onClick={event => event.stopPropagation()}
-      >
-        <div className="customer-support-modal-head" onPointerDown={beginDrag}>
-          <div className="customer-support-modal-brand">
-            <span><Headset size={18}/></span>
-            <div>
-              <b>mPay Support</b>
-              <small>{chat?.status === 'OPEN' ? 'Your support conversation is active' : 'Private support conversation'}</small>
-            </div>
-          </div>
-          <div className="customer-support-modal-actions">
-            <button className="icon-btn" onClick={onRefresh} disabled={loading} title="Refresh"><RefreshCw size={15}/></button>
-            <button className="icon-btn" onClick={onMinimize} title={minimized ? 'Restore chat' : 'Minimize chat'}>{minimized ? <ChevronRight size={16}/> : <span style={{fontSize:16,lineHeight:1}}>—</span>}</button>
-            <button className="icon-btn" onClick={onDismiss} title="Close"><X size={17}/></button>
+  return <div className="customer-support-floating-layer">
+    <div className="customer-support-modal" ref={modalRef}
+      style={{left:position.x,top:position.y,width:position.width,height:position.height}}
+      onClick={event=>event.stopPropagation()}>
+      <div className="customer-support-modal-head" onPointerDown={beginDrag}>
+        <div className="customer-support-modal-brand">
+          <span><Headset size={20}/></span>
+          <div>
+            <div className="customer-support-title-line"><b>mPay Support</b>{supportPresent&&<span className="customer-support-live-dot-inline"/>}</div>
+            <small>{chat?.status === 'OPEN' ? 'Your support conversation is active' : 'Private support conversation'}</small>
           </div>
         </div>
+        <div className="customer-support-modal-actions">
+          <button className="customer-support-icon-button" onClick={onRefresh} disabled={loading} title="Refresh"><RefreshCw size={15}/></button>
+          <button className="customer-support-icon-button" onClick={onMinimize} title="Minimize chat"><span className="customer-support-minus">−</span></button>
+          <button className="customer-support-icon-button" onClick={onDismiss} title="Close"><X size={17}/></button>
+        </div>
+      </div>
 
-        {!minimized && error && <div className="customer-support-error">{error}</div>}
+      {error&&<div className="customer-support-error">{error}</div>}
 
-        {!minimized && (
-          <>
-            <div className="customer-support-messages" ref={messagesRef}>
-              {!chat?.messages?.length && !guidedTopic ? (
-                <div className="customer-support-empty">
-                  <div className="customer-support-welcome-icon"><Headset size={23}/></div>
-                  <h3>How can we help?</h3>
-                  <p>Start with a support topic. We’ll walk you through the common fix before connecting you to Customer Care.</p>
-                  <div className="customer-support-topics">
-                    {customerSupportTopics.map(topic => (
-                      <button key={topic.title} className="customer-support-topic" onClick={() => onChooseTopic(topic)} disabled={busy}>
-                        <span><b>{topic.title}</b><small>{topic.description}</small></span>
-                        <ChevronRight size={15}/>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : !chat?.messages?.length && guidedTopic ? (
-                <div className="customer-support-guided">
-                  <div className="customer-support-guided-head">
-                    <button className="icon-btn" onClick={onBackToTopics}><ChevronLeft size={15}/></button>
-                    <div><b>{guidedTopic.title}</b><small>Try these steps first</small></div>
-                  </div>
-                  <div className="customer-support-guided-steps">
-                    {guidedTopic.steps.map((step, index) => (
-                      <div className="customer-support-guided-step" key={step}>
-                        <span>{index + 1}</span><p>{step}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
-                  <button className="landing-primary customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/> Chat with mPay Support</button>
-                </div>
-              ) : (
-                chat?.messages?.map(item => {
-                  const mine = item.senderType === 'CUSTOMER';
-                  return (
-                    <div key={item.messageId} className={'customer-support-row ' + (mine ? 'mine' : 'staff')}>
-                      <div className={'customer-support-bubble ' + (mine ? 'mine' : 'staff')}>
-                        <span>{mine ? 'You' : 'mPay Support'}</span>
-                        <p>{item.message}</p>
-                        <small>{dt(item.createdAt)}</small>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+      <div className="customer-support-messages" ref={messagesRef}>
+        {!chat?.messages?.length&&guidedTopic ? <div className="customer-support-guided">
+          <div className="customer-support-guided-head"><button className="customer-support-icon-button" onClick={onBackToTopics}><ChevronLeft size={15}/></button><div><b>{guidedTopic.title}</b><small>Try these steps first</small></div></div>
+          <div className="customer-support-guided-steps">{guidedTopic.steps.map((step,index)=><div className="customer-support-guided-step" key={step}><span>{index+1}</span><p>{step}</p></div>)}</div>
+          <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
+          <button className="customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/>Chat with mPay Support</button>
+        </div> : !chat?.messages?.length ? <>
+          <div className="customer-support-empty"><div className="customer-support-welcome-icon"><Headset size={24}/></div><b>How can we help?</b><span>Choose a topic to start with guided help.</span></div>
+          <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
+            <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
+          </button>)}</div>
+        </> : chat.messages.map(item=>{
+          const mine=item.senderType==='CUSTOMER';
+          const sender=mine?'You':item.senderType==='AI'?'mPay AI Support':'mPay Support';
+          return <div key={item.messageId} className={'customer-support-row '+(mine?'mine':'staff')}>
+            <div className={'customer-support-bubble '+(mine?'mine':'staff')}><span>{sender}</span><p>{item.message}</p><small>{dt(item.createdAt)}</small></div>
+          </div>;
+        })}
+      </div>
 
-            {chat?.messages?.length && chat.messages.some(item => item.senderType === 'STAFF') && chat.callbackRequestEnabled ? (
-              <div className="customer-support-callback-escalation">
-                {chat.pendingCallbackRequest ? (
-                  <>
-                    <div><b>Callback requested</b><span>{chat.pendingCallbackRequest.status.replaceAll('_',' ')} · Customer Care will see this conversation.</span></div>
-                    <button className="landing-secondary" onClick={onCancelCallback} disabled={callbackBusy}>Cancel callback</button>
-                  </>
-                ) : (
-                  <>
-                    <div><b>Still need help?</b><span>Request a voice callback from Customer Care while keeping this conversation open.</span></div>
-                    <div className="customer-support-callback-form">
-                      <input value={callbackReason} onChange={event => onCallbackReasonChange(event.target.value)} placeholder="Optional reason"/>
-                      <button className="landing-secondary" onClick={onRequestCallback} disabled={callbackBusy}>{callbackBusy ? 'Requesting…' : 'Request callback'}</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : null}
+      {(chat?.messages?.some(item=>item.senderType==='STAFF')||chat?.pendingCallbackRequest) && <div className={'customer-support-callback-escalation '+(chat?.pendingCallbackRequest?'requested':'')}>
+        {chat.pendingCallbackRequest ? <><div><b>Callback requested</b><span>Customer Care will handle the voice request from this same support case.</span></div>
+          <button className="customer-support-outline-button" onClick={onCancelCallback} disabled={callbackBusy}><PhoneOff size={15}/>Cancel callback</button></>
+        : chat.callbackRequestEnabled ? <button className="customer-support-outline-button callback-full" onClick={onRequestCallback} disabled={callbackBusy}><PhoneCall size={15}/>{callbackBusy?'Requesting callback…':'Still need help? Request a callback'}</button> : null}
+      </div>}
 
-            {chat?.messages?.length ? (
-              <div className="customer-support-composer">
-                <textarea
-                  value={draft}
-                  onChange={event => onDraftChange(event.target.value)}
-                  placeholder="Write a message to mPay Support…"
-                  maxLength={4000}
-                  rows={3}
-                  disabled={busy}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault();
-                      onSend();
-                    }
-                  }}
-                />
-                <button className="landing-primary" onClick={onSend} disabled={!draft.trim() || busy}>
-                  <Send size={15}/>{busy ? 'Sending…' : 'Send'}
-                </button>
-              </div>
-            ) : null}
+      {chat?.messages?.length ? <div className="customer-support-composer">
+        <textarea value={draft} onChange={event=>onDraftChange(event.target.value)} placeholder="Write a message…" maxLength={4000} rows={3} disabled={busy}
+          onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();onSend();}}}/>
+        <button className="customer-support-send-button" onClick={onSend} disabled={!draft.trim()||busy} title="Send"><Send size={21}/></button>
+      </div> : null}
 
-            <div className="customer-support-footnote">This chat stays open while you navigate the portal. Support replies appear here automatically.</div>
-          </>
-        )}
+      <div className="customer-support-resize-hint"><span>Drag header to move · drag corner to resize</span>
+        <div className="customer-support-resize-handle" onPointerDown={beginResize}><i/><i/><i/></div>
       </div>
     </div>
-  );
+  </div>;
 }
