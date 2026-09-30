@@ -121,14 +121,6 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         super.onSaveInstanceState(outState)
     }
 
-    private fun ensurePlacesInitialized() {
-        if (BuildConfig.MAPS_API_KEY.isBlank() || com.google.android.libraries.places.api.Places.isInitialized()) return
-        com.google.android.libraries.places.api.Places.initializeWithNewPlacesApiEnabled(
-            applicationContext,
-            BuildConfig.MAPS_API_KEY
-        )
-    }
-
     private fun startWalletPaymentCheckout(order: PaymentOrderResponse) {
         try {
             when {
@@ -663,10 +655,7 @@ private fun AppRoot(
     LaunchedEffect(currentRoute) {
         when (currentRoute) {
             "marketplace" -> Unit
-            "car-rental" -> {
-                ensurePlacesInitialized()
-                rentalViewModel.clearCarSearch()
-            }
+            "car-rental" -> rentalViewModel.clearCarSearch()
             "rental-booking" -> homeViewModel.refreshWallet()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
