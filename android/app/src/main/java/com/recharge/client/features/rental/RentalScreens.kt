@@ -541,6 +541,7 @@ fun RentalVendorOnboardingScreen(
     onLoadVehicleCalendar: (String, Int, Int) -> Unit = { _, _, _ -> },
     onUpdateVendorProfile: (RentalVendorUpdateRequest, () -> Unit) -> Unit = { _, done -> done() }
 ) {
+        val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
     var vendorType by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.vendorType ?: "INDIVIDUAL") }
     var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
     var businessName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
@@ -821,7 +822,6 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             } else {
-                val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
                 items(state.vendorCars.chunked(if (rentalTwoColumnLayout) 2 else 1), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
                     // Availability is secondary data. Fetch it when this vehicle row
                     // actually enters the composition instead of for the entire fleet.
@@ -1461,6 +1461,7 @@ fun CarRentalMarketplaceScreen(
     onSearch: (String, String, String) -> Unit,
     onClearFilter: () -> Unit
 ) {
+    val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
     var start by remember { mutableStateOf("") }
     var end by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
@@ -1585,9 +1586,8 @@ fun CarRentalMarketplaceScreen(
             }
         }
 
-    val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
         items(
-            state.cars.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1),
+            state.cars.chunked(if (rentalTwoColumnLayout) 2 else 1),
             key = { row -> row.firstOrNull()?.id ?: row.hashCode() }
         ) { rowCars ->
             Row(
@@ -3004,6 +3004,7 @@ fun RentalMyBookingsScreen(
     onCancel: (String, () -> Unit) -> Unit,
     onWalletRefresh: () -> Unit = {}
 ) {
+    val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
     val clipboard = LocalClipboardManager.current
     var copiedBookingId by remember { mutableStateOf<String?>(null) }
     var cancelBookingId by remember { mutableStateOf<String?>(null) }
@@ -3082,9 +3083,8 @@ fun RentalMyBookingsScreen(
             item { MpayEmptyState(title = "No matching bookings", message = "Try another status filter.") }
         }
 
-    val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
         items(
-            filteredBookings.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1),
+            filteredBookings.chunked(if (rentalTwoColumnLayout) 2 else 1),
             key = { row -> row.firstOrNull()?.bookingId ?: row.hashCode() }
         ) { rowBookings ->
             Row(
