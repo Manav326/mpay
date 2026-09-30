@@ -133,7 +133,16 @@ class VoiceCallService(
     }
 
     @Transactional
+    fun terminateActiveCallForEmployee(employeeId: Long, reason: String) {
+        terminateActiveCallForAccount(employeeId, reason)
+    }
+
+    @Transactional
     fun terminateActiveCallForUser(userId: Long, reason: String) {
+        terminateActiveCallForAccount(userId, reason)
+    }
+
+    private fun terminateActiveCallForAccount(accountId: Long, reason: String) {
         val participant = participants.findByAccountId(userId).orElse(null) ?: return
         val call = calls.findByCallIdForUpdate(participant.callId).orElse(null) ?: run {
             participants.delete(participant)
@@ -188,7 +197,7 @@ class VoiceCallService(
 
         call.status = DECLINED
         call.endedAt = Instant.now()
-        call.endedByUserId = requireNotNull(user.id)
+        call.endedByAccountId = requireNotNull(user.id)
         call.endedReason = "DECLINED"
         calls.save(call)
         support.recordVoiceCallEnded(call)
@@ -200,13 +209,34 @@ class VoiceCallService(
     }
 
     @Transactional
+    fun end(employee: EmployeeEntity, callId: String): VoiceCallResponse {
+        val call = participantCallForUpdate(employee, callId)
+        val employeeId = requireNotNull(employee.id)
+        if (call.status in setOf(DECLINED, MISSED, CANCELLED, ENDED)) return response(call)
+        if (call.callerEmployeeId != employeeId) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the staff caller can end this call")
+        }
+        call.status = if (call.status == RINGING) CANCELLED else ENDED
+        call.endedAt = Instant.now()
+        call.endedByAccountId = employeeId
+        call.endedReason = "HANGUP"
+        calls.save(call)
+        support.recordVoiceCallEnded(call)
+        val otherUserId = otherParticipant(call, employeeId)
+        participants.deleteAllByCallId(call.callId)
+        broadcastStatus(call)
+        push.sendCallEnded(otherUserId, call.callId, call.status)
+        return response(call)
+    }
+
+    @Transactional
     fun end(user: UserEntity, callId: String): VoiceCallResponse {
         val call = participantCallForUpdate(user, callId)
         val userId = requireNotNull(user.id)
 
         if (call.status in setOf(DECLINED, MISSED, CANCELLED, ENDED)) return response(call)
 
-        call.status = if (call.status == RINGING && call.callerUserId == userId) CANCELLED else ENDED
+        call.status = ENDED
         call.endedAt = Instant.now()
         call.endedByUserId = userId
         call.endedReason = "HANGUP"
@@ -232,13 +262,20 @@ class VoiceCallService(
         return response(call)
     }
 
+    fun get(employee: EmployeeEntity, callId: String): VoiceCallResponse =
+        response(participantCall(employee, callId))
+
     fun get(user: UserEntity, callId: String): VoiceCallResponse =
         response(participantCall(user, callId))
 
     @Transactional
+    fun active(employee: EmployeeEntity): VoiceCallResponse? =
+        activeAccount(requireNotNull(employee.id))
+
+    @Transactional
     fun active(user: UserEntity): VoiceCallResponse? {
         val userId = requireNotNull(user.id)
-        val participant = participants.findByUserId(userId).orElse(null) ?: return null
+        val participant = participants.findByAccountId(userId).orElse(null) ?: return null
         val call = calls.findByCallId(participant.callId).orElse(null) ?: return null
 
         if (call.status in setOf(DECLINED, MISSED, CANCELLED, ENDED)) return null
@@ -249,23 +286,55 @@ class VoiceCallService(
         return response(call)
     }
 
-    fun signalingToken(user: UserEntity, callId: String): VoiceCallSignalingTokenResponse {
-        val call = participantCall(user, callId)
+    fun signalingToken(employee: EmployeeEntity, callId: String): VoiceCallSignalingTokenResponse {
+        val call = participantCall(employee, callId)
         if (call.status !in setOf(ACCEPTED, CONNECTED)) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Call audio is not active")
         }
         val token = jwtService.createCallSignalingToken(
-            userId = requireNotNull(user.id),
-            mobile = user.mobile,
-            role = user.role,
+            accountId = requireNotNull(employee.id),
+            mobile = employee.mobile,
+            role = employee.role,
             callId = call.callId,
-            ttlSeconds = properties.signalingTokenTtlSeconds
+            ttlSeconds = properties.signalingTokenTtlSeconds,
+            accountType = "EMPLOYEE"
         )
         return VoiceCallSignalingTokenResponse(
             token = token,
             expiresInSeconds = properties.signalingTokenTtlSeconds.coerceAtLeast(30),
             websocketPath = properties.websocketPath
         )
+    }
+
+    fun signalingToken(user: UserEntity, callId: String): VoiceCallSignalingTokenResponse {
+        val call = participantCall(user, callId)
+        if (call.status !in setOf(ACCEPTED, CONNECTED)) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Call audio is not active")
+        }
+        val token = jwtService.createCallSignalingToken(
+            accountId = requireNotNull(user.id),
+            mobile = user.mobile,
+            role = user.role,
+            callId = call.callId,
+            ttlSeconds = properties.signalingTokenTtlSeconds,
+            accountType = "USER"
+        )
+        return VoiceCallSignalingTokenResponse(
+            token = token,
+            expiresInSeconds = properties.signalingTokenTtlSeconds.coerceAtLeast(30),
+            websocketPath = properties.websocketPath
+        )
+    }
+
+    private fun activeAccount(accountId: Long): VoiceCallResponse? {
+        val participant = participants.findByAccountId(accountId).orElse(null) ?: return null
+        val call = calls.findByCallId(participant.callId).orElse(null) ?: return null
+        if (call.status in setOf(DECLINED, MISSED, CANCELLED, ENDED)) return null
+        if (call.status == RINGING && call.ringingExpiresAt.isBefore(Instant.now())) {
+            expireCall(call)
+            return null
+        }
+        return response(call)
     }
 
     @Transactional
@@ -339,7 +408,7 @@ class VoiceCallService(
         support.recordVoiceCallEnded(locked)
         participants.deleteAllByCallId(locked.callId)
         broadcastStatus(locked)
-        push.sendCallEnded(locked.callerUserId, locked.callId, locked.status)
+        push.sendCallEnded(locked.callerEmployeeId, locked.callId, locked.status)
         push.sendCallEnded(locked.calleeUserId, locked.callId, locked.status)
     }
 
@@ -347,7 +416,7 @@ class VoiceCallService(
         participantCallByAccountId(requireNotNull(user.id), callId)
 
     private fun participantCallForUpdate(user: UserEntity, callId: String): VoiceCallEntity =
-        participantCallForUpdateByUserId(requireNotNull(user.id), callId)
+        participantCallForUpdateByAccountId(requireNotNull(user.id), callId)
 
     private fun participantCallByAccountId(userId: Long, callId: String): VoiceCallEntity {
         val call = calls.findByCallId(callId).orElseThrow {
