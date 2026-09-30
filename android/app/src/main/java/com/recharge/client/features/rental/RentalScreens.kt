@@ -36,6 +36,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -542,26 +543,26 @@ fun RentalVendorOnboardingScreen(
     onUpdateVendorProfile: (RentalVendorUpdateRequest, () -> Unit) -> Unit = { _, done -> done() }
 ) {
         val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
-    var vendorType by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.vendorType ?: "INDIVIDUAL") }
-    var fullName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
-    var businessName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
-    var address by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.address.orEmpty()) }
-    var city by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.city.orEmpty()) }
-    var stateName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.state.orEmpty()) }
-    var pin by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.pinCode.orEmpty()) }
-    var pan by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.panNumber.orEmpty()) }
-    var upi by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutUpiId.orEmpty()) }
-    var bankName by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankName.orEmpty()) }
-    var bankAccount by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankAccountNumber.orEmpty()) }
-    var bankIfsc by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankIfsc.orEmpty()) }
-    var primaryPayout by remember(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutPrimaryMethod ?: "") }
-    var editingVendorProfile by remember { mutableStateOf(false) }
+    var vendorType by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.vendorType ?: "INDIVIDUAL") }
+    var fullName by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.fullName.orEmpty()) }
+    var businessName by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.businessName.orEmpty()) }
+    var address by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.address.orEmpty()) }
+    var city by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.city.orEmpty()) }
+    var stateName by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.state.orEmpty()) }
+    var pin by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.pinCode.orEmpty()) }
+    var pan by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.panNumber.orEmpty()) }
+    var upi by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutUpiId.orEmpty()) }
+    var bankName by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankName.orEmpty()) }
+    var bankAccount by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankAccountNumber.orEmpty()) }
+    var bankIfsc by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.bankIfsc.orEmpty()) }
+    var primaryPayout by rememberSaveable(state.vendor?.vendorId) { mutableStateOf(state.vendor?.payoutPrimaryMethod ?: "") }
+    var editingVendorProfile by rememberSaveable { mutableStateOf(false) }
 
     var offMarketCar by remember { mutableStateOf<RentalCarResponse?>(null) }
-    var offMarketStart by remember { mutableStateOf(LocalDate.now().plusDays(1).format(rentalDateFormatter)) }
-    var offMarketEnd by remember { mutableStateOf(LocalDate.now().plusDays(1).format(rentalDateFormatter)) }
-    var offMarketReason by remember { mutableStateOf("SERVICE_MAINTENANCE") }
-    var offMarketNote by remember { mutableStateOf("") }
+    var offMarketStart by rememberSaveable { mutableStateOf(LocalDate.now().plusDays(1).format(rentalDateFormatter)) }
+    var offMarketEnd by rememberSaveable { mutableStateOf(LocalDate.now().plusDays(1).format(rentalDateFormatter)) }
+    var offMarketReason by rememberSaveable { mutableStateOf("SERVICE_MAINTENANCE") }
+    var offMarketNote by rememberSaveable { mutableStateOf("") }
     var calendarCarId by remember { mutableStateOf<String?>(null) }
     var calendarMonth by remember { mutableStateOf(YearMonth.now()) }
     var detailsCar by remember { mutableStateOf<RentalCarResponse?>(null) }
@@ -1895,10 +1896,10 @@ fun RentalVehicleOnboardingScreen(
         driverPhoto = form.driverPhoto
     )
 
-    var pickerTarget by remember { mutableStateOf<Int?>(null) }
-    var pickerTitle by remember { mutableStateOf("") }
-    var pickedDeviceUri by remember { mutableStateOf<String?>(null) }
-    var devicePickerTarget by remember { mutableStateOf<Int?>(null) }
+    var pickerTarget by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pickerTitle by rememberSaveable { mutableStateOf("") }
+    var pickedDeviceUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var devicePickerTarget by rememberSaveable { mutableStateOf<Int?>(null) }
 
     val devicePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -2725,13 +2726,13 @@ fun RentalBookingScreen(
     initialStart: String? = null,
     initialEnd: String? = null
 ) {
-    var pickup by remember(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
+    var pickup by rememberSaveable(car.id, initialStart, initialEnd) { mutableStateOf(car.pickupAddress.orEmpty()) }
     // Temporary mapless booking mode: coordinates stay null until MAPS_API_KEY is enabled again.
     var pickupCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
-    var drop by remember(car.id, initialStart, initialEnd) { mutableStateOf("") }
+    var drop by rememberSaveable(car.id, initialStart, initialEnd) { mutableStateOf("") }
     var dropCoordinates by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalLocationInput?>(null) }
-    var start by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
-    var end by remember(car.id, initialStart, initialEnd) { mutableStateOf(initialEnd.orEmpty()) }
+    var start by rememberSaveable(car.id, initialStart, initialEnd) { mutableStateOf(initialStart.orEmpty()) }
+    var end by rememberSaveable(car.id, initialStart, initialEnd) { mutableStateOf(initialEnd.orEmpty()) }
     var quote by remember(car.id, initialStart, initialEnd) { mutableStateOf<RentalBookingQuoteResponse?>(null) }
 
     val parsedStart = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
@@ -3006,9 +3007,9 @@ fun RentalMyBookingsScreen(
 ) {
     val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
     val clipboard = LocalClipboardManager.current
-    var copiedBookingId by remember { mutableStateOf<String?>(null) }
-    var cancelBookingId by remember { mutableStateOf<String?>(null) }
-    var statusFilter by remember { mutableStateOf("ALL") }
+    var copiedBookingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var cancelBookingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var statusFilter by rememberSaveable { mutableStateOf("ALL") }
     LaunchedEffect(Unit) { onRefresh() }
 
     cancelBookingId?.let { bookingId ->
