@@ -2395,21 +2395,10 @@ export default function Portal() {
     const hour = new Date().getHours();
     setHomeGreeting(hour >= 5 && hour <= 11 ? 'Good morning' : hour >= 12 && hour <= 16 ? 'Good afternoon' : hour >= 17 && hour <= 21 ? 'Good evening' : 'Good night');
     if(!localStorage.getItem('mpay_token')){window.location.href='/login';return;}
-    void Promise.allSettled([
-      api<Me>('/api/v1/me'),
-      api<Wallet>('/api/v1/wallet'),
-      api<any>('/api/v1/recharge/commission-summary')
-    ]).then(([meResult,walletResult,commissionResult])=>{
-      if(meResult.status !== 'fulfilled' || walletResult.status !== 'fulfilled'){
-        return;
-      }
-      const a=meResult.value;
+    void api<Me>('/api/v1/me').then(a=>{
       setMe(a);
-      setWallet(walletResult.value);
       setProfileForm({name:a?.name || '',email:a?.email || ''});
-      if(commissionResult.status === 'fulfilled') setCommissionSummary(commissionResult.value);
-    });
-    void loadProfileImage();
+    }).catch(()=>undefined);
   },[]);
 
   useEffect(()=>{
@@ -2432,7 +2421,7 @@ export default function Portal() {
     } else if(view==='bookings'){
       void loadBookings();
     } else if(view==='account'){
-      void loadAccountData();
+      void loadAccountData().then(()=>void loadProfileImage());
     }
   },[view]);
 
@@ -2527,11 +2516,7 @@ export default function Portal() {
     if(selectedVendorVehicle) loadVehicleCalendar(selectedVendorVehicle.id,calendarMonth);
   },[calendarMonth]);
 
-  useEffect(()=>{
-    if(view==='account' && accountSection==='vendor' && vendorVerified && vendorVehicles.length){
-      vendorVehicles.forEach(car => { void loadVehicleUnavailability(car.id); });
-    }
-  },[view, accountSection, String(vendor?.status || '').toUpperCase(), vendorVehicles.map(car=>car.id).join('|')]);
+  // Vehicle availability and calendar are loaded only for the vehicle currently opened.
 
   async function copyText(value:string,message='Copied to clipboard.') {
     try { await navigator.clipboard.writeText(value); setNotice(message); }
