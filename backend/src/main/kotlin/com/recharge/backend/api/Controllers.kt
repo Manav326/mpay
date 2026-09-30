@@ -654,37 +654,3 @@ class VoiceCallAccessAdminController(
         access.setUserAccess(currentEmployee(authentication), publicId, request.mode)
 }
 
-@RestController
-@RequestMapping("/api/v1/admin/call-access")
-class VoiceCallAccessAdminController(
-    private val users: com.recharge.backend.repository.UserRepository,
-    private val access: com.recharge.backend.service.VoiceCallAccessService
-) {
-    private fun currentUser(authentication: Authentication) =
-        authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
-            ?: throw IllegalStateException("Invalid authenticated user")
-
-    @GetMapping("/roles")
-    fun roles(authentication: Authentication): List<VoiceCallRoleAccessResponse> =
-        access.roleAccess(currentUser(authentication))
-
-    @PutMapping("/roles/{role}")
-    fun updateRole(
-        authentication: Authentication,
-        @PathVariable role: String,
-        @Valid @RequestBody request: VoiceCallRoleAccessRequest
-    ): VoiceCallRoleAccessResponse =
-        access.setRoleAccess(currentUser(authentication), role, request.enabled)
-
-    @GetMapping("/users")
-    fun listUsers(authentication: Authentication): List<VoiceCallUserAccessResponse> =
-        access.userAccess(currentUser(authentication))
-
-    @PutMapping("/users/{publicId}")
-    fun updateUser(
-        authentication: Authentication,
-        @PathVariable publicId: String,
-        @Valid @RequestBody request: VoiceCallUserAccessRequest
-    ): VoiceCallUserAccessResponse =
-        access.setUserAccess(currentUser(authentication), publicId, request.mode)
-}
