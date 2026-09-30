@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -350,101 +352,126 @@ fun CustomerSupportScreen(
                 return@Surface
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = if (embedded) 12.dp else 18.dp, vertical = if (embedded) 4.dp else 6.dp),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (embedded) {
+                            Modifier
+                        } else {
+                            Modifier.verticalScroll(rememberScrollState())
+                        }
+                    )
+                    .padding(
+                        horizontal = if (embedded) 12.dp else 18.dp,
+                        vertical = if (embedded) 4.dp else 6.dp
+                    ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 error?.let { message ->
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Text(message, modifier = Modifier.padding(14.dp), color = MaterialTheme.colorScheme.onErrorContainer)
-                        }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(message, modifier = Modifier.padding(14.dp), color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
 
-                item {
-                    SupportHero(
-                        enabled = overview?.callbackRequestEnabled == true,
-                        onOpenChat = onOpenChat,
-                        showHeading = !embedded,
-                        pending = overview?.pendingRequest,
-                        busy = busy,
-                        onRequest = ::requestCall,
-                        reason = reason,
-                        onReasonChange = { reason = it.take(500) },
-                        onCancel = { request -> cancelRequest(request) }
-                    )
-                }
+                SupportHero(
+                    enabled = overview?.callbackRequestEnabled == true,
+                    onOpenChat = onOpenChat,
+                    showHeading = !embedded,
+                    pending = overview?.pendingRequest,
+                    busy = busy,
+                    onRequest = ::requestCall,
+                    reason = reason,
+                    onReasonChange = { reason = it.take(500) },
+                    onCancel = { request -> cancelRequest(request) }
+                )
 
-                item {
-                    Text(
-                        "Your Support Issue",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextPrimary
-                    )
-                }
+                Text(
+                    "Your Support Issue",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.TextPrimary
+                )
 
                 if (overview?.cases.isNullOrEmpty()) {
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(18.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("No active support issue", fontWeight = FontWeight.Bold)
-                                Text(
-                                    "Start a support chat and mPay Support will create the issue summary here.",
-                                    color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
+                            Text("No active support issue", fontWeight = FontWeight.Bold)
+                            Text(
+                                "Start a support chat and mPay Support will create the issue summary here.",
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
                 } else {
-                    item {
-                        val item = overview?.cases.orEmpty().first()
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(18.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    val item = overview?.cases.orEmpty().first()
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp)
                         ) {
-                            Column(
-                                Modifier.fillMaxWidth().padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(7.dp)
+                            Text(item.subject, fontWeight = FontWeight.Bold)
+                            Text(
+                                item.status.replace('_', ' '),
+                                color = if (item.status == "RESOLVED" || item.status == "CLOSED") Color(0xFF15803D) else AppColors.PrimaryDark,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp)
                             ) {
-                                Text(item.subject, fontWeight = FontWeight.Bold)
-                                Text(
-                                    item.status.replace('_', ' '),
-                                    color = if (item.status == "RESOLVED" || item.status == "CLOSED") Color(0xFF15803D) else AppColors.PrimaryDark,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+                                Column(
+                                    Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text("Last updated", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        Text(formatSupportDate(item.lastMeaningfulUpdateAt ?: item.updatedAt), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text("Expected resolution", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        Text(formatSupportDate(item.expectedResolutionAt ?: item.updatedAt), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
-                                    }
+                                    Text(
+                                        "Last updated",
+                                        color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Text(
+                                        formatSupportDate(item.lastMeaningfulUpdateAt ?: item.updatedAt),
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Column(
+                                    Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        "Expected resolution",
+                                        color = AppColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Text(
+                                        formatSupportDate(item.expectedResolutionAt ?: item.updatedAt),
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-
-                item { Spacer(Modifier.size(12.dp)) }
+                Spacer(Modifier.size(12.dp))
             }
         }
     }
