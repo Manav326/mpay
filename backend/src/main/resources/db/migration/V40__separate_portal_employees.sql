@@ -108,8 +108,14 @@ BEGIN
             'Existing portal account moved from the customer account store to the employee account store.'
         );
 
-        DELETE FROM wallets WHERE user_id = v_user_id;
-        DELETE FROM users WHERE id = v_user_id;
+        -- Keep the legacy user row as an inert historical record so older business
+        -- and audit foreign keys remain valid. Live portal authentication now resolves
+        -- this identity from employees and CUSTOMER login rejects non-CLIENT roles.
+        UPDATE users
+        SET role = 'LEGACY_EMPLOYEE',
+            active = FALSE,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = v_user_id;
     END LOOP;
 
     PERFORM setval(
