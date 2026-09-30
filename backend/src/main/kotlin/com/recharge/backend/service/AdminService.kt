@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.*
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.domain.RechargeTransactionEntity
 import com.recharge.backend.domain.UserEntity
 import com.recharge.backend.domain.WalletTransactionEntity
@@ -15,6 +16,7 @@ import java.time.*
 @Service
 class AdminService(
     private val users: UserRepository,
+    private val employees: EmployeeRepository,
     private val wallets: WalletRepository,
     private val walletLedger: WalletTransactionRepository,
     private val recharges: RechargeTransactionRepository,
@@ -23,11 +25,12 @@ class AdminService(
     private val roleAccess: RoleAccessService,
     private val passwordEncoder: org.springframework.security.crypto.password.PasswordEncoder,
     private val imageStorage: ProfileImageStorage,
-    private val voiceCalls: VoiceCallService
+    private val voiceCalls: VoiceCallService,
+    private val employeeAudit: EmployeeAuditService
 ) {
     private val zoneId = ZoneId.of("Asia/Kolkata")
 
-    fun users(requestedRole: String?, sort: String, viewer: UserEntity): List<AdminUserSummaryResponse> {
+    fun users(requestedRole: String?, sort: String, viewer: EmployeeEntity): List<AdminUserSummaryResponse> {
         roleAccess.requirePermission(viewer, "VIEW_USERS")
         val visibleRoles = roleAccess.visibleRolesFor(viewer.role)
         val roleFilter = requestedRole?.trim()?.uppercase()?.takeIf { it != "ALL" }
@@ -55,7 +58,7 @@ class AdminService(
         }
     }
 
-    fun supportCustomerContext(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
+    fun supportCustomerContext(viewer: EmployeeEntity, targetPublicId: String): AdminUserDetailResponse {
         roleAccess.requirePermission(viewer, "SUPPORT_VIEW_CUSTOMER_CONTEXT")
         val target = users.findByPublicId(targetPublicId).orElse(null)
             ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
@@ -77,7 +80,7 @@ class AdminService(
         }
     }
 
-    fun userDetail(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
+    fun userDetail(viewer: EmployeeEntity, targetPublicId: String): AdminUserDetailResponse {
         val target = resolveTarget(viewer, targetPublicId)
         return buildUserDetail(target)
     }
@@ -115,7 +118,7 @@ class AdminService(
         )
     }
 
-    fun rechargeHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): RechargeHistoryResponse {
+    fun rechargeHistory(viewer: EmployeeEntity, targetPublicId: String, page: Int, size: Int): RechargeHistoryResponse {
         val target = resolveTarget(viewer, targetPublicId)
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
@@ -159,7 +162,7 @@ class AdminService(
         )
     }
 
-    fun walletHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): WalletHistoryResponse {
+    fun walletHistory(viewer: EmployeeEntity, targetPublicId: String, page: Int, size: Int): WalletHistoryResponse {
         val target = resolveTarget(viewer, targetPublicId)
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
@@ -200,7 +203,7 @@ class AdminService(
         )
     }
 
-    fun withdrawalHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): WithdrawalHistoryResponse {
+    fun withdrawalHistory(viewer: EmployeeEntity, targetPublicId: String, page: Int, size: Int): WithdrawalHistoryResponse {
         val target = resolveTarget(viewer, targetPublicId)
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
@@ -233,13 +236,13 @@ class AdminService(
         )
     }
 
-    fun profileImage(viewer: UserEntity, targetPublicId: String, variant: ImageVariant): ProfileImageStorage.StoredImage {
+    fun profileImage(viewer: EmployeeEntity, targetPublicId: String, variant: ImageVariant): ProfileImageStorage.StoredImage {
         val target = resolveTarget(viewer, targetPublicId)
         val key = target.profileImageKey ?: throw IllegalArgumentException("Profile image not found")
         return imageStorage.load(key, variant) ?: throw IllegalArgumentException("Profile image not found")
     }
 
-    private fun resolveTarget(viewer: UserEntity, targetPublicId: String): UserEntity {
+    private fun resolveTarget(viewer: EmployeeEntity, targetPublicId: String): UserEntity {
         val target = users.findByPublicId(targetPublicId).orElse(null)
             ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
             ?: throw IllegalArgumentException("User not found")
@@ -247,7 +250,7 @@ class AdminService(
         return target
     }
 
-    fun dashboard(viewer: UserEntity): AdminDashboardResponse {
+    fun dashboard(viewer: EmployeeEntity): AdminDashboardResponse {
         roleAccess.requirePermission(viewer, "VIEW_DASHBOARD")
         val visibleRoles = roleAccess.visibleRolesFor(viewer.role)
         val userSet = users.findAllByRoleIn(visibleRoles.toList())
@@ -306,65 +309,120 @@ class AdminService(
     }
 
     @Transactional
-    fun createPortalStaff(viewer: UserEntity, request: CreatePortalStaffRequest): PortalStaffResponse {
-        if (!viewer.role.equals("ADMIN", true)) {
-            throw org.springframework.security.access.AccessDeniedException("Only the administrator can create portal staff")
-        }
+    fun createPortalStaff(viewer: EmployeeEntity, request: CreatePortalStaffRequest): PortalStaffResponse {
+        require(viewer.role.equals("ADMIN", true)) { "Only the administrator can create employees" }
 
         val role = request.role.trim().uppercase()
         val allowedStaffRoles = roleAccess.portalRoles()
             .map { it.uppercase() }
-            .filterNot { it.equals("ADMIN", true) || it.equals("CLIENT", true) }
+            .filterNot { it.equals("CLIENT", true) }
             .toSet()
 
         if (role !in allowedStaffRoles) {
             throw org.springframework.web.server.ResponseStatusException(
                 org.springframework.http.HttpStatus.BAD_REQUEST,
-                "Choose a valid staff role"
+                "Choose a valid employee role"
             )
         }
 
         val mobile = request.mobile.trim()
         val email = request.email?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
-
-        if (users.findByMobile(mobile).isPresent) {
+        if (users.findByMobile(mobile).isPresent || employees.findByMobile(mobile).isPresent) {
             throw org.springframework.web.server.ResponseStatusException(
                 org.springframework.http.HttpStatus.CONFLICT,
                 "An account with this mobile number already exists"
             )
         }
-        if (email != null && users.findByEmailIgnoreCase(email).isPresent) {
+        if (email != null && (users.findByEmailIgnoreCase(email).isPresent || employees.findByEmailIgnoreCase(email).isPresent)) {
             throw org.springframework.web.server.ResponseStatusException(
                 org.springframework.http.HttpStatus.CONFLICT,
                 "An account with this email address already exists"
             )
         }
 
-        val user = users.save(
-            UserEntity(
+        val now = Instant.now()
+        val employee = employees.save(
+            EmployeeEntity(
                 mobile = mobile,
                 name = request.name.trim(),
                 email = email,
                 passwordHash = passwordEncoder.encode(request.password),
                 role = role,
-                active = true
+                active = true,
+                createdAt = now,
+                updatedAt = now
             )
         )
-        wallets.save(com.recharge.backend.domain.WalletEntity(user = user))
 
-        return PortalStaffResponse(
-            publicUserId = user.publicId,
-            name = user.name,
-            email = user.email,
-            mobile = user.mobile,
-            role = user.role.uppercase(),
-            active = user.active,
-            createdAt = user.createdAt
+        employeeAudit.record(
+            actor = viewer,
+            action = "EMPLOYEE_CREATED",
+            subjectType = "EMPLOYEE",
+            subjectId = employee.publicId,
+            summary = "Created employee.",
+            metadata = mapOf("role" to role, "name" to employee.name)
         )
+
+        return toPortalStaffResponse(employee)
+    }
+
+    fun portalStaff(viewer: EmployeeEntity): List<PortalStaffResponse> {
+        require(viewer.role.equals("ADMIN", true)) { "Only the administrator can manage employees" }
+        val roles = roleAccess.portalRoles()
+            .map { it.uppercase() }
+            .filterNot { it.equals("CLIENT", true) }
+        return employees.findAllByRoleInOrderByCreatedAtDesc(roles).map(::toPortalStaffResponse)
+    }
+
+    fun portalStaffActivity(viewer: EmployeeEntity, publicId: String): List<PortalStaffActivityResponse> {
+        require(viewer.role.equals("ADMIN", true)) { "Only the administrator can review employee activity" }
+        val employee = employees.findByPublicId(publicId.trim()).orElseThrow {
+            IllegalArgumentException("Employee not found")
+        }
+        return employeeAudit.list(employee)
     }
 
     @Transactional
-    fun updateUserStatus(viewer: UserEntity, targetPublicId: String, active: Boolean): AdminUserStatusResponse {
+    fun updateEmployeeStatus(viewer: EmployeeEntity, publicId: String, active: Boolean): PortalStaffStatusResponse {
+        require(viewer.role.equals("ADMIN", true)) { "Only the administrator can manage employees" }
+        val employee = employees.findByPublicId(publicId.trim()).orElseThrow {
+            IllegalArgumentException("Employee not found")
+        }
+        require(!employee.role.equals("ADMIN", true)) { "The administrator account cannot be blocked here" }
+
+        employee.active = active
+        employee.updatedAt = Instant.now()
+        employees.save(employee)
+
+        employeeAudit.record(
+            actor = viewer,
+            action = if (active) "EMPLOYEE_ACTIVATED" else "EMPLOYEE_BLOCKED",
+            subjectType = "EMPLOYEE",
+            subjectId = employee.publicId,
+            summary = if (active) "Employee account activated." else "Employee account blocked."
+        )
+
+        return PortalStaffStatusResponse(
+            publicUserId = employee.publicId,
+            active = employee.active,
+            status = if (employee.active) "ACTIVE" else "BLOCKED"
+        )
+    }
+
+    private fun toPortalStaffResponse(employee: EmployeeEntity): PortalStaffResponse =
+        PortalStaffResponse(
+            publicUserId = employee.publicId,
+            name = employee.name,
+            email = employee.email,
+            mobile = employee.mobile,
+            role = employee.role.uppercase(),
+            active = employee.active,
+            createdAt = employee.createdAt,
+            lastLoginAt = employee.lastLoginAt
+        )
+
+    @Transactional
+    fun updateUserStatus(viewer: EmployeeEntity, targetPublicId: String, active: Boolean): AdminUserStatusResponse {
         roleAccess.requirePermission(viewer, "MANAGE_USER_STATUS")
         val target = resolveTarget(viewer, targetPublicId)
         require(requireId(target) != requireId(viewer)) { "You cannot change your own account status" }
