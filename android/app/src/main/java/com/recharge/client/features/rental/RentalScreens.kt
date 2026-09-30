@@ -1465,9 +1465,9 @@ fun CarRentalMarketplaceScreen(
     onClearFilter: () -> Unit
 ) {
     val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
-    var start by remember { mutableStateOf("") }
-    var end by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
+    var start by rememberSaveable { mutableStateOf("") }
+    var end by rememberSaveable { mutableStateOf("") }
+    var location by rememberSaveable { mutableStateOf("") }
     var detailsCar by remember { mutableStateOf<RentalCarResponse?>(null) }
 
     val parsedStart = runCatching { LocalDateTime.parse(start, DateTimeFormatter.ISO_LOCAL_DATE_TIME) }.getOrNull()
