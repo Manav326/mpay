@@ -77,6 +77,22 @@ class AdminService(
     }
 
     private fun buildUserDetail(target: UserEntity): AdminUserDetailResponse {
+        val now = ZonedDateTime.now(zoneId)
+        val todayStart = now.toLocalDate().atStartOfDay(zoneId).toInstant()
+        val tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay(zoneId).toInstant()
+        val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zoneId).toInstant()
+        val targetId = requireId(target)
+        val wallet = wallets.findByUserId(targetId).orElseThrow { IllegalArgumentException("Wallet not found") }
+        val todayAggregate = recharges.aggregateSuccessfulForUsers(listOf(targetId), todayStart, tomorrowStart).firstOrNull()
+        val monthAggregate = recharges.aggregateSuccessfulForUsers(listOf(targetId), monthStart, now.toInstant().plusNanos(1)).firstOrNull()
+        val summary = toSummary(target, wallet, todayAggregate, monthAggregate)
+        val rechargeCount = recharges.countSuccessfulByUserId(targetId)
+        val addMoneyTotal = walletLedger.sumAddMoneyAllTime(targetId).setScale(2)
+        val withdrawalTotal = walletLedger.sumWithdrawalsAllTime(targetId).setScale(2)
+        val latest = recharges.findTopByUserIdOrderByCreatedAtDesc(targetId)
+        val recentEntries = walletLedger.findTop10ByUserIdOrderByCreatedAtDesc(targetId).map(::toWalletEntry)
+        val latestResponse = latest?.let(::toLatestRecharge)
+        val imageVersion = target.profileImageUpdatedAt?.toEpochMilli()
         return AdminUserDetailResponse(
             summary = summary,
             rechargeCount = rechargeCount,
@@ -91,9 +107,6 @@ class AdminService(
             latestRecharge = latestResponse,
             recentWalletEntries = recentEntries
         )
-    }
-
-
     }
 
     fun rechargeHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): RechargeHistoryResponse {
