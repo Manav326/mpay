@@ -26,6 +26,12 @@ BEGIN
     SELECT e.id, 'SUPPORT_VIEW', TRUE, v_admin_employee_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       FROM employees e
      WHERE UPPER(e.role) = 'MANAGER'
+       AND EXISTS (
+           SELECT 1
+             FROM role_permissions rp
+            WHERE UPPER(rp.role) = 'MANAGER'
+              AND UPPER(rp.permission) = 'SUPPORT_VIEW'
+       )
        AND NOT EXISTS (
            SELECT 1
              FROM employee_permission_overrides o
@@ -39,6 +45,12 @@ BEGIN
     SELECT e.id, 'SUPPORT_MANAGE', TRUE, v_admin_employee_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       FROM employees e
      WHERE UPPER(e.role) = 'MANAGER'
+       AND EXISTS (
+           SELECT 1
+             FROM role_permissions rp
+            WHERE UPPER(rp.role) = 'MANAGER'
+              AND UPPER(rp.permission) = 'SUPPORT_MANAGE'
+       )
        AND NOT EXISTS (
            SELECT 1
              FROM employee_permission_overrides o
