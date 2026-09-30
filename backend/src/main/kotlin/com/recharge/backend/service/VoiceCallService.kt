@@ -238,7 +238,7 @@ class VoiceCallService(
 
         call.status = ENDED
         call.endedAt = Instant.now()
-        call.endedByUserId = userId
+        call.endedByAccountId = userId
         call.endedReason = "HANGUP"
         calls.save(call)
         support.recordVoiceCallEnded(call)
@@ -348,7 +348,7 @@ class VoiceCallService(
     fun expireDisconnectedConnectedCalls() {
         val now = Instant.now()
         calls.findAllByStatus(CONNECTED).forEach { call ->
-            val disconnectedUserId = listOf(call.callerUserId, call.calleeUserId)
+            val disconnectedUserId = listOf(call.callerEmployeeId, call.calleeUserId)
                 .firstOrNull { !websocket.hasOpenSession(call.callId, it) }
                 ?: return@forEach
 
@@ -426,11 +426,11 @@ class VoiceCallService(
         // Terminal calls may have their participant rows cleaned up. The call row
         // itself remains the authoritative record, so a caller/callee may still
         // fetch its final state and learn that the other side ended the call.
-        if (call.callerUserId != userId && call.calleeUserId != userId) {
+        if (call.callerEmployeeId != userId && call.calleeUserId != userId) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
         }
 
-        val participant = participants.findByUserId(userId).orElse(null)
+        val participant = participants.findByAccountId(userId).orElse(null)
         if (participant != null && participant.callId != callId && !isTerminal(call.status)) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are already in another active call")
         }
@@ -438,7 +438,7 @@ class VoiceCallService(
         return call
     }
 
-    private fun participantCallForUpdateByUserId(userId: Long, callId: String): VoiceCallEntity {
+    private fun participantCallForUpdateByAccountId(userId: Long, callId: String): VoiceCallEntity {
         val call = calls.findByCallIdForUpdate(callId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Call not found")
         }
