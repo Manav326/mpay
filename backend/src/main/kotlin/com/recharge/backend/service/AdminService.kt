@@ -21,6 +21,7 @@ class AdminService(
     private val withdrawals: WalletWithdrawalRepository,
     private val commissionRates: CommissionRateService,
     private val roleAccess: RoleAccessService,
+    private val passwordEncoder: org.springframework.security.crypto.password.PasswordEncoder,
     private val imageStorage: ProfileImageStorage,
     private val voiceCalls: VoiceCallService
 ) {
@@ -301,6 +302,64 @@ class AdminService(
             to = nowInstant,
             monthFrom = monthStartInstant,
             monthTo = nowInstant
+        )
+    }
+
+    @Transactional
+    fun createPortalStaff(viewer: UserEntity, request: CreatePortalStaffRequest): PortalStaffResponse {
+        if (!viewer.role.equals("ADMIN", true)) {
+            throw org.springframework.security.access.AccessDeniedException("Only the administrator can create portal staff")
+        }
+
+        val role = request.role.trim().uppercase()
+        val allowedStaffRoles = roleAccess.portalRoles()
+            .map { it.uppercase() }
+            .filterNot { it.equals("ADMIN", true) || it.equals("CLIENT", true) }
+            .toSet()
+
+        if (role !in allowedStaffRoles) {
+            throw org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "Choose a valid staff role"
+            )
+        }
+
+        val mobile = request.mobile.trim()
+        val email = request.email?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+
+        if (users.findByMobile(mobile).isPresent) {
+            throw org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.CONFLICT,
+                "An account with this mobile number already exists"
+            )
+        }
+        if (email != null && users.findByEmailIgnoreCase(email).isPresent) {
+            throw org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.CONFLICT,
+                "An account with this email address already exists"
+            )
+        }
+
+        val user = users.save(
+            UserEntity(
+                mobile = mobile,
+                name = request.name.trim(),
+                email = email,
+                passwordHash = passwordEncoder.encode(request.password),
+                role = role,
+                active = true
+            )
+        )
+        wallets.save(com.recharge.backend.domain.WalletEntity(user = user))
+
+        return PortalStaffResponse(
+            publicUserId = user.publicId,
+            name = user.name,
+            email = user.email,
+            mobile = user.mobile,
+            role = user.role.uppercase(),
+            active = user.active,
+            createdAt = user.createdAt
         )
     }
 
