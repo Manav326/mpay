@@ -143,9 +143,14 @@ class SupportService(
 
     fun pendingRequests(viewer: UserEntity): List<SupportCallRequestResponse> {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        roleAccess.requirePermission(viewer, "VIEW_USER_DETAIL")
         val now = Instant.now()
         expirePendingRequests(now)
-        return callRequests.findAllByStatusOrderByRequestedAtAsc(PENDING).map(::toRequestResponse)
+        return callRequests.findAllByStatusOrderByRequestedAtAsc(PENDING)
+            .filter { request ->
+                users.findById(request.customerUserId).orElse(null)?.let { roleAccess.canView(viewer, it) } == true
+            }
+            .map(::toRequestResponse)
     }
 
     @Transactional
