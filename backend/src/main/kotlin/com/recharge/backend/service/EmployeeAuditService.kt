@@ -33,7 +33,7 @@ class EmployeeAuditService(
     }
 
     fun list(employee: EmployeeEntity): List<PortalStaffActivityResponse> =
-        activities.findTop100ByEmployeeIdOrderByOccurredAtDesc(requireNotNull(employee.id)).map {
+        activities.findTop100ByEmployeeIdOrderByOccurredAtDescIdDesc(requireNotNull(employee.id)).map {
             PortalStaffActivityResponse(
                 action = it.action,
                 subjectType = it.subjectType,
