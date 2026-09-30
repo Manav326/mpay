@@ -213,7 +213,7 @@ export default function CustomerCarePanel({
     const query = customerQuery.trim().toLowerCase();
     return items.filter(item => {
       if (queueFilter === 'MINE' && !item.assignedToViewer) return false;
-      if (queueFilter === 'UNASSIGNED' && item.assignedUserPublicId) return false;
+      if (queueFilter === 'UNASSIGNED' && item.assignedEmployeePublicId) return false;
       if (queueFilter === 'CALLBACKS' && !item.pendingCallback) return false;
       if (queueFilter === 'MESSAGES' && item.unreadMessages <= 0) return false;
       if (queueFilter === 'CASES' && !item.caseId) return false;
@@ -803,9 +803,9 @@ export default function CustomerCarePanel({
                         <span>{item.attentionReason}</span>
                         <span>{item.lastActivityAt ? relativeAge(item.lastActivityAt) : '—'}</span>
                       </div>
-                      {item.assignedUserName ? (
+                      {item.assignedEmployeeName ? (
                         <div className="care-queue-assignment">
-                          <UserCheck size={11} /> {item.assignedToViewer ? 'Assigned to you' : 'Assigned to ' + item.assignedUserName}
+                          <UserCheck size={11} /> {item.assignedToViewer ? 'Assigned to you' : 'Assigned to ' + item.assignedEmployeeName}
                         </div>
                       ) : (
                         <div className="care-queue-assignment unassigned"><UserRound size={11} /> Unassigned</div>
@@ -1065,7 +1065,7 @@ export default function CustomerCarePanel({
 
                               <div className="care-case-facts">
                                 <span><small>Case</small><b>{caseItem.caseId}</b></span>
-                                <span><small>Assigned</small><b>{caseItem.assignedUserName || 'Unassigned'}</b></span>
+                                <span><small>Assigned</small><b>{caseItem.assignedEmployeeName || 'Unassigned'}</b></span>
                                 <span><small>Opened</small><b>{shortDate(caseItem.createdAt)}</b></span>
                                 <span><small>Source</small><b>{caseItem.source.replaceAll('_', ' ')}</b></span>
                               </div>
@@ -1084,7 +1084,7 @@ export default function CustomerCarePanel({
                                     onClick={() => void takeOwnership(caseItem.caseId)}
                                     disabled={!!busyKey}
                                   >
-                                    <UserCheck size={13} /> {caseItem.assignedUserName ? 'Take ownership' : 'Assign to me'}
+                                    <UserCheck size={13} /> {caseItem.assignedEmployeeName ? 'Take ownership' : 'Assign to me'}
                                   </button>
                                 )}
                                 <select
@@ -1102,7 +1102,7 @@ export default function CustomerCarePanel({
                                     <MessageSquareText size={13} /> Add note
                                   </button>
                                 )}
-                                {caseItem.assignedUserPublicId && canManageSupport && (
+                                {caseItem.assignedEmployeePublicId && canManageSupport && (
                                   <button className="care-text-button" onClick={() => void releaseOwnership(caseItem.caseId)} disabled={!!busyKey}>
                                     Release
                                   </button>
