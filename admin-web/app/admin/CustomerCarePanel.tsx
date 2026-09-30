@@ -35,6 +35,7 @@ import {
   getCustomerCareAccess,
   getCustomerCareChat,
   getCustomerCareCustomer,
+  getCustomerCareCustomerContext,
   getCustomerCareQueue,
   getCustomerCareRequests,
   getCustomerCallbackAccess,
@@ -282,7 +283,7 @@ export default function CustomerCarePanel({
       setActiveSection('cases');
       setActivityFilter('ALL');
       const detail = canViewCustomerContext
-        ? await getUserDetailById(publicId).catch(() => null)
+        ? await getCustomerCareCustomerContext(publicId).catch(() => null)
         : null;
       setSelectedDetail(detail);
       setChatAtBottom(true);
