@@ -459,6 +459,8 @@ private fun FloatingChatWindow(
         label = "supportPresencePulse"
     )
     val hasTimeline = !chat?.items.isNullOrEmpty() || !chat?.messages.isNullOrEmpty()
+    val hasStaffTimeline = chat?.items?.any { it.senderType == "STAFF" } == true ||
+        chat?.messages?.any { it.senderType == "STAFF" } == true
 
     LaunchedEffect(chat?.items?.size, chat?.messages?.size) {
         val size = if (!chat?.items.isNullOrEmpty()) {
@@ -832,7 +834,7 @@ private fun FloatingChatWindow(
                         }
                     }
                 }
-                if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
+                if (hasStaffTimeline || chat?.pendingCallbackRequest != null) {
                     Surface(color = Color(0xFF181D23), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             if (chat?.pendingCallbackRequest != null) {
