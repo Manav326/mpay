@@ -40,7 +40,6 @@ import {
   getCustomerCareRequests,
   getCustomerCallbackAccess,
   getSupportAiSettings,
-  getUserDetailById,
   markCustomerCareChatRead,
   releaseSupportCaseOwnership,
   sendCustomerCareChatMessage,
