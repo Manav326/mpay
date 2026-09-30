@@ -315,39 +315,19 @@ fun CustomerSupportFloatingChat(
         }
 
         if (minimizedDragging) {
-            Surface(
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .offset(y = (-14).dp)
-                    .size(width = 60.dp, height = 52.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = if (dismissTargetActive) Color(0xFFDC4C4C) else Color(0xFFB83232),
-                tonalElevation = 2.dp,
-                shadowElevation = 12.dp,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    Color(0xFFFF8A8A)
-                )
+                    .offset(y = (-12).dp)
+                    .size(46.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 9.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Close support window",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    Text(
-                        "Close",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close support window",
+                    tint = if (dismissTargetActive) Color(0xFFFF5A5A) else Color(0xFFE34242),
+                    modifier = Modifier.size(34.dp)
+                )
             }
         }
 
@@ -536,8 +516,7 @@ private fun FloatingChatWindow(
                     Box(
                         Modifier
                             .size(10.dp)
-                            .align(Alignment.TopEnd)
-                            .offset((-5).dp, 5.dp)
+                            .align(Alignment.Center)
                             .clip(CircleShape)
                             .background(Color(0xFF22C55E))
                             .alpha(liveAlpha)
@@ -746,27 +725,85 @@ private fun FloatingChatWindow(
                             }
                         }
                     } else {
-                        items(chat?.messages.orEmpty(), key = { it.messageId }) { item ->
-                            val mine = item.senderType == "CUSTOMER"
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(.84f),
-                                    shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp, bottomStart = if (mine) 15.dp else 4.dp, bottomEnd = if (mine) 15.dp else 4.dp),
-                                    color = if (mine) AppColors.Primary.copy(alpha = .22f) else Color(0xFF232930)
-                                ) {
-                                    Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
-                                        Text(
-                                            when (item.senderType) {
-                                                "CUSTOMER" -> "You"
-                                                "AI" -> "mPay AI Support"
-                                                else -> "mPay Support"
-                                            },
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (mine) Color(0xFFFFC65A) else Color(0xFFD7DEE7),
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                        Text(item.message, color = Color(0xFFF0F3F6), style = MaterialTheme.typography.bodySmall)
-                                        Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
+                        if (!chat?.items.isNullOrEmpty()) {
+                            items(chat?.items.orEmpty(), key = { it.itemId }) { item ->
+                                if (item.type == "VOICE_CALL") {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(.84f),
+                                            color = Color(0xFF232930),
+                                            shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp, bottomStart = 15.dp, bottomEnd = 4.dp)
+                                        ) {
+                                            Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF2A241A)) {
+                                                    Icon(Icons.Default.Call, null, tint = AppColors.Primary, modifier = Modifier.padding(8.dp).size(17.dp))
+                                                }
+                                                Spacer(Modifier.size(9.dp))
+                                                Column(Modifier.weight(1f)) {
+                                                    Text(
+                                                        when {
+                                                            item.outcome == "NO_ANSWER" || item.status == "MISSED" -> "Support tried to call you"
+                                                            item.status == "DECLINED" -> "Support call declined"
+                                                            else -> "Support voice call"
+                                                        },
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFFF0F3F6)
+                                                    )
+                                                    Text(listOfNotNull(item.actorName ?: "mPay Support", item.outcome ?: item.status, item.durationLabel).joinToString(" · "), color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
+                                                }
+                                                Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    val mine = item.senderType == "CUSTOMER"
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(.84f),
+                                            shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp, bottomStart = if (mine) 15.dp else 4.dp, bottomEnd = if (mine) 15.dp else 4.dp),
+                                            color = if (mine) AppColors.Primary.copy(alpha = .22f) else Color(0xFF232930)
+                                        ) {
+                                            Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
+                                                Text(
+                                                    when (item.senderType) {
+                                                        "CUSTOMER" -> "You"
+                                                        "AI" -> "mPay AI Support"
+                                                        else -> "mPay Support"
+                                                    },
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (mine) Color(0xFFFFC65A) else Color(0xFFD7DEE7),
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                                Text(item.message.orEmpty(), color = Color(0xFFF0F3F6), style = MaterialTheme.typography.bodySmall)
+                                                Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            items(chat?.messages.orEmpty(), key = { it.messageId }) { item ->
+                                val mine = item.senderType == "CUSTOMER"
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(.84f),
+                                        shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp, bottomStart = if (mine) 15.dp else 4.dp, bottomEnd = if (mine) 15.dp else 4.dp),
+                                        color = if (mine) AppColors.Primary.copy(alpha = .22f) else Color(0xFF232930)
+                                    ) {
+                                        Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
+                                            Text(
+                                                when (item.senderType) {
+                                                    "CUSTOMER" -> "You"
+                                                    "AI" -> "mPay AI Support"
+                                                    else -> "mPay Support"
+                                                },
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (mine) Color(0xFFFFC65A) else Color(0xFFD7DEE7),
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            Text(item.message, color = Color(0xFFF0F3F6), style = MaterialTheme.typography.bodySmall)
+                                            Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
+                                        }
                                     }
                                 }
                             }
@@ -817,7 +854,7 @@ private fun FloatingChatWindow(
 
                 if (!chat?.messages.isNullOrEmpty()) {
                     Row(
-                        Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 9.dp, vertical = 7.dp),
+                        Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 9.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
                         OutlinedTextField(
@@ -849,7 +886,7 @@ private fun FloatingChatWindow(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(36.dp)
+                        .height(24.dp)
                         .background(Color(0xFF171C21))
                 ) {
                     Text(
