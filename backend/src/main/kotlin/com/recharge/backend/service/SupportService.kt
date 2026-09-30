@@ -391,7 +391,6 @@ class SupportService(
     }
 
     @Transactional
-    @Transactional
     fun customerChat(customer: UserEntity): SupportChatResponse {
         ensureClient(customer)
         val customerId = requireNotNull(customer.id)
@@ -415,7 +414,6 @@ class SupportService(
 
         val conversationId = requireNotNull(conversation.id)
         messages.markCustomerRead(conversationId, listOf("STAFF", "AI"), Instant.now())
-        val messageList = messages.findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT)).reversed()
         val chatItems = buildChatItems(conversationId)
         val currentCase = conversation.caseId?.let { cases.findById(it).orElse(null) }
         return SupportChatResponse(
@@ -429,7 +427,8 @@ class SupportService(
             unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
             callbackRequestEnabled = callbackRequestEnabled(customer),
             pendingCallbackRequest = pending,
-            items = buildChatItems(conversationId)
+            items = chatItems,
+            currentCase = currentCase?.let { toCaseResponse(it, customer) }
         )
     }
 
@@ -590,7 +589,8 @@ class SupportService(
             unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
                 messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
             unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
-            items = buildChatItems(conversationId)
+            items = chatItems,
+            currentCase = currentCase?.let { toCaseResponse(it, customer) }
         )
     }
 
@@ -1117,8 +1117,7 @@ class SupportService(
 
     private fun touchCaseMeaningfulUpdate(entity: SupportCaseEntity, at: Instant, preserveExistingEmployeeEta: Boolean) {
         entity.lastMeaningfulUpdateAt = at
-        if (entity.etaSource == "EMPLOYEE" && preserveExistingEmployeeEta) return
-        if (entity.etaSource == "EMPLOYEE" && !preserveExistingEmployeeEta && entity.expectedResolutionAt != null) return
+        if (entity.etaSource == "EMPLOYEE" && entity.expectedResolutionAt != null) return
         entity.etaSource = "SYSTEM"
         entity.expectedResolutionAt = defaultExpectedResolutionAt(at)
     }
