@@ -87,16 +87,12 @@ object NetworkModule {
     @Volatile
     private var authApiInstance: AuthApi? = null
 
-    @Volatile
-    private var applicationContext: Context? = null
-
     fun authApi(context: Context): AuthApi {
         val appContext = context.applicationContext
         authApiInstance?.let { return it }
         return synchronized(this) {
             authApiInstance ?: createAuthApi(appContext).also {
                 authApiInstance = it
-                applicationContext = appContext
             }
         }
     }
