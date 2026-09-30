@@ -115,8 +115,7 @@ BEGIN
         -- this identity from employees and CUSTOMER login rejects non-CLIENT roles.
         UPDATE users
         SET role = 'LEGACY_EMPLOYEE',
-            active = FALSE,
-            updated_at = CURRENT_TIMESTAMP
+            active = FALSE
         WHERE id = v_user_id;
     END LOOP;
 
