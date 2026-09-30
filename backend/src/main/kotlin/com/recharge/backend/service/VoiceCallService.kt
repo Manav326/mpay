@@ -504,12 +504,6 @@ class VoiceCallService(
             else -> throw ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid account type")
         }
 
-    private fun requireCallee(call: VoiceCallEntity, user: UserEntity) {
-        if (call.calleeUserId != requireNotNull(user.id)) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the customer can answer or decline this call")
-        }
-    }
-
     fun socketAuthorized(accountType: String, accountId: Long, callId: String): Boolean =
         calls.findByCallId(callId)
             .map { call ->
