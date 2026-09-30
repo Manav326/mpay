@@ -5620,3 +5620,6 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .care-access-search{width:100%}.care-access-section-head{flex-direction:column}
   .care-capability-strip{display:none}
 }
+
+.care-pane-head-tools{display:flex;align-items:center;gap:5px}.care-shortcuts{color:#a1a8b0;font-size:6px;white-space:nowrap}
+@media(max-width:900px){.care-shortcuts{display:none}}
