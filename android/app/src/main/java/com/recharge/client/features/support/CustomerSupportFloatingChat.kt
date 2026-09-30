@@ -150,6 +150,7 @@ fun CustomerSupportFloatingChat(
     var draft by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var guidedTopic by remember { mutableStateOf<FloatingSupportTopic?>(null) }
+    var supportIntakeMode by remember { mutableStateOf(false) }
     var callbackBusy by remember { mutableStateOf(false) }
     var minimized by rememberSaveable { mutableStateOf(false) }
     var widthDp by rememberSaveable { mutableStateOf(390f) }
@@ -233,6 +234,7 @@ fun CustomerSupportFloatingChat(
             }.onSuccess { response ->
                 if (response.isSuccessful) {
                     draft = ""
+                    supportIntakeMode = response.body()?.restartSupportIntake == true
                     loadChat()
                 } else error = "Unable to send your message."
             }.onFailure { error = it.message ?: "Unable to send your message." }
@@ -382,6 +384,7 @@ fun CustomerSupportFloatingChat(
             onStartChat = {
                 guidedTopic?.let {
                     guidedTopic = null
+                    supportIntakeMode = false
                     sendMessage(it.message)
                 }
             },
@@ -704,11 +707,11 @@ private fun FloatingChatWindow(
                     contentPadding = PaddingValues(horizontal = 11.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    if (chat?.messages.isNullOrEmpty() && guidedTopic != null) {
+                    if ((supportIntakeMode || chat?.messages.isNullOrEmpty()) && guidedTopic != null) {
                         item {
                             GuidedFloatingHelp(guidedTopic, onBack = { onChooseTopic(null) }, onStartChat = onStartChat)
                         }
-                    } else if (chat?.messages.isNullOrEmpty()) {
+                    } else if (supportIntakeMode || chat?.messages.isNullOrEmpty()) {
                         item {
                             Column(
                                 Modifier.fillMaxWidth().padding(vertical = 8.dp),
