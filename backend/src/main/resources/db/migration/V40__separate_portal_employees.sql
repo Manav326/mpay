@@ -50,20 +50,20 @@ CREATE TABLE IF NOT EXISTS employee_activity (
     subject_type VARCHAR(50),
     subject_id VARCHAR(120),
     summary VARCHAR(500) NOT NULL,
-    metadata_json TEXT NULL,
+    metadata_json JSONB NULL,
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_employee_activity_employee
         FOREIGN KEY(employee_id) REFERENCES employees(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_employee_activity_employee_time
-    ON employee_activity(employee_id, occurred_at DESC);
+    ON employee_activity(employee_id, occurred_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_employee_activity_subject_time
     ON employee_activity(subject_type, subject_id, occurred_at DESC);
 
 -- The application previously seeded the portal Admin and Manager in users.
 -- Move those portal accounts to employees while preserving their ids so existing
--- operational/audit references remain stable. Abort rather than silently moving
+-- credentials/profile are preserved, and staff references are remapped to employee ids by V41. Abort rather than silently moving
 -- unexpected portal accounts.
 DO $$
 DECLARE
