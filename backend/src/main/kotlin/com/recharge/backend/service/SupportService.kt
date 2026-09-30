@@ -1110,7 +1110,7 @@ class SupportService(
         )
 
     private fun toInteractionResponse(entity: SupportInteractionEntity): SupportInteractionResponse {
-        val actor = entity.actorUserId?.let { employees.findById(it).orElse(null) }
+        val actor = entity.actorUserId?.let { employees.findById(it).orElse(null) ?: users.findById(it).orElse(null) }
         val duration = entity.durationSeconds
         return SupportInteractionResponse(
             interactionId = entity.interactionId,
@@ -1137,7 +1137,7 @@ class SupportService(
     }
 
     private fun toNoteResponse(entity: SupportNoteEntity): SupportNoteResponse {
-        val author = employees.findById(entity.authorUserId).orElse(null)
+        val author = employees.findById(entity.authorUserId).orElse(null) ?: users.findById(entity.authorUserId).orElse(null)
         return SupportNoteResponse(
             id = requireNotNull(entity.id),
             caseId = entity.caseId?.let { cases.findById(it).orElse(null)?.caseId },
