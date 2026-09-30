@@ -315,7 +315,7 @@ class AdminService(
         val role = request.role.trim().uppercase()
         val allowedStaffRoles = roleAccess.portalRoles()
             .map { it.uppercase() }
-            .filterNot { it.equals("CLIENT", true) }
+            .filterNot { it.equals("CLIENT", true) || it.equals("ADMIN", true) }
             .toSet()
 
         if (role !in allowedStaffRoles) {
@@ -370,7 +370,7 @@ class AdminService(
         require(viewer.role.equals("ADMIN", true)) { "Only the administrator can manage employees" }
         val roles = roleAccess.portalRoles()
             .map { it.uppercase() }
-            .filterNot { it.equals("CLIENT", true) }
+            .filterNot { it.equals("CLIENT", true) || it.equals("ADMIN", true) }
         return employees.findAllByRoleInOrderByCreatedAtDesc(roles).map(::toPortalStaffResponse)
     }
 
