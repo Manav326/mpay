@@ -4169,7 +4169,7 @@ function CustomerSupportChatModal({
       onMove(position.x,position.y);
     };
     return <div className="customer-support-floating-layer">
-      {minimizedDragging && <div className="customer-support-dismiss-zone">
+      {minimizedDragging && <div className={'customer-support-dismiss-zone ' + (dismissTargetActive ? 'active' : '')}>
         <span><X size={22}/></span>
         <small>Drag here to close</small>
       </div>}
