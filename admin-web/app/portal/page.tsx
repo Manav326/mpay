@@ -240,6 +240,8 @@ type CalendarDay = { date: string; status: string; bookingId?: string | null; re
 
 const CUSTOMER_SUPPORT_CHAT_OPEN_KEY = 'mpay_customer_support_chat_open';
 
+const supportChatRequestInFlight = { current: false };
+
 const webSession = {
   accessKey: 'mpay_token',
   refreshKey: 'mpay_refresh_token',
@@ -1081,6 +1083,8 @@ export default function Portal() {
 
 
   async function loadCustomerSupportChat() {
+    if (supportChatRequestInFlight.current) return;
+    supportChatRequestInFlight.current = true;
     setSupportChatLoading(true);
     setSupportChatError('');
     try {
@@ -1089,6 +1093,7 @@ export default function Portal() {
     } catch (e:any) {
       setSupportChatError(e.message || 'Unable to load the support chat.');
     } finally {
+      supportChatRequestInFlight.current = false;
       setSupportChatLoading(false);
     }
   }
