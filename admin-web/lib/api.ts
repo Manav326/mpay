@@ -572,6 +572,10 @@ export async function sendCustomerCareChatMessage(publicUserId: string, message:
   });
 }
 
+export async function getCustomerCareCustomerContext(publicUserId: string): Promise<UserDetail> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/context');
+}
+
 export async function getCustomerCareCustomer(publicUserId: string): Promise<SupportCustomer> {
   return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId));
 }
