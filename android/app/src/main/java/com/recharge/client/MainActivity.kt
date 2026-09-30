@@ -701,7 +701,7 @@ private fun AppRoot(
     }
 
     if (sideNav) {
-        Row(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize().safeDrawingPadding()) {
             NavigationRail {
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
