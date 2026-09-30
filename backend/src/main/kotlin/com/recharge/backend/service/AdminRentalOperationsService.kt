@@ -3,7 +3,7 @@ package com.recharge.backend.service
 import com.recharge.backend.api.RentalAdminPayoutPageResponse
 import com.recharge.backend.api.RentalAdminPayoutResponse
 import com.recharge.backend.domain.RentalPayoutEntity
-import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.repository.RentalPayoutRepository
 import com.recharge.backend.repository.RentalVendorRepository
 import org.springframework.data.domain.PageRequest
@@ -16,7 +16,7 @@ class AdminRentalOperationsService(
     private val vendors: RentalVendorRepository,
     private val roleAccess: RoleAccessService
 ) {
-    fun payouts(viewer: UserEntity, page: Int, size: Int, status: String?): RentalAdminPayoutPageResponse {
+    fun payouts(viewer: EmployeeEntity, page: Int, size: Int, status: String?): RentalAdminPayoutPageResponse {
         roleAccess.requirePermission(viewer, "MANAGE_RENTAL_OPERATIONS")
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
