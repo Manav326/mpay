@@ -501,6 +501,47 @@ export async function updateSupportAiSettings(enabled: boolean): Promise<Support
   });
 }
 
+
+export async function getCustomerCareQueue(): Promise<SupportQueueResponse> {
+  return api('/api/v1/admin/customer-care/queue');
+}
+
+export async function markCustomerCareChatRead(publicUserId: string): Promise<SupportChat> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat/read', {
+    method: 'POST',
+  });
+}
+
+export async function takeSupportCaseOwnership(caseId: string): Promise<SupportAssignmentResponse> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId) + '/ownership', {
+    method: 'POST',
+  });
+}
+
+export async function releaseSupportCaseOwnership(caseId: string): Promise<SupportAssignmentResponse> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId) + '/ownership', {
+    method: 'DELETE',
+  });
+}
+
+export async function getCustomerCareAccess(): Promise<SupportAccessResponse> {
+  return api('/api/v1/admin/customer-care/access');
+}
+
+export async function updateCustomerCareRolePermission(role: string, permission: string, enabled: boolean): Promise<SupportRoleAccess> {
+  return api(
+    '/api/v1/admin/customer-care/access/roles/' + encodeURIComponent(role) + '/' + encodeURIComponent(permission),
+    { method: 'PUT', body: JSON.stringify({ enabled }) }
+  );
+}
+
+export async function updateCustomerCareUserPermission(publicUserId: string, permission: string, mode: 'DEFAULT' | 'ALLOW' | 'DENY'): Promise<SupportUserAccess> {
+  return api(
+    '/api/v1/admin/customer-care/access/users/' + encodeURIComponent(publicUserId) + '/' + encodeURIComponent(permission),
+    { method: 'PUT', body: JSON.stringify({ mode }) }
+  );
+}
+
 export async function getCustomerCareRequests(): Promise<SupportCallRequest[]> {
   return api('/api/v1/admin/customer-care/requests');
 }
