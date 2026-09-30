@@ -5,10 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.repository.AuthRepository
 import com.recharge.client.core.cache.ProfileCacheStore
+import com.recharge.client.features.voice.VoiceCallPushRegistrar
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface AuthUiState {
     data object Idle : AuthUiState
@@ -110,9 +112,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun logout() {
         viewModelScope.coroutineContext.cancelChildren()
-        repository.logout()
-        ProfileCacheStore(getApplication()).clear()
-        _registrationOtpState.value = RegistrationOtpUiState.Idle
-        _state.value = AuthUiState.Idle
+        viewModelScope.launch {
+            withTimeoutOrNull(2_000L) {
+                VoiceCallPushRegistrar.revoke(getApplication())
+            }
+            repository.logout()
+            ProfileCacheStore(getApplication()).clear()
+            _registrationOtpState.value = RegistrationOtpUiState.Idle
+            _state.value = AuthUiState.Idle
+        }
     }
 }
