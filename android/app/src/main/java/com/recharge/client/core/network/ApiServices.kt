@@ -77,6 +77,9 @@ interface ClientApi {
     @PUT("api/v1/calls/push-token")
     suspend fun registerCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
 
+    @POST("api/v1/calls/push-token/revoke")
+    suspend fun revokeCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
+
     @GET("api/v1/support/overview")
     suspend fun customerSupportOverview(): Response<CustomerSupportOverviewResponse>
 
