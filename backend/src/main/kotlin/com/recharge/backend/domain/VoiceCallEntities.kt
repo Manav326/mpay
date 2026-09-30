@@ -16,7 +16,7 @@ import java.util.UUID
 class VoiceCallEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
     @Column(name = "call_id", nullable = false, unique = true, length = 40) var callId: String = UUID.randomUUID().toString(),
-    @Column(name = "caller_user_id", nullable = false) var callerUserId: Long = 0,
+    @Column(name = "caller_user_id", nullable = false) var callerEmployeeId: Long = 0,
     @Column(name = "callee_user_id", nullable = false) var calleeUserId: Long = 0,
     @Column(nullable = false, length = 20) var status: String = "RINGING",
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now(),
@@ -24,7 +24,7 @@ class VoiceCallEntity(
     @Column(name = "accepted_at") var acceptedAt: Instant? = null,
     @Column(name = "connected_at") var connectedAt: Instant? = null,
     @Column(name = "ended_at") var endedAt: Instant? = null,
-    @Column(name = "ended_by_user_id") var endedByUserId: Long? = null,
+    @Column(name = "ended_by_user_id") var endedByAccountId: Long? = null,
     @Column(name = "ended_reason", length = 80) var endedReason: String? = null
 )
 
@@ -37,7 +37,7 @@ class VoiceCallEntity(
 class VoiceCallParticipantEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
     @Column(name = "call_id", nullable = false, length = 40) var callId: String = "",
-    @Column(name = "user_id", nullable = false) var userId: Long = 0
+    @Column(name = "user_id", nullable = false) var accountId: Long = 0
 )
 
 @Entity
