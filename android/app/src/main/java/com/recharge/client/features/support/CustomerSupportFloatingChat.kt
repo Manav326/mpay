@@ -2,7 +2,6 @@ package com.recharge.client.features.support
 
 import android.content.Context
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -151,6 +150,9 @@ fun CustomerSupportFloatingChat(
     var autoSizeEnabled by rememberSaveable { mutableStateOf(true) }
     var offsetX by rememberSaveable { mutableStateOf(12f) }
     var offsetY by rememberSaveable { mutableStateOf(72f) }
+    var minimizedDragging by remember { mutableStateOf(false) }
+    var dismissTargetActive by remember { mutableStateOf(false) }
+    var minimizedDragMoved by remember { mutableStateOf(false) }
 
     val minWidth = 300f
     val minHeight = 320f
@@ -280,6 +282,17 @@ fun CustomerSupportFloatingChat(
 
         val maxContentWidth = (availableWidth - horizontalMargin * 2).coerceAtLeast(56f)
         val maxContentHeight = (availableHeight - horizontalMargin - bottomMargin).coerceAtLeast(56f)
+
+        fun isOverDismissTarget(x: Float, y: Float): Boolean {
+            val bubbleCenterX = x + 28f
+            val bubbleCenterY = y + 28f
+            val targetWidth = 88f
+            val targetHeight = 72f
+            val targetLeft = (availableWidth - targetWidth) / 2f
+            val targetTop = availableHeight - targetHeight - 14f
+            return bubbleCenterX in targetLeft..(targetLeft + targetWidth) &&
+                bubbleCenterY in targetTop..(targetTop + targetHeight)
+        }
         val boundedWidth = if (minimized) 56f else {
             widthDp.coerceIn(minWidth.coerceAtMost(maxContentWidth), maxContentWidth)
         }
@@ -289,6 +302,50 @@ fun CustomerSupportFloatingChat(
 
         LaunchedEffect(minimized, availableWidth, availableHeight, boundedWidth, boundedHeight) {
             clampPosition()
+        }
+
+        if (minimizedDragging) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = (-14).dp)
+                    .size(width = 88.dp, height = 72.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = if (dismissTargetActive) Color(0xFF2A1B1B) else Color(0xFF171B20),
+                tonalElevation = 2.dp,
+                shadowElevation = 12.dp,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (dismissTargetActive) Color(0xFFE07070) else Color(0xFF49515B)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = if (dismissTargetActive) Color(0xFF3A2020) else Color(0xFF252C33),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (dismissTargetActive) Color(0xFFE07070) else Color(0xFF5B6570)
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Release to close support",
+                            tint = if (dismissTargetActive) Color(0xFFFFB4B4) else Color(0xFFF0F3F6),
+                            modifier = Modifier.padding(8.dp).size(20.dp)
+                        )
+                    }
+                    Text(
+                        "Drag here to close",
+                        color = if (dismissTargetActive) Color(0xFFFCA5A5) else Color(0xFF8F9AA7),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
         }
 
         Box(
@@ -330,10 +387,37 @@ fun CustomerSupportFloatingChat(
             },
             onRequestCallback = ::requestCallback,
             onCancelCallback = ::cancelCallback,
+            onDragStart = {
+                if (minimized) {
+                    minimizedDragging = true
+                    minimizedDragMoved = false
+                    dismissTargetActive = false
+                }
+            },
             onDrag = { dx, dy ->
                 offsetX += dx
                 offsetY += dy
+                if (minimized) {
+                    minimizedDragMoved = true
+                    dismissTargetActive = isOverDismissTarget(offsetX, offsetY)
+                }
                 clampPosition()
+            },
+            onDragEnd = {
+                if (minimized) {
+                    val shouldDismiss = minimizedDragMoved && dismissTargetActive
+                    minimizedDragging = false
+                    dismissTargetActive = false
+                    if (shouldDismiss) {
+                        minimizedDragMoved = false
+                        onDismiss()
+                    } else if (!minimizedDragMoved) {
+                        minimizedDragMoved = false
+                        minimized = false
+                    } else {
+                        minimizedDragMoved = false
+                    }
+                }
             },
             onResize = { dx, dy ->
                 if (!minimized) {
@@ -371,7 +455,9 @@ private fun FloatingChatWindow(
     onStartChat: () -> Unit,
     onRequestCallback: () -> Unit,
     onCancelCallback: (SupportCallRequestResponse) -> Unit,
+    onDragStart: () -> Unit,
     onDrag: (Float, Float) -> Unit,
+    onDragEnd: () -> Unit,
     onResize: (Float, Float) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -400,9 +486,17 @@ private fun FloatingChatWindow(
             modifier = modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onMinimize)
                 .pointerInput(Unit) {
                     detectDragGestures(
+                        onDragStart = {
+                            onDragStart()
+                        },
+                        onDragEnd = {
+                            onDragEnd()
+                        },
+                        onDragCancel = {
+                            onDragEnd()
+                        },
                         onDrag = { change, dragAmount ->
                             change.consume()
                             onDrag(
