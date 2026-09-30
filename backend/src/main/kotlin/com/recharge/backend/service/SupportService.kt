@@ -1075,6 +1075,7 @@ class SupportService(
             status = entity.status,
             source = entity.source,
             assignedUserPublicId = entity.assignedUserId?.let { users.findById(it).orElse(null)?.publicId },
+            assignedUserName = entity.assignedUserId?.let { users.findById(it).orElse(null)?.name },
             createdAt = entity.createdAt.toString(),
             updatedAt = entity.updatedAt.toString(),
             resolvedAt = entity.resolvedAt?.toString(),
