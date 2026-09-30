@@ -294,6 +294,7 @@ private fun maskVendorUpi(value: String?): String {
     return if (at > 2) normalized.take(2) + "••••" + normalized.substring(at) else "••••"
 }
 
+@Composable
 private fun CompactFieldRow(
     leftLabel: String,
     leftValue: String,
