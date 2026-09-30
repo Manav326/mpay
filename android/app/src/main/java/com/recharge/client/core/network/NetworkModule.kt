@@ -103,7 +103,6 @@ object NetworkModule {
         return synchronized(this) {
             clientApiInstance ?: createClientApi(appContext).also {
                 clientApiInstance = it
-                applicationContext = appContext
             }
         }
     }
