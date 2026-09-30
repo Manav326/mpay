@@ -1,6 +1,6 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
 import { redirectToLogin, refreshWebSession } from './session';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile, VoiceCallResponse, VoiceCallSignalingTokenResponse, VoiceCallRoleAccess, VoiceCallUserAccess, SupportAiSettings, SupportCallRequest, SupportCase, SupportInteraction, SupportNote, SupportCustomer, CustomerCallbackAccess, CustomerSupportOverview, SupportChat, SupportMessage, SupportAccessResponse, SupportRoleAccess, SupportUserAccess, SupportQueueResponse, SupportAssignmentResponse, SupportCustomerSearchResult, PortalStaff } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile, VoiceCallResponse, VoiceCallSignalingTokenResponse, VoiceCallRoleAccess, VoiceCallUserAccess, SupportAiSettings, SupportCallRequest, SupportCase, SupportInteraction, SupportNote, SupportCustomer, CustomerCallbackAccess, CustomerSupportOverview, SupportChat, SupportMessage, SupportAccessResponse, SupportRoleAccess, SupportUserAccess, SupportQueueResponse, SupportAssignmentResponse, SupportCustomerSearchResult, PortalStaff, PortalStaffActivity } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 export function getAdminApiBaseUrl(): string { return baseUrl; }
@@ -198,6 +198,21 @@ export async function getVisibleRoles(): Promise<string[]> {
 export async function getDashboard(): Promise<DashboardSummary> {
   if (demo) return dashboardMock;
   return api('/api/v1/admin/dashboard');
+}
+
+export async function getPortalStaff(): Promise<PortalStaff[]> {
+  return api('/api/v1/admin/staff');
+}
+
+export async function getPortalStaffActivity(publicUserId: string): Promise<PortalStaffActivity[]> {
+  return api('/api/v1/admin/staff/' + encodeURIComponent(publicUserId) + '/activity');
+}
+
+export async function updatePortalStaffStatus(publicUserId: string, active: boolean): Promise<{ publicUserId: string; active: boolean; status: string }> {
+  return api('/api/v1/admin/staff/' + encodeURIComponent(publicUserId) + '/status', {
+    method: 'POST',
+    body: JSON.stringify({ active }),
+  });
 }
 
 export async function getUsers(role: Role | 'ALL' = 'ALL', sort: SortMode = 'today-high'): Promise<UserSummary[]> {
