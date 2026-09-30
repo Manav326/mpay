@@ -28,6 +28,7 @@ data class SupportCaseResponse(
     val status: String,
     val source: String,
     val assignedUserPublicId: String? = null,
+    val assignedUserName: String? = null,
     val createdAt: String,
     val updatedAt: String,
     val resolvedAt: String? = null,
