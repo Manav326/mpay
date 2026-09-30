@@ -3,7 +3,7 @@ package com.recharge.backend.service
 import com.recharge.backend.api.SupportAiSettingsResponse
 import com.recharge.backend.config.SupportAiProperties
 import com.recharge.backend.domain.AppSettingEntity
-import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.repository.AppSettingRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -34,7 +34,7 @@ class SupportAiSettingsService(
         )
 
     @Transactional
-    fun update(viewer: UserEntity, enabled: Boolean): SupportAiSettingsResponse {
+    fun update(viewer: EmployeeEntity, enabled: Boolean): SupportAiSettingsResponse {
         roleAccess.requirePermission(viewer, MANAGE_SUPPORT_AI)
 
         if (enabled && !properties.providerConfigured) {
