@@ -227,10 +227,23 @@ export default function CustomerCarePanel({
     return items.filter(item => item.kind === activityFilter);
   }, [selected, activityFilter]);
 
+  async function loadQueue() {
+    try {
+      setQueue(await getCustomerCareQueue());
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to load the Customer Care attention queue.');
+    }
+  }
+
   async function loadRequests() {
     setRequestsLoading(true);
     try {
-      setRequests(await getCustomerCareRequests());
+      const [requestData, queueData] = await Promise.all([
+        getCustomerCareRequests(),
+        getCustomerCareQueue(),
+      ]);
+      setRequests(requestData);
+      setQueue(queueData);
     } catch (error: any) {
       setNotice(error?.message || 'Unable to load the Customer Care queue.');
     } finally {
@@ -241,7 +254,13 @@ export default function CustomerCarePanel({
   async function loadCustomerChat(publicId: string) {
     setChatLoading(true);
     try {
-      setSupportChat(await getCustomerCareChat(publicId));
+      const chat = await getCustomerCareChat(publicId);
+      setSupportChat(chat);
+      if (chatAtBottom && chat.unreadForStaff > 0) {
+        const read = await markCustomerCareChatRead(publicId);
+        setSupportChat(read);
+        await loadQueue();
+      }
     } catch (error: any) {
       setNotice(error?.message || 'Unable to load the customer conversation.');
     } finally {
@@ -258,13 +277,50 @@ export default function CustomerCarePanel({
       setSelected(supportCustomer);
       setActiveSection('cases');
       setActivityFilter('ALL');
-      const detail = await getUserDetailById(publicId).catch(() => null);
+      const detail = canViewCustomerContext
+        ? await getUserDetailById(publicId).catch(() => null)
+        : null;
       setSelectedDetail(detail);
+      setChatAtBottom(true);
       void loadCustomerChat(publicId);
     } catch (error: any) {
       setNotice(error?.message || 'Unable to open this customer.');
     } finally {
       setSelectedLoading(false);
+    }
+  }
+
+  async function takeOwnership(caseId?: string | null) {
+    if (!caseId || !canManageSupport || busyKey) return;
+    setBusyKey('ownership:' + caseId);
+    try {
+      await takeSupportCaseOwnership(caseId);
+      setNotice('Case assigned to you.');
+      if (selected) {
+        await openCustomer(selected.customerPublicId);
+      }
+      await loadRequests();
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to take ownership of this case.');
+    } finally {
+      setBusyKey('');
+    }
+  }
+
+  async function releaseOwnership(caseId?: string | null) {
+    if (!caseId || !canManageSupport || busyKey) return;
+    setBusyKey('release:' + caseId);
+    try {
+      await releaseSupportCaseOwnership(caseId);
+      setNotice('Case released back to the support queue.');
+      if (selected) {
+        await openCustomer(selected.customerPublicId);
+      }
+      await loadRequests();
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to release this case.');
+    } finally {
+      setBusyKey('');
     }
   }
 
@@ -457,7 +513,7 @@ export default function CustomerCarePanel({
   useEffect(() => {
     void loadAiSettings();
     void loadRequests();
-    const timer = window.setInterval(() => { void loadRequests(); }, 7000);
+    const timer = window.setInterval(() => { void loadRequests(); }, 5000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -466,6 +522,7 @@ export default function CustomerCarePanel({
       setSupportChat(null);
       return;
     }
+    setChatAtBottom(true);
     void loadCustomerChat(selected.customerPublicId);
     const timer = window.setInterval(() => { void loadCustomerChat(selected.customerPublicId); }, 5000);
     return () => window.clearInterval(timer);
@@ -473,8 +530,22 @@ export default function CustomerCarePanel({
 
   useEffect(() => {
     const node = chatMessagesRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [supportChat?.messages.length]);
+    if (node && chatAtBottom) node.scrollTop = node.scrollHeight;
+  }, [supportChat?.messages.length, chatAtBottom]);
+
+  async function handleChatScroll() {
+    const node = chatMessagesRef.current;
+    if (!node || !selected) return;
+    const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 32;
+    setChatAtBottom(nearBottom);
+    if (nearBottom && supportChat?.unreadForStaff) {
+      try {
+        const read = await markCustomerCareChatRead(selected.customerPublicId);
+        setSupportChat(read);
+        void loadQueue();
+      } catch {}
+    }
+  }
 
   return (
     <div className="customer-care-console">
