@@ -475,6 +475,7 @@ private fun FloatingChatWindow(
             modifier = modifier
                 .size(56.dp)
                 .clip(CircleShape)
+                .clickable(onClick = onMinimize)
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = {
