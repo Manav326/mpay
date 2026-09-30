@@ -23,8 +23,10 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -155,7 +157,7 @@ fun CustomerCareInlineCard(
                             Button(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
-                                    state.tickets.firstOrNull { it.status != "CLOSED" }?.let(onOpen)
+                                    state.tickets.firstOrNull { it.status != "CLOSED" }?.let { onOpen(it.ticketId) }
                                         ?: run { showCreate = true }
                                 },
                                 shape = RoundedCornerShape(12.dp),
