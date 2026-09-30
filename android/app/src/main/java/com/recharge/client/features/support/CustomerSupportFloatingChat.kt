@@ -147,6 +147,7 @@ fun CustomerSupportFloatingChat(
 
     var chat by remember { mutableStateOf<SupportChatResponse?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var chatRequestInFlight by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -184,15 +185,21 @@ fun CustomerSupportFloatingChat(
     }
 
     suspend fun loadChat() {
+        if (chatRequestInFlight) return
+        chatRequestInFlight = true
         loading = true
         error = null
-        runCatching { NetworkModule.clientApi(context).customerSupportChat() }
-            .onSuccess { response ->
-                if (response.isSuccessful) chat = response.body()
-                else error = "Unable to load the support chat."
-            }
-            .onFailure { error = it.message ?: "Unable to load the support chat." }
-        loading = false
+        try {
+            runCatching { NetworkModule.clientApi(context).customerSupportChat() }
+                .onSuccess { response ->
+                    if (response.isSuccessful) chat = response.body()
+                    else error = "Unable to load the support chat."
+                }
+                .onFailure { error = it.message ?: "Unable to load the support chat." }
+        } finally {
+            loading = false
+            chatRequestInFlight = false
+        }
     }
 
     LaunchedEffect(Unit) {

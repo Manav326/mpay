@@ -204,6 +204,9 @@ export default function CustomerCarePanel({
   const [accessNotice, setAccessNotice] = useState('');
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const customerSearchRef = useRef<HTMLInputElement | null>(null);
+  const queueRequestInFlight = useRef(false);
+  const requestsRequestInFlight = useRef(false);
+  const chatRequestInFlight = useRef(false);
 
   useEffect(() => {
     const publicId = selected?.customerPublicId;
@@ -275,14 +278,20 @@ export default function CustomerCarePanel({
   }, [selected, activityFilter]);
 
   async function loadQueue() {
+    if (queueRequestInFlight.current) return;
+    queueRequestInFlight.current = true;
     try {
       setQueue(await getCustomerCareQueue());
     } catch (error: any) {
       setNotice(error?.message || 'Unable to load the Customer Care attention queue.');
+    } finally {
+      queueRequestInFlight.current = false;
     }
   }
 
   async function loadRequests() {
+    if (requestsRequestInFlight.current) return;
+    requestsRequestInFlight.current = true;
     setRequestsLoading(true);
     try {
       const [requestData, queueData] = await Promise.all([
@@ -294,11 +303,14 @@ export default function CustomerCarePanel({
     } catch (error: any) {
       setNotice(error?.message || 'Unable to load the Customer Care queue.');
     } finally {
+      requestsRequestInFlight.current = false;
       setRequestsLoading(false);
     }
   }
 
   async function loadCustomerChat(publicId: string) {
+    if (chatRequestInFlight.current) return;
+    chatRequestInFlight.current = true;
     setChatLoading(true);
     try {
       const chat = await getCustomerCareChat(publicId);
@@ -311,6 +323,7 @@ export default function CustomerCarePanel({
     } catch (error: any) {
       setNotice(error?.message || 'Unable to load the customer conversation.');
     } finally {
+      chatRequestInFlight.current = false;
       setChatLoading(false);
     }
   }

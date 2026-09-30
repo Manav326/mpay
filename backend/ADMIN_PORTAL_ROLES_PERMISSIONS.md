@@ -51,6 +51,12 @@ MANAGER:
 - `VIEW_USERS`
 - `VIEW_USER_DETAIL`
 - `VIEW_FINANCIAL_OPERATIONS` — read-only financial oversight
+- Customer Care permissions are **not enabled by default**. An administrator may grant Customer Care capabilities at role level or for an individual employee through Team & Access.
+
+### Customer Care access baseline
+- Employees start with their role's normal portal access only.
+- `SUPPORT_VIEW` / `SUPPORT_MANAGE`, customer context, calling, callback-management, and AI-management capabilities are explicit grants.
+- Existing Manager employees that previously inherited Customer Care from the legacy baseline are migrated to explicit employee-level grants so current access is preserved; new Manager employees do not inherit Customer Care automatically.
 
 ## Visibility hierarchy
 

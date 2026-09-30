@@ -154,6 +154,7 @@ fun CustomerSupportScreen(
     var chatDraft by remember { mutableStateOf("") }
     var chatError by remember { mutableStateOf<String?>(null) }
     var chat by remember { mutableStateOf<com.recharge.client.core.model.SupportChatResponse?>(null) }
+    var chatRequestInFlight by remember { mutableStateOf(false) }
     var guidedTopic by remember { mutableStateOf<SupportTopicOption?>(null) }
     var supportIntakeMode by remember { mutableStateOf(false) }
     var callbackBusy by remember { mutableStateOf(false) }
@@ -178,20 +179,26 @@ fun CustomerSupportScreen(
     LaunchedEffect(Unit) { load() }
 
     suspend fun loadChat() {
+        if (chatRequestInFlight) return
+        chatRequestInFlight = true
         chatLoading = true
         chatError = null
-        runCatching {
-            NetworkModule.clientApi(context).customerSupportChat()
-        }.onSuccess { response ->
-            if (response.isSuccessful) {
-                chat = response.body()
-            } else {
-                chatError = "Unable to load the support chat."
+        try {
+            runCatching {
+                NetworkModule.clientApi(context).customerSupportChat()
+            }.onSuccess { response ->
+                if (response.isSuccessful) {
+                    chat = response.body()
+                } else {
+                    chatError = "Unable to load the support chat."
+                }
+            }.onFailure {
+                chatError = it.message ?: "Unable to load the support chat."
             }
-        }.onFailure {
-            chatError = it.message ?: "Unable to load the support chat."
+        } finally {
+            chatLoading = false
+            chatRequestInFlight = false
         }
-        chatLoading = false
     }
 
     LaunchedEffect(chatOpen) {

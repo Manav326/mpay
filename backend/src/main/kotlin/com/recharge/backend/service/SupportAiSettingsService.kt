@@ -15,7 +15,8 @@ import java.time.Instant
 class SupportAiSettingsService(
     private val settings: AppSettingRepository,
     private val properties: SupportAiProperties,
-    private val roleAccess: RoleAccessService
+    private val roleAccess: RoleAccessService,
+    private val employeeAudit: EmployeeAuditService
 ) {
     companion object {
         const val MANAGE_SUPPORT_AI = "MANAGE_SUPPORT_AI"
@@ -52,6 +53,18 @@ class SupportAiSettingsService(
         setting.updatedByUserId = viewer.id
         setting.updatedAt = now
         settings.save(setting)
+        employeeAudit.record(
+            actor = viewer,
+            action = "SUPPORT_AI_SETTING_CHANGED",
+            subjectType = "SUPPORT_AI",
+            subjectId = AI_ENABLED_KEY,
+            summary = if (enabled) "Enabled Customer Care AI." else "Disabled Customer Care AI.",
+            metadata = mapOf(
+                "enabled" to enabled,
+                "providerConfigured" to properties.providerConfigured,
+                "model" to properties.model
+            )
+        )
         return current()
     }
 }
