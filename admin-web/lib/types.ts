@@ -461,6 +461,7 @@ export interface SupportCase {
   status: string;
   source: string;
   assignedUserPublicId?: string | null;
+  assignedUserName?: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string | null;
