@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,14 +75,9 @@ fun ActiveVoiceCallBar(
     val density = LocalDensity.current
     val callId = call.callId
     val squareSize = 108.dp
-    var dragOffset by remember(callId, density) {
-        mutableStateOf(
-            Offset(
-                x = with(density) { -16.dp.toPx() },
-                y = with(density) { 16.dp.toPx() }
-            )
-        )
-    }
+    var dragX by rememberSaveable(callId) { mutableStateOf(with(density) { -16.dp.toPx() }) }
+    var dragY by rememberSaveable(callId) { mutableStateOf(with(density) { 16.dp.toPx() }) }
+    val dragOffset = Offset(dragX, dragY)
     var containerSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     var boundService by remember(callId) { mutableStateOf<VoiceCallService?>(null) }
     var engineState by remember(callId) { mutableStateOf(VoiceCallEngineState()) }
@@ -162,10 +158,8 @@ fun ActiveVoiceCallBar(
         val maxX = -horizontalInset
         val maxY = (containerSize.height - barPx).coerceAtLeast(horizontalInset) - horizontalInset
 
-        dragOffset = Offset(
-            x = dragOffset.x.coerceIn(minX, maxX),
-            y = dragOffset.y.coerceIn(horizontalInset, maxY)
-        )
+        dragX = dragOffset.x.coerceIn(minX, maxX)
+        dragY = dragOffset.y.coerceIn(horizontalInset, maxY)
     }
 
     Box(
@@ -206,10 +200,8 @@ fun ActiveVoiceCallBar(
                                     val minX = (-(containerSize.width - barPx)).coerceAtMost(0f) - horizontalInset
                                     val maxX = -horizontalInset
                                     val maxY = (containerSize.height - barPx).coerceAtLeast(horizontalInset) - horizontalInset
-                                    dragOffset = Offset(
-                                        x = (dragOffset.x + dragAmount.x).coerceIn(minX, maxX),
-                                        y = (dragOffset.y + dragAmount.y).coerceIn(horizontalInset, maxY)
-                                    )
+                                    dragX = (dragX + dragAmount.x).coerceIn(minX, maxX)
+                                    dragY = (dragY + dragAmount.y).coerceIn(horizontalInset, maxY)
                                 }
                             )
                         }
