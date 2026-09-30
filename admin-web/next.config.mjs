@@ -16,6 +16,9 @@ const nextConfig = {
       { source: '/admin/vendors', destination: '/admin' },
       { source: '/admin/rental', destination: '/admin' },
       { source: '/admin/commissions', destination: '/admin' },
+      { source: '/admin/team', destination: '/admin' },
+      { source: '/admin/voice', destination: '/admin' },
+      { source: '/admin/customer-care', destination: '/admin' },
     ];
   },
 };
