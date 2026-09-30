@@ -28,6 +28,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
@@ -479,7 +482,9 @@ private fun AppRoot(
     var presentedIncomingCallId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeVoiceCall by remember { mutableStateOf<VoiceCallResponse?>(null) }
 
-    LaunchedEffect(authState) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(authState, lifecycleOwner) {
         if (authState is AuthUiState.Authenticated) {
             rechargeHistoryViewModel.refreshAll()
             passwordResetViewModel.clear()
@@ -497,58 +502,59 @@ private fun AppRoot(
             }
 
             val callsApi = NetworkModule.clientApi(context)
-            while (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                val activeCall = runCatching { callsApi.activeVoiceCall() }
-                    .getOrNull()
-                    ?.takeIf { it.isSuccessful }
-                    ?.body()
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                    val activeCall = runCatching { callsApi.activeVoiceCall() }
+                        .getOrNull()
+                        ?.takeIf { it.isSuccessful }
+                        ?.body()
 
-                when {
-                    activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId -> {
-                        activeVoiceCall = null
-                        presentedIncomingCallId = activeCall.callId
-                        val callerName = activeCall.callerName ?: "mPay Support"
+                    when {
+                        activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId -> {
+                            activeVoiceCall = null
+                            presentedIncomingCallId = activeCall.callId
+                            val callerName = activeCall.callerName ?: "mPay Support"
 
-                        // Polling is the recovery path when the FCM wake-up was delayed or
-                        // unavailable. It must reproduce the complete incoming-call alert
-                        // (notification + ringtone + vibration), not only open the UI.
-                        CallNotificationManager.showIncoming(
-                            context,
-                            activeCall.callId,
-                            callerName,
-                            expiresAt = activeCall.ringingExpiresAt,
-                            persistentRinging = true
-                        )
+                            // Polling is the recovery path when the FCM wake-up was delayed or
+                            // unavailable. It must reproduce the complete incoming-call alert
+                            // (notification + ringtone + vibration), not only open the UI.
+                            CallNotificationManager.showIncoming(
+                                context,
+                                activeCall.callId,
+                                callerName,
+                                expiresAt = activeCall.ringingExpiresAt,
+                                persistentRinging = true
+                            )
 
-                        runCatching {
-                            context.startActivity(
-                                Intent(context, IncomingCallActivity::class.java)
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
-                                    .putExtra(
-                                        IncomingCallActivity.EXTRA_CALLER_NAME,
-                                        callerName
+                            runCatching {
+                                context.startActivity(
+                                    Intent(context, IncomingCallActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
+                                        .putExtra(
+                                            IncomingCallActivity.EXTRA_CALLER_NAME,
+                                            callerName
+                                        )
+                                }.onFailure { error ->
+                                    android.util.Log.e(
+                                        "MainActivity",
+                                        "Unable to open incoming call screen. callId=" + activeCall.callId,
+                                        error
                                     )
-                            )
-                        }.onFailure { error ->
-                            android.util.Log.e(
-                                "MainActivity",
-                                "Unable to open incoming call screen. callId=" + activeCall.callId,
-                                error
-                            )
+                                }
+                        }
+                        activeCall?.status in setOf("ACCEPTED", "CONNECTED") -> {
+                            presentedIncomingCallId = null
+                            activeVoiceCall = activeCall
+                        }
+                        else -> {
+                            presentedIncomingCallId = null
+                            activeVoiceCall = null
                         }
                     }
-                    activeCall?.status in setOf("ACCEPTED", "CONNECTED") -> {
-                        presentedIncomingCallId = null
-                        activeVoiceCall = activeCall
-                    }
-                    else -> {
-                        presentedIncomingCallId = null
-                        activeVoiceCall = null
-                    }
-                }
 
-                kotlinx.coroutines.delay(3500L)
+                    kotlinx.coroutines.delay(3500L)
+                }
             }
         }
     }
