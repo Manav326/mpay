@@ -5236,10 +5236,10 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   min-width:0;flex:1;height:34px;border:1px solid #dddfe3;border-radius:10px;padding:7px 9px;
   background:#fff;color:#252a31;font:inherit;font-size:10px;outline:none
 }
-.customer-support-floating-layer{position:fixed;inset:0;z-index:140;pointer-events:none}
+.customer-support-floating-layer{position:fixed;inset:0;z-index:2400;pointer-events:none;overflow:visible}
 .customer-support-modal{
-  position:fixed;width:520px;height:650px;min-width:360px;min-height:420px;
-  max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);
+  position:fixed;width:520px;height:650px;min-width:min(360px,calc(100vw - 16px));min-height:min(420px,calc(100dvh - 94px));
+  max-width:calc(100vw - 16px);max-height:calc(100dvh - 94px);
   display:flex;flex-direction:column;overflow:hidden;pointer-events:auto;resize:both;
   border:1px solid rgba(255,255,255,.78);border-radius:22px;
   background:linear-gradient(155deg,#fff,#fffaf2);box-shadow:0 28px 90px rgba(48,35,15,.24)
@@ -5247,7 +5247,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .customer-support-modal.minimized{width:260px;height:auto;min-width:240px;min-height:0;resize:none}
 .customer-support-modal-head{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:12px 14px;border-bottom:1px solid #eee5d8;cursor:move;user-select:none;flex:none
+  padding:12px 14px;border-bottom:1px solid #eee5d8;cursor:grab;user-select:none;touch-action:none;flex:none
 }
 .customer-support-modal-head:active{cursor:grabbing}
 .customer-support-modal-brand{display:flex;align-items:center;gap:9px;min-width:0}
@@ -5298,7 +5298,14 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .customer-support-composer .landing-primary{min-height:36px;padding:8px 11px;display:inline-flex;align-items:center;gap:5px}
 .customer-support-footnote{padding:0 10px 8px;text-align:right;background:#fffaf2;color:#a1988d;font-size:7px}
 @media(max-width:680px){
-  .customer-support-modal{width:calc(100vw - 16px);height:min(680px,calc(100vh - 16px));min-width:280px;max-width:calc(100vw - 16px)}
+  .customer-support-modal{
+    width:calc(100vw - 16px);
+    height:min(680px,calc(100dvh - 86px));
+    min-width:min(280px,calc(100vw - 16px));
+    min-height:min(360px,calc(100dvh - 86px));
+    max-width:calc(100vw - 16px);
+    max-height:calc(100dvh - 86px);
+  }
   .customer-support-callback-escalation{align-items:stretch;flex-direction:column}
   .customer-support-callback-form{width:100%;min-width:0}
   .customer-support-callback-form input{flex:1}
