@@ -458,8 +458,14 @@ private fun FloatingChatWindow(
         ),
         label = "supportPresencePulse"
     )
-    LaunchedEffect(chat?.messages?.size) {
-        val size = chat?.messages?.size ?: 0
+    val hasTimeline = !chat?.items.isNullOrEmpty() || !chat?.messages.isNullOrEmpty()
+
+    LaunchedEffect(chat?.items?.size, chat?.messages?.size) {
+        val size = if (!chat?.items.isNullOrEmpty()) {
+            chat.items.size
+        } else {
+            chat?.messages?.size ?: 0
+        }
         if (size > 0) listState.animateScrollToItem(size - 1)
     }
 
@@ -685,7 +691,7 @@ private fun FloatingChatWindow(
                     contentPadding = PaddingValues(horizontal = 11.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    if (chat?.messages.isNullOrEmpty() && !supportIntakeMode) {
+                    if (!hasTimeline && !supportIntakeMode) {
                         item {
                             Column(
                                 Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -848,7 +854,7 @@ private fun FloatingChatWindow(
                     }
                 }
 
-                if (!chat?.messages.isNullOrEmpty()) {
+                if (hasTimeline) {
                     Row(
                         Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 9.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.Bottom
