@@ -828,22 +828,30 @@ private fun FloatingChatWindow(
                 }
 
                 Box(
-                    Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 7.dp, vertical = 4.dp)
+                    Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .background(Color(0xFF171C21))
                 ) {
-                    Text("Drag header to move · drag corner to resize", color = Color(0xFF7F8A97), style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        "Drag header to move · drag corner to resize",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = Color(0xFF7F8A97),
+                        style = MaterialTheme.typography.labelSmall
+                    )
                     Box(
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(40.dp)
                             .align(Alignment.BottomEnd)
-                            .pointerInput(Unit) {
+                            .pointerInput("supportResize") {
                                 detectDragGestures(
                                     onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    onResize(
-                                        with(density) { dragAmount.x.toDp().value },
-                                        with(density) { dragAmount.y.toDp().value }
-                                    )
-                                }
+                                        change.consume()
+                                        onResize(
+                                            with(density) { dragAmount.x.toDp().value },
+                                            with(density) { dragAmount.y.toDp().value }
+                                        )
+                                    }
                                 )
                             }
                     )
