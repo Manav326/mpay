@@ -1107,6 +1107,7 @@ export default function CustomerCarePanel({
                       </div>
                     </div>
                   ))}
+                </div>
 
                 {supportChat?.unreadForStaff && !chatAtBottom && (
                   <button className="care-new-message-bar" onClick={() => {
@@ -1183,6 +1184,8 @@ export default function CustomerCarePanel({
                                 <span><small>Case</small><b>{caseItem.caseId}</b></span>
                                 <span><small>Assigned</small><b>{caseItem.assignedEmployeeName || 'Unassigned'}</b></span>
                                 <span><small>Opened</small><b>{shortDate(caseItem.createdAt)}</b></span>
+                                <span><small>Last updated</small><b>{shortDate(caseItem.lastMeaningfulUpdateAt || caseItem.updatedAt)}</b></span>
+                                <span><small>Expected</small><b>{dateTime(caseItem.expectedResolutionAt)}</b></span>
                                 <span><small>Source</small><b>{caseItem.source.replaceAll('_', ' ')}</b></span>
                               </div>
 
