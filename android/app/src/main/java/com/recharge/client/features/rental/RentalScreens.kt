@@ -2230,40 +2230,6 @@ fun RentalVehicleOnboardingScreen(
         }
         state.mutationError?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
 
-        item {
-            pickerTarget?.let { target ->
-                RentalPhotoPickerDialog(
-                    title = pickerTitle,
-                    currentPreview = when {
-                        target in 0..3 -> form.pendingPhotos[target].value?.value
-                            ?: listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)[target]
-                                .takeIf { it.isNotBlank() }
-                                ?.let { rentalPhotoDisplayUrl(it, "large") }
-                        target == 4 -> form.driverPhoto?.value
-                            ?: editingCar?.driverPhoto?.largeUrl?.let { rentalPhotoDisplayUrl(it, "large") }
-                            ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
-                        else -> null
-                    },
-                    deviceUri = pickedDeviceUri,
-                    onLaunchDevicePicker = {
-                        // Use the Android Photo Picker directly. It is more reliable than
-                        // launching ACTION_GET_CONTENT from a Compose Dialog transition,
-                        // while keeping the existing mPay picker UI unchanged.
-                        launchDevicePhotoPicker(target)
-                    },
-                    onDevicePicked = { uri -> pickedDeviceUri = uri },
-                    onDismiss = { pickerTarget = null },
-                    onUse = { candidate ->
-                        if (target in 0..3) {
-                            form.pendingPhotos[target].value = candidate
-                        } else if (target == 4) {
-                            form.driverPhoto = candidate
-                        }
-                        pickerTarget = null
-                    }
-                )
-            }
-        }
 
         item {
             val manufacturing = form.manufacturingYear.toIntOrNull()
@@ -2711,6 +2677,42 @@ private fun RentalVendorProfileDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
     )
+
+    // Keep the picker at screen composition level. A Dialog rendered as a LazyColumn item
+    // can remain uncomposed while that item is off-screen, making the photo picker appear
+    // not to open when a photo near the top of the form is tapped.
+            pickerTarget?.let { target ->
+                RentalPhotoPickerDialog(
+                    title = pickerTitle,
+                    currentPreview = when {
+                        target in 0..3 -> form.pendingPhotos[target].value?.value
+                            ?: listOf(form.photoFront, form.photoSide, form.photoRear, form.photoInterior)[target]
+                                .takeIf { it.isNotBlank() }
+                                ?.let { rentalPhotoDisplayUrl(it, "large") }
+                        target == 4 -> form.driverPhoto?.value
+                            ?: editingCar?.driverPhoto?.largeUrl?.let { rentalPhotoDisplayUrl(it, "large") }
+                            ?: editingCar?.driverPhotoUrl?.let { rentalPhotoDisplayUrl(it, "large") }
+                        else -> null
+                    },
+                    deviceUri = pickedDeviceUri,
+                    onLaunchDevicePicker = {
+                        // Use the Android Photo Picker directly. It is more reliable than
+                        // launching ACTION_GET_CONTENT from a Compose Dialog transition,
+                        // while keeping the existing mPay picker UI unchanged.
+                        launchDevicePhotoPicker(target)
+                    },
+                    onDevicePicked = { uri -> pickedDeviceUri = uri },
+                    onDismiss = { pickerTarget = null },
+                    onUse = { candidate ->
+                        if (target in 0..3) {
+                            form.pendingPhotos[target].value = candidate
+                        } else if (target == 4) {
+                            form.driverPhoto = candidate
+                        }
+                        pickerTarget = null
+                    }
+                )
+            }
 }
 
 @Composable
