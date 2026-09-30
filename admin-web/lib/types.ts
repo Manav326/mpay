@@ -486,6 +486,9 @@ export interface SupportCase {
   resolvedAt?: string | null;
   resolutionCode?: string | null;
   resolutionNote?: string | null;
+  lastMeaningfulUpdateAt?: string | null;
+  expectedResolutionAt?: string | null;
+  etaSource?: string;
 }
 
 export interface SupportInteraction {
@@ -526,6 +529,19 @@ export interface SupportMessage {
   senderType: string;
   message: string;
   createdAt: string;
+  restartSupportIntake?: boolean;
+}
+
+export interface SupportChatItem {
+  itemId: string;
+  type: 'MESSAGE' | 'VOICE_CALL';
+  senderType?: string | null;
+  message?: string | null;
+  status?: string | null;
+  outcome?: string | null;
+  durationLabel?: string | null;
+  actorName?: string | null;
+  createdAt: string;
 }
 
 export interface SupportChat {
@@ -537,6 +553,7 @@ export interface SupportChat {
   unreadForStaff: number;
   callbackRequestEnabled?: boolean;
   pendingCallbackRequest?: SupportCallRequest | null;
+  items?: SupportChatItem[];
 }
 
 export interface SupportCaseEvent {

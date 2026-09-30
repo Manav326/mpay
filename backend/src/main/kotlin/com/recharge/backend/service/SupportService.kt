@@ -5,12 +5,17 @@ import com.recharge.backend.domain.*
 import com.recharge.backend.repository.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpStatus
+import org.springframework.data.domain.PageRequest
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Duration
 import java.time.Instant
+import java.time.DayOfWeek
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 @Service
 class SupportService(
@@ -36,6 +41,9 @@ class SupportService(
         const val SUPPORT_MANAGE = "SUPPORT_MANAGE"
         const val REQUEST_SUPPORT_CALL = "REQUEST_SUPPORT_CALL"
         private const val PENDING = "PENDING"
+        private const val SUPPORT_CHAT_ITEM_LIMIT = 300
+        private const val DEFAULT_ETA_WORKING_DAYS = 2
+        private val SUPPORT_ZONE: ZoneId = ZoneId.of("Asia/Kolkata")
         private const val IN_PROGRESS = "IN_PROGRESS"
         private const val COMPLETED = "COMPLETED"
         private const val DECLINED = "DECLINED"
@@ -83,7 +91,10 @@ class SupportService(
                     status = OPEN,
                     source = if (conversation != null) "CUSTOMER_CHAT_CALLBACK" else "CUSTOMER_CALL_REQUEST",
                     createdAt = now,
-                    updatedAt = now
+                    updatedAt = now,
+                    lastMeaningfulUpdateAt = now,
+                    expectedResolutionAt = defaultExpectedResolutionAt(now),
+                    etaSource = "SYSTEM"
                 )
             )
         } else {
@@ -380,13 +391,14 @@ class SupportService(
     }
 
     @Transactional
+    @Transactional
     fun customerChat(customer: UserEntity): SupportChatResponse {
         ensureClient(customer)
-        val now = Instant.now()
-        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
+        val customerId = requireNotNull(customer.id)
+        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN)
             .orElse(null)
-            ?: conversations.findAllByCustomerUserIdOrderByLastActivityAtDesc(requireNotNull(customer.id)).firstOrNull()
-
+            ?: conversations.findAllByCustomerUserIdOrderByLastActivityAtDesc(customerId).firstOrNull()
+        val pending = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(customerId, PENDING).orElse(null)?.let(::toRequestResponse)
         if (conversation == null) {
             return SupportChatResponse(
                 conversationId = null,
@@ -396,32 +408,31 @@ class SupportService(
                 unreadForCustomer = 0,
                 unreadForStaff = 0,
                 callbackRequestEnabled = callbackRequestEnabled(customer),
-                pendingCallbackRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(requireNotNull(customer.id), PENDING).orElse(null)?.let(::toRequestResponse)
+                pendingCallbackRequest = pending,
+                items = emptyList()
             )
         }
 
-        messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
-            .filter { it.senderType in setOf("STAFF", "AI") && it.customerReadAt == null }
-            .forEach {
-                it.customerReadAt = now
-                messages.save(it)
-            }
-
-        val messageList = messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+        val conversationId = requireNotNull(conversation.id)
+        messages.markCustomerRead(conversationId, listOf("STAFF", "AI"), Instant.now())
+        val messageList = messages.findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT)).reversed()
+        val currentCase = conversation.caseId?.let { cases.findById(it).orElse(null) }
         return SupportChatResponse(
             conversationId = conversation.conversationId,
-            caseId = conversation.caseId?.let { cases.findById(it).orElse(null)?.caseId },
+            caseId = currentCase?.caseId,
             status = conversation.status,
             messages = messageList.map(::toMessageResponse),
-            unreadForCustomer = messageList.count { it.senderType in setOf("STAFF", "AI") && it.customerReadAt == null },
-            unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null },
+            unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
+                messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
+            unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
             callbackRequestEnabled = callbackRequestEnabled(customer),
-            pendingCallbackRequest = callRequests.findFirstByCustomerUserIdAndStatusOrderByRequestedAtDesc(requireNotNull(customer.id), PENDING).orElse(null)?.let(::toRequestResponse)
+            pendingCallbackRequest = pending,
+            items = buildChatItems(conversationId)
         )
     }
 
     @Transactional
-    fun sendCustomerChatMessage(customer: UserEntity, messageText: String): SupportMessageResponse {
+    fun sendCustomerChatMessage(customer: UserEntity, messageText: String, topic: String? = null): SupportMessageResponse {
         ensureClient(customer)
         val message = messageText.trim().take(4000)
         if (message.isBlank()) {
@@ -443,7 +454,10 @@ class SupportService(
                         status = OPEN,
                         source = "CUSTOMER_CHAT",
                         createdAt = now,
-                        updatedAt = now
+                        updatedAt = now,
+                        lastMeaningfulUpdateAt = now,
+                        expectedResolutionAt = defaultExpectedResolutionAt(now),
+                        etaSource = "SYSTEM"
                     )
                 )
             if (supportCase.status != OPEN) {
@@ -482,13 +496,18 @@ class SupportService(
             cases.findById(caseId).orElse(null)?.let {
                 it.status = OPEN
                 it.updatedAt = now
+                if (isGenericChatCaseSubject(it.subject) && !topic.isNullOrBlank()) {
+                    it.subject = supportTopicSubject(topic)
+                    it.category = supportTopicCategory(topic)
+                }
                 cases.save(it)
-                recordCaseEvent(it, conversation.id, "USER", customerId, "CUSTOMER_MESSAGE", "CUSTOMER", "CHAT", "Customer sent a support chat message", saved.messageId)
+                recordCaseEvent(it, conversation.id, "USER", customerId, if (isSupportGreeting(message)) "CUSTOMER_GREETING" else "CUSTOMER_MESSAGE", "CUSTOMER", "CHAT", if (isSupportGreeting(message)) "Customer restarted support intake" else "Customer sent a support chat message", saved.messageId)
             }
         }
 
-        eventPublisher.publishEvent(
-            SupportCustomerMessageCreatedEvent(
+        if (!isSupportGreeting(message)) {
+            eventPublisher.publishEvent(
+                SupportCustomerMessageCreatedEvent(
                 messageId = saved.messageId,
                 conversationId = requireNotNull(conversation.id),
                 caseId = conversation.caseId,
@@ -496,7 +515,7 @@ class SupportService(
                 message = message
             )
         )
-        return toMessageResponse(saved)
+        return toMessageResponse(saved, isSupportGreeting(message))
     }
 
     @Transactional
@@ -553,20 +572,22 @@ class SupportService(
     fun adminChat(viewer: EmployeeEntity, publicId: String): SupportChatResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val customer = visibleClient(viewer, publicId)
-        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
-            .orElseGet {
-                conversations.findAllByCustomerUserIdOrderByLastActivityAtDesc(requireNotNull(customer.id)).firstOrNull()
-            }
-            ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0)
+        val customerId = requireNotNull(customer.id)
+        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(customerId, OPEN)
+            .orElseGet { conversations.findAllByCustomerUserIdOrderByLastActivityAtDesc(customerId).firstOrNull() }
+            ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0, false, null, emptyList())
 
-        val messageList = messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+        val conversationId = requireNotNull(conversation.id)
+        val messageList = messages.findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT)).reversed()
         return SupportChatResponse(
             conversationId = conversation.conversationId,
             caseId = conversation.caseId?.let { cases.findById(it).orElse(null)?.caseId },
             status = conversation.status,
             messages = messageList.map(::toMessageResponse),
-            unreadForCustomer = messageList.count { it.senderType == "STAFF" && it.customerReadAt == null },
-            unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null }
+            unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
+                messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
+            unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
+            items = buildChatItems(conversationId)
         )
     }
 
@@ -579,12 +600,7 @@ class SupportService(
             ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0)
 
         val now = Instant.now()
-        messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
-            .filter { it.senderType == "CUSTOMER" && it.staffReadAt == null }
-            .forEach {
-                it.staffReadAt = now
-                messages.save(it)
-            }
+        messages.markStaffRead(requireNotNull(conversation.id), now)
         return adminChat(viewer, publicId)
     }
 
@@ -611,7 +627,10 @@ class SupportService(
                     source = "SUPPORT_CHAT",
                     assignedEmployeeId = viewer.id,
                     createdAt = now,
-                    updatedAt = now
+                    updatedAt = now,
+                    lastMeaningfulUpdateAt = now,
+                    expectedResolutionAt = defaultExpectedResolutionAt(now),
+                    etaSource = "SYSTEM"
                 )
             )
             conversation = conversations.save(
@@ -644,6 +663,7 @@ class SupportService(
                 it.status = OPEN
                 it.assignedEmployeeId = viewer.id
                 it.updatedAt = now
+                touchCaseMeaningfulUpdate(it, now, false)
                 cases.save(it)
                 recordCaseEvent(it, conversation.id, "EMPLOYEE", viewer.id, "SUPPORT_MESSAGE", "CUSTOMER", "CHAT", "mPay Support replied in chat", saved.messageId)
             }
@@ -748,7 +768,10 @@ class SupportService(
                     status = OPEN,
                     source = "STAFF_CALL",
                     createdAt = call.createdAt,
-                    updatedAt = call.createdAt
+                    updatedAt = call.createdAt,
+                    lastMeaningfulUpdateAt = call.createdAt,
+                    expectedResolutionAt = defaultExpectedResolutionAt(call.createdAt),
+                    etaSource = "SYSTEM"
                 )
             )
         if (caseEntity.status != OPEN) {
@@ -854,7 +877,9 @@ class SupportService(
         interaction.caseId?.let { caseId ->
             val caseEntity = cases.findById(caseId).orElse(null)
             caseEntity?.let {
-                it.updatedAt = call.endedAt ?: Instant.now()
+                val meaningfulAt = call.endedAt ?: Instant.now()
+                it.updatedAt = meaningfulAt
+                touchCaseMeaningfulUpdate(it, meaningfulAt, false)
                 if (call.status in setOf("DECLINED", "MISSED", "CANCELLED")) {
                     // Keep the customer issue open so the agent can follow up.
                     if (it.status == CLOSED) it.status = OPEN
@@ -882,6 +907,12 @@ class SupportService(
         if (status == RESOLVED || status == CLOSED) entity.resolvedAt = now else entity.resolvedAt = null
         entity.resolutionCode = request.resolutionCode?.trim()?.takeIf { it.isNotBlank() }?.take(100)
         entity.resolutionNote = request.resolutionNote?.trim()?.takeIf { it.isNotBlank() }?.take(1200)
+        val explicitEta = parseExpectedResolutionAt(request.expectedResolutionAt)
+        if (explicitEta != null) {
+            entity.expectedResolutionAt = explicitEta
+            entity.etaSource = "EMPLOYEE"
+        }
+        touchCaseMeaningfulUpdate(entity, now, explicitEta == null && request.expectedResolutionAt == null)
         cases.save(entity)
         recordCaseEvent(entity, conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(entity.customerUserId, OPEN).orElse(null)?.id, "EMPLOYEE", viewer.id, "CASE_STATUS_CHANGED", "CUSTOMER", "SUPPORT", "Support case status changed to " + status, request.resolutionCode)
         markWrapUp(entity.id, now)
@@ -974,6 +1005,7 @@ class SupportService(
             )
         )
         entity.updatedAt = Instant.now()
+        if (visibility == "CUSTOMER") touchCaseMeaningfulUpdate(entity, note.createdAt, false)
         cases.save(entity)
         recordCaseEvent(entity, note.conversationId, "EMPLOYEE", viewer.id, "NOTE_ADDED", visibility, "NOTE", if (visibility == "CUSTOMER") "Support added a customer-visible note" else "Support note added", note.id.toString())
         markWrapUp(entity.id, note.createdAt)
@@ -1027,6 +1059,102 @@ class SupportService(
                 interactions.save(interaction)
             }
         }
+    }
+
+    private fun supportTopicSubject(topic: String?): String {
+        return when (topic?.trim()?.uppercase()) {
+            "ADD_MONEY" -> "Add money issue"
+            "WITHDRAWAL" -> "Withdrawal issue"
+            "RECHARGE" -> "Mobile recharge issue"
+            "CAR_RENTAL" -> "Car rental issue"
+            "WALLET" -> "Wallet & transaction issue"
+            "ACCOUNT" -> "Account & profile issue"
+            "OTHER" -> "Customer support request"
+            else -> "Customer chat with mPay Support"
+        }
+    }
+
+    private fun supportTopicCategory(topic: String?): String {
+        return when (topic?.trim()?.uppercase()) {
+            "ADD_MONEY" -> "ADD_MONEY"
+            "WITHDRAWAL" -> "WITHDRAWAL"
+            "RECHARGE" -> "RECHARGE"
+            "CAR_RENTAL" -> "CAR_RENTAL"
+            "WALLET" -> "WALLET"
+            "ACCOUNT" -> "ACCOUNT"
+            else -> "CHAT"
+        }
+    }
+
+    private fun isGenericChatCaseSubject(subject: String): Boolean =
+        subject == "Customer chat with mPay Support" || subject == "Customer support chat"
+
+    private fun isSupportGreeting(message: String): Boolean =
+        message.trim().lowercase() in setOf("hi", "hello")
+
+    private fun parseExpectedResolutionAt(value: String?): Instant? {
+        val normalized = value?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        return try {
+            Instant.parse(normalized)
+        } catch (_: Exception) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Expected resolution time must be a valid timestamp")
+        }
+    }
+
+    private fun defaultExpectedResolutionAt(base: Instant): Instant {
+        var date = base.atZone(SUPPORT_ZONE).toLocalDate()
+        val localTime: LocalTime = base.atZone(SUPPORT_ZONE).toLocalTime()
+        var remaining = DEFAULT_ETA_WORKING_DAYS
+        while (remaining > 0) {
+            date = date.plusDays(1)
+            if (date.dayOfWeek != DayOfWeek.SATURDAY && date.dayOfWeek != DayOfWeek.SUNDAY) remaining--
+        }
+        return ZonedDateTime.of(date, localTime, SUPPORT_ZONE).toInstant()
+    }
+
+    private fun touchCaseMeaningfulUpdate(entity: SupportCaseEntity, at: Instant, preserveExistingEmployeeEta: Boolean) {
+        entity.lastMeaningfulUpdateAt = at
+        if (entity.etaSource == "EMPLOYEE" && preserveExistingEmployeeEta) return
+        if (entity.etaSource == "EMPLOYEE" && !preserveExistingEmployeeEta && entity.expectedResolutionAt != null) return
+        entity.etaSource = "SYSTEM"
+        entity.expectedResolutionAt = defaultExpectedResolutionAt(at)
+    }
+
+    private fun buildChatItems(conversationId: Long): List<SupportChatItemResponse> {
+        val messageItems = messages
+            .findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT))
+            .map {
+                SupportChatItemResponse(
+                    itemId = it.messageId,
+                    type = "MESSAGE",
+                    senderType = it.senderType,
+                    message = it.message,
+                    createdAt = it.createdAt.toString()
+                )
+            }
+        val voiceEntities = interactions
+            .findByConversationIdOrderByStartedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT))
+        val employeeIds = voiceEntities
+            .mapNotNull { if (it.actorAccountType == "EMPLOYEE") it.actorAccountId else null }
+            .toSet()
+        val employeeMap = if (employeeIds.isEmpty()) emptyMap() else
+            employees.findAllById(employeeIds).associateBy { requireNotNull(it.id) }
+        val voiceItems = voiceEntities.map {
+            SupportChatItemResponse(
+                itemId = it.interactionId,
+                type = "VOICE_CALL",
+                senderType = if (it.direction == "OUTBOUND") "STAFF" else "CUSTOMER",
+                status = it.status,
+                outcome = it.outcome,
+                durationLabel = it.durationSeconds?.let(::formatDuration),
+                actorName = if (it.actorAccountType == "EMPLOYEE") it.actorAccountId?.let { id -> employeeMap[id]?.name } else null,
+                createdAt = it.startedAt.toString()
+            )
+        }
+        return (messageItems + voiceItems)
+            .sortedByDescending { it.createdAt }
+            .take(SUPPORT_CHAT_ITEM_LIMIT)
+            .reversed()
     }
 
     private fun callbackRequestEnabled(customer: UserEntity): Boolean =
@@ -1131,12 +1259,13 @@ class SupportService(
         }
     }
 
-    private fun toMessageResponse(entity: SupportMessageEntity): SupportMessageResponse =
+    private fun toMessageResponse(entity: SupportMessageEntity, restartSupportIntake: Boolean = false): SupportMessageResponse =
         SupportMessageResponse(
             messageId = entity.messageId,
             senderType = entity.senderType,
             message = entity.message,
-            createdAt = entity.createdAt.toString()
+            createdAt = entity.createdAt.toString(),
+            restartSupportIntake = restartSupportIntake
         )
 
     private fun toRequestResponse(entity: SupportCallRequestEntity): SupportCallRequestResponse {
@@ -1172,6 +1301,9 @@ class SupportService(
             assignedEmployeeName = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.name },
             createdAt = entity.createdAt.toString(),
             updatedAt = entity.updatedAt.toString(),
+            lastMeaningfulUpdateAt = (entity.lastMeaningfulUpdateAt ?: entity.updatedAt).toString(),
+            expectedResolutionAt = (entity.expectedResolutionAt ?: defaultExpectedResolutionAt(entity.lastMeaningfulUpdateAt ?: entity.updatedAt)).toString(),
+            etaSource = entity.etaSource,
             resolvedAt = entity.resolvedAt?.toString(),
             resolutionCode = entity.resolutionCode,
             resolutionNote = entity.resolutionNote

@@ -8,6 +8,8 @@ import com.recharge.backend.domain.SupportInteractionEntity
 import com.recharge.backend.domain.SupportNoteEntity
 import com.recharge.backend.domain.SupportMessageEntity
 import jakarta.persistence.LockModeType
+import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
@@ -32,6 +34,7 @@ interface SupportInteractionRepository : JpaRepository<SupportInteractionEntity,
     fun findByVoiceCallId(voiceCallId: String): Optional<SupportInteractionEntity>
     fun findAllByCustomerUserIdOrderByStartedAtDesc(customerUserId: Long): List<SupportInteractionEntity>
     fun findAllByConversationIdOrderByStartedAtDesc(conversationId: Long): List<SupportInteractionEntity>
+    fun findByConversationIdOrderByStartedAtDesc(conversationId: Long, pageable: Pageable): List<SupportInteractionEntity>
     fun findFirstByCaseIdAndChannelOrderByStartedAtDesc(caseId: Long, channel: String): Optional<SupportInteractionEntity>
 }
 
@@ -55,8 +58,19 @@ interface SupportCallRequestRepository : JpaRepository<SupportCallRequestEntity,
 
 interface SupportMessageRepository : JpaRepository<SupportMessageEntity, Long> {
     fun findAllByConversationIdOrderByCreatedAtAsc(conversationId: Long): List<SupportMessageEntity>
+    fun findByConversationIdOrderByCreatedAtDesc(conversationId: Long, pageable: Pageable): List<SupportMessageEntity>
+    fun countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId: Long, senderType: String): Long
+    fun countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId: Long, senderType: String): Long
     fun countByCustomerUserIdAndSenderTypeAndStaffReadAtIsNull(customerUserId: Long, senderType: String): Long
     fun findAllBySenderTypeAndStaffReadAtIsNullOrderByCreatedAtDesc(senderType: String): List<SupportMessageEntity>
+
+    @Modifying
+    @Query("update SupportMessageEntity m set m.customerReadAt = :readAt where m.conversationId = :conversationId and m.senderType in :senderTypes and m.customerReadAt is null")
+    fun markCustomerRead(@Param("conversationId") conversationId: Long, @Param("senderTypes") senderTypes: Collection<String>, @Param("readAt") readAt: Instant): Int
+
+    @Modifying
+    @Query("update SupportMessageEntity m set m.staffReadAt = :readAt where m.conversationId = :conversationId and m.senderType = 'CUSTOMER' and m.staffReadAt is null")
+    fun markStaffRead(@Param("conversationId") conversationId: Long, @Param("readAt") readAt: Instant): Int
 }
 
 interface SupportCaseEventRepository : JpaRepository<SupportCaseEventEntity, Long> {

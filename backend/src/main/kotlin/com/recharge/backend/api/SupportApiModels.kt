@@ -31,6 +31,9 @@ data class SupportCaseResponse(
     val assignedEmployeeName: String? = null,
     val createdAt: String,
     val updatedAt: String,
+    val lastMeaningfulUpdateAt: String? = null,
+    val expectedResolutionAt: String? = null,
+    val etaSource: String = "SYSTEM",
     val resolvedAt: String? = null,
     val resolutionCode: String? = null,
     val resolutionNote: String? = null
@@ -113,7 +116,8 @@ data class UpdateSupportCaseRequest(
     @field:jakarta.validation.constraints.Size(max = 100)
     val resolutionCode: String? = null,
     @field:jakarta.validation.constraints.Size(max = 1200)
-    val resolutionNote: String? = null
+    val resolutionNote: String? = null,
+    val expectedResolutionAt: String? = null
 )
 
 data class CreateSupportNoteRequest(
@@ -157,6 +161,19 @@ data class SupportMessageResponse(
     val messageId: String,
     val senderType: String,
     val message: String,
+    val createdAt: String,
+    val restartSupportIntake: Boolean = false
+)
+
+data class SupportChatItemResponse(
+    val itemId: String,
+    val type: String,
+    val senderType: String? = null,
+    val message: String? = null,
+    val status: String? = null,
+    val outcome: String? = null,
+    val durationLabel: String? = null,
+    val actorName: String? = null,
     val createdAt: String
 )
 
@@ -168,13 +185,16 @@ data class SupportChatResponse(
     val unreadForCustomer: Int,
     val unreadForStaff: Int,
     val callbackRequestEnabled: Boolean = false,
-    val pendingCallbackRequest: SupportCallRequestResponse? = null
+    val pendingCallbackRequest: SupportCallRequestResponse? = null,
+    val items: List<SupportChatItemResponse> = emptyList()
 )
 
 data class CreateSupportMessageRequest(
     @field:jakarta.validation.constraints.NotBlank
     @field:jakarta.validation.constraints.Size(max = 4000)
-    val message: String
+    val message: String,
+    @field:jakarta.validation.constraints.Size(max = 40)
+    val topic: String? = null
 )
 
 data class SupportAiSettingsResponse(

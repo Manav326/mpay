@@ -36,7 +36,7 @@ class CustomerSupportController(
         authentication: Authentication,
         @Valid @RequestBody request: CreateSupportMessageRequest
     ): SupportMessageResponse =
-        support.sendCustomerChatMessage(currentUser(authentication), request.message)
+        support.sendCustomerChatMessage(currentUser(authentication), request.message, request.topic)
 
     @PostMapping("/call-request")
     fun requestCall(

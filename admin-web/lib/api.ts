@@ -597,10 +597,10 @@ export async function getCustomerCareChat(publicUserId: string): Promise<Support
   return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat');
 }
 
-export async function sendCustomerCareChatMessage(publicUserId: string, message: string): Promise<SupportMessage> {
+export async function sendCustomerCareChatMessage(publicUserId: string, message: string, topic?: string): Promise<SupportMessage> {
   return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat/messages', {
     method: 'POST',
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, topic: topic || null }),
   });
 }
 

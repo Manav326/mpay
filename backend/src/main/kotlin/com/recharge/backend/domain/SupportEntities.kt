@@ -24,6 +24,9 @@ class SupportCaseEntity(
     @Column(name = "assigned_employee_id") var assignedEmployeeId: Long? = null,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.now(),
+    @Column(name = "last_meaningful_update_at") var lastMeaningfulUpdateAt: Instant? = null,
+    @Column(name = "expected_resolution_at") var expectedResolutionAt: Instant? = null,
+    @Column(name = "eta_source", nullable = false, length = 20) var etaSource: String = "SYSTEM",
     @Column(name = "resolved_at") var resolvedAt: Instant? = null,
     @Column(name = "resolution_code", length = 100) var resolutionCode: String? = null,
     @Column(name = "resolution_note", length = 1200) var resolutionNote: String? = null
