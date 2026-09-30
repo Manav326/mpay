@@ -36,6 +36,7 @@ import {
   getCustomerCareChat,
   getCustomerCareCustomer,
   getCustomerCareCustomerContext,
+  searchCustomerCareCustomers,
   getCustomerCareQueue,
   getCustomerCareRequests,
   getCustomerCallbackAccess,
@@ -62,8 +63,8 @@ import {
   SupportInteraction,
   SupportNote,
   SupportQueueResponse,
+  SupportCustomerSearchResult,
   UserDetail,
-  UserSummary,
 } from '@/lib/types';
 import { VoiceCallWidget } from './VoiceCallPanel';
 
@@ -74,7 +75,6 @@ type Props = {
   canManageSupportAi: boolean;
   canViewCustomerContext: boolean;
   canManageSupportAccess: boolean;
-  users?: UserSummary[];
 };
 
 type ActivityFilter = 'ALL' | 'VOICE' | 'NOTE' | 'SYSTEM';
@@ -155,13 +155,14 @@ export default function CustomerCarePanel({
   canManageSupportAi,
   canViewCustomerContext,
   canManageSupportAccess,
-  users = [],
 }: Props) {
   const [requests, setRequests] = useState<SupportCallRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [queue, setQueue] = useState<SupportQueueResponse | null>(null);
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'MINE' | 'UNASSIGNED' | 'CALLBACKS' | 'MESSAGES' | 'CASES'>('ALL');
   const [customerQuery, setCustomerQuery] = useState('');
+  const [customerSearch, setCustomerSearch] = useState<SupportCustomerSearchResult[]>([]);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [selected, setSelected] = useState<SupportCustomer | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<UserDetail | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
@@ -190,16 +191,15 @@ export default function CustomerCarePanel({
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
 
   const visibleClients = useMemo(() => {
-    const query = customerQuery.trim().toLowerCase();
-    return users
-      .filter(item => String(item.role || '').toUpperCase() === 'CLIENT')
-      .filter(item => {
-        if (!query) return true;
-        return [item.name, item.mobile, item.publicUserId, item.email]
-          .some(value => String(value || '').toLowerCase().includes(query));
-      })
-      .slice(0, query ? 12 : 6);
-  }, [users, customerQuery]);
+    const query = customerQuery.trim();
+    if (query.length >= 2) return customerSearch;
+    return (queue?.items || []).slice(0, 8).map(item => ({
+      customerPublicId: item.customerPublicId,
+      customerName: item.customerName,
+      mobile: item.customerMobile || '',
+      email: null,
+    }));
+  }, [queue, customerQuery, customerSearch]);
 
   const selectedActiveCases = selected?.openCases.filter(item => item.status === 'OPEN') || [];
   const selectedResolvedCases = selected?.openCases.filter(item => item.status === 'RESOLVED') || [];
