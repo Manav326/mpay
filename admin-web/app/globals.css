@@ -5848,3 +5848,409 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 @media(prefers-reduced-motion:reduce){
   .staff-role-card,.voice-role-card,.voice-employee-item{transition:none!important}
 }
+
+
+/* ========================================================================
+   mPay Admin Design System — centralized typography, color & control scale
+   Keep admin screens compact through spacing, not unreadable text.
+   Change these tokens to retheme the three operational surfaces consistently.
+   ======================================================================== */
+:root{
+  --admin-heading:#1b1916;
+  --admin-body:#403a34;
+  --admin-muted:#756d64;
+  --admin-subtle:#9a9187;
+  --admin-accent:#d97706;
+  --admin-accent-strong:#9a6408;
+  --admin-accent-soft:#fff4df;
+  --admin-surface:#ffffff;
+  --admin-surface-soft:#fffaf4;
+  --admin-border:#eee7dd;
+  --admin-border-strong:#e2d7c7;
+  --admin-success:#15803d;
+  --admin-success-soft:#eaf8ef;
+  --admin-danger:#b42318;
+  --admin-danger-soft:#fff0f0;
+  --admin-info:#2563eb;
+  --admin-info-soft:#eef6ff;
+
+  --admin-font-xs:11px;
+  --admin-font-sm:12px;
+  --admin-font-md:13px;
+  --admin-font-lg:16px;
+  --admin-font-xl:20px;
+  --admin-font-title:24px;
+
+  --admin-control-h:36px;
+  --admin-control-h-sm:32px;
+  --admin-radius-sm:8px;
+  --admin-radius-md:12px;
+  --admin-radius-lg:16px;
+}
+
+/* Shared admin typography. */
+.admin-notice,
+.main .content,
+.main .panel,
+.main .drawer-section,
+.main .customer-care-workspace,
+.main .voice-access-page,
+.main .staff-management-page{
+  color:var(--admin-body);
+}
+
+.main .topbar h1,
+.main .content h1,
+.main .content h2,
+.main .content h3,
+.main .panel-head h2,
+.main .drawer-section-title h3,
+.main .customer-care-topbar h2,
+.main .voice-access-hero h2,
+.main .staff-management-hero h2{
+  color:var(--admin-heading);
+}
+
+.main .content p,
+.main .panel-head p,
+.main .drawer-section-title p{
+  color:var(--admin-muted);
+}
+
+.main .secondary,
+.main .primary,
+.main input,
+.main select,
+.main textarea{
+  font-size:var(--admin-font-sm);
+}
+
+.main .secondary,
+.main .primary{
+  min-height:var(--admin-control-h);
+}
+
+/* Team & Access */
+.staff-management-hero h2,
+.voice-access-hero h2{
+  font-size:var(--admin-font-xl);
+}
+.staff-management-hero p,
+.voice-access-hero p{
+  font-size:var(--admin-font-sm);
+  line-height:1.55;
+}
+.staff-management-notice,
+.voice-access-notice{
+  font-size:var(--admin-font-sm);
+}
+.staff-summary-card b,
+.voice-access-summary b{
+  font-size:var(--admin-font-lg);
+}
+.staff-summary-card small,
+.voice-access-summary small{
+  font-size:var(--admin-font-xs);
+  color:var(--admin-muted);
+}
+.staff-role-copy>b{
+  font-size:var(--admin-font-sm);
+}
+.staff-role-copy>span{
+  font-size:var(--admin-font-xs);
+  color:var(--admin-muted);
+  line-height:1.45;
+}
+.staff-role-meta>span{
+  font-size:var(--admin-font-xs);
+}
+.staff-directory-toolbar select,
+.staff-search,
+.staff-search input{
+  font-size:var(--admin-font-sm);
+}
+.staff-directory-meta,
+.staff-clear-filter{
+  font-size:var(--admin-font-xs);
+}
+.staff-identity-copy .staff-name-line>b{
+  font-size:var(--admin-font-md);
+  color:var(--admin-heading);
+}
+.staff-identity-copy>span{
+  font-size:var(--admin-font-xs);
+  color:var(--admin-muted);
+}
+.staff-identity-copy small{
+  font-size:var(--admin-font-xs);
+}
+.staff-last-login small{
+  font-size:var(--admin-font-xs);
+}
+.staff-last-login b{
+  font-size:var(--admin-font-xs);
+}
+.staff-row-actions .secondary.compact,
+.staff-inline-confirm span,
+.danger-confirm,
+.confirm-cancel{
+  font-size:var(--admin-font-xs);
+}
+.staff-empty-state b{
+  font-size:var(--admin-font-sm);
+}
+.staff-empty-state>span,
+.staff-safety-note span{
+  font-size:var(--admin-font-xs);
+}
+.staff-safety-note b{
+  font-size:var(--admin-font-xs);
+}
+.staff-modal-head h3{
+  font-size:var(--admin-font-lg);
+}
+.staff-modal-head p,
+.staff-form label,
+.staff-form input,
+.staff-form select,
+.staff-password-hint,
+.staff-form-note,
+.staff-form-error{
+  font-size:var(--admin-font-sm);
+}
+.staff-form input,
+.staff-form select{
+  height:var(--admin-control-h);
+}
+.staff-activity-top b{
+  font-size:var(--admin-font-sm);
+}
+.staff-activity-top time,
+.staff-activity-action,
+.staff-activity-meta span,
+.staff-modal-footer{
+  font-size:var(--admin-font-xs);
+}
+
+/* Voice & Access */
+.voice-access-principles span,
+.voice-access-guide span,
+.voice-access-guide b,
+.voice-access-role-note,
+.voice-role-title>span,
+.voice-role-capabilities span,
+.voice-role-select{
+  font-size:var(--admin-font-xs);
+}
+.voice-role-title b{
+  font-size:var(--admin-font-sm);
+}
+.voice-role-copy>span{
+  font-size:var(--admin-font-xs);
+  color:var(--admin-muted);
+}
+.voice-permission-copy>b{
+  font-size:var(--admin-font-sm);
+  color:var(--admin-heading);
+}
+.voice-permission-copy>span{
+  font-size:var(--admin-font-xs);
+  color:var(--admin-muted);
+}
+.voice-permission-copy>small{
+  font-size:var(--admin-font-xs);
+}
+.voice-access-toggle{
+  min-height:var(--admin-control-h-sm);
+  font-size:var(--admin-font-xs);
+}
+.voice-employee-directory-head b{
+  font-size:var(--admin-font-sm);
+}
+.voice-employee-directory-head span,
+.voice-employee-item-copy span,
+.voice-override-badge,
+.voice-directory-empty{
+  font-size:var(--admin-font-xs);
+}
+.voice-employee-item-copy b{
+  font-size:var(--admin-font-xs);
+}
+.voice-selected-name b{
+  font-size:var(--admin-font-md);
+}
+.voice-selected-name span,
+.voice-staff-main>div>span{
+  font-size:var(--admin-font-xs);
+}
+.voice-employee-effective b{
+  font-size:var(--admin-font-lg);
+}
+.voice-employee-effective span,
+.voice-mode-legend span,
+.voice-mode-legend small{
+  font-size:var(--admin-font-xs);
+}
+.voice-access-choice button{
+  min-height:var(--admin-control-h-sm);
+  height:auto;
+  font-size:var(--admin-font-xs);
+}
+.voice-locked,
+.voice-saving{
+  font-size:var(--admin-font-xs);
+}
+.voice-access-privacy b{
+  font-size:var(--admin-font-sm);
+}
+.voice-access-privacy span{
+  font-size:var(--admin-font-xs);
+}
+
+/* Customer Care */
+.customer-care-topbar h2{
+  font-size:var(--admin-font-xl);
+}
+.customer-care-topbar,
+.customer-care-workspace{
+  font-size:var(--admin-font-sm);
+}
+.care-capability,
+.care-queue-filters button,
+.care-case-toolbar b,
+.care-activity-toolbar b{
+  font-size:var(--admin-font-xs);
+}
+.care-queue-filters button span,
+.care-queue-assignment{
+  font-size:var(--admin-font-xs);
+}
+.care-case-title b{
+  font-size:var(--admin-font-sm);
+}
+.care-case-top>div>span,
+.care-case-facts small,
+.care-case-facts b{
+  font-size:var(--admin-font-xs);
+}
+.care-resolution-note,
+.care-case-actions select,
+.care-filter-pills button,
+.care-activity-copy p,
+.care-activity-title b,
+.care-activity-title span,
+.care-activity-copy>span{
+  font-size:var(--admin-font-xs);
+}
+.care-chat-text{
+  font-size:var(--admin-font-sm);
+}
+.care-chat-author{
+  font-size:var(--admin-font-xs);
+}
+.care-chat-empty b{
+  font-size:var(--admin-font-sm);
+}
+.care-chat-empty span{
+  font-size:var(--admin-font-xs);
+}
+.care-composer textarea{
+  font-size:var(--admin-font-sm);
+}
+.care-tab-bar button{
+  font-size:var(--admin-font-xs);
+}
+.care-tab-bar button span{
+  font-size:var(--admin-font-xs);
+}
+.care-context-head{
+  font-size:var(--admin-font-xs);
+}
+.care-wallet-balance{
+  font-size:var(--admin-title-size,20px);
+}
+.care-wallet-label,
+.care-wallet-grid small{
+  font-size:var(--admin-font-xs);
+}
+.care-wallet-grid b,
+.care-context-list b,
+.care-access-row b,
+.care-mini-activity b{
+  font-size:var(--admin-font-xs);
+}
+.care-context-list span,
+.care-access-row span,
+.care-mini-activity span,
+.care-mini-activity small,
+.care-muted{
+  font-size:var(--admin-font-xs);
+}
+.care-ai-context b,
+.care-ai-context span{
+  font-size:var(--admin-font-xs);
+}
+.care-ai-toggle,
+.care-ai-readonly{
+  font-size:var(--admin-font-xs);
+}
+.care-context-placeholder b,
+.care-context-restricted b{
+  font-size:var(--admin-font-sm);
+}
+.care-context-placeholder>span:last-child,
+.care-context-restricted>span:last-child{
+  font-size:var(--admin-font-xs);
+}
+.care-dialog-head h3{
+  font-size:var(--admin-font-lg);
+}
+.care-dialog-copy,
+.care-dialog textarea,
+.care-dialog select,
+.care-dialog-field span{
+  font-size:var(--admin-font-sm);
+}
+.care-segment button,
+.care-dialog-actions button{
+  font-size:var(--admin-font-xs);
+}
+.care-access-header h3{
+  font-size:var(--admin-font-lg);
+}
+.care-access-header p{
+  font-size:var(--admin-font-sm);
+}
+.care-access-notice{
+  font-size:var(--admin-font-sm);
+}
+.care-access-legend span,
+.care-access-section-head h4,
+.care-access-count,
+.care-access-locked,
+.care-access-role-head b,
+.care-access-user-copy b,
+.care-access-user-permission>span,
+.care-permission-tile span{
+  font-size:var(--admin-font-xs);
+}
+.care-access-role-head span,
+.care-access-user-copy span,
+.care-permission-tile small,
+.care-access-user-permission small{
+  font-size:var(--admin-font-xs);
+}
+.care-access-search input,
+.care-access-user-permission select{
+  font-size:var(--admin-font-sm);
+}
+
+/* Centralized admin header color/typography — change --admin-heading once. */
+.main .topbar h1,
+.main .customer-care-topbar h2,
+.main .staff-management-hero h2,
+.main .voice-access-hero h2,
+.main .panel-head h2,
+.main .drawer-section-title h3{
+  color:var(--admin-heading);
+}
