@@ -581,6 +581,34 @@ export default function CustomerCarePanel({
   }, []);
 
   useEffect(() => {
+    const query = customerQuery.trim();
+    if (query.length < 2) {
+      setCustomerSearch([]);
+      setCustomerSearchLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setCustomerSearchLoading(true);
+      try {
+        const results = await searchCustomerCareCustomers(query);
+        if (!cancelled) setCustomerSearch(results);
+      } catch (error: any) {
+        if (!cancelled) {
+          setCustomerSearch([]);
+          setNotice(error?.message || 'Unable to search customers.');
+        }
+      } finally {
+        if (!cancelled) setCustomerSearchLoading(false);
+      }
+    }, 240);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [customerQuery]);
+
+  useEffect(() => {
     if (!selected?.customerPublicId) {
       setSupportChat(null);
       return;
@@ -780,11 +808,11 @@ export default function CustomerCarePanel({
 
           <div className="care-queue-section directory">
             <div className="care-section-label">
-              <span><UserRound size={12} /> Customer directory</span>
-              <small>{visibleClients.length}</small>
+              <span><UserRound size={12} /> Customer lookup</span>
+              <small>{customerQuery.trim().length >= 2 ? (customerSearchLoading ? '…' : visibleClients.length) : visibleClients.length}</small>
             </div>
-            {!users.length ? (
-              <div className="care-empty">Customer directory is unavailable.</div>
+            {!customerQuery.trim() && !visibleClients.length ? (
+              <div className="care-empty">No customers currently need attention. Search by name, mobile or mPay ID.</div>
             ) : visibleClients.length ? (
               <div className="care-directory-list">
                 {visibleClients.map(customer => (
@@ -803,7 +831,7 @@ export default function CustomerCarePanel({
                 ))}
               </div>
             ) : (
-              <div className="care-empty">No customers match this search.</div>
+              <div className="care-empty">No customer matches this search. Try a mobile number, email or mPay ID.</div>
             )}
           </div>
         </aside>
