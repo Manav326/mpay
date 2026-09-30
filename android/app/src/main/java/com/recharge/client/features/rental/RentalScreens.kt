@@ -561,7 +561,6 @@ fun RentalVendorOnboardingScreen(
 
     if (state.vendor?.status?.uppercase() == "VERIFIED") {
         LaunchedEffect(state.vendor?.vendorId) { onRefreshVehicles(); onRefreshPayouts() }
-        LaunchedEffect(state.vendorCars.map { it.id }) { state.vendorCars.forEach { onLoadVehicleAvailability(it.id) } }
         LaunchedEffect(calendarCarId, calendarMonth) {
             calendarCarId?.let { onLoadVehicleCalendar(it, calendarMonth.year, calendarMonth.monthValue) }
         }
@@ -817,6 +816,11 @@ fun RentalVendorOnboardingScreen(
                 }
             } else {
                 items(state.vendorCars.chunked(2), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
+                    // Availability is secondary data. Fetch it when this vehicle row
+                    // actually enters the composition instead of for the entire fleet.
+                    LaunchedEffect(rowCars.map { it.id }) {
+                        rowCars.forEach { onLoadVehicleAvailability(it.id) }
+                    }
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(9.dp),
