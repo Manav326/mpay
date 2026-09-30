@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject, type PointerEvent as ReactPointerEvent } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
@@ -3990,33 +3990,81 @@ function CustomerSupportChatModal({
   onCallbackReasonChange
 }: CustomerSupportChatModalProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; right: number; bottom: number } | null>(null);
+  const floatingEdgeGap = 8;
+  // Keep the workspace below the portal header on every form factor.
+  const floatingSafeTop = 86;
 
   useEffect(() => {
     const node = messagesRef.current;
     if (node) node.scrollTop = node.scrollHeight;
   }, [chat?.messages.length]);
 
+  function clampFloatingPosition(nextRight: number, nextBottom: number) {
+    if (typeof window === 'undefined') return;
+
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const rect = modalRef.current?.getBoundingClientRect();
+    const width = rect?.width ?? (minimized ? 260 : 520);
+    const height = rect?.height ?? (minimized ? 60 : 650);
+    const maxRight = Math.max(floatingEdgeGap, viewportWidth - width - floatingEdgeGap);
+    const maxBottom = Math.max(
+      floatingEdgeGap,
+      viewportHeight - height - floatingSafeTop
+    );
+    const clampedRight = Math.min(Math.max(nextRight, floatingEdgeGap), maxRight);
+    const clampedBottom = Math.min(Math.max(nextBottom, floatingEdgeGap), maxBottom);
+
+    if (
+      Math.abs(clampedRight - position.right) > 0.5 ||
+      Math.abs(clampedBottom - position.bottom) > 0.5
+    ) {
+      onMove(clampedRight, clampedBottom);
+    }
+  }
+
   useEffect(() => {
-    const move = (event: globalThis.MouseEvent) => {
+    const move = (event: globalThis.PointerEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
-      onMove(
-        Math.max(8, drag.right - (event.clientX - drag.startX)),
-        Math.max(8, drag.bottom - (event.clientY - drag.startY))
+      clampFloatingPosition(
+        drag.right - (event.clientX - drag.startX),
+        drag.bottom - (event.clientY - drag.startY)
       );
     };
     const up = () => { dragRef.current = null; };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-    return () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
-    };
-  }, [onMove]);
+    const handleViewportChange = () => clampFloatingPosition(position.right, position.bottom);
 
-  function beginDrag(event: ReactMouseEvent<HTMLDivElement>) {
+    const viewport = window.visualViewport;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('resize', handleViewportChange);
+    viewport?.addEventListener('resize', handleViewportChange);
+    viewport?.addEventListener('scroll', handleViewportChange);
+
+    const node = modalRef.current;
+    const resizeObserver = typeof ResizeObserver !== 'undefined' && node
+      ? new ResizeObserver(() => clampFloatingPosition(position.right, position.bottom))
+      : null;
+    if (resizeObserver && node) resizeObserver.observe(node);
+
+    handleViewportChange();
+
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('resize', handleViewportChange);
+      viewport?.removeEventListener('resize', handleViewportChange);
+      viewport?.removeEventListener('scroll', handleViewportChange);
+      resizeObserver?.disconnect();
+    };
+  }, [minimized, onMove, position.bottom, position.right]);
+
+  function beginDrag(event: ReactPointerEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest('button')) return;
+    event.preventDefault();
     dragRef.current = {
       startX: event.clientX,
       startY: event.clientY,
@@ -4029,10 +4077,11 @@ function CustomerSupportChatModal({
     <div className="customer-support-floating-layer">
       <div
         className={'customer-support-modal ' + (minimized ? 'minimized' : '')}
+        ref={modalRef}
         style={{ right: position.right, bottom: position.bottom }}
         onClick={event => event.stopPropagation()}
       >
-        <div className="customer-support-modal-head" onMouseDown={beginDrag}>
+        <div className="customer-support-modal-head" onPointerDown={beginDrag}>
           <div className="customer-support-modal-brand">
             <span><Headset size={18}/></span>
             <div>
