@@ -592,6 +592,13 @@ export interface SupportAccessResponse {
   users: SupportUserAccess[];
 }
 
+export interface SupportCustomerSearchResult {
+  customerPublicId: string;
+  customerName?: string | null;
+  mobile: string;
+  email?: string | null;
+}
+
 export interface SupportQueueItem {
   customerPublicId: string;
   customerName?: string | null;
