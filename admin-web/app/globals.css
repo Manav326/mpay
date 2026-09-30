@@ -5290,6 +5290,29 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .customer-support-resize-hint{position:relative;display:flex;align-items:center;justify-content:center;min-height:21px;padding:2px 8px 5px;background:#171c21;color:#7f8a97;font-size:7px;flex:none}
 .customer-support-resize-handle{position:absolute;right:3px;bottom:1px;width:22px;height:22px;display:grid;place-items:end;align-content:end;gap:2px;padding:3px;cursor:nwse-resize;touch-action:none}
 .customer-support-resize-handle i{width:4px;height:4px;border-radius:1px;background:#6f7b88;display:block;margin-left:auto}.customer-support-resize-handle i:nth-child(2){width:7px}.customer-support-resize-handle i:nth-child(3){width:10px}
+.customer-support-dismiss-zone{
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);
+  width:88px;height:72px;border-radius:22px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  box-sizing:border-box;z-index:2410;pointer-events:none;
+  border:1px solid #49515b;background:rgba(23,27,32,.96);
+  color:#aab3bf;box-shadow:0 14px 38px rgba(0,0,0,.36);
+  animation:customer-support-dismiss-in .14s ease-out
+}
+.customer-support-dismiss-zone>span{
+  width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid #5b6570;background:#252c33;color:#f0f3f6
+}
+.customer-support-dismiss-zone small{font-size:6.5px;letter-spacing:.02em;color:#8f9aa7}
+.customer-support-dismiss-zone.active{
+  border-color:#d85d5d;background:#2a1b1b;color:#fca5a5;
+  box-shadow:0 0 0 3px rgba(216,93,93,.12),0 16px 44px rgba(0,0,0,.42)
+}
+.customer-support-dismiss-zone.active>span{
+  border-color:#e07070;background:#3a2020;color:#ffb4b4;transform:scale(1.08)
+}
+.customer-support-modal.minimized:has(+ .customer-support-dismiss-zone){ }
+@keyframes customer-support-dismiss-in{from{opacity:0;transform:translate(-50%,8px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 .customer-support-minimized-icon{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#2a241a;color:#a86408}
 .customer-support-live-dot{position:absolute;top:5px;right:5px;width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px #171b20;animation:customer-support-pulse 1.1s ease-in-out infinite}
 @keyframes customer-support-pulse{0%,100%{opacity:.45}50%{opacity:1}}
