@@ -1,6 +1,6 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
 import { redirectToLogin, refreshWebSession } from './session';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile, VoiceCallResponse, VoiceCallSignalingTokenResponse, VoiceCallRoleAccess, VoiceCallUserAccess, SupportAiSettings, SupportCallRequest, SupportCase, SupportInteraction, SupportNote, SupportCustomer, CustomerCallbackAccess, CustomerSupportOverview, SupportChat, SupportMessage, SupportAccessResponse, SupportRoleAccess, SupportUserAccess, SupportQueueResponse, SupportAssignmentResponse } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile, VoiceCallResponse, VoiceCallSignalingTokenResponse, VoiceCallRoleAccess, VoiceCallUserAccess, SupportAiSettings, SupportCallRequest, SupportCase, SupportInteraction, SupportNote, SupportCustomer, CustomerCallbackAccess, CustomerSupportOverview, SupportChat, SupportMessage, SupportAccessResponse, SupportRoleAccess, SupportUserAccess, SupportQueueResponse, SupportAssignmentResponse, SupportCustomerSearchResult } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
 export function getAdminApiBaseUrl(): string { return baseUrl; }
@@ -501,6 +501,10 @@ export async function updateSupportAiSettings(enabled: boolean): Promise<Support
   });
 }
 
+
+export async function searchCustomerCareCustomers(query: string): Promise<SupportCustomerSearchResult[]> {
+  return api('/api/v1/admin/customer-care/customers/search?query=' + encodeURIComponent(query));
+}
 
 export async function getCustomerCareQueue(): Promise<SupportQueueResponse> {
   return api('/api/v1/admin/customer-care/queue');
