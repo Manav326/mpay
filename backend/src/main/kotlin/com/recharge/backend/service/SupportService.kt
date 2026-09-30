@@ -148,6 +148,114 @@ class SupportService(
         return callRequests.findAllByStatusOrderByRequestedAtAsc(PENDING).map(::toRequestResponse)
     }
 
+    @Transactional(readOnly = true)
+    fun queue(viewer: UserEntity): SupportQueueResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        roleAccess.requirePermission(viewer, "VIEW_USER_DETAIL")
+        expirePendingRequests(Instant.now())
+
+        data class Work(
+            val customerId: Long,
+            var caseEntity: SupportCaseEntity? = null,
+            var callback: SupportCallRequestEntity? = null,
+            var unreadMessages: Int = 0,
+            var lastActivityAt: Instant? = null
+        )
+
+        val work = linkedMapOf<Long, Work>()
+
+        fun item(customerId: Long): Work = work.getOrPut(customerId) { Work(customerId) }
+
+        callRequests.findAllByStatusOrderByRequestedAtAsc(PENDING).forEach { request ->
+            val current = item(request.customerUserId)
+            current.callback = request
+            current.lastActivityAt = maxInstant(current.lastActivityAt, request.requestedAt)
+            if (request.caseId != null) {
+                current.caseEntity = cases.findById(request.caseId!!).orElse(null)
+            }
+        }
+
+        cases.findAllByStatusOrderByUpdatedAtDesc(OPEN).forEach { supportCase ->
+            val current = item(supportCase.customerUserId)
+            if (current.caseEntity == null || supportCase.updatedAt.isAfter(current.caseEntity!!.updatedAt)) {
+                current.caseEntity = supportCase
+            }
+            current.lastActivityAt = maxInstant(current.lastActivityAt, supportCase.updatedAt)
+        }
+
+        messages.findAllBySenderTypeAndStaffReadAtIsNullOrderByCreatedAtDesc("CUSTOMER").forEach { message ->
+            val current = item(message.customerUserId)
+            current.unreadMessages += 1
+            current.lastActivityAt = maxInstant(current.lastActivityAt, message.createdAt)
+            if (current.caseEntity == null && message.caseId != null) {
+                current.caseEntity = cases.findById(message.caseId!!).orElse(null)
+            }
+        }
+
+        val customerIds = work.keys
+        if (customerIds.isEmpty()) {
+            return SupportQueueResponse(0, 0, 0, 0, 0, emptyList())
+        }
+
+        val customerMap = users.findAllById(customerIds).associateBy { requireNotNull(it.id) }
+        val visible = customerMap.values.filter { roleAccess.canView(viewer, it) }
+        val staffIds = visible.flatMap { customer ->
+            val caseId = work[requireNotNull(customer.id)]?.caseEntity?.assignedUserId
+            listOfNotNull(caseId)
+        }.toSet()
+        val staffMap = if (staffIds.isEmpty()) emptyMap() else users.findAllById(staffIds).associateBy { requireNotNull(it.id) }
+
+        val items = visible.mapNotNull { customer ->
+            val current = work[requireNotNull(customer.id)] ?: return@mapNotNull null
+            val supportCase = current.caseEntity
+            val callback = current.callback
+            val assignedId = callback?.assignedUserId ?: supportCase?.assignedUserId
+            val attentionReason = when {
+                callback != null -> "Callback waiting"
+                current.unreadMessages > 0 -> "New customer message"
+                supportCase?.priority in setOf("URGENT", "HIGH") -> "High-priority case"
+                else -> "Open case"
+            }
+            val source = when {
+                callback != null -> "CALLBACK"
+                current.unreadMessages > 0 -> "CHAT"
+                else -> "CASE"
+            }
+            SupportQueueItemResponse(
+                customerPublicId = customer.publicId,
+                customerName = customer.name,
+                customerMobile = customer.mobile,
+                caseId = supportCase?.caseId,
+                subject = supportCase?.subject,
+                category = supportCase?.category,
+                priority = supportCase?.priority,
+                caseStatus = supportCase?.status,
+                assignedUserPublicId = assignedId?.let { staffMap[it]?.publicId },
+                assignedUserName = assignedId?.let { staffMap[it]?.name },
+                source = source,
+                attentionReason = attentionReason,
+                unreadMessages = current.unreadMessages,
+                lastActivityAt = current.lastActivityAt?.toString(),
+                pendingCallback = callback?.let(::toRequestResponse)
+            )
+        }.sortedWith(
+            compareBy<SupportQueueItemResponse>(
+                { if (it.pendingCallback != null) 0 else if (it.priority.equals("URGENT", true)) 1 else if (it.priority.equals("HIGH", true)) 2 else if (it.unreadMessages > 0) 3 else 4 },
+                { if (it.assignedUserPublicId == viewer.publicId) 0 else if (it.assignedUserPublicId == null) 1 else 2 },
+                { it.pendingCallback?.requestedAt ?: it.lastActivityAt ?: "" }
+            )
+        ).take(75)
+
+        return SupportQueueResponse(
+            total = items.size,
+            callbacks = items.count { it.pendingCallback != null },
+            unreadChats = items.count { it.unreadMessages > 0 },
+            unassigned = items.count { it.assignedUserPublicId == null },
+            assignedToViewer = items.count { it.assignedUserPublicId == viewer.publicId },
+            items = items
+        )
+    }
+
     fun request(viewer: UserEntity, requestId: String): SupportCallRequestResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val request = requestById(requestId)
@@ -405,14 +513,6 @@ class SupportService(
             }
             ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0)
 
-        val now = Instant.now()
-        messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
-            .filter { it.senderType == "CUSTOMER" && it.staffReadAt == null }
-            .forEach {
-                it.staffReadAt = now
-                messages.save(it)
-            }
-
         val messageList = messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
         return SupportChatResponse(
             conversationId = conversation.conversationId,
@@ -422,6 +522,24 @@ class SupportService(
             unreadForCustomer = messageList.count { it.senderType == "STAFF" && it.customerReadAt == null },
             unreadForStaff = messageList.count { it.senderType == "CUSTOMER" && it.staffReadAt == null }
         )
+    }
+
+    @Transactional
+    fun markChatRead(viewer: UserEntity, publicId: String): SupportChatResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        val customer = visibleClient(viewer, publicId)
+        val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
+            .orElse(null)
+            ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0)
+
+        val now = Instant.now()
+        messages.findAllByConversationIdOrderByCreatedAtAsc(requireNotNull(conversation.id))
+            .filter { it.senderType == "CUSTOMER" && it.staffReadAt == null }
+            .forEach {
+                it.staffReadAt = now
+                messages.save(it)
+            }
+        return adminChat(viewer, publicId)
     }
 
     @Transactional
@@ -710,6 +828,44 @@ class SupportService(
     }
 
     @Transactional
+    fun takeCaseOwnership(viewer: UserEntity, caseId: String): SupportAssignmentResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
+        val entity = cases.findByCaseId(caseId).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
+        }
+        val customer = users.findById(entity.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
+        roleAccess.requireCanView(viewer, customer)
+        if (entity.status != OPEN) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, "Only open support cases can be assigned")
+        }
+        entity.assignedUserId = requireNotNull(viewer.id)
+        entity.updatedAt = Instant.now()
+        cases.save(entity)
+        recordCaseEvent(entity, null, viewer.id, "CASE_ASSIGNED", "INTERNAL", "SUPPORT", "Support case assigned to " + (viewer.name ?: viewer.publicId), viewer.publicId)
+        return SupportAssignmentResponse(entity.caseId, viewer.publicId, viewer.name)
+    }
+
+    @Transactional
+    fun releaseCaseOwnership(viewer: UserEntity, caseId: String): SupportAssignmentResponse {
+        roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
+        val entity = cases.findByCaseId(caseId).orElseThrow {
+            ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
+        }
+        val customer = users.findById(entity.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
+        roleAccess.requireCanView(viewer, customer)
+        val currentAssigned = entity.assignedUserId
+        val canRelease = currentAssigned == viewer.id || viewer.role.equals("ADMIN", true)
+        if (!canRelease) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the case owner or an administrator can release this case")
+        }
+        entity.assignedUserId = null
+        entity.updatedAt = Instant.now()
+        cases.save(entity)
+        recordCaseEvent(entity, null, viewer.id, "CASE_UNASSIGNED", "INTERNAL", "SUPPORT", "Support case released", viewer.publicId)
+        return SupportAssignmentResponse(entity.caseId, null, null)
+    }
+
+    @Transactional
     fun addNote(viewer: UserEntity, caseId: String, request: CreateSupportNoteRequest): SupportNoteResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val entity = cases.findByCaseId(caseId).orElseThrow {
@@ -740,6 +896,13 @@ class SupportService(
         recordCaseEvent(entity, note.conversationId, viewer.id, "NOTE_ADDED", visibility, "NOTE", if (visibility == "CUSTOMER") "Support added a customer-visible note" else "Support note added", note.id.toString())
         markWrapUp(entity.id, note.createdAt)
         return toNoteResponse(note)
+    }
+
+    private fun maxInstant(first: Instant?, second: Instant?): Instant? = when {
+        first == null -> second
+        second == null -> first
+        first.isAfter(second) -> first
+        else -> second
     }
 
     private fun customerResponse(customer: UserEntity, includeInternalNotes: Boolean): SupportCustomerResponse {
