@@ -280,7 +280,7 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
         val availableWidth = maxWidth.value
         val availableHeight = maxHeight.value
 
