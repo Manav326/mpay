@@ -26,6 +26,15 @@ class MpayFirebaseMessagingService : FirebaseMessagingService() {
         )
         when (event) {
             "CALL_INCOMING" -> {
+                if (com.recharge.client.core.security.TokenStore(applicationContext).accessToken().isNullOrBlank()) {
+                    Log.i(
+                        "MpayFirebaseMessaging",
+                        "Ignoring incoming call push because there is no authenticated mPay session. callId=" +
+                            message.data["callId"]
+                    )
+                    return
+                }
+
                 if (message.priority != RemoteMessage.PRIORITY_HIGH) {
                     Log.w(
                         "MpayFirebaseMessaging",
