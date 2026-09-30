@@ -71,6 +71,7 @@ class SupportAccessService(
         }
 
         val staffUsers = employees.findAllByRoleInOrderByCreatedAtDesc(staffRoles)
+            .filterNot { it.role.equals("ADMIN", true) }
             .sortedWith(compareBy<EmployeeEntity> { it.role.uppercase() }.thenBy { it.name ?: "" })
             .map(::userAccess)
 
