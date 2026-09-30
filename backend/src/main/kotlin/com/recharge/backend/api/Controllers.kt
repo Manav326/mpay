@@ -428,6 +428,25 @@ class AdminController(
     ): PortalStaffResponse =
         adminService.createPortalStaff(currentEmployee(authentication), request)
 
+    @GetMapping("/staff")
+    fun portalStaff(authentication: Authentication): List<PortalStaffResponse> =
+        adminService.portalStaff(currentEmployee(authentication))
+
+    @GetMapping("/staff/{publicId}/activity")
+    fun portalStaffActivity(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): List<PortalStaffActivityResponse> =
+        adminService.portalStaffActivity(currentEmployee(authentication), publicId)
+
+    @PostMapping("/staff/{publicId}/status")
+    fun portalStaffStatus(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestBody request: AdminUserStatusRequest
+    ): PortalStaffStatusResponse =
+        adminService.updateEmployeeStatus(currentEmployee(authentication), publicId, request.active)
+
     @GetMapping("/users/{publicId}")
     fun userDetail(authentication: Authentication, @PathVariable publicId: String): AdminUserDetailResponse =
         adminService.userDetail(currentEmployee(authentication), publicId)
