@@ -4146,8 +4146,10 @@ function CustomerSupportChatModal({
     dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};
   };
   const beginResize=(event:ReactPointerEvent<HTMLDivElement>)=>{
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     resizeRef.current={startX:event.clientX,startY:event.clientY,width:position.width,height:position.height};
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const topicIcon=(topic:CustomerSupportTopic)=>{
     const t=topic.title.toLowerCase();
@@ -4244,7 +4246,12 @@ function CustomerSupportChatModal({
       </div> : null}
 
       <div className="customer-support-resize-hint"><span>Drag header to move · drag corner to resize</span>
-        <div className="customer-support-resize-handle" onPointerDown={beginResize}><i/><i/><i/></div>
+        <div
+          className="customer-support-resize-handle"
+          onPointerDown={beginResize}
+          role="presentation"
+          aria-label="Resize support window"
+        ><i/><i/><i/></div>
       </div>
     </div>
   </div>;
