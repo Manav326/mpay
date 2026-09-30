@@ -465,8 +465,8 @@ export interface SupportCallRequest {
   customerName?: string | null;
   customerMobile?: string | null;
   voiceCallId?: string | null;
-  assignedUserPublicId?: string | null;
-  assignedUserName?: string | null;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
   claimedAt?: string | null;
   outcome?: string | null;
 }
@@ -479,8 +479,8 @@ export interface SupportCase {
   priority: string;
   status: string;
   source: string;
-  assignedUserPublicId?: string | null;
-  assignedUserName?: string | null;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string | null;
@@ -507,7 +507,7 @@ export interface SupportInteraction {
   wrapUpDurationLabel?: string | null;
   outcome?: string | null;
   voiceCallId?: string | null;
-  actorUserPublicId?: string | null;
+  actorAccountPublicId?: string | null;
   actorName?: string | null;
 }
 
@@ -516,7 +516,7 @@ export interface SupportNote {
   caseId?: string | null;
   visibility: string;
   note: string;
-  authorUserPublicId?: string | null;
+  authorEmployeePublicId?: string | null;
   authorName?: string | null;
   createdAt: string;
 }
@@ -546,7 +546,7 @@ export interface SupportCaseEvent {
   visibility: string;
   channel?: string | null;
   summary: string;
-  actorUserPublicId?: string | null;
+  actorAccountPublicId?: string | null;
   actorName?: string | null;
   createdAt: string;
 }
@@ -627,8 +627,8 @@ export interface SupportQueueItem {
   category?: string | null;
   priority?: string | null;
   caseStatus?: string | null;
-  assignedUserPublicId?: string | null;
-  assignedUserName?: string | null;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
   assignedToViewer: boolean;
   source: string;
   attentionReason: string;
@@ -648,6 +648,6 @@ export interface SupportQueueResponse {
 
 export interface SupportAssignmentResponse {
   caseId: string;
-  assignedUserPublicId?: string | null;
-  assignedUserName?: string | null;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
 }
