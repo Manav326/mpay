@@ -454,7 +454,8 @@ private fun AppRoot(
     rechargeHistoryViewModel: RechargeHistoryViewModel = viewModel(),
     rentalViewModel: RentalViewModel = viewModel(),
     walletViewModel: WalletViewModel = viewModel(),
-    passwordResetViewModel: PasswordResetViewModel = viewModel()
+    passwordResetViewModel: PasswordResetViewModel = viewModel(),
+    customerCareViewModel: CustomerCareViewModel = viewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
     val context = LocalContext.current
@@ -620,6 +621,7 @@ private fun AppRoot(
         rechargeHistoryViewModel.resetSession()
         rentalViewModel.resetSession()
         walletViewModel.resetSession()
+        customerCareViewModel.resetSession()
         paymentViewModel.resetSession()
         highlightTransactionId = null
         launchedWalletOrderId = null
@@ -688,11 +690,11 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.weight(1f))
+            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.weight(1f), customerCareViewModel)
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.padding(inner))
+            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.padding(inner), customerCareViewModel)
         }
     }
 }
@@ -712,7 +714,7 @@ private fun AppNavHost(
     rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
     authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier,
-    customerCareViewModel: CustomerCareViewModel = viewModel()
+    customerCareViewModel: CustomerCareViewModel
 ) {
     val customerCareState by customerCareViewModel.state.collectAsState()
 
