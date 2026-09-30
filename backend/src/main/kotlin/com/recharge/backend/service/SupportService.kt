@@ -148,7 +148,7 @@ class SupportService(
         return callRequests.findAllByStatusOrderByRequestedAtAsc(PENDING).map(::toRequestResponse)
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun queue(viewer: UserEntity): SupportQueueResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         roleAccess.requirePermission(viewer, "VIEW_USER_DETAIL")
