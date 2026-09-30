@@ -59,20 +59,22 @@ CREATE INDEX IF NOT EXISTS idx_employee_activity_subject_time
 -- The application previously seeded the portal Admin and Manager in users.
 -- Move those portal accounts to employees while preserving their ids so existing
 -- operational/audit references remain stable. Abort rather than silently moving
--- unexpected non-customer accounts.
+-- unexpected portal accounts.
 DO $$
 DECLARE
     v_user_id BIGINT;
     v_role VARCHAR(50);
 BEGIN
+    -- DELETED is the normal tombstone role for customer accounts and must remain
+    -- in users. Only unexpected active/non-customer roles should block this migration.
     IF EXISTS (
         SELECT 1
         FROM users
-        WHERE UPPER(role) <> 'CLIENT'
+        WHERE UPPER(role) NOT IN ('CLIENT', 'DELETED')
           AND mobile NOT IN ('9999999999', '9999999998')
     ) THEN
         RAISE EXCEPTION
-            'Portal employee migration stopped: users contains a non-client account other than the seeded Admin/Manager. Review this account before migration.';
+            'Portal employee migration stopped: users contains an unexpected non-client/non-deleted account other than the seeded Admin/Manager. Review this account before migration.';
     END IF;
 
     FOR v_user_id, v_role IN
