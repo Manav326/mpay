@@ -586,9 +586,9 @@ export default function CustomerCarePanel({
           <div className="care-pane-head">
             <div>
               <span className="care-pane-eyebrow">WORK QUEUE</span>
-              <h3>Requests & customers</h3>
+              <h3>Needs your attention</h3>
             </div>
-            <span className="care-count">{requests.length}</span>
+            <span className="care-count">{queue?.total ?? 0}</span>
           </div>
 
           <div className="care-search-box">
@@ -603,56 +603,102 @@ export default function CustomerCarePanel({
 
           <div className="care-queue-section">
             <div className="care-section-label">
-              <span><BellRing size={12} /> Callback queue</span>
-              <small>{requests.length}</small>
+              <span><Inbox size={12} /> Attention queue</span>
+              <small>{queue?.total ?? 0}</small>
             </div>
-            {requestsLoading && !requests.length ? (
-              <div className="care-empty">Loading support requests…</div>
-            ) : requests.length ? (
+            <div className="care-queue-filters">
+              {([
+                ['ALL', 'All', queue?.total ?? 0],
+                ['MINE', 'Mine', queue?.assignedToViewer ?? 0],
+                ['UNASSIGNED', 'Unassigned', queue?.unassigned ?? 0],
+                ['CALLBACKS', 'Callbacks', queue?.callbacks ?? 0],
+                ['MESSAGES', 'New chats', queue?.unreadChats ?? 0],
+                ['CASES', 'Cases', queue?.total ?? 0],
+              ] as Array<[typeof queueFilter, string, number]>).map(([filter, label, count]) => (
+                <button
+                  key={filter}
+                  className={queueFilter === filter ? 'active' : ''}
+                  onClick={() => setQueueFilter(filter)}
+                >
+                  {label}<span>{count}</span>
+                </button>
+              ))}
+            </div>
+
+            {requestsLoading && !queue ? (
+              <div className="care-empty">Loading support attention…</div>
+            ) : queueItems.length ? (
               <div className="care-request-list">
-                {requests.map(request => (
-                  <article
-                    key={request.requestId}
-                    className={'care-request-card ' + (selected?.customerPublicId === request.customerPublicId ? 'selected' : '')}
-                    onClick={() => request.customerPublicId && void openCustomer(request.customerPublicId)}
-                  >
-                    <div className="care-request-main">
-                      <div className="care-avatar small">{initials(request.customerName, request.customerMobile)}</div>
-                      <div className="care-request-copy">
-                        <b>{request.customerName || 'mPay customer'}</b>
-                        <span>{request.customerMobile || request.customerPublicId || '—'}</span>
+                {queueItems
+                  .filter(item => {
+                    const query = customerQuery.trim().toLowerCase();
+                    if (!query) return true;
+                    return [item.customerName, item.customerMobile, item.customerPublicId, item.caseId, item.subject]
+                      .some(value => String(value || '').toLowerCase().includes(query));
+                  })
+                  .map(item => (
+                    <article
+                      key={(item.caseId || item.customerPublicId) + ':' + item.source}
+                      className={'care-request-card ' + (selected?.customerPublicId === item.customerPublicId ? 'selected' : '')}
+                      onClick={() => void openCustomer(item.customerPublicId)}
+                    >
+                      <div className="care-request-main">
+                        <div className="care-avatar small">{initials(item.customerName, item.customerMobile)}</div>
+                        <div className="care-request-copy">
+                          <b>{item.customerName || 'mPay customer'}</b>
+                          <span>{item.customerMobile || item.customerPublicId || '—'}</span>
+                        </div>
+                        <span className={'care-status ' + priorityTone(item.priority)}>{item.priority || item.source}</span>
                       </div>
-                      <span className={'care-status ' + statusTone(request.status)}>{request.status.replaceAll('_', ' ')}</span>
-                    </div>
-                    <div className="care-request-subline">
-                      <span>{relativeAge(request.requestedAt)}</span>
-                      <span>{relativeUntil(request.expiresAt)}</span>
-                    </div>
-                    {request.reason && <p>{request.reason}</p>}
-                    <div className="care-request-actions">
-                      <button
-                        className="care-action primary"
-                        disabled={!canCallCustomer || !!busyKey}
-                        onClick={event => { event.stopPropagation(); void startRequestCall(request); }}
-                      >
-                        <PhoneCall size={13} /> {busyKey === 'call:' + request.requestId ? 'Calling…' : 'Call'}
-                      </button>
-                      <button
-                        className="care-action"
-                        disabled={!!busyKey}
-                        onClick={event => { event.stopPropagation(); void declineRequest(request); }}
-                      >
-                        <PhoneOff size={13} /> Decline
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                      <div className="care-request-subline">
+                        <span>{item.attentionReason}</span>
+                        <span>{item.lastActivityAt ? relativeAge(item.lastActivityAt) : '—'}</span>
+                      </div>
+                      {item.assignedUserName ? (
+                        <div className="care-queue-assignment">
+                          <UserCheck size={11} /> {item.assignedToViewer ? 'Assigned to you' : 'Assigned to ' + item.assignedUserName}
+                        </div>
+                      ) : (
+                        <div className="care-queue-assignment unassigned"><UserRound size={11} /> Unassigned</div>
+                      )}
+                      {item.pendingCallback?.reason && <p>{item.pendingCallback.reason}</p>}
+                      <div className="care-request-actions">
+                        {item.pendingCallback && canCallCustomer && (
+                          <button
+                            className="care-action primary"
+                            disabled={!!busyKey}
+                            onClick={event => { event.stopPropagation(); void startRequestCall(item.pendingCallback!); }}
+                          >
+                            <PhoneCall size={13} /> {busyKey === 'call:' + item.pendingCallback.requestId ? 'Calling…' : 'Call'}
+                          </button>
+                        )}
+                        {item.pendingCallback && canManageSupport && (
+                          <button
+                            className="care-action"
+                            disabled={!!busyKey}
+                            onClick={event => { event.stopPropagation(); void declineRequest(item.pendingCallback!); }}
+                          >
+                            <PhoneOff size={13} /> Decline
+                          </button>
+                        )}
+                        {item.caseId && canManageSupport && (
+                          <button
+                            className="care-action"
+                            disabled={!!busyKey}
+                            onClick={event => { event.stopPropagation(); void takeOwnership(item.caseId); }}
+                          >
+                            <UserCheck size={13} /> {item.assignedToViewer ? 'Owned' : 'Take over'}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
               </div>
             ) : (
               <div className="care-empty compact-empty">
                 <CheckCircle2 size={16} />
-                <b>Queue is clear</b>
-                <span>No callback requests are waiting.</span>
+                <b>Attention queue is clear</b>
+                <span>Nothing currently needs active support attention.</span>
               </div>
             )}
           </div>
