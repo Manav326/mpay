@@ -68,7 +68,12 @@ class AdminService(
         if (!roleAccess.canView(viewer, target)) {
             throw org.springframework.security.access.AccessDeniedException("You cannot view this customer")
         }
-        return buildUserDetail(target)
+        val detail = buildUserDetail(target)
+        return if (roleAccess.hasPermission(viewer, "VIEW_USER_DETAIL")) {
+            detail
+        } else {
+            detail.copy(profileImageUrl = null, profileImageVersion = null)
+        }
     }
 
     fun userDetail(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
