@@ -56,6 +56,7 @@ class CustomerCareAdminController(
     private val users: UserRepository,
     private val support: SupportService,
     private val supportAiSettings: SupportAiSettingsService,
+    private val supportAccess: com.recharge.backend.service.SupportAccessService,
     private val voiceCalls: VoiceCallService,
     private val roleAccess: RoleAccessService
 ) {
@@ -63,6 +64,28 @@ class CustomerCareAdminController(
         authentication.name.toLongOrNull()?.let {
             users.findById(it).orElseThrow { IllegalArgumentException("User not found") }
         } ?: throw IllegalStateException("Invalid authenticated user")
+
+    @GetMapping("/access")
+    fun access(authentication: Authentication): SupportAccessResponse =
+        supportAccess.access(currentUser(authentication))
+
+    @PutMapping("/access/roles/{role}/{permission}")
+    fun updateRoleAccess(
+        authentication: Authentication,
+        @PathVariable role: String,
+        @PathVariable permission: String,
+        @RequestBody request: Map<String, Boolean>
+    ): SupportRoleAccessResponse =
+        supportAccess.setRolePermission(currentUser(authentication), role, permission, request["enabled"] ?: false)
+
+    @PutMapping("/access/users/{publicId}/{permission}")
+    fun updateUserAccess(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @PathVariable permission: String,
+        @RequestBody request: Map<String, String>
+    ): SupportUserAccessResponse =
+        supportAccess.setUserPermission(currentUser(authentication), publicId, permission, request["mode"] ?: "DEFAULT")
 
     @GetMapping("/ai")
     fun aiSettings(authentication: Authentication): SupportAiSettingsResponse {
