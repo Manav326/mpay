@@ -573,7 +573,7 @@ fun RentalVendorOnboardingScreen(
                 reasonCode = offMarketReason,
                 reasonNote = offMarketNote,
                 saving = state.saving,
-                error = state.error,
+                error = state.mutationError,
                 onStartDate = { offMarketStart = it },
                 onEndDate = { offMarketEnd = it },
                 onReason = { offMarketReason = it },
@@ -627,7 +627,7 @@ fun RentalVendorOnboardingScreen(
                 upi = upi,
                 primaryPayout = primaryPayout,
                 saving = state.saving,
-                error = state.error,
+                error = state.mutationError,
                 onFullName = { fullName = it },
                 onBusinessName = { businessName = it },
                 onAddress = { address = it },
@@ -798,11 +798,11 @@ fun RentalVendorOnboardingScreen(
                         Text("My vehicles", style = MaterialTheme.typography.titleMedium)
                         Text("See exactly when each vehicle is booked, off market or available.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                     }
-                    TextButton(onClick = onRefreshVehicles, enabled = !state.loading) { Text("Refresh") }
+                    TextButton(onClick = onRefreshVehicles, enabled = !state.vendorVehiclesLoading) { Text("Refresh") }
                 }
             }
 
-            if (state.loading && state.vendorCars.isEmpty()) {
+            if (state.vendorVehiclesLoading && state.vendorCars.isEmpty()) {
                 item { Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
             } else if (state.vendorCars.isEmpty()) {
                 item {
@@ -1021,7 +1021,7 @@ fun RentalVendorOnboardingScreen(
                     Text("Add another vehicle")
                 }
             }
-            state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+            (state.vendorVehiclesError ?: state.payoutsError ?: state.mutationError)?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
         }
     } else {
         val vendorStatus = state.vendor?.status?.uppercase() ?: "NOT_ONBOARDED"
@@ -1149,7 +1149,7 @@ fun RentalVendorOnboardingScreen(
                 }
             }
 
-            state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+            (state.vendorError ?: state.mutationError)?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
             item {
                 Button(
                     onClick = {
@@ -1531,12 +1531,12 @@ fun CarRentalMarketplaceScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                         Button(
                             onClick = { onSearch(start, end, locationInput) },
-                            enabled = canApplyFilter && dateInputValid && !state.loading,
+                            enabled = canApplyFilter && dateInputValid && !state.marketplaceLoading,
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(vertical = 8.dp),
                             shape = RoundedCornerShape(11.dp)
                         ) {
-                            if (state.loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                            if (state.marketplaceLoading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                             else Text("Apply filters", fontWeight = FontWeight.Bold)
                         }
                         if (filterApplied) {
@@ -1548,7 +1548,7 @@ fun CarRentalMarketplaceScreen(
                                     detailsCar = null
                                     onClearFilter()
                                 },
-                                enabled = !state.loading,
+                                enabled = !state.marketplaceLoading,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                                 shape = RoundedCornerShape(11.dp)
                             ) { Text("Clear") }
@@ -1557,12 +1557,12 @@ fun CarRentalMarketplaceScreen(
                 }
             }
         }
-        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+        state.marketplaceError?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
 
-        if (state.loading && state.cars.isEmpty()) {
+        if (state.marketplaceLoading && state.cars.isEmpty()) {
             item { Box(Modifier.fillMaxWidth().padding(26.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
         }
-        if (!state.loading && state.cars.isEmpty()) {
+        if (!state.marketplaceLoading && state.cars.isEmpty()) {
             item {
                 MpayEmptyState(
                     title = if (filterApplied) "No cars match these filters" else "No cars available right now",
@@ -2219,7 +2219,7 @@ fun RentalVehicleOnboardingScreen(
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+        state.mutationError?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
 
         item {
             pickerTarget?.let { target ->
@@ -2984,7 +2984,7 @@ fun RentalBookingScreen(
                 }
             }
         }
-        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+        state.mutationError?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
     }
 }
 
@@ -3036,10 +3036,10 @@ fun RentalMyBookingsScreen(
                     Text("My Bookings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text("Your chauffeur-driven rental bookings", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
-                IconButton(onClick = onRefresh, enabled = !state.loading) { Icon(Icons.Default.Refresh, "Refresh bookings") }
+                IconButton(onClick = onRefresh, enabled = !state.bookingsLoading) { Icon(Icons.Default.Refresh, "Refresh bookings") }
             }
         }
-        state.error?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
+        state.bookingsError?.let { item { Text(it, color = AppColors.Error, style = MaterialTheme.typography.bodySmall) } }
         item {
             val filters = listOf("ALL") + state.bookings.map { it.status.uppercase() }.distinct()
             Row(
@@ -3057,10 +3057,10 @@ fun RentalMyBookingsScreen(
             }
         }
 
-        if (state.loading && state.bookings.isEmpty()) {
+        if (state.bookingsLoading && state.bookings.isEmpty()) {
             item { Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppColors.Primary) } }
         }
-        if (!state.loading && state.bookings.isEmpty()) {
+        if (!state.bookingsLoading && state.bookings.isEmpty()) {
             item {
                 MpayEmptyState(
                     title = "No rental bookings yet",
@@ -3070,7 +3070,7 @@ fun RentalMyBookingsScreen(
             }
         }
         val filteredBookings = state.bookings.filter { statusFilter == "ALL" || it.status.equals(statusFilter, true) }
-        if (!state.loading && filteredBookings.isEmpty() && state.bookings.isNotEmpty()) {
+        if (!state.bookingsLoading && filteredBookings.isEmpty() && state.bookings.isNotEmpty()) {
             item { MpayEmptyState(title = "No matching bookings", message = "Try another status filter.") }
         }
 
