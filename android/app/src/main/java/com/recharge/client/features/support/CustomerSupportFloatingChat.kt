@@ -145,12 +145,13 @@ fun CustomerSupportFloatingChat(
     var callbackBusy by remember { mutableStateOf(false) }
     var minimized by rememberSaveable { mutableStateOf(false) }
     var widthDp by rememberSaveable { mutableStateOf(390f) }
-    var heightDp by rememberSaveable { mutableStateOf(560f) }
+    var heightDp by rememberSaveable { mutableStateOf(360f) }
+    var autoSizeEnabled by rememberSaveable { mutableStateOf(true) }
     var offsetX by rememberSaveable { mutableStateOf(12f) }
     var offsetY by rememberSaveable { mutableStateOf(72f) }
 
     val minWidth = 300f
-    val minHeight = 390f
+    val minHeight = 320f
     val horizontalMargin = 8f
     val bottomMargin = 8f
 
@@ -191,6 +192,21 @@ fun CustomerSupportFloatingChat(
 
     LaunchedEffect(minimized, configuration.screenWidthDp, configuration.screenHeightDp) {
         if (!minimized) clampPosition()
+    }
+
+    LaunchedEffect(chat?.messages?.size, guidedTopic) {
+        if (!minimized && autoSizeEnabled) {
+            val messageCount = chat?.messages?.size ?: 0
+            val targetHeight = when {
+                guidedTopic != null -> 500f
+                messageCount <= 0 -> 360f
+                messageCount <= 2 -> 390f
+                messageCount <= 4 -> 460f
+                messageCount <= 7 -> 540f
+                else -> 600f
+            }
+            heightDp = targetHeight.coerceAtMost(availableHeight.coerceAtLeast(minHeight))
+        }
     }
 
     fun sendMessage(messageOverride: String? = null) {
@@ -313,6 +329,7 @@ fun CustomerSupportFloatingChat(
                 if (!minimized) {
                     val maxW = maxContentWidth
                     val maxH = maxContentHeight
+                    autoSizeEnabled = false
                     widthDp = (widthDp + dx).coerceIn(minWidth.coerceAtMost(maxW), maxW)
                     heightDp = (heightDp + dy).coerceIn(minHeight.coerceAtMost(maxH), maxH)
                     clampPosition()
