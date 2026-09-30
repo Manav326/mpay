@@ -1,6 +1,8 @@
 package com.recharge.backend.api
 
 import com.recharge.backend.repository.UserRepository
+import com.recharge.backend.repository.EmployeeRepository
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.service.AdminService
 import com.recharge.backend.service.RoleAccessService
 import com.recharge.backend.service.SupportAiSettingsService
@@ -54,7 +56,7 @@ class CustomerSupportController(
 @RestController
 @RequestMapping("/api/v1/admin/customer-care")
 class CustomerCareAdminController(
-    private val users: UserRepository,
+    private val employees: EmployeeRepository,
     private val adminService: AdminService,
     private val support: SupportService,
     private val supportAiSettings: SupportAiSettingsService,
@@ -62,14 +64,14 @@ class CustomerCareAdminController(
     private val voiceCalls: VoiceCallService,
     private val roleAccess: RoleAccessService
 ) {
-    private fun currentUser(authentication: Authentication) =
+    private fun currentEmployee(authentication: Authentication): EmployeeEntity =
         authentication.name.toLongOrNull()?.let {
-            users.findById(it).orElseThrow { IllegalArgumentException("User not found") }
-        } ?: throw IllegalStateException("Invalid authenticated user")
+            employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") }
+        } ?: throw IllegalStateException("Invalid authenticated employee")
 
     @GetMapping("/access")
     fun access(authentication: Authentication): SupportAccessResponse =
-        supportAccess.access(currentUser(authentication))
+        supportAccess.access(currentEmployee(authentication))
 
     @PutMapping("/access/roles/{role}/{permission}")
     fun updateRoleAccess(
@@ -78,7 +80,7 @@ class CustomerCareAdminController(
         @PathVariable permission: String,
         @RequestBody request: Map<String, Boolean>
     ): SupportRoleAccessResponse =
-        supportAccess.setRolePermission(currentUser(authentication), role, permission, request["enabled"] ?: false)
+        supportAccess.setRolePermission(currentEmployee(authentication), role, permission, request["enabled"] ?: false)
 
     @PutMapping("/access/users/{publicId}/{permission}")
     fun updateUserAccess(
@@ -87,11 +89,11 @@ class CustomerCareAdminController(
         @PathVariable permission: String,
         @RequestBody request: Map<String, String>
     ): SupportUserAccessResponse =
-        supportAccess.setUserPermission(currentUser(authentication), publicId, permission, request["mode"] ?: "DEFAULT")
+        supportAccess.setUserPermission(currentEmployee(authentication), publicId, permission, request["mode"] ?: "DEFAULT")
 
     @GetMapping("/ai")
     fun aiSettings(authentication: Authentication): SupportAiSettingsResponse {
-        roleAccess.requirePermission(currentUser(authentication), SupportService.SUPPORT_VIEW)
+        roleAccess.requirePermission(currentEmployee(authentication), SupportService.SUPPORT_VIEW)
         return supportAiSettings.current()
     }
 
@@ -100,36 +102,27 @@ class CustomerCareAdminController(
         authentication: Authentication,
         @Valid @RequestBody request: UpdateSupportAiSettingsRequest
     ): SupportAiSettingsResponse =
-        supportAiSettings.update(currentUser(authentication), request.enabled)
+        supportAiSettings.update(currentEmployee(authentication), request.enabled)
 
     @GetMapping("/customers/search")
-    fun searchCustomers(
-        authentication: Authentication,
-        @RequestParam query: String
-    ): List<SupportCustomerSearchResultResponse> =
-        support.searchCustomers(currentUser(authentication), query)
+    fun searchCustomers(authentication: Authentication, @RequestParam query: String): List<SupportCustomerSearchResultResponse> =
+        support.searchCustomers(currentEmployee(authentication), query)
 
     @GetMapping("/queue")
     fun queue(authentication: Authentication): SupportQueueResponse =
-        support.queue(currentUser(authentication))
+        support.queue(currentEmployee(authentication))
 
     @GetMapping("/requests")
     fun requests(authentication: Authentication): List<SupportCallRequestResponse> =
-        support.pendingRequests(currentUser(authentication))
+        support.pendingRequests(currentEmployee(authentication))
 
     @GetMapping("/requests/{requestId}")
-    fun request(
-        authentication: Authentication,
-        @PathVariable requestId: String
-    ): SupportCallRequestResponse =
-        support.request(currentUser(authentication), requestId)
+    fun request(authentication: Authentication, @PathVariable requestId: String): SupportCallRequestResponse =
+        support.request(currentEmployee(authentication), requestId)
 
     @PostMapping("/requests/{requestId}/call")
-    fun call(
-        authentication: Authentication,
-        @PathVariable requestId: String
-    ): VoiceCallResponse {
-        val viewer = currentUser(authentication)
+    fun call(authentication: Authentication, @PathVariable requestId: String): VoiceCallResponse {
+        val viewer = currentEmployee(authentication)
         roleAccess.requirePermission(viewer, SupportService.SUPPORT_MANAGE)
         val request = support.request(viewer, requestId)
         val customerPublicId = request.customerPublicId
@@ -143,21 +136,15 @@ class CustomerCareAdminController(
         @PathVariable requestId: String,
         @Valid @RequestBody request: SupportRequestDecisionRequest
     ): SupportCallRequestResponse =
-        support.declineRequest(currentUser(authentication), requestId, request.note)
+        support.declineRequest(currentEmployee(authentication), requestId, request.note)
 
     @GetMapping("/customers/{publicId}/chat")
-    fun customerChat(
-        authentication: Authentication,
-        @PathVariable publicId: String
-    ): SupportChatResponse =
-        support.adminChat(currentUser(authentication), publicId)
+    fun customerChat(authentication: Authentication, @PathVariable publicId: String): SupportChatResponse =
+        support.adminChat(currentEmployee(authentication), publicId)
 
     @PostMapping("/customers/{publicId}/chat/read")
-    fun markChatRead(
-        authentication: Authentication,
-        @PathVariable publicId: String
-    ): SupportChatResponse =
-        support.markChatRead(currentUser(authentication), publicId)
+    fun markChatRead(authentication: Authentication, @PathVariable publicId: String): SupportChatResponse =
+        support.markChatRead(currentEmployee(authentication), publicId)
 
     @PostMapping("/customers/{publicId}/chat/messages")
     fun sendCustomerChatMessage(
@@ -165,28 +152,19 @@ class CustomerCareAdminController(
         @PathVariable publicId: String,
         @Valid @RequestBody request: CreateSupportMessageRequest
     ): SupportMessageResponse =
-        support.sendAdminChatMessage(currentUser(authentication), publicId, request.message)
+        support.sendAdminChatMessage(currentEmployee(authentication), publicId, request.message)
 
     @GetMapping("/customers/{publicId}/context")
-    fun customerContext(
-        authentication: Authentication,
-        @PathVariable publicId: String
-    ): AdminUserDetailResponse =
-        adminService.supportCustomerContext(currentUser(authentication), publicId)
+    fun customerContext(authentication: Authentication, @PathVariable publicId: String): AdminUserDetailResponse =
+        adminService.supportCustomerContext(currentEmployee(authentication), publicId)
 
     @GetMapping("/customers/{publicId}")
-    fun customer(
-        authentication: Authentication,
-        @PathVariable publicId: String
-    ): SupportCustomerResponse =
-        support.customer(currentUser(authentication), publicId)
+    fun customer(authentication: Authentication, @PathVariable publicId: String): SupportCustomerResponse =
+        support.customer(currentEmployee(authentication), publicId)
 
     @GetMapping("/customers/{publicId}/callback-access")
-    fun callbackAccess(
-        authentication: Authentication,
-        @PathVariable publicId: String
-    ): CustomerCallbackAccessResponse =
-        support.callbackAccess(currentUser(authentication), publicId)
+    fun callbackAccess(authentication: Authentication, @PathVariable publicId: String): CustomerCallbackAccessResponse =
+        support.callbackAccess(currentEmployee(authentication), publicId)
 
     @PutMapping("/customers/{publicId}/callback-access")
     fun updateCallbackAccess(
@@ -194,7 +172,7 @@ class CustomerCareAdminController(
         @PathVariable publicId: String,
         @Valid @RequestBody request: CustomerCallbackAccessRequest
     ): CustomerCallbackAccessResponse =
-        support.setCallbackAccess(currentUser(authentication), publicId, request.enabled)
+        support.setCallbackAccess(currentEmployee(authentication), publicId, request.enabled)
 
     @PutMapping("/cases/{caseId}")
     fun updateCase(
@@ -202,21 +180,15 @@ class CustomerCareAdminController(
         @PathVariable caseId: String,
         @Valid @RequestBody request: UpdateSupportCaseRequest
     ): SupportCaseResponse =
-        support.updateCase(currentUser(authentication), caseId, request)
+        support.updateCase(currentEmployee(authentication), caseId, request)
 
     @PostMapping("/cases/{caseId}/ownership")
-    fun takeOwnership(
-        authentication: Authentication,
-        @PathVariable caseId: String
-    ): SupportAssignmentResponse =
-        support.takeCaseOwnership(currentUser(authentication), caseId)
+    fun takeOwnership(authentication: Authentication, @PathVariable caseId: String): SupportAssignmentResponse =
+        support.takeCaseOwnership(currentEmployee(authentication), caseId)
 
     @DeleteMapping("/cases/{caseId}/ownership")
-    fun releaseOwnership(
-        authentication: Authentication,
-        @PathVariable caseId: String
-    ): SupportAssignmentResponse =
-        support.releaseCaseOwnership(currentUser(authentication), caseId)
+    fun releaseOwnership(authentication: Authentication, @PathVariable caseId: String): SupportAssignmentResponse =
+        support.releaseCaseOwnership(currentEmployee(authentication), caseId)
 
     @PostMapping("/cases/{caseId}/notes")
     fun addNote(
@@ -224,5 +196,5 @@ class CustomerCareAdminController(
         @PathVariable caseId: String,
         @Valid @RequestBody request: CreateSupportNoteRequest
     ): SupportNoteResponse =
-        support.addNote(currentUser(authentication), caseId, request)
+        support.addNote(currentEmployee(authentication), caseId, request)
 }
