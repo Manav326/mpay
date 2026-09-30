@@ -54,36 +54,29 @@ class AdminService(
         }
     }
 
-    fun userDetail(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
-        val target = if (roleAccess.hasPermission(viewer, "VIEW_USER_DETAIL")) {
-            resolveTarget(viewer, targetPublicId)
-        } else {
-            roleAccess.requirePermission(viewer, "SUPPORT_VIEW_CUSTOMER_CONTEXT")
-            val resolved = users.findByPublicId(targetPublicId).orElse(null)
-                ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
-                ?: throw IllegalArgumentException("User not found")
-            if (!roleAccess.canView(viewer, resolved)) {
-                throw org.springframework.security.access.AccessDeniedException("You cannot view this customer")
-            }
-            resolved
+    fun supportCustomerContext(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
+        roleAccess.requirePermission(viewer, "SUPPORT_VIEW_CUSTOMER_CONTEXT")
+        val target = users.findByPublicId(targetPublicId).orElse(null)
+            ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
+            ?: throw IllegalArgumentException("User not found")
+        if (!target.role.equals("CLIENT", true)) {
+            throw org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST,
+                "Customer context is only available for client accounts"
+            )
         }
+        if (!roleAccess.canView(viewer, target)) {
+            throw org.springframework.security.access.AccessDeniedException("You cannot view this customer")
+        }
+        return buildUserDetail(target)
+    }
 
-        val now = ZonedDateTime.now(zoneId)
-        val todayStart = now.toLocalDate().atStartOfDay(zoneId).toInstant()
-        val tomorrowStart = now.toLocalDate().plusDays(1).atStartOfDay(zoneId).toInstant()
-        val monthStart = now.toLocalDate().withDayOfMonth(1).atStartOfDay(zoneId).toInstant()
-        val targetId = requireId(target)
-        val wallet = wallets.findByUserId(targetId).orElseThrow { IllegalArgumentException("Wallet not found") }
-        val todayAggregate = recharges.aggregateSuccessfulForUsers(listOf(targetId), todayStart, tomorrowStart).firstOrNull()
-        val monthAggregate = recharges.aggregateSuccessfulForUsers(listOf(targetId), monthStart, now.toInstant().plusNanos(1)).firstOrNull()
-        val summary = toSummary(target, wallet, todayAggregate, monthAggregate)
-        val rechargeCount = recharges.countSuccessfulByUserId(targetId)
-        val addMoneyTotal = walletLedger.sumAddMoneyAllTime(targetId).setScale(2)
-        val withdrawalTotal = walletLedger.sumWithdrawalsAllTime(targetId).setScale(2)
-        val latest = recharges.findTopByUserIdOrderByCreatedAtDesc(targetId)
-        val recentEntries = walletLedger.findTop10ByUserIdOrderByCreatedAtDesc(targetId).map(::toWalletEntry)
-        val latestResponse = latest?.let(::toLatestRecharge)
-        val imageVersion = target.profileImageUpdatedAt?.toEpochMilli()
+    fun userDetail(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
+        val target = resolveTarget(viewer, targetPublicId)
+        return buildUserDetail(target)
+    }
+
+    private fun buildUserDetail(target: UserEntity): AdminUserDetailResponse {
         return AdminUserDetailResponse(
             summary = summary,
             rechargeCount = rechargeCount,
@@ -98,6 +91,9 @@ class AdminService(
             latestRecharge = latestResponse,
             recentWalletEntries = recentEntries
         )
+    }
+
+
     }
 
     fun rechargeHistory(viewer: UserEntity, targetPublicId: String, page: Int, size: Int): RechargeHistoryResponse {
