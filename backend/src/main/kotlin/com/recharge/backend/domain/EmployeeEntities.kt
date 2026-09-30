@@ -1,6 +1,9 @@
 package com.recharge.backend.domain
 
+import com.fasterxml.jackson.databind.JsonNode
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.Instant
 import java.util.UUID
 
@@ -81,7 +84,7 @@ class EmployeePermissionOverrideEntity(
 @Table(
     name = "employee_activity",
     indexes = [
-        Index(name = "idx_employee_activity_employee_time", columnList = "employee_id,occurred_at DESC"),
+        Index(name = "idx_employee_activity_employee_time", columnList = "employee_id,occurred_at DESC,id DESC"),
         Index(name = "idx_employee_activity_subject_time", columnList = "subject_type,subject_id,occurred_at DESC")
     ]
 )
@@ -99,8 +102,9 @@ class EmployeeActivityEntity(
     var subjectId: String? = null,
     @Column(nullable = false, length = 500)
     var summary: String = "",
-    @Column(name = "metadata_json", columnDefinition = "TEXT")
-    var metadataJson: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata_json", columnDefinition = "jsonb")
+    var metadataJson: JsonNode? = null,
     @Column(name = "occurred_at", nullable = false)
     var occurredAt: Instant = Instant.now()
 )
