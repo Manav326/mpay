@@ -40,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.CustomerSupportOverviewResponse
@@ -134,7 +136,9 @@ private val supportTopicOptions = listOf(
 fun CustomerSupportScreen(
     context: Context,
     onBack: () -> Unit,
-    onOpenChat: () -> Unit
+    onOpenChat: () -> Unit,
+    embedded: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     var overview by remember { mutableStateOf<CustomerSupportOverviewResponse?>(null) }
@@ -307,8 +311,9 @@ fun CustomerSupportScreen(
         }
     }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = AppColors.Background) {
+    Surface(modifier = if (embedded) modifier.fillMaxWidth() else modifier.fillMaxSize(), color = AppColors.Background) {
         Column(Modifier.fillMaxSize()) {
+            if (!embedded) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -324,8 +329,9 @@ fun CustomerSupportScreen(
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = { scope.launch { load() } }, enabled = !loading) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color(0xFFC7CED7))
                 }
+            }
             }
 
             if (loading && overview == null) {
@@ -337,7 +343,7 @@ fun CustomerSupportScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = if (embedded) 12.dp else 18.dp, vertical = if (embedded) 4.dp else 6.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 error?.let { message ->
@@ -355,6 +361,7 @@ fun CustomerSupportScreen(
                     SupportHero(
                         enabled = overview?.callbackRequestEnabled == true,
                         onOpenChat = onOpenChat,
+                        showHeading = !embedded,
                         pending = overview?.pendingRequest,
                         busy = busy,
                         onRequest = ::requestCall,
@@ -466,6 +473,7 @@ fun CustomerSupportScreen(
 private fun SupportHero(
     enabled: Boolean,
     onOpenChat: () -> Unit,
+    showHeading: Boolean,
     pending: SupportCallRequestResponse?,
     busy: Boolean,
     onRequest: () -> Unit,
@@ -480,6 +488,7 @@ private fun SupportHero(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (showHeading) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(13.dp), color = AppColors.Primary.copy(alpha = .14f)) {
                     Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
@@ -489,6 +498,7 @@ private fun SupportHero(
                     Text("Help & Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                     Text("Choose how you want mPay Support to help.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
+            }
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -679,7 +689,7 @@ private fun SupportChatDialog(
         Surface(
             modifier = Modifier.fillMaxWidth(0.94f).fillMaxHeight(0.82f),
             shape = RoundedCornerShape(24.dp),
-            color = Color.White,
+            color = Color(0xFF14181D),
             tonalElevation = 4.dp
         ) {
             Column(Modifier.fillMaxSize()) {
@@ -689,7 +699,7 @@ private fun SupportChatDialog(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = AppColors.Primary.copy(alpha = .12f)
+                        color = Color(0xFF2A241A)
                     ) {
                         Icon(
                             Icons.Default.HeadsetMic,
@@ -700,10 +710,10 @@ private fun SupportChatDialog(
                     }
                     Spacer(Modifier.size(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("mPay Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("mPay Support", fontWeight = FontWeight.Bold, color = Color(0xFFF3F5F7), style = MaterialTheme.typography.titleMedium)
                         Text(
                             if (chat?.status == "OPEN") "Usually replies through this chat" else "Support conversation",
-                            color = AppColors.TextSecondary,
+                            color = Color(0xFFAAB3BF),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -711,25 +721,37 @@ private fun SupportChatDialog(
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFFC7CED7))
                     }
                 }
 
-                androidx.compose.material3.HorizontalDivider()
+                androidx.compose.material3.HorizontalDivider(color = Color(0xFF303840))
 
                 if (error != null) {
                     Text(
                         error,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.error,
+                        color = Color(0xFFFCA5A5),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
 
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(Color(0xFF0E1419))
+                        .drawBehind {
+                            drawRect(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(Color.White.copy(alpha = .035f), Color.Transparent),
+                                    center = Offset(size.width * .5f, 0f),
+                                    radius = size.width * .9f
+                                )
+                            )
+                        },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (chat?.items.isNullOrEmpty() && chat?.messages.isNullOrEmpty() && !supportIntakeMode) {
@@ -752,32 +774,35 @@ private fun SupportChatDialog(
                     } else {
                         items(chat?.items.orEmpty(), key = { it.itemId }) { item ->
                             if (item.type == "VOICE_CALL") {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 3.dp),
-                                    color = Color(0xFFF7F3EC),
-                                    shape = RoundedCornerShape(14.dp)
-                                ) {
-                                    Row(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Surface(shape = RoundedCornerShape(10.dp), color = AppColors.Primary.copy(alpha = .12f)) {
-                                            Icon(Icons.Default.Call, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(8.dp).size(17.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(0.84f),
+                                        color = Color(0xFF232930),
+                                        shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp, bottomStart = 15.dp, bottomEnd = 4.dp)
+                                    ) {
+                                        Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF2A241A)) {
+                                                Icon(Icons.Default.Call, null, tint = AppColors.Primary, modifier = Modifier.padding(8.dp).size(17.dp))
+                                            }
+                                            Spacer(Modifier.size(9.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(
+                                                    when {
+                                                        item.outcome == "NO_ANSWER" || item.status == "MISSED" -> "Support tried to call you"
+                                                        item.status == "DECLINED" -> "Support call declined"
+                                                        else -> "Support voice call"
+                                                    },
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFFF0F3F6)
+                                                )
+                                                Text(
+                                                    listOfNotNull(item.actorName ?: "mPay Support", item.outcome ?: item.status, item.durationLabel).joinToString(" · "),
+                                                    color = Color(0xFFAAB3BF),
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                            Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
                                         }
-                                        Spacer(Modifier.size(9.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text(
-                                                when {
-                                                    item.outcome == "NO_ANSWER" || item.status == "MISSED" -> "Support tried to call you"
-                                                    item.status == "DECLINED" -> "Support call declined"
-                                                    else -> "Support voice call"
-                                                },
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Text(
-                                                listOfNotNull(item.actorName ?: "mPay Support", item.outcome ?: item.status, item.durationLabel).joinToString(" · "),
-                                                color = AppColors.TextSecondary,
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-                                        }
-                                        Text(formatSupportDate(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             } else {
@@ -786,7 +811,7 @@ private fun SupportChatDialog(
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(0.82f),
                                         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = if (mine) 16.dp else 4.dp, bottomEnd = if (mine) 16.dp else 4.dp),
-                                        color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF4F5F7)
+                                        color = if (mine) AppColors.Primary.copy(alpha = .22f) else Color(0xFF232930)
                                     ) {
                                         Column(Modifier.padding(horizontal = 13.dp, vertical = 9.dp)) {
                                             Text(
@@ -796,11 +821,11 @@ private fun SupportChatDialog(
                                                     else -> "mPay Support"
                                                 },
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = if (mine) AppColors.PrimaryDark else AppColors.TextPrimary,
+                                                color = if (mine) Color(0xFFFFC65A) else Color(0xFFD7DEE7),
                                                 style = MaterialTheme.typography.labelSmall
                                             )
-                                            Text(item.message.orEmpty(), color = AppColors.TextPrimary)
-                                            Text(formatSupportDate(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                            Text(item.message.orEmpty(), color = Color(0xFFF0F3F6))
+                                            Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
                                 }
@@ -825,7 +850,7 @@ private fun SupportChatDialog(
                 }
                 if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
                     Surface(
-                        color = Color(0xFFFFFBF3),
+                        color = Color(0xFF181D23),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -833,8 +858,8 @@ private fun SupportChatDialog(
                             verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             if (chat?.pendingCallbackRequest != null) {
-                                Text("Callback requested", color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                                Text("Customer Care will handle the voice request from the same support case.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                Text("Callback requested", color = Color(0xFFFFC65A), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                Text("Customer Care will handle the voice request from the same support case.", color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
                                 OutlinedButton(
                                     onClick = { onCancelCallback(requireNotNull(chat?.pendingCallbackRequest)) },
                                     enabled = !callbackBusy,
@@ -861,12 +886,8 @@ private fun SupportChatDialog(
                 }
 
                 if (!chat?.messages.isNullOrEmpty()) {
-                    Surface(
-                        color = Color(0xFFF8F8F8),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
                     Row(
-                        Modifier.fillMaxWidth().padding(10.dp),
+                        Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 9.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
                         OutlinedTextField(
@@ -874,18 +895,24 @@ private fun SupportChatDialog(
                             onValueChange = onDraftChange,
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("Write a message…") },
-                            maxLines = 4,
-                            shape = RoundedCornerShape(16.dp)
+                            maxLines = 3,
+                            shape = RoundedCornerShape(13.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1C2228),
+                                unfocusedContainerColor = Color(0xFF1C2228),
+                                focusedTextColor = Color(0xFFF0F3F6),
+                                unfocusedTextColor = Color(0xFFF0F3F6),
+                                focusedPlaceholderColor = Color(0xFF8F9AA7),
+                                unfocusedPlaceholderColor = Color(0xFF8F9AA7),
+                                focusedBorderColor = AppColors.Primary,
+                                unfocusedBorderColor = Color(0xFF3A424C),
+                                cursorColor = AppColors.Primary
+                            )
                         )
-                        Spacer(Modifier.size(8.dp))
-                        IconButton(
-                            onClick = onSend,
-                            enabled = draft.isNotBlank() && !busy,
-                            modifier = Modifier.size(50.dp)
-                        ) {
-                            Icon(Icons.Default.Send, contentDescription = "Send", tint = AppColors.PrimaryDark)
+                        Spacer(Modifier.size(5.dp))
+                        IconButton(onClick = onSend, enabled = draft.isNotBlank() && !busy, modifier = Modifier.size(46.dp)) {
+                            Icon(Icons.Default.Send, contentDescription = "Send", tint = AppColors.Primary)
                         }
-                    }
                     }
                 }
             }
