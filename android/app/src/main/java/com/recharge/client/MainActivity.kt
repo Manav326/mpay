@@ -535,7 +535,7 @@ private fun AppRoot(
                                             IncomingCallActivity.EXTRA_CALLER_NAME,
                                             callerName
                                         )
-                                }.onFailure { error ->
+                                ).onFailure { error ->
                                     android.util.Log.e(
                                         "MainActivity",
                                         "Unable to open incoming call screen. callId=" + activeCall.callId,
@@ -996,7 +996,7 @@ private fun AppNavHost(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                         )
-                        rentalUiState.error?.takeIf { it.isNotBlank() }?.let {
+                        rentalUiState.marketplaceError?.takeIf { it.isNotBlank() }?.let {
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 it,
