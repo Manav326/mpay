@@ -253,8 +253,8 @@ class SupportService(
                 category = supportCase?.category,
                 priority = supportCase?.priority,
                 caseStatus = supportCase?.status,
-                assignedUserPublicId = assignedId?.let { staffMap[it]?.publicId },
-                assignedUserName = assignedId?.let { staffMap[it]?.name },
+                assignedEmployeePublicId = assignedId?.let { staffMap[it]?.publicId },
+                assignedEmployeeName = assignedId?.let { staffMap[it]?.name },
                 assignedToViewer = assignedId == viewer.id,
                 source = source,
                 attentionReason = attentionReason,
@@ -265,7 +265,7 @@ class SupportService(
         }.sortedWith(
             compareBy<SupportQueueItemResponse>(
                 { if (it.pendingCallback != null) 0 else if (it.priority.equals("URGENT", true)) 1 else if (it.priority.equals("HIGH", true)) 2 else if (it.unreadMessages > 0) 3 else 4 },
-                { if (it.assignedUserPublicId == viewer.publicId) 0 else if (it.assignedUserPublicId == null) 1 else 2 },
+                { if (it.assignedEmployeePublicId == viewer.publicId) 0 else if (it.assignedEmployeePublicId == null) 1 else 2 },
                 { it.pendingCallback?.requestedAt ?: it.lastActivityAt ?: "" }
             )
         ).take(75)
@@ -274,8 +274,8 @@ class SupportService(
             total = items.size,
             callbacks = items.count { it.pendingCallback != null },
             unreadChats = items.count { it.unreadMessages > 0 },
-            unassigned = items.count { it.assignedUserPublicId == null },
-            assignedToViewer = items.count { it.assignedUserPublicId == viewer.publicId },
+            unassigned = items.count { it.assignedEmployeePublicId == null },
+            assignedToViewer = items.count { it.assignedEmployeePublicId == viewer.publicId },
             items = items
         )
     }
@@ -1143,8 +1143,8 @@ class SupportService(
             customerName = customer?.name,
             customerMobile = customer?.mobile,
             voiceCallId = entity.voiceCallId,
-            assignedUserPublicId = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.publicId },
-            assignedUserName = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.name },
+            assignedEmployeePublicId = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.publicId },
+            assignedEmployeeName = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.name },
             claimedAt = entity.claimedAt?.toString(),
             outcome = entity.outcome
         )
@@ -1159,8 +1159,8 @@ class SupportService(
             priority = entity.priority,
             status = entity.status,
             source = entity.source,
-            assignedUserPublicId = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.publicId },
-            assignedUserName = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.name },
+            assignedEmployeePublicId = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.publicId },
+            assignedEmployeeName = entity.assignedEmployeeId?.let { employees.findById(it).orElse(null)?.name },
             createdAt = entity.createdAt.toString(),
             updatedAt = entity.updatedAt.toString(),
             resolvedAt = entity.resolvedAt?.toString(),
@@ -1172,7 +1172,7 @@ class SupportService(
         val actorEmployee = if (entity.actorAccountType == "EMPLOYEE") {
             entity.actorAccountId?.let { employees.findById(it).orElse(null) }
         } else null
-        val actorUser = if (entity.actorAccountType == "USER") {
+        val actorAccount = if (entity.actorAccountType == "USER") {
             entity.actorAccountId?.let { users.findById(it).orElse(null) }
         } else null
         val duration = entity.durationSeconds
@@ -1195,8 +1195,8 @@ class SupportService(
             wrapUpDurationLabel = if (entity.wrapUpCompletedAt != null && entity.endedAt != null) formatDuration(Duration.between(entity.endedAt, entity.wrapUpCompletedAt).seconds.coerceAtLeast(0)) else null,
             outcome = entity.outcome,
             voiceCallId = entity.voiceCallId,
-            actorUserPublicId = actorEmployee?.publicId ?: actorUser?.publicId,
-            actorName = actorEmployee?.name ?: actorUser?.name
+            actorAccountPublicId = actorEmployee?.publicId ?: actorAccount?.publicId,
+            actorName = actorEmployee?.name ?: actorAccount?.name
         )
     }
 
@@ -1207,7 +1207,7 @@ class SupportService(
             caseId = entity.caseId?.let { cases.findById(it).orElse(null)?.caseId },
             visibility = entity.visibility,
             note = entity.note,
-            authorUserPublicId = authorEmployee?.publicId,
+            authorEmployeePublicId = authorEmployee?.publicId,
             authorName = authorEmployee?.name,
             createdAt = entity.createdAt.toString()
         )
@@ -1217,7 +1217,7 @@ class SupportService(
         val actorEmployee = if (entity.actorAccountType == "EMPLOYEE") {
             entity.actorAccountId?.let { employees.findById(it).orElse(null) }
         } else null
-        val actorUser = if (entity.actorAccountType == "USER") {
+        val actorAccount = if (entity.actorAccountType == "USER") {
             entity.actorAccountId?.let { users.findById(it).orElse(null) }
         } else null
         return SupportCaseEventResponse(
@@ -1227,8 +1227,8 @@ class SupportService(
             visibility = entity.visibility,
             channel = entity.channel,
             summary = entity.summary,
-            actorUserPublicId = actorEmployee?.publicId ?: actorUser?.publicId,
-            actorName = actorEmployee?.name ?: actorUser?.name,
+            actorAccountPublicId = actorEmployee?.publicId ?: actorAccount?.publicId,
+            actorName = actorEmployee?.name ?: actorAccount?.name,
             createdAt = entity.createdAt.toString()
         )
     }
