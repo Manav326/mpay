@@ -1326,6 +1326,160 @@ export default function CustomerCarePanel({
           </div>
         </div>
       )}
+
+      {accessOpen && canManageSupportAccess && (
+        <div className="care-access-backdrop" onClick={() => !accessBusy && setAccessOpen(false)}>
+          <section className="care-access-modal" onClick={event => event.stopPropagation()}>
+            <div className="care-access-header">
+              <div>
+                <span className="care-pane-eyebrow">ADMINISTRATOR CONTROL</span>
+                <h3>Customer Care permissions</h3>
+                <p>Grant or revoke support capabilities by role, then override individual staff accounts when a specific employee needs different access.</p>
+              </div>
+              <button className="care-icon-button" onClick={() => !accessBusy && setAccessOpen(false)} aria-label="Close access settings">
+                <X size={15} />
+              </button>
+            </div>
+
+            {accessNotice && (
+              <div className="care-access-notice">
+                <CheckCircle2 size={14} />
+                <span>{accessNotice}</span>
+                <button onClick={() => setAccessNotice('')} aria-label="Dismiss"><X size={12} /></button>
+              </div>
+            )}
+
+            {accessLoading && !access ? (
+              <div className="care-empty">Loading support permissions…</div>
+            ) : access ? (
+              <>
+                <div className="care-access-legend">
+                  <span><b>Role default</b> controls the normal access for everyone in that role.</span>
+                  <span><b>Allow / Revoke</b> overrides the role for one staff member.</span>
+                  <span><LockKeyhole size={11} /> Administrator access is protected.</span>
+                </div>
+
+                <section className="care-access-section">
+                  <div className="care-access-section-head">
+                    <div>
+                      <span className="care-pane-eyebrow">ROLE DEFAULTS</span>
+                      <h4>Who gets Customer Care by default?</h4>
+                    </div>
+                    <span className="care-access-count">{access.roles.length} roles</span>
+                  </div>
+                  <div className="care-access-permissions">
+                    {access.roles.map(role => (
+                      <article className="care-access-role" key={role.role}>
+                        <div className="care-access-role-head">
+                          <div className="care-access-avatar">{role.role.charAt(0)}</div>
+                          <div>
+                            <b>{role.role.replaceAll('_', ' ')}</b>
+                            <span>{role.protected ? 'Protected administrator role' : 'Role default'}</span>
+                          </div>
+                          {role.protected && <span className="care-access-locked"><LockKeyhole size={10} /> Protected</span>}
+                        </div>
+                        <div className="care-access-role-grid">
+                          {role.permissions.map(permission => {
+                            const busy = accessBusy === 'role:' + role.role + ':' + permission.permission;
+                            return (
+                              <button
+                                key={permission.permission}
+                                className={'care-permission-tile ' + (permission.enabled ? 'enabled' : '')}
+                                disabled={role.protected || !permission.editable || !!accessBusy}
+                                onClick={() => void saveRolePermission(role.role, permission.permission, !permission.enabled)}
+                                title={permission.description}
+                              >
+                                <span>
+                                  {permission.enabled ? <Check size={11} /> : <LockKeyhole size={11} />}
+                                  {permission.label}
+                                </span>
+                                <small>{busy ? 'Saving…' : permission.enabled ? 'Granted' : 'Revoked'}</small>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="care-access-section">
+                  <div className="care-access-section-head">
+                    <div>
+                      <span className="care-pane-eyebrow">INDIVIDUAL OVERRIDES</span>
+                      <h4>Fine-tune staff access</h4>
+                    </div>
+                    <div className="care-access-search">
+                      <Search size={13} />
+                      <input
+                        value={accessStaffQuery}
+                        onChange={event => setAccessStaffQuery(event.target.value)}
+                        placeholder="Search staff"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="care-access-user-list">
+                    {access.users
+                      .filter(user => {
+                        const query = accessStaffQuery.trim().toLowerCase();
+                        if (!query) return true;
+                        return [user.name, user.mobile, user.role, user.publicUserId]
+                          .some(value => String(value || '').toLowerCase().includes(query));
+                      })
+                      .map(user => (
+                        <article className="care-access-user" key={user.publicUserId}>
+                          <div className="care-access-user-head">
+                            <div className="care-access-avatar staff">{initials(user.name, user.mobile)}</div>
+                            <div className="care-access-user-copy">
+                              <b>{user.name || 'Unnamed staff'}</b>
+                              <span>{user.role} · {user.mobile}</span>
+                            </div>
+                            {user.protected ? (
+                              <span className="care-access-locked"><LockKeyhole size={10} /> Protected</span>
+                            ) : (
+                              <span className="care-access-effective">
+                                {user.permissions.filter(item => item.enabled).length}/{user.permissions.length} active
+                              </span>
+                            )}
+                          </div>
+                          <div className="care-access-user-grid">
+                            {user.permissions.map(permission => {
+                              const busy = accessBusy === 'user:' + user.publicUserId + ':' + permission.permission;
+                              return (
+                                <label className="care-access-user-permission" key={permission.permission}>
+                                  <span>{permission.label}</span>
+                                  <select
+                                    value={permission.mode || 'DEFAULT'}
+                                    disabled={user.protected || !permission.editable || !!accessBusy}
+                                    onChange={event => void saveUserPermission(
+                                      user.publicUserId,
+                                      permission.permission,
+                                      event.target.value as 'DEFAULT' | 'ALLOW' | 'DENY'
+                                    )}
+                                  >
+                                    <option value="DEFAULT">Role default</option>
+                                    <option value="ALLOW">Allow</option>
+                                    <option value="DENY">Revoke</option>
+                                  </select>
+                                  <small>
+                                    {busy ? 'Saving…' : permission.enabled ? 'Effective' : 'No access'}
+                                  </small>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </article>
+                      ))}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <div className="care-empty">Customer Care access information is unavailable.</div>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }
