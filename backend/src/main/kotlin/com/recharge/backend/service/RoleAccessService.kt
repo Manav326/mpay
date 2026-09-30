@@ -1,8 +1,11 @@
 package com.recharge.backend.service
 
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.repository.EmployeePermissionOverrideRepository
 import com.recharge.backend.repository.RoleHierarchyRepository
 import com.recharge.backend.repository.RolePermissionRepository
+import com.recharge.backend.repository.UserPermissionOverrideRepository
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 
@@ -10,7 +13,8 @@ import org.springframework.stereotype.Service
 class RoleAccessService(
     private val permissions: RolePermissionRepository,
     private val hierarchy: RoleHierarchyRepository,
-    private val overrides: com.recharge.backend.repository.UserPermissionOverrideRepository
+    private val userOverrides: UserPermissionOverrideRepository,
+    private val employeeOverrides: EmployeePermissionOverrideRepository
 ) {
     fun permissionsFor(role: String): Set<String> = permissions
         .findAllByRoleIgnoreCaseOrderByPermissionAsc(role)
@@ -20,7 +24,17 @@ class RoleAccessService(
     fun permissionsFor(user: UserEntity): Set<String> {
         val userId = requireNotNull(user.id) { "User ID is required" }
         val resolved = permissionsFor(user.role).toMutableSet()
-        overrides.findAllByUserId(userId).forEach { override ->
+        userOverrides.findAllByUserId(userId).forEach { override ->
+            if (override.allowed) resolved.add(override.permission.uppercase())
+            else resolved.remove(override.permission.uppercase())
+        }
+        return resolved
+    }
+
+    fun permissionsFor(employee: EmployeeEntity): Set<String> {
+        val employeeId = requireNotNull(employee.id) { "Employee ID is required" }
+        val resolved = permissionsFor(employee.role).toMutableSet()
+        employeeOverrides.findAllByEmployeeId(employeeId).forEach { override ->
             if (override.allowed) resolved.add(override.permission.uppercase())
             else resolved.remove(override.permission.uppercase())
         }
@@ -35,11 +49,23 @@ class RoleAccessService(
 
     fun hasPermission(user: UserEntity, permission: String): Boolean {
         val userId = requireNotNull(user.id) { "User ID is required" }
-        val override = overrides.findByUserIdAndPermissionIgnoreCase(userId, permission)
+        val override = userOverrides.findByUserIdAndPermissionIgnoreCase(userId, permission)
         return override?.allowed ?: hasRolePermission(user.role, permission)
     }
 
+    fun hasPermission(employee: EmployeeEntity, permission: String): Boolean {
+        val employeeId = requireNotNull(employee.id) { "Employee ID is required" }
+        val override = employeeOverrides.findByEmployeeIdAndPermissionIgnoreCase(employeeId, permission)
+        return override?.allowed ?: hasRolePermission(employee.role, permission)
+    }
+
     fun requirePermission(viewer: UserEntity, permission: String) {
+        if (!hasPermission(viewer, permission)) {
+            throw AccessDeniedException("Permission required: $permission")
+        }
+    }
+
+    fun requirePermission(viewer: EmployeeEntity, permission: String) {
         if (!hasPermission(viewer, permission)) {
             throw AccessDeniedException("Permission required: $permission")
         }
@@ -53,7 +79,17 @@ class RoleAccessService(
     fun canView(viewer: UserEntity, target: UserEntity): Boolean =
         visibleRolesFor(viewer.role).contains(target.role.uppercase())
 
+    fun canView(viewer: EmployeeEntity, target: UserEntity): Boolean =
+        visibleRolesFor(viewer.role).contains(target.role.uppercase())
+
     fun requireCanView(viewer: UserEntity, target: UserEntity) {
+        requirePermission(viewer, "VIEW_USER_DETAIL")
+        if (!canView(viewer, target)) {
+            throw AccessDeniedException("You cannot view this user")
+        }
+    }
+
+    fun requireCanView(viewer: EmployeeEntity, target: UserEntity) {
         requirePermission(viewer, "VIEW_USER_DETAIL")
         if (!canView(viewer, target)) {
             throw AccessDeniedException("You cannot view this user")
