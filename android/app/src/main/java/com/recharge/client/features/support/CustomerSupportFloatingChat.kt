@@ -139,7 +139,6 @@ fun CustomerSupportFloatingChat(
     open: Boolean,
     onDismiss: () -> Unit
 ) {
-    if (!open) return
 
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -202,7 +201,8 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(open) {
+        if (!open) return@LaunchedEffect
         loadChat()
         while (isActive) {
             delay(5000)
@@ -280,6 +280,7 @@ fun CustomerSupportFloatingChat(
         }
     }
 
+    if (open) {
     BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
         val availableWidth = maxWidth.value
         val availableHeight = maxHeight.value
@@ -422,6 +423,7 @@ fun CustomerSupportFloatingChat(
                 }
             }
         )
+    }
     }
     }
 
