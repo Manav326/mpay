@@ -152,7 +152,7 @@ class VoiceCallService(
     }
 
     private fun terminateActiveCallForAccount(accountId: Long, reason: String) {
-        val participant = participants.findByAccountId(userId).orElse(null) ?: return
+        val participant = participants.findByAccountId(accountId).orElse(null) ?: return
         val call = calls.findByCallIdForUpdate(participant.callId).orElse(null) ?: run {
             participants.delete(participant)
             return
@@ -164,10 +164,10 @@ class VoiceCallService(
             return
         }
 
-        val otherUserId = otherParticipant(call, userId)
+        val otherUserId = otherParticipant(call, accountId)
         call.status = ENDED
         call.endedAt = Instant.now()
-        call.endedByAccountId = userId
+        call.endedByAccountId = accountId
         call.endedReason = reason.take(80)
         calls.save(call)
         support.recordVoiceCallEnded(call)
@@ -429,8 +429,14 @@ class VoiceCallService(
         push.sendCallEnded(locked.calleeUserId, locked.callId, locked.status)
     }
 
+    private fun participantCall(employee: EmployeeEntity, callId: String): VoiceCallEntity =
+        participantCallByAccountId(requireNotNull(employee.id), callId)
+
     private fun participantCall(user: UserEntity, callId: String): VoiceCallEntity =
         participantCallByAccountId(requireNotNull(user.id), callId)
+
+    private fun participantCallForUpdate(employee: EmployeeEntity, callId: String): VoiceCallEntity =
+        participantCallForUpdateByAccountId(requireNotNull(employee.id), callId)
 
     private fun participantCallForUpdate(user: UserEntity, callId: String): VoiceCallEntity =
         participantCallForUpdateByAccountId(requireNotNull(user.id), callId)
