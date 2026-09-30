@@ -2,6 +2,7 @@ package com.recharge.client.core.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.recharge.client.core.model.SupportTicketResponse
 import com.recharge.client.core.model.SupportTicketSummaryResponse
 import com.recharge.client.core.repository.CustomerCareRepository
