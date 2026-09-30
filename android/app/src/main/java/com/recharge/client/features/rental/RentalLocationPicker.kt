@@ -52,7 +52,7 @@ fun RentalLocationPickerField(
             )
         )
         placesClient?.fetchPlace(request)
-            .addOnSuccessListener { response ->
+            ?.addOnSuccessListener { response ->
                 val place = response.place
                 val location = place.location ?: return@addOnSuccessListener
                 onSelected(
