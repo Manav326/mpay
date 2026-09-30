@@ -251,3 +251,11 @@ data class SupportAssignmentResponse(
     val assignedUserPublicId: String?,
     val assignedUserName: String?
 )
+
+
+data class SupportCustomerSearchResultResponse(
+    val customerPublicId: String,
+    val customerName: String?,
+    val mobile: String,
+    val email: String?
+)
