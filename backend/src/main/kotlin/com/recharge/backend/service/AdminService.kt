@@ -393,6 +393,9 @@ class AdminService(
         employee.active = active
         employee.updatedAt = Instant.now()
         employees.save(employee)
+        if (!active) {
+            voiceCalls.terminateActiveCallForEmployee(requireNotNull(employee.id), "EMPLOYEE_BLOCKED")
+        }
 
         employeeAudit.record(
             actor = viewer,
@@ -425,7 +428,6 @@ class AdminService(
     fun updateUserStatus(viewer: EmployeeEntity, targetPublicId: String, active: Boolean): AdminUserStatusResponse {
         roleAccess.requirePermission(viewer, "MANAGE_USER_STATUS")
         val target = resolveTarget(viewer, targetPublicId)
-        require(requireId(target) != requireId(viewer)) { "You cannot change your own account status" }
         require(!target.role.equals("ADMIN", true)) { "Admin accounts cannot be deactivated from the portal" }
 
         target.active = active
@@ -502,4 +504,5 @@ class AdminService(
     )
 
     private fun requireId(user: UserEntity): Long = requireNotNull(user.id)
+    private fun requireEmployeeId(employee: EmployeeEntity): Long = requireNotNull(employee.id)
 }
