@@ -4,6 +4,8 @@ import com.recharge.backend.service.AdminRentalOperationsService
 import com.recharge.backend.service.RentalService
 import com.recharge.backend.service.RoleAccessService
 import com.recharge.backend.repository.UserRepository
+import com.recharge.backend.repository.EmployeeRepository
+import com.recharge.backend.domain.EmployeeEntity
 import jakarta.validation.Valid
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
@@ -20,6 +22,7 @@ class RentalController(
     private val rentalService: RentalService,
     private val adminRentalOperationsService: AdminRentalOperationsService,
     private val users: UserRepository,
+    private val employees: EmployeeRepository,
     private val roleAccessService: RoleAccessService
 ) {
     private fun userId(authentication: Authentication): Long =
@@ -165,10 +168,12 @@ class RentalController(
             .body(stored.resource)
     }
 
+    private fun currentEmployee(authentication: Authentication): EmployeeEntity =
+        authentication.name.toLongOrNull()?.let { employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") } }
+            ?: throw IllegalStateException("Invalid authenticated employee")
+
     private fun requirePermission(authentication: Authentication, permission: String) {
-        val id = authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
-        val user = users.findById(id).orElseThrow { IllegalArgumentException("User not found") }
-        roleAccessService.requirePermission(user, permission)
+        roleAccessService.requirePermission(currentEmployee(authentication), permission)
     }
 
     private fun requireRentalPartnerAccess(authentication: Authentication) =
@@ -224,7 +229,7 @@ class RentalController(
         @RequestParam(defaultValue = "25") size: Int,
         @RequestParam(required = false) status: String?
     ): RentalAdminPayoutPageResponse =
-        adminRentalOperationsService.payouts(currentUser(authentication), page, size, status)
+        adminRentalOperationsService.payouts(currentEmployee(authentication), page, size, status)
 
     @GetMapping("/admin/bookings")
     fun adminBookings(
