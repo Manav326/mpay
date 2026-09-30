@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -14,9 +15,9 @@ import java.math.BigDecimal
 
 @Composable
 fun WithdrawDialog(state: WalletUiState, availableBalance: BigDecimal, onDismiss: () -> Unit, onWithdraw: (String, String, String) -> Unit, onClearMessage: () -> Unit) {
-    var amount by remember { mutableStateOf("") }
-    var upiId by remember { mutableStateOf("") }
-    var provider by remember { mutableStateOf("mock") }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var upiId by rememberSaveable { mutableStateOf("") }
+    var provider by rememberSaveable { mutableStateOf("mock") }
     val busy = state.withdrawing
     val parsedAmount = amount.toBigDecimalOrNull()
     val validAmount = parsedAmount != null && parsedAmount >= BigDecimal("1.00") && parsedAmount <= availableBalance
