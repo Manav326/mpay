@@ -186,7 +186,8 @@ data class SupportChatResponse(
     val unreadForStaff: Int,
     val callbackRequestEnabled: Boolean = false,
     val pendingCallbackRequest: SupportCallRequestResponse? = null,
-    val items: List<SupportChatItemResponse> = emptyList()
+    val items: List<SupportChatItemResponse> = emptyList(),
+    val currentCase: SupportCaseResponse? = null
 )
 
 data class CreateSupportMessageRequest(
