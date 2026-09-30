@@ -349,8 +349,10 @@ private fun FloatingChatWindow(
 ) {
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val supportPresent = chat?.status == "OPEN" &&
-        chat.messages.any { it.senderType == "STAFF" || it.senderType == "AI" }
+    val supportPresent = chat?.let { support ->
+        support.status == "OPEN" &&
+            support.messages.any { it.senderType == "STAFF" || it.senderType == "AI" }
+    } == true
     val liveTransition = rememberInfiniteTransition(label = "supportPresence")
     val liveAlpha by liveTransition.animateFloat(
         initialValue = 0.45f,
