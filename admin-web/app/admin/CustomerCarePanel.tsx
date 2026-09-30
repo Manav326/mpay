@@ -75,6 +75,7 @@ type Props = {
   canManageSupportAi: boolean;
   canViewCustomerContext: boolean;
   canManageSupportAccess: boolean;
+  onOpenAccessManagement?: () => void;
 };
 
 type ActivityFilter = 'ALL' | 'VOICE' | 'NOTE' | 'SYSTEM';
@@ -155,6 +156,7 @@ export default function CustomerCarePanel({
   canManageSupportAi,
   canViewCustomerContext,
   canManageSupportAccess,
+  onOpenAccessManagement,
 }: Props) {
   const [requests, setRequests] = useState<SupportCallRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
@@ -706,7 +708,7 @@ export default function CustomerCarePanel({
             ))}
           </div>
           {canManageSupportAccess && (
-            <button className="secondary compact" onClick={() => void openAccessPanel()} title="Manage Customer Care permissions">
+            <button className="secondary compact" onClick={() => onOpenAccessManagement?.() ?? void openAccessPanel()} title="Manage employee access">
               <SlidersHorizontal size={14} /> Access
             </button>
           )}
