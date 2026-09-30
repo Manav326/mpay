@@ -189,6 +189,7 @@ export default function CustomerCarePanel({
   const [accessStaffQuery, setAccessStaffQuery] = useState('');
   const [accessNotice, setAccessNotice] = useState('');
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
+  const customerSearchRef = useRef<HTMLInputElement | null>(null);
 
   const visibleClients = useMemo(() => {
     const query = customerQuery.trim();
@@ -574,6 +575,45 @@ export default function CustomerCarePanel({
   }
 
   useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = !!target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      );
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        customerSearchRef.current?.focus();
+        return;
+      }
+      if (typing) return;
+      if (event.key === 'Escape') {
+        if (dialog && !busyKey) setDialog(null);
+        else if (accessOpen && !accessBusy) setAccessOpen(false);
+        return;
+      }
+      if (event.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        void loadRequests();
+        return;
+      }
+      if (event.key.toLowerCase() === 'n' && canManageSupport && selectedOpenCase) {
+        event.preventDefault();
+        openNoteDialog(selectedOpenCase);
+        return;
+      }
+      if (event.key.toLowerCase() === 'c' && canCallCustomer && selected && !selected.pendingRequest && !activeCallId) {
+        event.preventDefault();
+        void directCall();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [dialog, accessOpen, busyKey, canManageSupport, canCallCustomer, selectedOpenCase, selected, activeCallId]);
+
+  useEffect(() => {
     void loadAiSettings();
     void loadRequests();
     const timer = window.setInterval(() => { void loadRequests(); }, 5000);
@@ -691,15 +731,19 @@ export default function CustomerCarePanel({
               <span className="care-pane-eyebrow">WORK QUEUE</span>
               <h3>Needs your attention</h3>
             </div>
-            <span className="care-count">{queue?.total ?? 0}</span>
+            <div className="care-pane-head-tools">
+              <span className="care-shortcuts">Ctrl K search · R refresh</span>
+              <span className="care-count">{queue?.total ?? 0}</span>
+            </div>
           </div>
 
           <div className="care-search-box">
             <Search size={14} />
             <input
+              ref={customerSearchRef}
               value={customerQuery}
               onChange={event => setCustomerQuery(event.target.value)}
-              placeholder="Search name, mobile or ID"
+              placeholder="Search name, mobile, ID or email"
             />
             {customerQuery && <button onClick={() => setCustomerQuery('')} aria-label="Clear search"><X size={13} /></button>}
           </div>
