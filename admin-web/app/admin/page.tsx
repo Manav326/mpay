@@ -107,7 +107,7 @@ export default function Page() {
     if (permissions.includes('MANAGE_RENTAL_OPERATIONS')) allowed.add('rental');
     if (permissions.includes('MANAGE_COMMISSION_RATES')) allowed.add('commissions');
     if (session.role?.toUpperCase() === 'ADMIN') allowed.add('team');
-    if (permissions.includes('MANAGE_CALL_ACCESS')) allowed.add('voice');
+    if (session.role?.toUpperCase() === 'ADMIN') allowed.add('voice');
     if (permissions.includes('SUPPORT_VIEW')) allowed.add('support');
 
     const currentPath = window.location.pathname;
@@ -218,7 +218,7 @@ export default function Page() {
     ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
     ...(session.role?.toUpperCase() === 'ADMIN' ? [['team','Team & Access',Users] as const] : []),
     ...(canSupportView ? [['support','Customer Care',MessageCircle] as const] : []),
-    ...(canManageCallAccess ? [['voice','Voice & Access',PhoneCall] as const] : []),
+    ...(session.role?.toUpperCase() === 'ADMIN' ? [['voice','Voice & Access',PhoneCall] as const] : []),
   ] as const;
 
   return <div className="shell">
@@ -233,7 +233,7 @@ export default function Page() {
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
       {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} canViewCustomerContext={canViewCustomerContext} canManageSupportAccess={canManageSupportAccess} onOpenAccessManagement={()=>setView('voice')} />}
       {view==='team' && session.role?.toUpperCase() === 'ADMIN' && <StaffManagementPanel onManageAccess={()=>setView('voice')} />}
-      {view==='voice' && canManageCallAccess && <VoiceAccessPanel />}
+      {view==='voice' && session.role?.toUpperCase() === 'ADMIN' && <VoiceAccessPanel />}
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
