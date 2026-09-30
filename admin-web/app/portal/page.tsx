@@ -48,6 +48,18 @@ type SupportMessage = {
   senderType: string;
   message: string;
   createdAt: string;
+  restartSupportIntake?: boolean;
+};
+type SupportChatItem = {
+  itemId: string;
+  type: 'MESSAGE' | 'VOICE_CALL';
+  senderType?: string | null;
+  message?: string | null;
+  status?: string | null;
+  outcome?: string | null;
+  durationLabel?: string | null;
+  actorName?: string | null;
+  createdAt: string;
 };
 type SupportChat = {
   conversationId?: string | null;
@@ -64,8 +76,19 @@ type SupportChat = {
     requestedAt: string;
     expiresAt: string;
   } | null;
+  items?: SupportChatItem[];
+  currentCase?: {
+    caseId: string;
+    subject: string;
+    status: string;
+    updatedAt: string;
+    lastMeaningfulUpdateAt?: string | null;
+    expectedResolutionAt?: string | null;
+    etaSource?: string;
+  } | null;
 };
 type CustomerSupportTopic = {
+  code: string;
   title: string;
   description: string;
   message: string;
@@ -73,6 +96,7 @@ type CustomerSupportTopic = {
 };
 const customerSupportTopics: CustomerSupportTopic[] = [
   {
+    code: 'ADD_MONEY',
     title: 'Add money',
     description: 'Payment completed but wallet not updated',
     message: 'I need help with adding money to my mPay wallet.',
@@ -83,6 +107,7 @@ const customerSupportTopics: CustomerSupportTopic[] = [
     ]
   },
   {
+    code: 'WITHDRAWAL',
     title: 'Withdrawal',
     description: 'UPI withdrawal, status or failed request',
     message: 'I need help with a wallet withdrawal.',
@@ -93,6 +118,7 @@ const customerSupportTopics: CustomerSupportTopic[] = [
     ]
   },
   {
+    code: 'RECHARGE',
     title: 'Mobile recharge',
     description: 'Recharge failed, pending or wrong plan',
     message: 'I need help with a mobile recharge.',
@@ -103,6 +129,7 @@ const customerSupportTopics: CustomerSupportTopic[] = [
     ]
   },
   {
+    code: 'CAR_RENTAL',
     title: 'Car rental',
     description: 'Booking, cancellation or payment issue',
     message: 'I need help with an mPay car rental booking.',
@@ -113,6 +140,7 @@ const customerSupportTopics: CustomerSupportTopic[] = [
     ]
   },
   {
+    code: 'WALLET',
     title: 'Wallet & transactions',
     description: 'Balance, debit, refund or transaction history',
     message: 'I need help with a wallet transaction.',
@@ -123,6 +151,7 @@ const customerSupportTopics: CustomerSupportTopic[] = [
     ]
   },
   {
+    code: 'ACCOUNT',
     title: 'Account & profile',
     description: 'Profile, login or account access',
     message: 'I need help with my mPay account or profile.',
@@ -133,6 +162,7 @@ const customerSupportTopics: CustomerSupportTopic[] = [
     ]
   },
   {
+    code: 'OTHER',
     title: 'Something else',
     description: 'Another issue not covered above',
     message: 'I need help with an mPay issue that is not covered by the support topics.',
@@ -1028,6 +1058,7 @@ export default function Portal() {
   const [supportChatDraft, setSupportChatDraft] = useState('');
   const [supportChatError, setSupportChatError] = useState('');
   const [supportGuidedTopic, setSupportGuidedTopic] = useState<CustomerSupportTopic>();
+  const [supportIntakeMode, setSupportIntakeMode] = useState(false);
   const [supportCallbackBusy, setSupportCallbackBusy] = useState(false);
   const [supportCallbackReason, setSupportCallbackReason] = useState('');
   const [supportChatMinimized, setSupportChatMinimized] = useState(false);
@@ -1074,17 +1105,18 @@ export default function Portal() {
     setSupportChatOpen(false);
   }
 
-  async function sendCustomerSupportMessage(messageOverride?: string) {
+  async function sendCustomerSupportMessage(messageOverride?: string, topicCode?: string) {
     const message = (messageOverride ?? supportChatDraft).trim();
     if (!message || supportChatBusy) return;
     setSupportChatBusy(true);
     setSupportChatError('');
     try {
-      await api('/api/v1/support/chat/messages', {
+      const response = await api<SupportMessage>('/api/v1/support/chat/messages', {
         method: 'POST',
-        body: JSON.stringify({ message })
+        body: JSON.stringify({ message, topic: topicCode || null })
       });
       setSupportChatDraft('');
+      setSupportIntakeMode(response.restartSupportIntake === true);
       await loadCustomerSupportChat();
     } catch (e:any) {
       setSupportChatError(e.message || 'Unable to send your message.');
@@ -3411,44 +3443,45 @@ export default function Portal() {
             <div className="account-section-heading">
               <div>
                 <h3>Help & Support</h3>
-                <p>Get guided help, chat with Customer Care, or request a voice callback.</p>
+                <p>Get help from mPay Support without leaving your account.</p>
               </div>
               <Headset size={18}/>
             </div>
-            <div className="account-support-copy">
-              <span>Start with guided help first. Your private Customer Care chat stays available while you move around the portal.</span>
-              <button className="landing-primary" onClick={openCustomerSupportChat}>
-                <Headset size={15}/> Open support chat <ChevronRight size={15}/>
+            <div className="customer-support-direct-actions">
+              <button className="customer-support-direct-action primary" onClick={openCustomerSupportChat}>
+                <Headset size={17}/>
+                <span><b>{supportChat?.messages?.length ? 'Continue Support Chat' : 'Chat with Support'}</b><small>Messages, AI replies and support calls stay together.</small></span>
+                <ChevronRight size={16}/>
               </button>
-            </div>
-            {supportChat?.pendingCallbackRequest ? (
-              <div className="customer-support-direct-callback">
-                <div>
-                  <b>Callback requested</b>
-                  <span>{supportChat.pendingCallbackRequest.status.replaceAll('_',' ')} · Customer Care will see this conversation.</span>
-                </div>
-                <button className="landing-secondary" onClick={() => void cancelCustomerSupportCallback()} disabled={supportCallbackBusy}>
-                  {supportCallbackBusy ? 'Updating…' : 'Cancel callback'}
+              {supportChat?.pendingCallbackRequest ? (
+                <button className="customer-support-direct-action" onClick={() => void cancelCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                  <PhoneOff size={17}/>
+                  <span><b>Callback requested</b><small>{supportChat.pendingCallbackRequest.status.replaceAll('_',' ')}</small></span>
+                  <span className="customer-support-action-state">{supportCallbackBusy ? 'Updating…' : 'Cancel'}</span>
                 </button>
-              </div>
-            ) : supportChat?.callbackRequestEnabled ? (
-              <div className="customer-support-direct-callback">
-                <div>
-                  <b>Prefer a call?</b>
-                  <span>Request Customer Care to call you directly for a complex or urgent issue.</span>
-                </div>
-                <div className="customer-support-direct-callback-action">
-                  <input
-                    value={supportCallbackReason}
-                    onChange={event => setSupportCallbackReason(event.target.value.slice(0, 500))}
-                    placeholder="Optional reason"
-                  />
-                  <button className="landing-secondary" onClick={() => void requestCustomerSupportCallback()} disabled={supportCallbackBusy}>
-                    {supportCallbackBusy ? 'Requesting…' : 'Request a callback'}
-                  </button>
-                </div>
-              </div>
-            ) : null}
+              ) : supportChat?.callbackRequestEnabled ? (
+                <button className="customer-support-direct-action" onClick={() => void requestCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                  <PhoneCall size={17}/>
+                  <span><b>Request a callback</b><small>Available for this account after Support enables callback access.</small></span>
+                  <ChevronRight size={16}/>
+                </button>
+              ) : null}
+            </div>
+            <div className="customer-support-issue-summary">
+              <div className="customer-support-issue-heading"><b>Your Support Issue</b><span>Latest support status</span></div>
+              {supportChat?.currentCase ? (
+                <>
+                  <h4>{supportChat.currentCase.subject}</h4>
+                  <span className={'support-issue-status ' + (['RESOLVED','CLOSED'].includes(supportChat.currentCase.status) ? 'done' : 'active')}>{supportChat.currentCase.status.replaceAll('_',' ')}</span>
+                  <div className="customer-support-issue-facts">
+                    <span><small>Last updated</small><b>{dt(supportChat.currentCase.lastMeaningfulUpdateAt || supportChat.currentCase.updatedAt)}</b></span>
+                    <span><small>Expected resolution</small><b>{dt(supportChat.currentCase.expectedResolutionAt)}</b></span>
+                  </div>
+                </>
+              ) : (
+                <div className="customer-support-no-issue"><b>No active support issue</b><span>Start a support chat and mPay Support will create the issue record.</span></div>
+              )}
+            </div>
           </section>
 
           <section className="portal-panel account-settings-card">
@@ -3962,6 +3995,7 @@ export default function Portal() {
           draft={supportChatDraft}
           error={supportChatError}
           guidedTopic={supportGuidedTopic}
+          supportIntakeMode={supportIntakeMode}
           callbackBusy={supportCallbackBusy}
           minimized={supportChatMinimized}
           position={supportChatPosition}
@@ -3970,9 +4004,10 @@ export default function Portal() {
           onChooseTopic={topic => setSupportGuidedTopic(topic)}
           onStartChat={() => {
             if (!supportGuidedTopic) return;
-            const message = supportGuidedTopic.message;
+            const topic = supportGuidedTopic;
             setSupportGuidedTopic(undefined);
-            void sendCustomerSupportMessage(message);
+            setSupportIntakeMode(false);
+            void sendCustomerSupportMessage(topic.message, topic.code);
           }}
           onRequestCallback={() => void requestCustomerSupportCallback()}
           onCancelCallback={() => void cancelCustomerSupportCallback()}
@@ -4013,6 +4048,7 @@ type CustomerSupportChatModalProps = {
   draft: string;
   error: string;
   guidedTopic?: CustomerSupportTopic;
+  supportIntakeMode: boolean;
   callbackBusy: boolean;
   minimized: boolean;
   position: { x: number; y: number; width: number; height: number; autoSizeEnabled: boolean };
@@ -4031,7 +4067,7 @@ type CustomerSupportChatModalProps = {
 };
 
 function CustomerSupportChatModal({
-  chat, loading, busy, draft, error, guidedTopic, callbackBusy, minimized, position,
+  chat, loading, busy, draft, error, guidedTopic, supportIntakeMode, callbackBusy, minimized, position,
   onDraftChange, onSend, onChooseTopic, onStartChat, onRequestCallback, onCancelCallback,
   onBackToTopics, onMinimize, onMove, onResize, onDismiss, onRefresh
 }: CustomerSupportChatModalProps) {
@@ -4214,20 +4250,25 @@ function CustomerSupportChatModal({
       {error&&<div className="customer-support-error">{error}</div>}
 
       <div className="customer-support-messages" ref={messagesRef}>
-        {!chat?.messages?.length&&guidedTopic ? <div className="customer-support-guided">
+        {(supportIntakeMode || (!chat?.items?.length && !chat?.messages?.length)) && guidedTopic ? <div className="customer-support-guided">
           <div className="customer-support-guided-head"><button className="customer-support-icon-button" onClick={onBackToTopics}><ChevronLeft size={15}/></button><div><b>{guidedTopic.title}</b><small>Try these steps first</small></div></div>
           <div className="customer-support-guided-steps">{guidedTopic.steps.map((step,index)=><div className="customer-support-guided-step" key={step}><span>{index+1}</span><p>{step}</p></div>)}</div>
           <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
           <button className="customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/>Chat with mPay Support</button>
-        </div> : !chat?.messages?.length ? <>
-          <div className="customer-support-empty"><div className="customer-support-welcome-icon"><Headset size={24}/></div><b>How can we help?</b><span>Choose a topic to start with guided help.</span></div>
+        </div> : (supportIntakeMode || (!chat?.items?.length && !chat?.messages?.length)) ? <>
+          <div className="customer-support-empty"><div className="customer-support-welcome-icon"><Headset size={24}/></div><b>How can we help?</b><span>Choose a topic to start or continue your support request.</span></div>
           <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
             <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
           </button>)}</div>
-        </> : chat.messages.map(item=>{
+        </> : (chat?.items?.length ? chat.items : (chat?.messages || []).map(item=>({...item,type:'MESSAGE' as const,itemId:item.messageId}))).map(item=>{
+          if(item.type === 'VOICE_CALL') return <div key={item.itemId} className="customer-support-call-event">
+            <div className="customer-support-call-icon"><PhoneCall size={16}/></div>
+            <div className="customer-support-call-copy"><b>{item.outcome === 'NO_ANSWER' || item.status === 'MISSED' ? 'Support tried to call you' : item.status === 'DECLINED' ? 'Support call declined' : 'Support voice call'}</b><span>{item.outcome || item.status || 'Support call'}</span>{item.durationLabel && <small>{item.durationLabel}</small>}</div>
+            <time>{dt(item.createdAt)}</time>
+          </div>;
           const mine=item.senderType==='CUSTOMER';
           const sender=mine?'You':item.senderType==='AI'?'mPay AI Support':'mPay Support';
-          return <div key={item.messageId} className={'customer-support-row '+(mine?'mine':'staff')}>
+          return <div key={item.itemId} className={'customer-support-row '+(mine?'mine':'staff')}>
             <div className={'customer-support-bubble '+(mine?'mine':'staff')}><span>{sender}</span><p>{item.message}</p><small>{dt(item.createdAt)}</small></div>
           </div>;
         })}
