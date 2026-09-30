@@ -62,7 +62,6 @@ import {
   SupportInteraction,
   SupportNote,
   SupportQueueResponse,
-  SupportUserAccess,
   UserDetail,
   UserSummary,
 } from '@/lib/types';
@@ -154,6 +153,8 @@ export default function CustomerCarePanel({
   canCallCustomer,
   canManageCallAccess,
   canManageSupportAi,
+  canViewCustomerContext,
+  canManageSupportAccess,
   users = [],
 }: Props) {
   const [requests, setRequests] = useState<SupportCallRequest[]>([]);
