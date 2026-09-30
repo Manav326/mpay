@@ -324,6 +324,13 @@ class SupportService(
                 recordCaseEvent(it, request.conversationId, viewer.id, "CALL_REQUEST_CLAIMED", "INTERNAL", "VOICE", "Support callback claimed", request.requestId)
             }
         }
+        employeeAudit.record(
+            actor = viewer,
+            action = "CALLBACK_CLAIMED",
+            subjectType = "CALL_REQUEST",
+            subjectId = request.requestId,
+            summary = "Claimed a customer callback request."
+        )
         return request
     }
 
@@ -347,6 +354,13 @@ class SupportService(
             }
         }
         closeCase(request.caseId, request.reviewNote ?: "Support call request declined")
+        employeeAudit.record(
+            actor = viewer,
+            action = "CALLBACK_DECLINED",
+            subjectType = "CALL_REQUEST",
+            subjectId = request.requestId,
+            summary = "Declined a customer callback request."
+        )
         return toRequestResponse(request)
     }
 
@@ -625,6 +639,14 @@ class SupportService(
                 recordCaseEvent(it, conversation.id, viewer.id, "SUPPORT_MESSAGE", "CUSTOMER", "CHAT", "mPay Support replied in chat", saved.messageId)
             }
         }
+        employeeAudit.record(
+            actor = viewer,
+            action = "CUSTOMER_MESSAGE_SENT",
+            subjectType = "CUSTOMER",
+            subjectId = customer.publicId,
+            summary = "Replied to a customer in Customer Care.",
+            metadata = mapOf("messageId" to saved.messageId)
+        )
         return toMessageResponse(saved)
     }
 
@@ -683,6 +705,13 @@ class SupportService(
                 callRequests.save(it)
             }
         }
+        employeeAudit.record(
+            actor = viewer,
+            action = if (enabled) "CALLBACK_ACCESS_GRANTED" else "CALLBACK_ACCESS_REVOKED",
+            subjectType = "CUSTOMER",
+            subjectId = customer.publicId,
+            summary = if (enabled) "Enabled customer callback access." else "Disabled customer callback access."
+        )
         return CustomerCallbackAccessResponse(customer.publicId, enabled)
     }
 
@@ -847,6 +876,13 @@ class SupportService(
         cases.save(entity)
         recordCaseEvent(entity, conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(entity.customerUserId, OPEN).orElse(null)?.id, viewer.id, "CASE_STATUS_CHANGED", "CUSTOMER", "SUPPORT", "Support case status changed to " + status, request.resolutionCode)
         markWrapUp(entity.id, now)
+        employeeAudit.record(
+            actor = viewer,
+            action = "CASE_UPDATED",
+            subjectType = "CASE",
+            subjectId = entity.caseId,
+            summary = "Updated a customer support case to " + status + "."
+        )
         return toCaseResponse(entity, customer)
     }
 
@@ -865,6 +901,13 @@ class SupportService(
         entity.updatedAt = Instant.now()
         cases.save(entity)
         recordCaseEvent(entity, null, viewer.id, "CASE_ASSIGNED", "INTERNAL", "SUPPORT", "Support case assigned to " + (viewer.name ?: viewer.publicId), viewer.publicId)
+        employeeAudit.record(
+            actor = viewer,
+            action = "CASE_ASSIGNED",
+            subjectType = "CASE",
+            subjectId = entity.caseId,
+            summary = "Took ownership of a customer support case."
+        )
         return SupportAssignmentResponse(entity.caseId, viewer.publicId, viewer.name)
     }
 
@@ -885,6 +928,13 @@ class SupportService(
         entity.updatedAt = Instant.now()
         cases.save(entity)
         recordCaseEvent(entity, null, viewer.id, "CASE_UNASSIGNED", "INTERNAL", "SUPPORT", "Support case released", viewer.publicId)
+        employeeAudit.record(
+            actor = viewer,
+            action = "CASE_RELEASED",
+            subjectType = "CASE",
+            subjectId = entity.caseId,
+            summary = "Released ownership of a customer support case."
+        )
         return SupportAssignmentResponse(entity.caseId, null, null)
     }
 
@@ -918,6 +968,13 @@ class SupportService(
         cases.save(entity)
         recordCaseEvent(entity, note.conversationId, viewer.id, "NOTE_ADDED", visibility, "NOTE", if (visibility == "CUSTOMER") "Support added a customer-visible note" else "Support note added", note.id.toString())
         markWrapUp(entity.id, note.createdAt)
+        employeeAudit.record(
+            actor = viewer,
+            action = "SUPPORT_NOTE_ADDED",
+            subjectType = "CASE",
+            subjectId = entity.caseId,
+            summary = if (visibility == "CUSTOMER") "Added a customer-visible support note." else "Added an internal support note."
+        )
         return toNoteResponse(note)
     }
 
