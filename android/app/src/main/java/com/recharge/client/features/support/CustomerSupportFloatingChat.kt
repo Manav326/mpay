@@ -62,8 +62,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -618,7 +624,88 @@ private fun FloatingChatWindow(
 
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth().background(Color(0xFF101419)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .drawBehind {
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF11181E),
+                                        Color(0xFF0E1419),
+                                        Color(0xFF11171C)
+                                    )
+                                )
+                            )
+                            val tile = 96.dp.toPx()
+                            val line = 1.dp.toPx()
+                            var x = -tile
+                            var column = 0
+                            while (x < size.width + tile) {
+                                var y = -tile
+                                var row = 0
+                                while (y < size.height + tile) {
+                                    val accent = Color(0xFFA86408).copy(alpha = 0.10f)
+                                    val soft = Color.White.copy(alpha = 0.035f)
+                                    val bubbleX = x + 12.dp.toPx()
+                                    val bubbleY = y + 15.dp.toPx()
+                                    drawRoundRect(
+                                        color = accent,
+                                        topLeft = Offset(bubbleX, bubbleY),
+                                        size = Size(25.dp.toPx(), 18.dp.toPx()),
+                                        cornerRadius = CornerRadius(7.dp.toPx(), 7.dp.toPx()),
+                                        style = Stroke(width = line)
+                                    )
+                                    drawLine(
+                                        color = accent.copy(alpha = 0.72f),
+                                        start = Offset(bubbleX + 7.dp.toPx(), bubbleY + 18.dp.toPx()),
+                                        end = Offset(bubbleX + 4.dp.toPx(), bubbleY + 23.dp.toPx()),
+                                        strokeWidth = line
+                                    )
+                                    drawCircle(
+                                        color = accent.copy(alpha = 0.62f),
+                                        radius = 1.4.dp.toPx(),
+                                        center = Offset(bubbleX + 12.dp.toPx(), bubbleY + 9.dp.toPx())
+                                    )
+                                    drawCircle(
+                                        color = soft,
+                                        radius = 11.dp.toPx(),
+                                        center = Offset(x + 69.dp.toPx(), y + 67.dp.toPx())
+                                    )
+                                    drawLine(
+                                        color = soft,
+                                        start = Offset(x + 69.dp.toPx(), y + 59.dp.toPx()),
+                                        end = Offset(x + 69.dp.toPx(), y + 75.dp.toPx()),
+                                        strokeWidth = line
+                                    )
+                                    drawLine(
+                                        color = soft,
+                                        start = Offset(x + 61.dp.toPx(), y + 67.dp.toPx()),
+                                        end = Offset(x + 77.dp.toPx(), y + 67.dp.toPx()),
+                                        strokeWidth = line
+                                    )
+                                    drawCircle(
+                                        color = accent.copy(alpha = 0.48f),
+                                        radius = 1.2.dp.toPx(),
+                                        center = Offset(x + 82.dp.toPx(), y + 22.dp.toPx())
+                                    )
+                                    row++
+                                    y += tile
+                                }
+                                column++
+                                x += tile
+                            }
+                            drawRect(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.035f),
+                                        Color.Transparent
+                                    ),
+                                    center = Offset(size.width * 0.5f, 0f),
+                                    radius = size.width * 0.82f
+                                )
+                            )
+                        },
                     contentPadding = PaddingValues(horizontal = 11.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
