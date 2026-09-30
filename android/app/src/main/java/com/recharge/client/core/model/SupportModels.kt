@@ -28,6 +28,9 @@ data class SupportCaseResponse(
     val assignedUserPublicId: String? = null,
     val createdAt: String,
     val updatedAt: String,
+    val lastMeaningfulUpdateAt: String? = null,
+    val expectedResolutionAt: String? = null,
+    val etaSource: String = "SYSTEM",
     val resolvedAt: String? = null,
     val resolutionCode: String? = null,
     val resolutionNote: String? = null
@@ -96,6 +99,19 @@ data class SupportMessageResponse(
     val messageId: String,
     val senderType: String,
     val message: String,
+    val createdAt: String,
+    val restartSupportIntake: Boolean = false
+)
+
+data class SupportChatItemResponse(
+    val itemId: String,
+    val type: String,
+    val senderType: String? = null,
+    val message: String? = null,
+    val status: String? = null,
+    val outcome: String? = null,
+    val durationLabel: String? = null,
+    val actorName: String? = null,
     val createdAt: String
 )
 
@@ -107,9 +123,12 @@ data class SupportChatResponse(
     val unreadForCustomer: Int = 0,
     val unreadForStaff: Int = 0,
     val callbackRequestEnabled: Boolean = false,
-    val pendingCallbackRequest: SupportCallRequestResponse? = null
+    val pendingCallbackRequest: SupportCallRequestResponse? = null,
+    val items: List<SupportChatItemResponse> = emptyList(),
+    val currentCase: SupportCaseResponse? = null
 )
 
 data class CreateSupportMessageRequest(
-    val message: String
+    val message: String,
+    val topic: String? = null
 )
