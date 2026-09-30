@@ -1021,10 +1021,7 @@ export default function Portal() {
   const rentalLoadSeq = useRef(0);
   const historyLoadSeq = useRef(0);
 
-  const [supportChatOpen, setSupportChatOpen] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY) === '1';
-  });
+  const [supportChatOpen, setSupportChatOpen] = useState(false);
   const [supportChat, setSupportChat] = useState<SupportChat>();
   const [supportChatLoading, setSupportChatLoading] = useState(false);
   const [supportChatBusy, setSupportChatBusy] = useState(false);
@@ -1121,6 +1118,12 @@ export default function Portal() {
       setSupportCallbackBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY) === '1') {
+      setSupportChatOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (view === 'account') void loadCustomerSupportChat();
