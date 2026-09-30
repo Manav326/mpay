@@ -33,7 +33,7 @@ class VoiceCallAccessService(
     }
 
     fun setRoleAccess(viewer: EmployeeEntity, role: String, enabled: Boolean): VoiceCallRoleAccessResponse {
-        roleAccess.requirePermission(viewer, "MANAGE_CALL_ACCESS")
+        requireAdmin(viewer)
         val normalized = role.trim().uppercase()
         if (normalized.isBlank() || normalized.equals("CLIENT", true)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Voice calling can only be assigned to employee roles")
@@ -67,13 +67,13 @@ class VoiceCallAccessService(
     }
 
     fun userAccess(viewer: EmployeeEntity): List<VoiceCallUserAccessResponse> {
-        roleAccess.requirePermission(viewer, "MANAGE_CALL_ACCESS")
+        requireAdmin(viewer)
         val staffRoles = roleAccess.portalRoles().filterNot { it.equals("CLIENT", true) }
         return employees.findAllByRoleInOrderByCreatedAtDesc(staffRoles).map { toUserResponse(it) }
     }
 
     fun setUserAccess(viewer: EmployeeEntity, publicId: String, mode: String): VoiceCallUserAccessResponse {
-        roleAccess.requirePermission(viewer, "MANAGE_CALL_ACCESS")
+        requireAdmin(viewer)
         val target = employees.findByPublicId(publicId.trim()).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Employee account not found")
         }
