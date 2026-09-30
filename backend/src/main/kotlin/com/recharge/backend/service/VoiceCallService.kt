@@ -63,8 +63,15 @@ class VoiceCallService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Voice support calls can only be placed to customer accounts")
         }
 
-        val callerId = requireNotNull(caller.id)
         val targetId = requireNotNull(target.id)
+        if (!push.hasActiveDevice(targetId)) {
+            throw ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "This customer is currently unavailable for voice calls"
+            )
+        }
+
+        val callerId = requireNotNull(caller.id)
 
         val now = Instant.now()
 
