@@ -509,13 +509,14 @@ class SupportService(
         if (!isSupportGreeting(message)) {
             eventPublisher.publishEvent(
                 SupportCustomerMessageCreatedEvent(
-                messageId = saved.messageId,
-                conversationId = requireNotNull(conversation.id),
-                caseId = conversation.caseId,
-                customerUserId = customerId,
-                message = message
+                    messageId = saved.messageId,
+                    conversationId = requireNotNull(conversation.id),
+                    caseId = conversation.caseId,
+                    customerUserId = customerId,
+                    message = message
+                )
             )
-        )
+        }
         return toMessageResponse(saved, isSupportGreeting(message))
     }
 
