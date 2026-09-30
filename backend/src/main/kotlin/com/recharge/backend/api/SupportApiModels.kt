@@ -181,3 +181,37 @@ data class SupportAiSettingsResponse(
 data class UpdateSupportAiSettingsRequest(
     val enabled: Boolean
 )
+
+
+data class SupportPermissionStateResponse(
+    val permission: String,
+    val label: String,
+    val description: String,
+    val group: String,
+    val enabled: Boolean,
+    val mode: String?,
+    val inherited: Boolean,
+    val editable: Boolean,
+    val lockedReason: String? = null
+)
+
+data class SupportRoleAccessResponse(
+    val role: String,
+    val protected: Boolean,
+    val permissions: List<SupportPermissionStateResponse>
+)
+
+data class SupportUserAccessResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String,
+    val role: String,
+    val protected: Boolean,
+    val permissions: List<SupportPermissionStateResponse>
+)
+
+data class SupportAccessResponse(
+    val permissions: List<SupportPermissionStateResponse>,
+    val roles: List<SupportRoleAccessResponse>,
+    val users: List<SupportUserAccessResponse>
+)
