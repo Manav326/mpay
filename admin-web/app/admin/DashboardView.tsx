@@ -14,7 +14,7 @@ export interface AdminAttention {
 
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 
-export default export default function Dashboard({data,rental,showRental,attention,onUsers,onRental,onVendors,onFinancial,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;showRental:boolean;attention:AdminAttention;onUsers:()=>void;onRental:()=>void;onVendors:()=>void;onFinancial?:()=>void;onCommissions?:()=>void}){
+export default function Dashboard({data,rental,showRental,attention,onUsers,onRental,onVendors,onFinancial,onCommissions}:{data?:DashboardSummary;rental?:RentalAdminDashboard;showRental:boolean;attention:AdminAttention;onUsers:()=>void;onRental:()=>void;onVendors:()=>void;onFinancial?:()=>void;onCommissions?:()=>void}){
   if(!data) return <div className="loading">Loading dashboard…</div>;
   const cards:Array<[string,string,string,typeof CircleDollarSign]>=[['Today earnings',INR.format(data.todayCommission),'Company recharge commission today',CircleDollarSign],['Today volume',INR.format(data.todayVolume),'Successful recharge value',Wallet],['This month',INR.format(data.monthlyCommission),'Company commission through today',TrendingUp],['Active clients',data.activeClients.toLocaleString('en-IN'),'Currently active client accounts',Users]];
   if(showRental) cards.push(['Rental bookings',String(rental?.totalBookings ?? '—'),'Persisted chauffeur-driven bookings',CalendarDays],['Rental fees',rental ? INR.format(rental.totalPlatformFees) : '—','Platform fees from settled rentals',CarFront]);
