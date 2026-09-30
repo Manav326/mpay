@@ -158,7 +158,7 @@ export default function CustomerCarePanel({
   const [dialogText, setDialogText] = useState('');
   const [dialogVisibility, setDialogVisibility] = useState<'INTERNAL' | 'CUSTOMER'>('INTERNAL');
   const [dialogResolutionCode, setDialogResolutionCode] = useState('AGENT_HANDLED');
-  const [chatMessagesRef] = useState(() => ({ current: null as HTMLDivElement | null }));
+  const chatMessagesRef = useRef<HTMLDivElement | null>(null);
 
   const visibleClients = useMemo(() => {
     const query = customerQuery.trim().toLowerCase();
@@ -433,7 +433,7 @@ export default function CustomerCarePanel({
   useEffect(() => {
     const node = chatMessagesRef.current;
     if (node) node.scrollTop = node.scrollHeight;
-  }, [supportChat?.messages.length, chatMessagesRef]);
+  }, [supportChat?.messages.length]);
 
   return (
     <div className="customer-care-console">
@@ -657,7 +657,7 @@ export default function CustomerCarePanel({
                   </button>
                 </div>
 
-                <div className="care-chat-window" ref={chatMessagesRef.current = undefined as any}>
+                <div className="care-chat-window" ref={chatMessagesRef}>
                   {chatLoading && !supportChat ? (
                     <div className="care-empty">Loading conversation…</div>
                   ) : supportChat?.messages.length ? (
