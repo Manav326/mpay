@@ -4038,6 +4038,10 @@ function CustomerSupportChatModal({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ startX:number; startY:number; x:number; y:number } | null>(null);
   const resizeRef = useRef<{ startX:number; startY:number; width:number; height:number } | null>(null);
+  const minimizedDragMovedRef = useRef(false);
+  const suppressMinimizedClickRef = useRef(false);
+  const [minimizedDragging, setMinimizedDragging] = useState(false);
+  const [dismissTargetActive, setDismissTargetActive] = useState(false);
   const edgeGap = 8;
   const supportPresent = chat?.status === 'OPEN' && chat.messages.some(item => item.senderType === 'STAFF' || item.senderType === 'AI');
 
@@ -4062,10 +4066,16 @@ function CustomerSupportChatModal({
         const d=dragRef.current, vw=viewport?.width ?? window.innerWidth, vh=viewport?.height ?? window.innerHeight;
         const rect=modalRef.current?.getBoundingClientRect();
         const w=rect?.width ?? (minimized?56:position.width), h=rect?.height ?? (minimized?56:position.height);
-        onMove(
-          Math.min(Math.max(d.x+(event.clientX-d.startX),edgeGap),Math.max(edgeGap,vw-w-edgeGap)),
-          Math.min(Math.max(d.y+(event.clientY-d.startY),edgeGap),Math.max(edgeGap,vh-h-edgeGap))
-        );
+        const nx=Math.min(Math.max(d.x+(event.clientX-d.startX),edgeGap),Math.max(edgeGap,vw-w-edgeGap));
+        const ny=Math.min(Math.max(d.y+(event.clientY-d.startY),edgeGap),Math.max(edgeGap,vh-h-edgeGap));
+        if(minimized){
+          if(Math.abs(event.clientX-d.startX)>5 || Math.abs(event.clientY-d.startY)>5){
+            minimizedDragMovedRef.current=true;
+            suppressMinimizedClickRef.current=true;
+          }
+          updateDismissTarget(nx,ny);
+        }
+        onMove(nx,ny);
       }
       if (resizeRef.current && !minimized) {
         const d=resizeRef.current, vw=viewport?.width ?? window.innerWidth, vh=viewport?.height ?? window.innerHeight;
@@ -4076,7 +4086,33 @@ function CustomerSupportChatModal({
         );
       }
     };
-    const up=()=>{dragRef.current=null;resizeRef.current=null;};
+    const up=()=>{
+      if(dragRef.current && minimized){
+        const vw=viewport?.width ?? window.innerWidth;
+        const vh=viewport?.height ?? window.innerHeight;
+        const bubbleCenterX=position.x+28;
+        const bubbleCenterY=position.y+28;
+        const targetWidth=88;
+        const targetHeight=72;
+        const targetLeft=(vw-targetWidth)/2;
+        const targetTop=vh-targetHeight-14;
+        const overTarget=bubbleCenterX>=targetLeft && bubbleCenterX<=targetLeft+targetWidth &&
+          bubbleCenterY>=targetTop && bubbleCenterY<=targetTop+targetHeight;
+        if(overTarget && minimizedDragMovedRef.current){
+          setDismissTargetActive(false);
+          setMinimizedDragging(false);
+          dragRef.current=null;
+          resizeRef.current=null;
+          onDismiss();
+          return;
+        }
+        suppressMinimizedClickRef.current = minimizedDragMovedRef.current;
+        setDismissTargetActive(false);
+        setMinimizedDragging(false);
+      }
+      dragRef.current=null;
+      resizeRef.current=null;
+    };
     window.addEventListener('pointermove',move);
     window.addEventListener('pointerup',up);
     window.addEventListener('resize',clamp);
@@ -4105,10 +4141,31 @@ function CustomerSupportChatModal({
   };
 
   if(minimized){
+    const minimizedPointerDown=(event:ReactPointerEvent<HTMLDivElement>)=>{
+      event.preventDefault();
+      event.stopPropagation();
+      minimizedDragMovedRef.current=false;
+      suppressMinimizedClickRef.current=false;
+      setMinimizedDragging(true);
+      setDismissTargetActive(false);
+      dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};
+      onMove(position.x,position.y);
+    };
     return <div className="customer-support-floating-layer">
+      {minimizedDragging && <div className="customer-support-dismiss-zone">
+        <span><X size={22}/></span>
+        <small>Drag here to close</small>
+      </div>}
       <div ref={modalRef} className="customer-support-modal minimized" style={{left:position.x,top:position.y}}
-        onPointerDown={event=>{event.preventDefault();dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};}}
-        onClick={event=>{event.stopPropagation();onMinimize();}}>
+        onPointerDown={minimizedPointerDown}
+        onClick={event=>{
+          event.stopPropagation();
+          if(suppressMinimizedClickRef.current){
+            suppressMinimizedClickRef.current=false;
+            return;
+          }
+          onMinimize();
+        }}>
         <div className="customer-support-minimized-icon"><Headset size={28}/></div>
         {supportPresent && <span className="customer-support-live-dot"/>}
       </div>
