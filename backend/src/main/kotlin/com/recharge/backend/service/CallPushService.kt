@@ -74,6 +74,21 @@ class CallPushService(
         )
     }
 
+    fun hasActiveDevice(userId: Long): Boolean =
+        devices.findAllByUserIdAndActiveTrue(userId).isNotEmpty()
+
+    fun revoke(userId: Long, token: String) {
+        val normalized = token.trim()
+        if (normalized.isBlank()) return
+
+        val existing = devices.findByToken(normalized).orElse(null) ?: return
+        if (existing.userId != userId) return
+
+        existing.active = false
+        existing.updatedAt = Instant.now()
+        devices.save(existing)
+    }
+
     private fun send(userId: Long, data: Map<String, String>) {
         val tokens = devices.findAllByUserIdAndActiveTrue(userId).map { it.token }.distinct()
         if (tokens.isEmpty()) {
@@ -96,22 +111,9 @@ class CallPushService(
             .setTtl(properties.ringingTimeoutSeconds.coerceAtLeast(10) * 1000L)
             .setFcmOptions(AndroidFcmOptions.withAnalyticsLabel("voice-call"))
 
-        // Incoming calls use both notification + data:
-        // - foreground: MpayFirebaseMessagingService can run the full custom ringing path
-        // - background/locked: Android/FCM can display and sound the call notification even
-        //   when the app process is not running.
-        if (data["event"] == "CALL_INCOMING") {
-            androidConfigBuilder.setNotification(
-                com.google.firebase.messaging.AndroidNotification.builder()
-                    .setTitle("Incoming mPay call")
-                    .setBody(data["callerName"] ?: "mPay Support")
-                    .setChannelId("incoming_calls_v5")
-                    .setSound("default")
-                    .setPriority(com.google.firebase.messaging.AndroidNotification.Priority.HIGH)
-                    .build()
-            )
-        }
-
+        // Incoming calls intentionally remain data-only. Android receives the
+        // high-priority event in MpayFirebaseMessagingService, which owns the
+        // CallStyle/full-screen notification, ringing service, expiry and actions.
         val androidConfig = androidConfigBuilder.build()
 
         try {
