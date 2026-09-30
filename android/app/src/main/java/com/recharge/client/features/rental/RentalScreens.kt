@@ -274,6 +274,26 @@ private fun VendorSelectField(
 }
 
 @Composable
+private fun maskVendorAccount(value: String?): String {
+    val normalized = value?.trim().orEmpty()
+    if (normalized.isBlank()) return "—"
+    return if (normalized.length <= 4) "••••" else "•••• " + normalized.takeLast(4)
+}
+
+private fun maskVendorIfsc(value: String?): String {
+    val normalized = value?.trim().orEmpty()
+    if (normalized.isBlank()) return "—"
+    if (normalized.length <= 4) return "••••"
+    return normalized.take(4) + "•••" + normalized.takeLast(2)
+}
+
+private fun maskVendorUpi(value: String?): String {
+    val normalized = value?.trim().orEmpty()
+    if (normalized.isBlank()) return "—"
+    val at = normalized.indexOf('@')
+    return if (at > 2) normalized.take(2) + "••••" + normalized.substring(at) else "••••"
+}
+
 private fun CompactFieldRow(
     leftLabel: String,
     leftValue: String,
@@ -283,9 +303,18 @@ private fun CompactFieldRow(
     onRightChange: (String) -> Unit,
     enabled: Boolean = true
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onValueChange = onLeftChange)
-        VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onValueChange = onRightChange)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth < 420.dp) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                VendorField(leftLabel, leftValue, enabled, onValueChange = onLeftChange)
+                VendorField(rightLabel, rightValue, enabled, onValueChange = onRightChange)
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                VendorField(leftLabel, leftValue, enabled, Modifier.weight(1f), onValueChange = onLeftChange)
+                VendorField(rightLabel, rightValue, enabled, Modifier.weight(1f), onValueChange = onRightChange)
+            }
+        }
     }
 }
 
@@ -773,15 +802,15 @@ fun RentalVendorOnboardingScreen(
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text("Account", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        Text(v.bankAccountNumber ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                        Text(maskVendorAccount(v.bankAccountNumber), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text("IFSC", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        Text(v.bankIfsc ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                        Text(maskVendorIfsc(v.bankIfsc), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text("UPI", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                        Text(v.payoutUpiId ?: "—", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                        Text(maskVendorUpi(v.payoutUpiId), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text("Primary", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
@@ -2786,7 +2815,10 @@ private fun RentalVendorProfileDialog(
         title = { Text("Edit vendor profile") },
         text = {
             LazyColumn(
-                modifier = Modifier.heightIn(max = 520.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item { CompactFieldRow("Full name", fullName, onFullName, "Business name", businessName, onBusinessName) }

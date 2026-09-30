@@ -27,7 +27,8 @@ sealed interface RegistrationOtpUiState {
         val resendAfterSeconds: Long,
         val maskedMobile: String,
         val demoOtp: String? = null,
-        val deliveryMode: String = "way2api"
+        val deliveryMode: String = "way2api",
+        val resendAvailableAtEpochMillis: Long = 0L
     ) : RegistrationOtpUiState
     data object Verifying : RegistrationOtpUiState
     data class Verified(val verificationToken: String) : RegistrationOtpUiState
@@ -79,7 +80,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         resendAfterSeconds = it.resendAfterSeconds,
                         maskedMobile = it.maskedMobile,
                         demoOtp = it.demoOtp,
-                        deliveryMode = it.deliveryMode
+                        deliveryMode = it.deliveryMode,
+                        resendAvailableAtEpochMillis =
+                            System.currentTimeMillis() + it.resendAfterSeconds.coerceAtLeast(0L) * 1000L
                     )
                 },
                 onFailure = { RegistrationOtpUiState.Error(it.message ?: "Unable to send OTP") }

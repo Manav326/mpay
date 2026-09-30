@@ -48,19 +48,23 @@ fun RegisterScreen(
     var otp by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var otpMode by remember { mutableStateOf(false) }
-    var resendRemaining by remember { mutableIntStateOf(0) }
+    var clockMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    LaunchedEffect(registrationOtpState) {
-        val sent = registrationOtpState as? RegistrationOtpUiState.Sent
-        if (sent != null) resendRemaining = sent.resendAfterSeconds.toInt()
-    }
+    val resendAvailableAtEpochMillis =
+        (registrationOtpState as? RegistrationOtpUiState.Sent)?.resendAvailableAtEpochMillis ?: 0L
 
-    LaunchedEffect(resendRemaining) {
-        if (resendRemaining > 0) {
-            delay(1000)
-            resendRemaining -= 1
+    LaunchedEffect(resendAvailableAtEpochMillis) {
+        if (resendAvailableAtEpochMillis <= 0L) return@LaunchedEffect
+        while (true) {
+            clockMillis = System.currentTimeMillis()
+            val remainingMillis = resendAvailableAtEpochMillis - clockMillis
+            if (remainingMillis <= 0L) break
+            delay(minOf(remainingMillis, 1000L))
         }
     }
+
+    val resendRemaining =
+        ((resendAvailableAtEpochMillis - clockMillis + 999L) / 1000L).coerceAtLeast(0L)
 
     val verificationToken = (registrationOtpState as? RegistrationOtpUiState.Verified)?.verificationToken
     val otpError = (registrationOtpState as? RegistrationOtpUiState.Error)?.message

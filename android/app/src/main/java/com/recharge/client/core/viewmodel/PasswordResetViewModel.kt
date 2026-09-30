@@ -12,14 +12,21 @@ import kotlinx.coroutines.launch
 sealed interface PasswordResetUiState {
     data object Idle : PasswordResetUiState
     data object Sending : PasswordResetUiState
-    data class OtpSent(val expiresInSeconds: Long, val demoOtp: String? = null, val deliveryMode: String = "twilio") : PasswordResetUiState
+    data class OtpSent(
+        val expiresInSeconds: Long,
+        val resendAfterSeconds: Long,
+        val resendAvailableAtEpochMillis: Long,
+        val demoOtp: String? = null,
+        val deliveryMode: String = "twilio"
+    ) : PasswordResetUiState
     data object Resetting : PasswordResetUiState
     data object Success : PasswordResetUiState
     data class Error(
         val message: String,
         val otpSent: Boolean = false,
         val demoOtp: String? = null,
-        val deliveryMode: String = "way2api"
+        val deliveryMode: String = "way2api",
+        val resendAvailableAtEpochMillis: Long? = null
     ) : PasswordResetUiState
 }
 
@@ -35,7 +42,14 @@ class PasswordResetViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             _state.value = repository.forgotPassword(mobile).fold(
                 onSuccess = {
-                    PasswordResetUiState.OtpSent(it.expiresInSeconds, it.demoOtp, it.deliveryMode).also { sent ->
+                    PasswordResetUiState.OtpSent(
+                        expiresInSeconds = it.expiresInSeconds,
+                        resendAfterSeconds = it.resendAfterSeconds,
+                        resendAvailableAtEpochMillis =
+                            System.currentTimeMillis() + it.resendAfterSeconds.coerceAtLeast(0L) * 1000L,
+                        demoOtp = it.demoOtp,
+                        deliveryMode = it.deliveryMode
+                    ).also { sent ->
                         lastOtpSent = sent
                     }
                 },
@@ -58,7 +72,8 @@ class PasswordResetViewModel(application: Application) : AndroidViewModel(applic
                         message = it.message ?: "Unable to reset password",
                         otpSent = last != null,
                         demoOtp = last?.demoOtp,
-                        deliveryMode = last?.deliveryMode ?: "way2api"
+                        deliveryMode = last?.deliveryMode ?: "way2api",
+                        resendAvailableAtEpochMillis = last?.resendAvailableAtEpochMillis
                     )
                 }
             )

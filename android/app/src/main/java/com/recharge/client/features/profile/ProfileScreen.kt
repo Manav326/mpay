@@ -51,7 +51,7 @@ fun ProfileScreen(
     onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
     onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onHelpSupport: () -> Unit, onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
 ) {
-    var editing by remember { mutableStateOf(false) }
+    var editing by rememberSaveable { mutableStateOf(false) }
     var helpSupportExpanded by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -263,6 +263,8 @@ fun ProfileScreen(
 }
 
 @Composable
+// Destructive confirmation intentionally uses non-saveable local state so a configuration change
+// closes the modal instead of retaining a sensitive password/confirmation field.
 private fun DeleteAccountDialog(
     deleting: Boolean,
     error: String?,
@@ -372,9 +374,9 @@ private fun roleLabel(role: String?): String = when (role?.uppercase()) {
 
 @Composable
 private fun EditProfileDialog(user: CurrentUserResponse?, saving: Boolean, onDismiss: () -> Unit, onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit, deletingImage: Boolean) {
-    var name by remember(user?.name) { mutableStateOf(user?.name.orEmpty()) }
-    var email by remember(user?.email) { mutableStateOf(user?.email.orEmpty()) }
-    var selectedImage by remember { mutableStateOf<Uri?>(null) }
+    var name by rememberSaveable(user?.publicUserId) { mutableStateOf(user?.name.orEmpty()) }
+    var email by rememberSaveable(user?.publicUserId) { mutableStateOf(user?.email.orEmpty()) }
+    var selectedImage by rememberSaveable(user?.publicUserId) { mutableStateOf<Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> selectedImage = uri }
 
     AlertDialog(

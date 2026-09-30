@@ -33,19 +33,27 @@ fun ForgotPasswordScreen(
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var resendRemaining by remember { mutableIntStateOf(0) }
+    var clockMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    LaunchedEffect(state) {
-        if (state is PasswordResetUiState.OtpSent) resendRemaining = 60
+    val errorState = state as? PasswordResetUiState.Error
+    val resendAvailableAtEpochMillis = when (state) {
+        is PasswordResetUiState.OtpSent -> state.resendAvailableAtEpochMillis
+        is PasswordResetUiState.Error -> state.resendAvailableAtEpochMillis ?: 0L
+        else -> 0L
     }
-    LaunchedEffect(resendRemaining) {
-        if (resendRemaining > 0) {
-            delay(1000)
-            resendRemaining -= 1
+
+    LaunchedEffect(resendAvailableAtEpochMillis) {
+        if (resendAvailableAtEpochMillis <= 0L) return@LaunchedEffect
+        while (true) {
+            clockMillis = System.currentTimeMillis()
+            val remainingMillis = resendAvailableAtEpochMillis - clockMillis
+            if (remainingMillis <= 0L) break
+            delay(minOf(remainingMillis, 1000L))
         }
     }
 
-    val errorState = state as? PasswordResetUiState.Error
+    val resendRemaining =
+        ((resendAvailableAtEpochMillis - clockMillis + 999L) / 1000L).coerceAtLeast(0L)
     val otpSent = state is PasswordResetUiState.OtpSent ||
         state is PasswordResetUiState.Sending ||
         state is PasswordResetUiState.Resetting ||

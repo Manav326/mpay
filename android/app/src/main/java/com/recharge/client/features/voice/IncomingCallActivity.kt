@@ -120,6 +120,7 @@ class IncomingCallActivity : ComponentActivity() {
     private var callerName: String = "mPay Support"
     private var accepted = false
     private var answering = false
+    private var ending = false
     private var service: VoiceCallService? = null
     private var bound = false
     private var incomingStateJob: kotlinx.coroutines.Job? = null
@@ -354,10 +355,22 @@ class IncomingCallActivity : ComponentActivity() {
     }
 
     private fun hangUp() {
+        if (ending) return
+        ending = true
         answering = false
-        service?.hangUp() ?: lifecycleScope.launch { repository.end(callId) }
         CallNotificationManager.cancelIncoming(this, callId)
-        finish()
+
+        val activeService = service
+        if (activeService != null) {
+            activeService.hangUp()
+            finish()
+            return
+        }
+
+        lifecycleScope.launch {
+            runCatching { repository.end(callId) }
+            if (!isFinishing) finish()
+        }
     }
 
     override fun onDestroy() {
