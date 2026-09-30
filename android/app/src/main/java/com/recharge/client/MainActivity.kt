@@ -35,6 +35,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.recharge.client.core.model.PaymentOrderResponse
+import com.recharge.client.core.model.VoiceCallResponse
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.theme.RechargeTheme
 import com.recharge.client.core.viewmodel.*
@@ -42,12 +43,15 @@ import com.recharge.client.features.auth.ForgotPasswordScreen
 import com.recharge.client.MpayFirebase
 import com.recharge.client.features.voice.VoiceCallPushRegistrar
 import com.recharge.client.features.voice.CallNotificationManager
+import com.recharge.client.features.voice.ActiveVoiceCallBar
 import com.recharge.client.features.voice.IncomingCallActivity
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.features.auth.LoginScreen
 import com.recharge.client.features.auth.RegisterScreen
 import com.recharge.client.features.home.HomeScreen
 import com.recharge.client.features.profile.ProfileScreen
+import com.recharge.client.features.support.CustomerSupportScreen
+import com.recharge.client.features.support.CustomerSupportFloatingChat
 import com.recharge.client.features.recharge.RechargeHistoryScreen
 import com.recharge.client.features.recharge.RechargeScreen
 import com.recharge.client.features.rental.RentalVendorOnboardingScreen
@@ -58,7 +62,6 @@ import com.recharge.client.features.rental.RentalVehicleOnboardingScreen
 import com.recharge.client.features.rental.RentalBookingScreen
 import com.recharge.client.features.wallet.AddMoneyDialog
 import com.recharge.client.features.wallet.WalletScreen
-import com.recharge.client.features.support.CustomerCareScreen
 import com.recharge.client.core.payment.PayUCheckoutBridge
 import com.razorpay.Checkout
 import com.razorpay.PaymentData
@@ -454,8 +457,7 @@ private fun AppRoot(
     rechargeHistoryViewModel: RechargeHistoryViewModel = viewModel(),
     rentalViewModel: RentalViewModel = viewModel(),
     walletViewModel: WalletViewModel = viewModel(),
-    passwordResetViewModel: PasswordResetViewModel = viewModel(),
-    customerCareViewModel: CustomerCareViewModel = viewModel()
+    passwordResetViewModel: PasswordResetViewModel = viewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
     val context = LocalContext.current
@@ -476,8 +478,10 @@ private fun AppRoot(
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var supportFloatingChatOpen by rememberSaveable { mutableStateOf(false) }
 
     var presentedIncomingCallId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeVoiceCall by remember { mutableStateOf<VoiceCallResponse?>(null) }
 
     LaunchedEffect(authState) {
         if (authState is AuthUiState.Authenticated) {
@@ -503,30 +507,33 @@ private fun AppRoot(
                     ?.takeIf { it.isSuccessful }
                     ?.body()
 
-                if (activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId) {
-                    presentedIncomingCallId = activeCall.callId
-                    val callerName = activeCall.callerName ?: "mPay Support"
+                when {
+                    activeCall?.status == "RINGING" && activeCall.callId != presentedIncomingCallId -> {
+                        activeVoiceCall = null
+                        presentedIncomingCallId = activeCall.callId
+                        val callerName = activeCall.callerName ?: "mPay Support"
 
-                    // Polling is the recovery path when the FCM wake-up was delayed or
-                    // unavailable. It must reproduce the complete incoming-call alert
-                    // (notification + ringtone + vibration), not only open the UI.
-                    CallNotificationManager.showIncoming(
-                        context,
-                        activeCall.callId,
-                        callerName,
-                        persistentRinging = true
-                    )
-
-                    runCatching {
-                        context.startActivity(
-                            Intent(context, IncomingCallActivity::class.java)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
-                                .putExtra(
-                                    IncomingCallActivity.EXTRA_CALLER_NAME,
-                                    callerName
-                                )
+                        // Polling is the recovery path when the FCM wake-up was delayed or
+                        // unavailable. It must reproduce the complete incoming-call alert
+                        // (notification + ringtone + vibration), not only open the UI.
+                        CallNotificationManager.showIncoming(
+                            context,
+                            activeCall.callId,
+                            callerName,
+                            expiresAt = activeCall.ringingExpiresAt,
+                            persistentRinging = true
                         )
+
+                        runCatching {
+                            context.startActivity(
+                                Intent(context, IncomingCallActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    .putExtra(IncomingCallActivity.EXTRA_CALL_ID, activeCall.callId)
+                                    .putExtra(
+                                        IncomingCallActivity.EXTRA_CALLER_NAME,
+                                        callerName
+                                    )
+                            )
                         }.onFailure { error ->
                             android.util.Log.e(
                                 "MainActivity",
@@ -534,8 +541,15 @@ private fun AppRoot(
                                 error
                             )
                         }
-                    } else if (activeCall == null) {
-                    presentedIncomingCallId = null
+                    }
+                    activeCall?.status in setOf("ACCEPTED", "CONNECTED") -> {
+                        presentedIncomingCallId = null
+                        activeVoiceCall = activeCall
+                    }
+                    else -> {
+                        presentedIncomingCallId = null
+                        activeVoiceCall = null
+                    }
                 }
 
                 kotlinx.coroutines.delay(3500L)
@@ -621,12 +635,12 @@ private fun AppRoot(
         rechargeHistoryViewModel.resetSession()
         rentalViewModel.resetSession()
         walletViewModel.resetSession()
-        customerCareViewModel.resetSession()
         paymentViewModel.resetSession()
         highlightTransactionId = null
         launchedWalletOrderId = null
         launchedRechargeOrderId = null
         showFundingDialog = false
+        supportFloatingChatOpen = false
         authViewModel.logout()
     }
 
@@ -690,11 +704,73 @@ private fun AppRoot(
                 Spacer(Modifier.height(8.dp))
                 destinations.forEach { d -> ColoredNavigationRailItem(d, currentRoute, { navigateToTopLevel(nav, d.route) }) }
             }
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.weight(1f), customerCareViewModel)
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                AppNavHost(
+                    nav,
+                    currentRoute,
+                    homeViewModel,
+                    profileViewModel,
+                    rechargeViewModel,
+                    rechargeHistoryViewModel,
+                    rentalViewModel,
+                    walletViewModel,
+                    historyState,
+                    { showFundingDialog = it },
+                    paymentViewModel,
+                    highlightTransactionId,
+                    logoutAndReset,
+                    onChooseContact,
+                    { supportFloatingChatOpen = true },
+                    Modifier.fillMaxSize()
+                )
+                activeVoiceCall?.let { call ->
+                    ActiveVoiceCallBar(
+                        call = call,
+                        modifier = Modifier.fillMaxSize(),
+                        onEnded = { activeVoiceCall = null }
+                    )
+                }
+                CustomerSupportFloatingChat(
+                    context = context,
+                    open = supportFloatingChatOpen,
+                    onDismiss = { supportFloatingChatOpen = false }
+                )
+            }
         }
     } else {
         Scaffold(bottomBar = { BottomNavigationBar(nav, destinations) }) { inner ->
-            AppNavHost(nav, currentRoute, homeViewModel, profileViewModel, rechargeViewModel, rechargeHistoryViewModel, rentalViewModel, walletViewModel, historyState, { showFundingDialog = it }, paymentViewModel, highlightTransactionId, logoutAndReset, onChooseContact, Modifier.padding(inner), customerCareViewModel)
+            Box(Modifier.fillMaxSize().padding(inner)) {
+                AppNavHost(
+                    nav,
+                    currentRoute,
+                    homeViewModel,
+                    profileViewModel,
+                    rechargeViewModel,
+                    rechargeHistoryViewModel,
+                    rentalViewModel,
+                    walletViewModel,
+                    historyState,
+                    { showFundingDialog = it },
+                    paymentViewModel,
+                    highlightTransactionId,
+                    logoutAndReset,
+                    onChooseContact,
+                    { supportFloatingChatOpen = true },
+                    Modifier.fillMaxSize()
+                )
+                activeVoiceCall?.let { call ->
+                    ActiveVoiceCallBar(
+                        call = call,
+                        modifier = Modifier.fillMaxSize(),
+                        onEnded = { activeVoiceCall = null }
+                    )
+                }
+                CustomerSupportFloatingChat(
+                    context = context,
+                    open = supportFloatingChatOpen,
+                    onDismiss = { supportFloatingChatOpen = false }
+                )
+            }
         }
     }
 }
@@ -713,11 +789,11 @@ private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
     rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
-    authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier,
-    customerCareViewModel: CustomerCareViewModel
+    authLogout: () -> Unit,
+    onChooseContact: () -> Unit,
+    onOpenSupportChat: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val customerCareState by customerCareViewModel.state.collectAsState()
-
     NavHost(navController = nav, startDestination = "home", modifier = modifier.fillMaxSize()) {
         composable("home") {
             HomeScreen(
@@ -792,6 +868,13 @@ private fun AppNavHost(
                 isVisible = currentRoute == "wallet"
             )
         }
+        composable("customer-support") {
+            CustomerSupportScreen(
+                context = LocalContext.current,
+                onBack = { nav.popBackStack() },
+                onOpenChat = onOpenSupportChat
+            )
+        }
         composable("profile") {
             ProfileScreen(
                 state = profileViewModel.state.collectAsState().value,
@@ -803,17 +886,7 @@ private fun AppNavHost(
                 onLogout = authLogout,
                 onProfileUpdated = homeViewModel::load,
                 onBecomeVendor = { nav.navigate("rental-vendor") },
-                customerCareState = customerCareState,
-                onCustomerCareLoad = { customerCareViewModel.load() },
-                onCustomerCareRefresh = customerCareViewModel::refresh,
-                onCustomerCareOpen = customerCareViewModel::open,
-                onCustomerCareCreate = { category, subject, message ->
-                    customerCareViewModel.create(category, subject, message)
-                },
-                onCustomerCareReply = customerCareViewModel::reply,
-                onCustomerCareClose = customerCareViewModel::closeSelected,
-                onCustomerCareClearSelected = customerCareViewModel::clearSelected,
-                onCustomerCareClearError = customerCareViewModel::clearError,
+                onHelpSupport = onOpenSupportChat,
                 onDeleteAccount = { password, confirmation, closeDialog ->
                     profileViewModel.deleteAccount(password, confirmation) {
                         closeDialog()
@@ -822,23 +895,6 @@ private fun AppNavHost(
                 },
                 deletingAccount = profileViewModel.state.collectAsState().value.deletingAccount,
                 isVisible = currentRoute == "profile"
-            )
-        }
-        composable("customer-care") {
-            CustomerCareScreen(
-                state = customerCareViewModel.state.collectAsState().value,
-                onLoad = { customerCareViewModel.load() },
-                onOpen = customerCareViewModel::open,
-                onCreate = { category, subject, message ->
-                    customerCareViewModel.create(category, subject, message)
-                },
-                onReply = customerCareViewModel::reply,
-                onClose = customerCareViewModel::closeSelected,
-                onClearError = customerCareViewModel::clearError,
-                onBack = {
-                    customerCareViewModel.clearSelected()
-                    nav.popBackStack()
-                }
             )
         }
         composable("marketplace") {

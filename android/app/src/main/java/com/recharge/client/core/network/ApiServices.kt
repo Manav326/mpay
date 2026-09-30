@@ -47,28 +47,6 @@ interface AuthApi {
 }
 
 interface ClientApi {
-    @POST("api/v1/support/tickets")
-    suspend fun createSupportTicket(@Body request: CreateSupportTicketRequest): Response<SupportTicketResponse>
-
-    @GET("api/v1/support/tickets")
-    suspend fun supportTickets(
-        @Query("page") page: Int = 0,
-        @Query("size") size: Int = 20,
-        @Query("status") status: String? = null
-    ): Response<SupportTicketPageResponse>
-
-    @GET("api/v1/support/tickets/{ticketId}")
-    suspend fun supportTicket(@Path("ticketId") ticketId: String): Response<SupportTicketResponse>
-
-    @POST("api/v1/support/tickets/{ticketId}/messages")
-    suspend fun addSupportMessage(
-        @Path("ticketId") ticketId: String,
-        @Body request: SupportMessageRequest
-    ): Response<SupportTicketResponse>
-
-    @POST("api/v1/support/tickets/{ticketId}/close")
-    suspend fun closeSupportTicket(@Path("ticketId") ticketId: String): Response<SupportTicketResponse>
-
     @POST("api/v1/account/deletion")
     suspend fun deleteAccount(@Body request: AccountDeletionRequest): Response<AccountDeletionResponse>
 
@@ -98,6 +76,24 @@ interface ClientApi {
 
     @PUT("api/v1/calls/push-token")
     suspend fun registerCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
+
+    @POST("api/v1/calls/push-token/revoke")
+    suspend fun revokeCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
+
+    @GET("api/v1/support/overview")
+    suspend fun customerSupportOverview(): Response<CustomerSupportOverviewResponse>
+
+    @GET("api/v1/support/chat")
+    suspend fun customerSupportChat(): Response<SupportChatResponse>
+
+    @POST("api/v1/support/chat/messages")
+    suspend fun sendCustomerSupportChatMessage(@Body request: CreateSupportMessageRequest): Response<SupportMessageResponse>
+
+    @POST("api/v1/support/call-request")
+    suspend fun requestCustomerSupportCall(@Body request: CreateSupportCallRequest): Response<SupportCallRequestResponse>
+
+    @POST("api/v1/support/call-request/{requestId}/cancel")
+    suspend fun cancelCustomerSupportCall(@Path("requestId") requestId: String): Response<SupportCallRequestResponse>
 
 
     @GET("api/v1/history/pdf-access")

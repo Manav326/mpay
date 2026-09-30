@@ -4,6 +4,7 @@ import android.net.Uri
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Settings
@@ -32,31 +36,20 @@ import androidx.compose.ui.platform.LocalContext
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.RentalVendorResponse
 import com.recharge.client.core.theme.AppColors
+import com.recharge.client.features.support.CustomerSupportScreen
 import com.recharge.client.core.ui.CopyableValue
 import com.recharge.client.core.ui.ProfileAvatar
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
 import com.recharge.client.core.ui.MpayStatusPill
-import com.recharge.client.core.viewmodel.CustomerCareUiState
 import com.recharge.client.core.viewmodel.ProfileUiState
-import com.recharge.client.features.support.CustomerCareInlineCard
 import java.math.BigDecimal
 
 @Composable
 fun ProfileScreen(
     state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
     onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
-    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit,
-    customerCareState: CustomerCareUiState,
-    onCustomerCareLoad: () -> Unit,
-    onCustomerCareRefresh: () -> Unit,
-    onCustomerCareOpen: (String) -> Unit,
-    onCustomerCareCreate: (String, String, String) -> Unit,
-    onCustomerCareReply: (String) -> Unit,
-    onCustomerCareClose: () -> Unit,
-    onCustomerCareClearSelected: () -> Unit,
-    onCustomerCareClearError: () -> Unit,
-    onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onHelpSupport: () -> Unit, onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
     var helpSupportExpanded by rememberSaveable { mutableStateOf(false) }
@@ -162,33 +155,67 @@ fun ProfileScreen(
             }
         }
         item {
-            CustomerCareInlineCard(
-                state = customerCareState,
-                expanded = helpSupportExpanded,
-                onExpandedChange = { helpSupportExpanded = it },
-                onLoad = onCustomerCareLoad,
-                onRefresh = onCustomerCareRefresh,
-                onOpen = onCustomerCareOpen,
-                onCreate = onCustomerCareCreate,
-                onReply = onCustomerCareReply,
-                onClose = onCustomerCareClose,
-                onClearSelected = onCustomerCareClearSelected,
-                onClearError = onCustomerCareClearError
-            )
-        }
-        item {
             Card(
+                modifier = Modifier.fillMaxWidth().animateContentSize(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { helpSupportExpanded = !helpSupportExpanded }
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(11.dp),
+                            color = AppColors.Primary.copy(alpha = .10f)
+                        ) {
+                            Icon(
+                                Icons.Default.HeadsetMic,
+                                contentDescription = null,
+                                tint = AppColors.PrimaryDark,
+                                modifier = Modifier.padding(8.dp).size(21.dp)
+                            )
+                        }
+                        Spacer(Modifier.size(11.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Help & Support",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF172033),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                "Choose how you want mPay Support to help.",
+                                color = AppColors.TextSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Icon(
+                            if (helpSupportExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = AppColors.TextSecondary
+                        )
+                    }
+                    if (helpSupportExpanded) {
+                        CustomerSupportScreen(
+                            context = context,
+                            onBack = {},
+                            onOpenChat = onHelpSupport,
+                            embedded = true,
+                            modifier = Modifier.fillMaxWidth().height(500.dp)
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text(
-                        "Settings & policies",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                    )
+                    Text("Settings & policies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
                     ProfileActionRow(Icons.Default.Settings, "Account settings", "Update your name, email and profile photo") { editing = true }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {
