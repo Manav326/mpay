@@ -100,6 +100,10 @@ class CustomerCareAdminController(
     ): SupportAiSettingsResponse =
         supportAiSettings.update(currentUser(authentication), request.enabled)
 
+    @GetMapping("/queue")
+    fun queue(authentication: Authentication): SupportQueueResponse =
+        support.queue(currentUser(authentication))
+
     @GetMapping("/requests")
     fun requests(authentication: Authentication): List<SupportCallRequestResponse> =
         support.pendingRequests(currentUser(authentication))
@@ -139,6 +143,13 @@ class CustomerCareAdminController(
     ): SupportChatResponse =
         support.adminChat(currentUser(authentication), publicId)
 
+    @PostMapping("/customers/{publicId}/chat/read")
+    fun markChatRead(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): SupportChatResponse =
+        support.markChatRead(currentUser(authentication), publicId)
+
     @PostMapping("/customers/{publicId}/chat/messages")
     fun sendCustomerChatMessage(
         authentication: Authentication,
@@ -176,6 +187,20 @@ class CustomerCareAdminController(
         @Valid @RequestBody request: UpdateSupportCaseRequest
     ): SupportCaseResponse =
         support.updateCase(currentUser(authentication), caseId, request)
+
+    @PostMapping("/cases/{caseId}/ownership")
+    fun takeOwnership(
+        authentication: Authentication,
+        @PathVariable caseId: String
+    ): SupportAssignmentResponse =
+        support.takeCaseOwnership(currentUser(authentication), caseId)
+
+    @DeleteMapping("/cases/{caseId}/ownership")
+    fun releaseOwnership(
+        authentication: Authentication,
+        @PathVariable caseId: String
+    ): SupportAssignmentResponse =
+        support.releaseCaseOwnership(currentUser(authentication), caseId)
 
     @PostMapping("/cases/{caseId}/notes")
     fun addNote(
