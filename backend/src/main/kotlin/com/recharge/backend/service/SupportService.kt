@@ -666,7 +666,7 @@ class SupportService(
                 it.status = OPEN
                 it.assignedEmployeeId = viewer.id
                 it.updatedAt = now
-                touchCaseMeaningfulUpdate(it, now, false)
+                touchCaseMeaningfulUpdate(it, now)
                 cases.save(it)
                 recordCaseEvent(it, conversation.id, "EMPLOYEE", viewer.id, "SUPPORT_MESSAGE", "CUSTOMER", "CHAT", "mPay Support replied in chat", saved.messageId)
             }
@@ -882,7 +882,7 @@ class SupportService(
             caseEntity?.let {
                 val meaningfulAt = call.endedAt ?: Instant.now()
                 it.updatedAt = meaningfulAt
-                touchCaseMeaningfulUpdate(it, meaningfulAt, false)
+                touchCaseMeaningfulUpdate(it, meaningfulAt)
                 if (call.status in setOf("DECLINED", "MISSED", "CANCELLED")) {
                     // Keep the customer issue open so the agent can follow up.
                     if (it.status == CLOSED) it.status = OPEN
@@ -915,7 +915,7 @@ class SupportService(
             entity.expectedResolutionAt = explicitEta
             entity.etaSource = "EMPLOYEE"
         }
-        touchCaseMeaningfulUpdate(entity, now, explicitEta == null && request.expectedResolutionAt == null)
+        touchCaseMeaningfulUpdate(entity, now)
         cases.save(entity)
         recordCaseEvent(entity, conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(entity.customerUserId, OPEN).orElse(null)?.id, "EMPLOYEE", viewer.id, "CASE_STATUS_CHANGED", "CUSTOMER", "SUPPORT", "Support case status changed to " + status, request.resolutionCode)
         markWrapUp(entity.id, now)
@@ -1008,7 +1008,7 @@ class SupportService(
             )
         )
         entity.updatedAt = Instant.now()
-        if (visibility == "CUSTOMER") touchCaseMeaningfulUpdate(entity, note.createdAt, false)
+        if (visibility == "CUSTOMER") touchCaseMeaningfulUpdate(entity, note.createdAt)
         cases.save(entity)
         recordCaseEvent(entity, note.conversationId, "EMPLOYEE", viewer.id, "NOTE_ADDED", visibility, "NOTE", if (visibility == "CUSTOMER") "Support added a customer-visible note" else "Support note added", note.id.toString())
         markWrapUp(entity.id, note.createdAt)
@@ -1115,7 +1115,7 @@ class SupportService(
         return ZonedDateTime.of(date, localTime, SUPPORT_ZONE).toInstant()
     }
 
-    private fun touchCaseMeaningfulUpdate(entity: SupportCaseEntity, at: Instant, preserveExistingEmployeeEta: Boolean) {
+    private fun touchCaseMeaningfulUpdate(entity: SupportCaseEntity, at: Instant) {
         entity.lastMeaningfulUpdateAt = at
         if (entity.etaSource == "EMPLOYEE" && entity.expectedResolutionAt != null) return
         entity.etaSource = "SYSTEM"
