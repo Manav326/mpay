@@ -253,16 +253,19 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     fun loadVehicleCalendar(carId: String, year: Int, month: Int) {
         calendarJob?.cancel()
         calendarJob = viewModelScope.launch {
-            _state.value = _state.value.copy(calendarError = null)
+            _state.value = _state.value.copy(calendarLoading = true, calendarError = null)
             repository.rentalVehicleCalendar(carId, year, month)
                 .onSuccess { response ->
                     if (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                        _state.value = _state.value.copy(vehicleCalendar = response)
+                        _state.value = _state.value.copy(vehicleCalendar = response, calendarLoading = false)
                     }
                 }
                 .onFailure { failure ->
                     if (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                        _state.value = _state.value.copy(calendarError = failure.message ?: "Unable to load vehicle calendar")
+                        _state.value = _state.value.copy(
+                            calendarLoading = false,
+                            calendarError = failure.message ?: "Unable to load vehicle calendar"
+                        )
                     }
                 }
         }
