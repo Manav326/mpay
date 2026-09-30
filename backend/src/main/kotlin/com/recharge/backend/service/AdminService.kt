@@ -32,7 +32,7 @@ class AdminService(
 
     fun users(requestedRole: String?, sort: String, viewer: EmployeeEntity): List<AdminUserSummaryResponse> {
         roleAccess.requirePermission(viewer, "VIEW_USERS")
-        val visibleRoles = roleAccess.visibleRolesFor(viewer.role)
+        val visibleRoles = roleAccess.visibleRolesFor(viewer.role).filter { it.equals("CLIENT", true) }.toSet()
         val roleFilter = requestedRole?.trim()?.uppercase()?.takeIf { it != "ALL" }
         if (roleFilter != null && roleFilter !in visibleRoles) return emptyList()
         val selectedRoles = if (roleFilter == null) visibleRoles else setOf(roleFilter)
