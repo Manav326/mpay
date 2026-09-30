@@ -5250,7 +5250,26 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .customer-support-icon-button:disabled{opacity:.45;cursor:not-allowed}
 .customer-support-minus{font-size:21px;line-height:1;font-weight:500;color:#e6eaf0;margin-top:-2px}
 .customer-support-error{margin:0;padding:8px 12px;border-bottom:1px solid #4a2727;background:#321d1d;color:#fca5a5;font-size:9px;line-height:1.4;flex:none}
-.customer-support-messages{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:10px 11px;background:#101419;scrollbar-width:thin;scrollbar-color:#39414a transparent}
+.customer-support-messages{
+  flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;align-items:stretch;gap:7px;
+  padding:10px 11px;position:relative;isolation:isolate;
+  background:
+    radial-gradient(circle at 14% 8%,rgba(168,100,8,.075) 0 1px,transparent 2px),
+    radial-gradient(circle at 78% 18%,rgba(255,255,255,.035) 0 1px,transparent 2px),
+    linear-gradient(135deg,#10161b 0%,#0e1318 48%,#11171c 100%);
+  background-size:86px 86px,112px 112px,100% 100%;
+  scrollbar-width:thin;scrollbar-color:#39414a transparent;
+}
+.customer-support-messages::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.26;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23a86408' stroke-opacity='.16' stroke-width='1.1'%3E%3Crect x='12' y='15' width='25' height='18' rx='7'/%3E%3Cpath d='M18 33l-4 6 9-5'/%3E%3Ccircle cx='25' cy='24' r='1.4' fill='%23a86408' stroke='none'/%3E%3Cpath d='M67 12l2.8 6.2 6.2 2.8-6.2 2.8-2.8 6.2-2.8-6.2-6.2-2.8 6.2-2.8z'/%3E%3Ccircle cx='69' cy='68' r='11'/%3E%3Cpath d='M69 60v16M61 68h16' stroke-opacity='.11'/%3E%3Cpath d='M20 68c7-7 17-7 24 0' stroke-opacity='.10'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:96px 96px;
+}
+.customer-support-messages::after{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(85% 32% at 50% 0%,rgba(255,255,255,.035),transparent 70%);
+}
 .customer-support-messages::-webkit-scrollbar{width:6px}.customer-support-messages::-webkit-scrollbar-thumb{background:#39414a;border-radius:8px}
 .customer-support-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0 7px;flex:none}
 .customer-support-welcome-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:#2a241a;color:#c99339;margin-bottom:7px}
