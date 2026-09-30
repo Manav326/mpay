@@ -443,11 +443,11 @@ class VoiceCallService(
             ResponseStatusException(HttpStatus.NOT_FOUND, "Call not found")
         }
 
-        if (call.callerUserId != userId && call.calleeUserId != userId) {
+        if (call.callerEmployeeId != userId && call.calleeUserId != userId) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
         }
 
-        val participant = participants.findByUserId(userId).orElse(null)
+        val participant = participants.findByAccountId(userId).orElse(null)
         if (participant != null && participant.callId != callId && !isTerminal(call.status)) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are already in another active call")
         }
@@ -470,8 +470,8 @@ class VoiceCallService(
         )
 
     private fun otherParticipant(call: VoiceCallEntity, userId: Long): Long = when (userId) {
-        call.callerUserId -> call.calleeUserId
-        call.calleeUserId -> call.callerUserId
+        call.callerEmployeeId -> call.calleeUserId
+        call.calleeUserId -> call.callerEmployeeId
         else -> throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
     }
 
@@ -494,7 +494,7 @@ class VoiceCallService(
         val connectedAtEpochMillis = call.connectedAt?.toEpochMilli()?.toString() ?: "null"
         val endedAtEpochMillis = call.endedAt?.toEpochMilli()?.toString() ?: "null"
         val payload = """{"type":"status","callId":"${call.callId}","status":"${call.status}","connectedAtEpochMillis":$connectedAtEpochMillis,"endedAtEpochMillis":$endedAtEpochMillis}"""
-        websocket.sendToCallUser(call.callId, call.callerUserId, payload)
+        websocket.sendToCallUser(call.callId, call.callerEmployeeId, payload)
         websocket.sendToCallUser(call.callId, call.calleeUserId, payload)
         if (isTerminal(call.status)) {
             websocket.closeCall(call.callId)
@@ -503,7 +503,7 @@ class VoiceCallService(
     }
 
     private fun response(call: VoiceCallEntity): VoiceCallResponse {
-        val caller = users.findById(call.callerUserId).orElse(null)
+        val caller = employees.findById(call.callerEmployeeId).orElse(null)
         val callee = users.findById(call.calleeUserId).orElse(null)
         return VoiceCallResponse(
             callId = call.callId,
