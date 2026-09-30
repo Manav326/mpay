@@ -1052,6 +1052,7 @@ export default function Portal() {
   const historyLoadSeq = useRef(0);
 
   const [supportChatOpen, setSupportChatOpen] = useState(false);
+  const [supportPanelExpanded, setSupportPanelExpanded] = useState(false);
   const [supportChat, setSupportChat] = useState<SupportChat>();
   const [supportChatLoading, setSupportChatLoading] = useState(false);
   const [supportChatBusy, setSupportChatBusy] = useState(false);
@@ -1093,6 +1094,7 @@ export default function Portal() {
   }
 
   function openCustomerSupportChat() {
+    setSupportPanelExpanded(true);
     window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY, '1');
     setSupportChatOpen(true);
     setSupportChatMinimized(false);
@@ -3439,49 +3441,49 @@ export default function Portal() {
 
           {vendorStatus==='REJECTED' && vendor?.rejectionReason && <div className="account-review-note"><b>Admin note</b><span>{vendor.rejectionReason}</span></div>}
 
-          <section className="portal-panel account-support-card">
-            <div className="account-section-heading">
-              <div>
-                <h3>Help & Support</h3>
-                <p>Get help from mPay Support without leaving your account.</p>
+          <section className={'portal-panel account-support-card ' + (supportPanelExpanded ? 'expanded' : 'collapsed')}>
+            <button className="customer-support-collapse-toggle" onClick={() => setSupportPanelExpanded(value => !value)} aria-expanded={supportPanelExpanded}>
+              <span className="customer-support-collapse-icon"><Headset size={20}/></span>
+              <span className="customer-support-collapse-copy"><b>Help & Support</b><small>Choose how you want mPay Support to help.</small></span>
+              <ChevronRight className={'customer-support-collapse-chevron' + (supportPanelExpanded ? ' open' : '')} size={18}/>
+            </button>
+            {supportPanelExpanded && (
+              <div className="customer-support-inline-content">
+                <div className="customer-support-inline-actions">
+                  <button className="customer-support-inline-action primary" onClick={openCustomerSupportChat}>
+                    <Headset size={18}/>
+                    <span><b>Chat with Support</b><small>Choose how you want mPay Support to help.</small></span>
+                    <ChevronRight size={16}/>
+                  </button>
+                  {supportChat?.pendingCallbackRequest ? (
+                    <button className="customer-support-inline-action" onClick={() => void cancelCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                      <PhoneOff size={18}/>
+                      <span><b>Cancel callback</b><small>Callback requested · {supportChat.pendingCallbackRequest.status.replaceAll('_',' ')}</small></span>
+                    </button>
+                  ) : supportChat?.callbackRequestEnabled ? (
+                    <button className="customer-support-inline-action" onClick={() => void requestCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                      <PhoneCall size={18}/>
+                      <span><b>{supportCallbackBusy ? 'Requesting…' : 'Request a callback'}</b><small>Available for this support conversation.</small></span>
+                    </button>
+                  ) : null}
+                </div>
+                <div className="customer-support-issue-summary">
+                  <div className="customer-support-issue-heading"><b>Your Support Issue</b><span>Latest support status</span></div>
+                  {supportChat?.currentCase ? (
+                    <>
+                      <h4>{supportChat.currentCase.subject}</h4>
+                      <span className={'support-issue-status ' + (['RESOLVED','CLOSED'].includes(supportChat.currentCase.status) ? 'done' : 'active')}>{supportChat.currentCase.status.replaceAll('_',' ')}</span>
+                      <div className="customer-support-issue-facts">
+                        <span><small>Last updated</small><b>{dt(supportChat.currentCase.lastMeaningfulUpdateAt || supportChat.currentCase.updatedAt)}</b></span>
+                        <span><small>Expected resolution</small><b>{dt(supportChat.currentCase.expectedResolutionAt)}</b></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="customer-support-no-issue"><b>No active support issue</b><span>Start a support chat and mPay Support will create the issue summary here.</span></div>
+                  )}
+                </div>
               </div>
-              <Headset size={18}/>
-            </div>
-            <div className="customer-support-direct-actions">
-              <button className="customer-support-direct-action primary" onClick={openCustomerSupportChat}>
-                <Headset size={17}/>
-                <span><b>{supportChat?.messages?.length ? 'Continue Support Chat' : 'Chat with Support'}</b><small>Messages, AI replies and support calls stay together.</small></span>
-                <ChevronRight size={16}/>
-              </button>
-              {supportChat?.pendingCallbackRequest ? (
-                <button className="customer-support-direct-action" onClick={() => void cancelCustomerSupportCallback()} disabled={supportCallbackBusy}>
-                  <PhoneOff size={17}/>
-                  <span><b>Callback requested</b><small>{supportChat.pendingCallbackRequest.status.replaceAll('_',' ')}</small></span>
-                  <span className="customer-support-action-state">{supportCallbackBusy ? 'Updating…' : 'Cancel'}</span>
-                </button>
-              ) : supportChat?.callbackRequestEnabled ? (
-                <button className="customer-support-direct-action" onClick={() => void requestCustomerSupportCallback()} disabled={supportCallbackBusy}>
-                  <PhoneCall size={17}/>
-                  <span><b>Request a callback</b><small>Available for this account after Support enables callback access.</small></span>
-                  <ChevronRight size={16}/>
-                </button>
-              ) : null}
-            </div>
-            <div className="customer-support-issue-summary">
-              <div className="customer-support-issue-heading"><b>Your Support Issue</b><span>Latest support status</span></div>
-              {supportChat?.currentCase ? (
-                <>
-                  <h4>{supportChat.currentCase.subject}</h4>
-                  <span className={'support-issue-status ' + (['RESOLVED','CLOSED'].includes(supportChat.currentCase.status) ? 'done' : 'active')}>{supportChat.currentCase.status.replaceAll('_',' ')}</span>
-                  <div className="customer-support-issue-facts">
-                    <span><small>Last updated</small><b>{dt(supportChat.currentCase.lastMeaningfulUpdateAt || supportChat.currentCase.updatedAt)}</b></span>
-                    <span><small>Expected resolution</small><b>{dt(supportChat.currentCase.expectedResolutionAt)}</b></span>
-                  </div>
-                </>
-              ) : (
-                <div className="customer-support-no-issue"><b>No active support issue</b><span>Start a support chat and mPay Support will create the issue record.</span></div>
-              )}
-            </div>
+            )}
           </section>
 
           <section className="portal-panel account-settings-card">
