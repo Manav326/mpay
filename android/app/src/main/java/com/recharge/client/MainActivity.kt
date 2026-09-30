@@ -332,6 +332,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 }
                 pendingRazorpayTarget = RazorpayCheckoutTarget.RECHARGE
                 pendingRazorpayOrderId = order.orderId
+                Checkout.preload(applicationContext)
                 checkout.open(this, options)
             }
         } catch (e: Exception) {
