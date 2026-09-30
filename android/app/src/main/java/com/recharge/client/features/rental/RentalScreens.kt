@@ -36,6 +36,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1900,7 +1902,7 @@ private class RentalVehicleFormState(car: RentalCarResponse?) {
                 }
             },
             restore = { values ->
-                if (values.size < 36) return@listSaver null
+                if (values.size < 39) return@listSaver null
                 RentalVehicleFormState(null).also { form ->
                     var i = 0
                     fun next() = values[i++]
