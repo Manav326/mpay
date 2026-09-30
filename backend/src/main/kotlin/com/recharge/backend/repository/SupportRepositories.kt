@@ -18,6 +18,7 @@ import java.util.Optional
 interface SupportCaseRepository : JpaRepository<SupportCaseEntity, Long> {
     fun findByCaseId(caseId: String): Optional<SupportCaseEntity>
     fun findAllByCustomerUserIdOrderByUpdatedAtDesc(customerUserId: Long): List<SupportCaseEntity>
+    fun findAllByStatusOrderByUpdatedAtDesc(status: String): List<SupportCaseEntity>
     fun findFirstByCustomerUserIdAndStatusInOrderByUpdatedAtDesc(customerUserId: Long, statuses: Collection<String>): Optional<SupportCaseEntity>
 }
 
@@ -55,6 +56,7 @@ interface SupportCallRequestRepository : JpaRepository<SupportCallRequestEntity,
 interface SupportMessageRepository : JpaRepository<SupportMessageEntity, Long> {
     fun findAllByConversationIdOrderByCreatedAtAsc(conversationId: Long): List<SupportMessageEntity>
     fun countByCustomerUserIdAndSenderTypeAndStaffReadAtIsNull(customerUserId: Long, senderType: String): Long
+    fun findAllBySenderTypeAndStaffReadAtIsNullOrderByCreatedAtDesc(senderType: String): List<SupportMessageEntity>
 }
 
 interface SupportCaseEventRepository : JpaRepository<SupportCaseEventEntity, Long> {
