@@ -143,7 +143,7 @@ class CustomerCareService(
         val normalizedAssignment = assignment?.trim()?.uppercase().takeUnless { it.isNullOrBlank() } ?: "ALL"
         if (normalizedAssignment !in setOf("ALL", "MINE", "UNASSIGNED")) throw IllegalArgumentException("Invalid assignment filter")
         val normalizedQuery = query?.trim()?.takeIf { it.isNotBlank() }?.take(120)
-        val result = tickets.searchAdmin(
+        val result = tickets.searchAdminTickets(
             normalizedStatus,
             normalizedPriority,
             normalizedCategory,
