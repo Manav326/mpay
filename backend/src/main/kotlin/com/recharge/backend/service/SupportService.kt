@@ -449,8 +449,8 @@ class SupportService(
                 ?: cases.save(
                     SupportCaseEntity(
                         customerUserId = customerId,
-                        subject = "Customer chat with mPay Support",
-                        category = "CHAT",
+                        subject = supportTopicSubject(topic),
+                        category = supportTopicCategory(topic),
                         priority = "NORMAL",
                         status = OPEN,
                         source = "CUSTOMER_CHAT",
