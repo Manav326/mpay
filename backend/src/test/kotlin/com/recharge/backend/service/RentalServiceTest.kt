@@ -2,6 +2,7 @@ package com.recharge.backend.service
 
 import com.recharge.backend.api.RentalBookingRequest
 import com.recharge.backend.api.RentalVehicleUnavailabilityRequest
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.domain.RentalBookingEntity
 import com.recharge.backend.domain.RentalCarEntity
 import com.recharge.backend.repository.RentalBookingRepository
@@ -464,8 +465,10 @@ class RentalServiceTest {
         Mockito.doReturn(Optional.of(vendor)).`when`(vendors).findById(92L)
         Mockito.doReturn(Optional.of(driver)).`when`(drivers).findById(93L)
 
+        val employee = EmployeeEntity(id = 1L, mobile = "9999999999", role = "ADMIN")
+
         assertThrows(IllegalArgumentException::class.java) {
-            service.approveVehicle(91L, 1L)
+            service.approveVehicle(91L, employee)
         }
         Mockito.verify(cars, Mockito.never()).save(any(RentalCarEntity::class.java))
     }
