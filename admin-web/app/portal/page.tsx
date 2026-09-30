@@ -8,7 +8,7 @@ import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, Headset, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X, PhoneCall, PhoneOff
+  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Upload, UserRound, WalletCards, X, PhoneCall, PhoneOff
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -4173,7 +4173,8 @@ function CustomerSupportChatModal({
     };
     return <div className="customer-support-floating-layer">
       {minimizedDragging && <div className={'customer-support-dismiss-zone ' + (dismissTargetActive ? 'active' : '')}>
-        <span><Trash2 size={22}/></span>
+        <span><X size={20}/></span>
+        <b>Close</b>
       </div>}
       <div ref={modalRef} className="customer-support-modal minimized" style={{left:position.x,top:position.y}}
         onPointerDown={minimizedPointerDown}
