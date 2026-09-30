@@ -710,11 +710,7 @@ private fun FloatingChatWindow(
                     contentPadding = PaddingValues(horizontal = 11.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    if ((supportIntakeMode || chat?.messages.isNullOrEmpty()) && guidedTopic != null) {
-                        item {
-                            GuidedFloatingHelp(guidedTopic, onBack = { onChooseTopic(null) }, onStartChat = onStartChat)
-                        }
-                    } else if (supportIntakeMode || chat?.messages.isNullOrEmpty()) {
+                    if (chat?.messages.isNullOrEmpty() && !supportIntakeMode) {
                         item {
                             Column(
                                 Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -738,16 +734,7 @@ private fun FloatingChatWindow(
                             ) {
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Surface(shape = RoundedCornerShape(10.dp), color = AppColors.Primary.copy(alpha = .10f)) {
-                                        Icon(
-                                            when {
-                                                topic.title.contains("money", true) || topic.title.contains("transaction", true) -> Icons.Default.AccountBalanceWallet
-                                                topic.title.contains("recharge", true) -> Icons.Default.Smartphone
-                                                topic.title.contains("rental", true) -> Icons.Default.DirectionsCar
-                                                topic.title.contains("account", true) -> Icons.Default.Person
-                                                else -> Icons.Default.HeadsetMic
-                                            },
-                                            null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(8.dp).size(19.dp)
-                                        )
+                                        Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(8.dp).size(19.dp))
                                     }
                                     Spacer(Modifier.size(9.dp))
                                     Column(Modifier.weight(1f)) {
@@ -764,11 +751,7 @@ private fun FloatingChatWindow(
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(.84f),
-                                    shape = RoundedCornerShape(
-                                        topStart = 15.dp, topEnd = 15.dp,
-                                        bottomStart = if (mine) 15.dp else 4.dp,
-                                        bottomEnd = if (mine) 4.dp else 15.dp
-                                    ),
+                                    shape = RoundedCornerShape(topStart = 15.dp, topEnd = 15.dp, bottomStart = if (mine) 15.dp else 4.dp, bottomEnd = if (mine) 15.dp else 4.dp),
                                     color = if (mine) AppColors.Primary.copy(alpha = .22f) else Color(0xFF232930)
                                 ) {
                                     Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
@@ -788,9 +771,28 @@ private fun FloatingChatWindow(
                                 }
                             }
                         }
+                        if (supportIntakeMode) {
+                            item {
+                                if (guidedTopic != null) {
+                                    GuidedFloatingHelp(guidedTopic, onBack = { onChooseTopic(null) }, onStartChat = onStartChat)
+                                } else {
+                                    Column(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("What can we help you with?", fontWeight = FontWeight.Bold, color = Color(0xFFF1F4F7))
+                                        Text("Choose a topic to start this support request.", color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
+                                        floatingSupportTopics.forEach { topic ->
+                                            Card(onClick = { onChooseTopic(topic) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2026))) {
+                                                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(topic.title, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold, color = Color(0xFFF1F4F7))
+                                                    Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF8C97A4))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-
                 if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
                     Surface(color = Color(0xFF181D23), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {

@@ -4250,28 +4250,42 @@ function CustomerSupportChatModal({
       {error&&<div className="customer-support-error">{error}</div>}
 
       <div className="customer-support-messages" ref={messagesRef}>
-        {(supportIntakeMode || (!chat?.items?.length && !chat?.messages?.length)) && guidedTopic ? <div className="customer-support-guided">
-          <div className="customer-support-guided-head"><button className="customer-support-icon-button" onClick={onBackToTopics}><ChevronLeft size={15}/></button><div><b>{guidedTopic.title}</b><small>Try these steps first</small></div></div>
-          <div className="customer-support-guided-steps">{guidedTopic.steps.map((step,index)=><div className="customer-support-guided-step" key={step}><span>{index+1}</span><p>{step}</p></div>)}</div>
-          <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
-          <button className="customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/>Chat with mPay Support</button>
-        </div> : (supportIntakeMode || (!chat?.items?.length && !chat?.messages?.length)) ? <>
-          <div className="customer-support-empty"><div className="customer-support-welcome-icon"><Headset size={24}/></div><b>How can we help?</b><span>Choose a topic to start or continue your support request.</span></div>
-          <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
-            <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
-          </button>)}</div>
-        </> : (chat?.items?.length ? chat.items : (chat?.messages || []).map(item=>({...item,type:'MESSAGE' as const,itemId:item.messageId}))).map(item=>{
-          if(item.type === 'VOICE_CALL') return <div key={item.itemId} className="customer-support-call-event">
-            <div className="customer-support-call-icon"><PhoneCall size={16}/></div>
-            <div className="customer-support-call-copy"><b>{item.outcome === 'NO_ANSWER' || item.status === 'MISSED' ? 'Support tried to call you' : item.status === 'DECLINED' ? 'Support call declined' : 'Support voice call'}</b><span>{item.outcome || item.status || 'Support call'}</span>{item.durationLabel && <small>{item.durationLabel}</small>}</div>
-            <time>{dt(item.createdAt)}</time>
-          </div>;
-          const mine=item.senderType==='CUSTOMER';
-          const sender=mine?'You':item.senderType==='AI'?'mPay AI Support':'mPay Support';
-          return <div key={item.itemId} className={'customer-support-row '+(mine?'mine':'staff')}>
-            <div className={'customer-support-bubble '+(mine?'mine':'staff')}><span>{sender}</span><p>{item.message}</p><small>{dt(item.createdAt)}</small></div>
-          </div>;
-        })}
+        {(!chat?.items?.length && !chat?.messages?.length && !supportIntakeMode) ? (
+          <>
+            <div className="customer-support-empty"><div className="customer-support-welcome-icon"><Headset size={24}/></div><b>How can we help?</b><span>Choose a topic to start with guided help.</span></div>
+            <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
+              <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
+            </button>)}</div>
+          </>
+        ) : (
+          <>
+            {(chat?.items?.length ? chat.items : (chat?.messages || []).map(item=>({...item,type:'MESSAGE' as const,itemId:item.messageId}))).map(item=>{
+              if(item.type==='VOICE_CALL') return <div key={item.itemId} className="customer-support-call-event">
+                <div className="customer-support-call-icon"><PhoneCall size={16}/></div>
+                <div className="customer-support-call-copy"><b>{item.outcome === 'NO_ANSWER' || item.status === 'MISSED' ? 'Support tried to call you' : item.status === 'DECLINED' ? 'Support call declined' : 'Support voice call'}</b><span>{item.outcome || item.status || 'Support call'}</span>{item.durationLabel && <small>{item.durationLabel}</small>}</div>
+                <time>{dt(item.createdAt)}</time>
+              </div>;
+              const mine=item.senderType==='CUSTOMER';
+              const sender=mine?'You':item.senderType==='AI'?'mPay AI Support':'mPay Support';
+              return <div key={item.itemId} className={'customer-support-row '+(mine?'mine':'staff')}>
+                <div className={'customer-support-bubble '+(mine?'mine':'staff')}><span>{sender}</span><p>{item.message}</p><small>{dt(item.createdAt)}</small></div>
+              </div>;
+            })}
+            {supportIntakeMode && (
+              guidedTopic ? <div className="customer-support-guided">
+                <div className="customer-support-guided-head"><button className="customer-support-icon-button" onClick={onBackToTopics}><ChevronLeft size={15}/></button><div><b>{guidedTopic.title}</b><small>Try these steps first</small></div></div>
+                <div className="customer-support-guided-steps">{guidedTopic.steps.map((step,index)=><div className="customer-support-guided-step" key={step}><span>{index+1}</span><p>{step}</p></div>)}</div>
+                <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
+                <button className="customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/>Chat with mPay Support</button>
+              </div> : <div className="customer-support-intake">
+                <div className="customer-support-empty"><b>What can we help you with?</b><span>Choose a topic to start this support request.</span></div>
+                <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
+                  <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
+                </button>)}</div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {(chat?.messages?.some(item=>item.senderType==='STAFF')||chat?.pendingCallbackRequest) && <div className={'customer-support-callback-escalation '+(chat?.pendingCallbackRequest?'requested':'')}>

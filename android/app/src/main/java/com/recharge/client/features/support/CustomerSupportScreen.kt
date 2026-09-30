@@ -733,15 +733,7 @@ private fun SupportChatDialog(
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if ((supportIntakeMode || (chat?.items.isNullOrEmpty() && chat?.messages.isNullOrEmpty())) && guidedTopic != null) {
-                        item {
-                            SupportGuidedHelp(
-                                topic = requireNotNull(guidedTopic),
-                                onBack = onBackToTopics,
-                                onStartChat = onStartChat
-                            )
-                        }
-                    } else if (supportIntakeMode || (chat?.items.isNullOrEmpty() && chat?.messages.isNullOrEmpty())) {
+                    if (chat?.items.isNullOrEmpty() && chat?.messages.isNullOrEmpty() && !supportIntakeMode) {
                         item {
                             Column(
                                 Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 10.dp),
@@ -752,7 +744,7 @@ private fun SupportChatDialog(
                                     Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(11.dp).size(27.dp))
                                 }
                                 Text("How can we help?", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text("Choose a topic to start or continue your support request.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text("Choose a topic to start your support request.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         items(supportTopicOptions, key = { it.title }) { topic ->
@@ -791,17 +783,10 @@ private fun SupportChatDialog(
                                 }
                             } else {
                                 val mine = item.senderType == "CUSTOMER"
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
-                                ) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(0.82f),
-                                        shape = RoundedCornerShape(
-                                            topStart = 16.dp, topEnd = 16.dp,
-                                            bottomStart = if (mine) 16.dp else 4.dp,
-                                            bottomEnd = if (mine) 16.dp else 4.dp
-                                        ),
+                                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = if (mine) 16.dp else 4.dp, bottomEnd = if (mine) 16.dp else 4.dp),
                                         color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF4F5F7)
                                     ) {
                                         Column(Modifier.padding(horizontal = 13.dp, vertical = 9.dp)) {
@@ -817,6 +802,21 @@ private fun SupportChatDialog(
                                             )
                                             Text(item.message.orEmpty(), color = AppColors.TextPrimary)
                                             Text(formatSupportDate(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (supportIntakeMode) {
+                            item {
+                                if (guidedTopic != null) {
+                                    SupportGuidedHelp(topic = requireNotNull(guidedTopic), onBack = onBackToTopics, onStartChat = onStartChat)
+                                } else {
+                                    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                        Text("What can we help you with?", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                        Text("Choose a topic to start this support request.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                        supportTopicOptions.forEach { topic ->
+                                            SupportTopicOptionCard(topic = topic, onClick = { onChooseTopic(topic) })
                                         }
                                     }
                                 }

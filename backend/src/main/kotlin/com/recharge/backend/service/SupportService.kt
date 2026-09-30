@@ -497,7 +497,7 @@ class SupportService(
             cases.findById(caseId).orElse(null)?.let {
                 it.status = OPEN
                 it.updatedAt = now
-                if (isGenericChatCaseSubject(it.subject) && !topic.isNullOrBlank()) {
+                if (!topic.isNullOrBlank()) {
                     it.subject = supportTopicSubject(topic)
                     it.category = supportTopicCategory(topic)
                 }
