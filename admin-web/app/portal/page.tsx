@@ -4211,8 +4211,7 @@ function CustomerSupportChatModal({
     };
     return <div className="customer-support-floating-layer">
       {minimizedDragging && <div className={'customer-support-dismiss-zone ' + (dismissTargetActive ? 'active' : '')}>
-        <span><X size={20}/></span>
-        <b>Close</b>
+        <X size={34}/>
       </div>}
       <div ref={modalRef} className="customer-support-modal minimized" style={{left:position.x,top:position.y}}
         onPointerDown={minimizedPointerDown}
