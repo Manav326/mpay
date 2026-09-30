@@ -438,8 +438,8 @@ export default function CustomerCarePanel({
     status: string,
     resolutionCode?: string,
     resolutionNote?: string
-  ) {
-    if (!canManageSupport || busyKey) return;
+  ): Promise<boolean> {
+    if (!canManageSupport || busyKey) return false;
     setBusyKey('case:' + caseItem.caseId);
     try {
       const updated = await updateSupportCase(caseItem.caseId, status, resolutionCode, resolutionNote);
@@ -448,8 +448,11 @@ export default function CustomerCarePanel({
         openCases: value.openCases.map(item => item.caseId === updated.caseId ? updated : item),
       } : value);
       setNotice(status === 'OPEN' ? 'Support case reopened.' : 'Support case marked ' + status.toLowerCase() + '.');
+      void loadQueue();
+      return true;
     } catch (error: any) {
       setNotice(error?.message || 'Unable to update the support case.');
+      return false;
     } finally {
       setBusyKey('');
     }
@@ -457,7 +460,8 @@ export default function CustomerCarePanel({
 
   async function confirmCaseResolution() {
     if (!dialog || dialog.kind !== 'resolution') return;
-    await persistCaseStatus(dialog.caseItem, dialog.status, dialogResolutionCode, dialogText);
+    const saved = await persistCaseStatus(dialog.caseItem, dialog.status, dialogResolutionCode, dialogText);
+    if (!saved) return;
     setDialog(null);
     setDialogText('');
   }
