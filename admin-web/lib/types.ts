@@ -47,6 +47,16 @@ export interface UserDetail extends UserSummary {
   }>;
 }
 
+export interface PortalStaff {
+  publicUserId: string;
+  name?: string | null;
+  email?: string | null;
+  mobile: string;
+  role: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface LoginSession { token: string; refreshToken: string; role: Role; userId: string; name: string; permissions: string[]; }
 
 export interface DashboardSummary {
