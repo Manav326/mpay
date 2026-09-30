@@ -6328,3 +6328,6 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   .customer-support-inline-content{padding:0 10px 10px}
   .customer-support-call-event{width:92%}
 }
+
+/* Admin drawer uses the same full branding lockup as the customer portal drawer. */
+.sidebar.collapsed .mpay-brand-copy{display:none}.sidebar.collapsed .mpay-brand-unit{justify-content:center}
