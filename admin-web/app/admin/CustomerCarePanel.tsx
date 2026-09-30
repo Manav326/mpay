@@ -73,6 +73,8 @@ type Props = {
   canCallCustomer: boolean;
   canManageCallAccess: boolean;
   canManageSupportAi: boolean;
+  canViewCustomerContext: boolean;
+  canManageSupportAccess: boolean;
   users?: UserSummary[];
 };
 
@@ -156,6 +158,8 @@ export default function CustomerCarePanel({
 }: Props) {
   const [requests, setRequests] = useState<SupportCallRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
+  const [queue, setQueue] = useState<SupportQueueResponse | null>(null);
+  const [queueFilter, setQueueFilter] = useState<'ALL' | 'MINE' | 'UNASSIGNED' | 'CALLBACKS' | 'MESSAGES' | 'CASES'>('ALL');
   const [customerQuery, setCustomerQuery] = useState('');
   const [selected, setSelected] = useState<SupportCustomer | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<UserDetail | null>(null);
@@ -175,6 +179,13 @@ export default function CustomerCarePanel({
   const [dialogText, setDialogText] = useState('');
   const [dialogVisibility, setDialogVisibility] = useState<'INTERNAL' | 'CUSTOMER'>('INTERNAL');
   const [dialogResolutionCode, setDialogResolutionCode] = useState('AGENT_HANDLED');
+  const [chatAtBottom, setChatAtBottom] = useState(true);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const [access, setAccess] = useState<SupportAccessResponse | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessBusy, setAccessBusy] = useState('');
+  const [accessStaffQuery, setAccessStaffQuery] = useState('');
+  const [accessNotice, setAccessNotice] = useState('');
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
 
   const visibleClients = useMemo(() => {
@@ -189,8 +200,21 @@ export default function CustomerCarePanel({
       .slice(0, query ? 12 : 6);
   }, [users, customerQuery]);
 
-  const selectedOpenCase = selected?.openCases.find(item => item.status !== 'CLOSED');
+  const selectedActiveCases = selected?.openCases.filter(item => item.status === 'OPEN') || [];
+  const selectedResolvedCases = selected?.openCases.filter(item => item.status === 'RESOLVED') || [];
+  const selectedOpenCase = selectedActiveCases[0];
   const selectedUnread = supportChat?.unreadForStaff || 0;
+  const queueItems = useMemo(() => {
+    const items = queue?.items || [];
+    return items.filter(item => {
+      if (queueFilter === 'MINE') return item.assignedUserPublicId === item.assignedUserPublicId && item.assignedUserName;
+      if (queueFilter === 'UNASSIGNED') return !item.assignedUserPublicId;
+      if (queueFilter === 'CALLBACKS') return !!item.pendingCallback;
+      if (queueFilter === 'MESSAGES') return item.unreadMessages > 0;
+      if (queueFilter === 'CASES') return !!item.caseId;
+      return true;
+    });
+  }, [queue, queueFilter]);
 
   const activityItems = useMemo(() => {
     if (!selected) return [];
