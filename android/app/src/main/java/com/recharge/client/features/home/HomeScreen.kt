@@ -48,7 +48,11 @@ fun HomeScreen(
     onRechargeHistory: () -> Unit, onRentalBookings: () -> Unit, onCarRental: () -> Unit
 ) {
     var showWithdraw by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(isVisible) { if (isVisible) onRefresh() }
+    // The home destination can be revisited frequently. Load it on first entry,
+    // while keeping the explicit pull/refresh action as the force-refresh path.
+    LaunchedEffect(isVisible, user != null, wallet != null) {
+        if (isVisible && user == null && wallet == null) onRefresh()
+    }
     var greetingVisible by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) {
         if (isVisible) { greetingVisible = false; delay(80); greetingVisible = true }
