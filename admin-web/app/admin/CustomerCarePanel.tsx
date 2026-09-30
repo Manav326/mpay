@@ -207,7 +207,7 @@ export default function CustomerCarePanel({
   const queueItems = useMemo(() => {
     const items = queue?.items || [];
     return items.filter(item => {
-      if (queueFilter === 'MINE') return item.assignedUserPublicId === item.assignedUserPublicId && item.assignedUserName;
+      if (queueFilter === 'MINE') return item.assignedToViewer;
       if (queueFilter === 'UNASSIGNED') return !item.assignedUserPublicId;
       if (queueFilter === 'CALLBACKS') return !!item.pendingCallback;
       if (queueFilter === 'MESSAGES') return item.unreadMessages > 0;
