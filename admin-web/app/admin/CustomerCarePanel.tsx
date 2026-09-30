@@ -85,6 +85,7 @@ type DialogState =
   | { kind: 'decline'; request: SupportCallRequest }
   | { kind: 'note'; caseItem: SupportCase }
   | { kind: 'resolution'; caseItem: SupportCase; status: string }
+  | { kind: 'eta'; caseItem: SupportCase }
   | null;
 
 const dateTime = (value?: string | null) =>
@@ -109,6 +110,13 @@ const relativeAge = (value?: string | null) => {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return hours + 'h ago';
   return Math.floor(hours / 24) + 'd ago';
+};
+
+const toDateTimeLocal = (value?: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 };
 
 const relativeUntil = (value?: string | null) => {
@@ -184,6 +192,7 @@ export default function CustomerCarePanel({
   const [aiBusy, setAiBusy] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [dialogText, setDialogText] = useState('');
+  const [dialogEtaLocal, setDialogEtaLocal] = useState('');
   const [dialogVisibility, setDialogVisibility] = useState<'INTERNAL' | 'CUSTOMER'>('INTERNAL');
   const [dialogResolutionCode, setDialogResolutionCode] = useState('AGENT_HANDLED');
   const [chatAtBottom, setChatAtBottom] = useState(true);
@@ -372,6 +381,7 @@ export default function CustomerCarePanel({
         ...value,
         status: 'OPEN',
         messages: [...value.messages, saved],
+        items: [...(value.items || []), { itemId: saved.messageId, type: 'MESSAGE' as const, senderType: saved.senderType, message: saved.message, createdAt: saved.createdAt }],
         unreadForStaff: 0,
       } : value);
       setNotice('Reply sent to the customer.');
@@ -465,6 +475,37 @@ export default function CustomerCarePanel({
       setNotice(next.enabled ? 'Customer callback requests enabled.' : 'Customer callback requests disabled.');
     } catch (error: any) {
       setNotice(error?.message || 'Unable to update callback access.');
+    } finally {
+      setBusyKey('');
+    }
+  }
+
+  function openEtaDialog(caseItem: SupportCase) {
+    if (!canManageSupport || busyKey) return;
+    setDialog({ kind: 'eta', caseItem });
+    setDialogEtaLocal(toDateTimeLocal(caseItem.expectedResolutionAt));
+  }
+
+  async function confirmEta() {
+    if (!dialog || dialog.kind !== 'eta' || !canManageSupport || busyKey || !dialogEtaLocal) return;
+    setBusyKey('eta:' + dialog.caseItem.caseId);
+    try {
+      const updated = await updateSupportCase(
+        dialog.caseItem.caseId,
+        dialog.caseItem.status,
+        dialog.caseItem.resolutionCode || undefined,
+        dialog.caseItem.resolutionNote || undefined,
+        new Date(dialogEtaLocal).toISOString()
+      );
+      setSelected(value => value ? {
+        ...value,
+        openCases: value.openCases.map(item => item.caseId === updated.caseId ? updated : item),
+      } : value);
+      setDialog(null);
+      setDialogEtaLocal('');
+      setNotice('Expected resolution time updated.');
+    } catch (error: any) {
+      setNotice(error?.message || 'Unable to update the expected resolution time.');
     } finally {
       setBusyKey('');
     }
@@ -1038,27 +1079,35 @@ export default function CustomerCarePanel({
                 <div className="care-chat-window" ref={chatMessagesRef} onScroll={() => void handleChatScroll()}>
                   {chatLoading && !supportChat ? (
                     <div className="care-empty">Loading conversation…</div>
-                  ) : supportChat?.messages.length ? (
-                    supportChat.messages.map(message => (
-                      <div key={message.messageId} className={'care-chat-row ' + (message.senderType === 'CUSTOMER' ? 'customer' : 'support')}>
-                        <div className={'care-chat-bubble ' + (message.senderType === 'CUSTOMER' ? 'customer' : message.senderType === 'AI' ? 'ai' : 'support')}>
-                          <div className="care-chat-author">
-                            {message.senderType === 'AI' ? <Bot size={12} /> : message.senderType === 'CUSTOMER' ? <UserRound size={12} /> : <Headset size={12} />}
-                            <b>{message.senderType === 'AI' ? 'mPay AI' : message.senderType === 'CUSTOMER' ? 'Customer' : 'mPay Support'}</b>
-                            <time>{dateTime(message.createdAt)}</time>
-                          </div>
-                          <div className="care-chat-text">{message.message}</div>
-                        </div>
+                  ) : (supportChat?.items?.length ? supportChat.items : (supportChat?.messages || []).map(message => ({
+                    itemId: message.messageId,
+                    type: 'MESSAGE' as const,
+                    senderType: message.senderType,
+                    message: message.message,
+                    createdAt: message.createdAt,
+                  }))).map(item => item.type === 'VOICE_CALL' ? (
+                    <div key={item.itemId} className="care-chat-call-event">
+                      <div className="care-chat-call-icon"><PhoneCall size={14} /></div>
+                      <div>
+                        <b>{item.outcome === 'NO_ANSWER' || item.status === 'MISSED' ? 'Support tried to call' : item.status === 'DECLINED' ? 'Customer declined the call' : 'Support voice call'}</b>
+                        <span>{item.actorName || 'mPay Support'} · {item.outcome || item.status || 'Call'}</span>
+                        {item.durationLabel && <small>{item.durationLabel}</small>}
                       </div>
-                    ))
-                  ) : (
-                    <div className="care-chat-empty">
-                      <MessageSquareText size={19} />
-                      <b>No customer message yet</b>
-                      <span>The conversation will appear here when the customer starts chatting.</span>
+                      <time>{dateTime(item.createdAt)}</time>
                     </div>
-                  )}
-                </div>
+                  ) : (
+                    <div key={item.itemId} className={'care-chat-row ' + (item.senderType === 'CUSTOMER' ? 'customer' : 'support')}>
+                      <div className={'care-chat-bubble ' + (item.senderType === 'CUSTOMER' ? 'customer' : item.senderType === 'AI' ? 'ai' : 'support')}>
+                        <div className="care-chat-author">
+                          {item.senderType === 'AI' ? <Bot size={12} /> : item.senderType === 'CUSTOMER' ? <UserRound size={12} /> : <Headset size={12} />}
+                          <b>{item.senderType === 'AI' ? 'mPay AI' : item.senderType === 'CUSTOMER' ? 'Customer' : 'mPay Support'}</b>
+                          <time>{dateTime(item.createdAt)}</time>
+                        </div>
+                        <div className="care-chat-text">{item.message}</div>
+                      </div>
+                    </div>
+                  ))}
+
                 {supportChat?.unreadForStaff && !chatAtBottom && (
                   <button className="care-new-message-bar" onClick={() => {
                     const node = chatMessagesRef.current;
@@ -1167,6 +1216,11 @@ export default function CustomerCarePanel({
                                 {canManageSupport && (
                                   <button className="secondary compact" onClick={() => openNoteDialog(caseItem)} disabled={!!busyKey}>
                                     <MessageSquareText size={13} /> Add note
+                                  </button>
+                                )}
+                                {canManageSupport && (
+                                  <button className="secondary compact" onClick={() => openEtaDialog(caseItem)} disabled={!!busyKey}>
+                                    <Clock3 size={13} /> Set ETA
                                   </button>
                                 )}
                                 {caseItem.assignedEmployeePublicId && canManageSupport && (
@@ -1445,6 +1499,19 @@ export default function CustomerCarePanel({
               </div>
               <button className="care-icon-button" onClick={() => !busyKey && setDialog(null)} aria-label="Close dialog"><X size={15} /></button>
             </div>
+
+            {dialog.kind === 'eta' && (
+              <>
+                <p className="care-dialog-copy">By default mPay uses two working days from the latest meaningful support update. Set a specific commitment when Support has given the customer a different expected time.</p>
+                <label className="care-eta-field">Expected resolution<input type="datetime-local" value={dialogEtaLocal} onChange={event => setDialogEtaLocal(event.target.value)} /></label>
+                <div className="care-dialog-actions">
+                  <button className="secondary compact" onClick={() => setDialog(null)} disabled={!!busyKey}>Cancel</button>
+                  <button className="primary compact" onClick={() => void confirmEta()} disabled={!!busyKey || !dialogEtaLocal}>
+                    <Clock3 size={13} /> {busyKey === 'eta:' + dialog.caseItem.caseId ? 'Saving…' : 'Set ETA'}
+                  </button>
+                </div>
+              </>
+            )}
 
             {dialog.kind === 'decline' && (
               <>
