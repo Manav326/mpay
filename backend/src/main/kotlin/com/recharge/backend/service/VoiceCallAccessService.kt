@@ -23,7 +23,7 @@ class VoiceCallAccessService(
     private val audit: EmployeeAuditService
 ) {
     fun roleAccess(viewer: EmployeeEntity): List<VoiceCallRoleAccessResponse> {
-        roleAccess.requirePermission(viewer, "MANAGE_CALL_ACCESS")
+        requireAdmin(viewer)
         return roleAccess.portalRoles()
             .filterNot { it.equals("CLIENT", true) }
             .map { role ->
@@ -101,6 +101,12 @@ class VoiceCallAccessService(
             metadata = mapOf("permission" to "CALL_CUSTOMER", "mode" to normalized)
         )
         return toUserResponse(target)
+    }
+
+    private fun requireAdmin(viewer: EmployeeEntity) {
+        if (!viewer.role.equals("ADMIN", true)) {
+            throw org.springframework.security.access.AccessDeniedException("Only the administrator can manage employee voice access")
+        }
     }
 
     private fun saveOverride(target: EmployeeEntity, allowed: Boolean, viewer: EmployeeEntity) {
