@@ -1,6 +1,8 @@
 package com.recharge.backend.service
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.recharge.backend.api.PortalStaffActivityResponse
 import com.recharge.backend.domain.EmployeeActivityEntity
 import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.repository.EmployeeActivityRepository
@@ -20,26 +22,19 @@ class EmployeeAuditService(
         summary: String,
         metadata: Map<String, Any?> = emptyMap()
     ) {
-        val employeeId = requireNotNull(actor.id)
-        val json = metadata.filterValues { it != null }.takeIf { it.isNotEmpty() }?.let {
-            runCatching { objectMapper.writeValueAsString(it) }.getOrNull()
-        }
-        activities.save(
-            EmployeeActivityEntity(
-                employeeId = employeeId,
-                action = action.take(80),
-                subjectType = subjectType?.take(50),
-                subjectId = subjectId?.take(120),
-                summary = summary.take(500),
-                metadataJson = json,
-                occurredAt = Instant.now()
-            )
+        save(
+            employeeId = requireNotNull(actor.id),
+            action = action,
+            subjectType = subjectType,
+            subjectId = subjectId,
+            summary = summary,
+            metadata = metadata
         )
     }
 
-    fun list(employee: EmployeeEntity): List<com.recharge.backend.api.PortalStaffActivityResponse> =
+    fun list(employee: EmployeeEntity): List<PortalStaffActivityResponse> =
         activities.findTop100ByEmployeeIdOrderByOccurredAtDesc(requireNotNull(employee.id)).map {
-            com.recharge.backend.api.PortalStaffActivityResponse(
+            PortalStaffActivityResponse(
                 action = it.action,
                 subjectType = it.subjectType,
                 subjectId = it.subjectId,
@@ -56,9 +51,24 @@ class EmployeeAuditService(
         summary: String,
         metadata: Map<String, Any?> = emptyMap()
     ) {
-        val json = metadata.filterValues { it != null }.takeIf { it.isNotEmpty() }?.let {
-            runCatching { objectMapper.writeValueAsString(it) }.getOrNull()
-        }
+        save(
+            employeeId = employeeId,
+            action = action,
+            subjectType = subjectType,
+            subjectId = subjectId,
+            summary = summary,
+            metadata = metadata
+        )
+    }
+
+    private fun save(
+        employeeId: Long,
+        action: String,
+        subjectType: String?,
+        subjectId: String?,
+        summary: String,
+        metadata: Map<String, Any?>
+    ) {
         activities.save(
             EmployeeActivityEntity(
                 employeeId = employeeId,
@@ -66,9 +76,17 @@ class EmployeeAuditService(
                 subjectType = subjectType?.take(50),
                 subjectId = subjectId?.take(120),
                 summary = summary.take(500),
-                metadataJson = json,
+                metadataJson = toMetadataNode(metadata),
                 occurredAt = Instant.now()
             )
         )
     }
+
+    private fun toMetadataNode(metadata: Map<String, Any?>): JsonNode? =
+        metadata
+            .filterValues { it != null }
+            .takeIf { it.isNotEmpty() }
+            ?.let { values ->
+                runCatching { objectMapper.valueToTree<JsonNode>(values) }.getOrNull()
+            }
 }
