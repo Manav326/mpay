@@ -88,6 +88,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private data class FloatingSupportTopic(
+    val code: String,
     val title: String,
     val description: String,
     val message: String,
@@ -95,37 +96,37 @@ private data class FloatingSupportTopic(
 )
 
 private val floatingSupportTopics = listOf(
-    FloatingSupportTopic("Add money", "Payment completed but wallet not updated", "I need help with adding money to my mPay wallet.", listOf(
+    FloatingSupportTopic("ADD_MONEY", "Add money", "Payment completed but wallet not updated", "I need help with adding money to my mPay wallet.", listOf(
         "Open Wallet and check the latest transaction.",
         "Confirm whether the payment shows completed, pending or failed.",
         "If money was paid but the wallet is still unchanged, continue to chat with mPay Support."
     )),
-    FloatingSupportTopic("Withdrawal", "UPI withdrawal, status or failed request", "I need help with a wallet withdrawal.", listOf(
+    FloatingSupportTopic("WITHDRAWAL", "Withdrawal", "UPI withdrawal, status or failed request", "I need help with a wallet withdrawal.", listOf(
         "Open Wallet → Withdrawals and check the latest status.",
         "Confirm the UPI ID used for the request.",
         "If the request is stuck, failed or the wallet amount needs clarification, continue to chat with mPay Support."
     )),
-    FloatingSupportTopic("Mobile recharge", "Recharge failed, pending or wrong plan", "I need help with a mobile recharge.", listOf(
+    FloatingSupportTopic("RECHARGE", "Mobile recharge", "Recharge failed, pending or wrong plan", "I need help with a mobile recharge.", listOf(
         "Open Recharge History and select the affected recharge.",
         "Check the mobile number, operator, amount and transaction status.",
         "If the recharge is still unresolved, continue to chat with mPay Support before retrying."
     )),
-    FloatingSupportTopic("Car rental", "Booking, cancellation or payment issue", "I need help with an mPay car rental booking.", listOf(
+    FloatingSupportTopic("CAR_RENTAL", "Car rental", "Booking, cancellation or payment issue", "I need help with an mPay car rental booking.", listOf(
         "Open My Bookings and select the affected booking.",
         "Check its status, trip dates and wallet payment details.",
         "If the booking or refund issue remains, continue to chat with mPay Support."
     )),
-    FloatingSupportTopic("Wallet & transactions", "Balance, debit, refund or transaction history", "I need help with a wallet transaction.", listOf(
+    FloatingSupportTopic("WALLET", "Wallet & transactions", "Balance, debit, refund or transaction history", "I need help with a wallet transaction.", listOf(
         "Open Wallet or Transaction History and select the transaction.",
         "Check the amount, status, reference and description.",
         "If the ledger entry still needs explanation, continue to chat with mPay Support."
     )),
-    FloatingSupportTopic("Account & profile", "Profile, login or account access", "I need help with my mPay account or profile.", listOf(
+    FloatingSupportTopic("ACCOUNT", "Account & profile", "Profile, login or account access", "I need help with my mPay account or profile.", listOf(
         "Check Profile and Account Settings for the affected detail.",
         "Confirm that the account is active and your profile information is current.",
         "If you still cannot complete the action, continue to chat with mPay Support."
     )),
-    FloatingSupportTopic("Something else", "Another issue not covered above", "I need help with an mPay issue that is not covered by the support topics.", listOf(
+    FloatingSupportTopic("OTHER", "Something else", "Another issue not covered above", "I need help with an mPay issue that is not covered by the support topics.", listOf(
         "Choose this when your issue does not match the topics above.",
         "Describe what happened, including any relevant transaction, booking or error details.",
         "mPay Support can take over the conversation and help investigate the issue."
@@ -221,7 +222,7 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    fun sendMessage(messageOverride: String? = null) {
+    fun sendMessage(messageOverride: String? = null, topicCode: String? = null) {
         val message = (messageOverride ?: draft).trim()
         if (message.isBlank() || busy) return
         busy = true
@@ -229,7 +230,7 @@ fun CustomerSupportFloatingChat(
         scope.launch {
             runCatching {
                 NetworkModule.clientApi(context).sendCustomerSupportChatMessage(
-                    CreateSupportMessageRequest(message)
+                    CreateSupportMessageRequest(message = message, topic = topicCode)
                 )
             }.onSuccess { response ->
                 if (response.isSuccessful) {
@@ -365,6 +366,7 @@ fun CustomerSupportFloatingChat(
             draft = draft,
             error = error,
             guidedTopic = guidedTopic,
+            supportIntakeMode = supportIntakeMode,
             minimized = minimized,
             callbackBusy = callbackBusy,
             onDismiss = onDismiss,
@@ -385,7 +387,7 @@ fun CustomerSupportFloatingChat(
                 guidedTopic?.let {
                     guidedTopic = null
                     supportIntakeMode = false
-                    sendMessage(it.message)
+                    sendMessage(it.message, it.code)
                 }
             },
             onRequestCallback = ::requestCallback,
@@ -447,6 +449,7 @@ private fun FloatingChatWindow(
     draft: String,
     error: String?,
     guidedTopic: FloatingSupportTopic?,
+    supportIntakeMode: Boolean,
     minimized: Boolean,
     callbackBusy: Boolean,
     onDismiss: () -> Unit,
