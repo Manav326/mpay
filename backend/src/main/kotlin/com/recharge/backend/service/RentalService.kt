@@ -84,7 +84,8 @@ class RentalService(
             val now = Instant.now()
             current.updatedAt = now
             vendors.save(current)
-            vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(current.id), action = "RESUBMITTED", actorUserId = userId, createdAt = now))
+            vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(current.id), action = "RESUBMITTED", actorAccountId = userId,
+                    actorAccountType = "USER", createdAt = now))
             return vendor(userId)
         }
         val type = request.vendorType.trim().uppercase()
@@ -111,7 +112,8 @@ class RentalService(
                 updatedAt = now
             )
         )
-        vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(saved.id), action = "SUBMITTED", actorUserId = userId, createdAt = now))
+        vendorReviews.save(RentalVendorReviewEntity(vendorId = requireNotNull(saved.id), action = "SUBMITTED", actorAccountId = userId,
+                    actorAccountType = "USER", createdAt = now))
         return vendor(userId)
     }
 
@@ -237,7 +239,8 @@ class RentalService(
                 approvalStatus = "PENDING_REVIEW"
             )
         )
-        carReviews.save(RentalCarReviewEntity(carId = requireNotNull(car.id), action = "SUBMITTED", actorUserId = userId, createdAt = now))
+        carReviews.save(RentalCarReviewEntity(carId = requireNotNull(car.id), action = "SUBMITTED", actorAccountId = userId,
+                    actorAccountType = "USER", createdAt = now))
         return toCarResponse(car)
     }
 
@@ -307,7 +310,8 @@ class RentalService(
             RentalCarReviewEntity(
                 carId = carId,
                 action = if (wasApprovedOffMarket) "UPDATED_OFF_MARKET" else if (wasRejected) "RESUBMITTED" else "UPDATED_SUBMISSION",
-                actorUserId = userId,
+                actorAccountId = userId,
+                    actorAccountType = "USER",
                 createdAt = now
             )
         )
@@ -1002,25 +1006,27 @@ class RentalService(
     }
 
     @Transactional
-    fun approveVendor(vendorId: Long, actorUserId: Long): RentalVendorResponse {
+    fun approveVendor(vendorId: Long, actor: EmployeeEntity): RentalVendorResponse {
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }
         vendor.status = "VERIFIED"
         vendor.rejectionReason = null
         vendor.updatedAt = Instant.now()
         vendors.save(vendor)
-        vendorReviews.save(RentalVendorReviewEntity(vendorId = vendorId, action = "APPROVED", actorUserId = actorUserId, createdAt = Instant.now()))
+        vendorReviews.save(RentalVendorReviewEntity(vendorId = vendorId, action = "APPROVED", actorAccountId = requireNotNull(actor.id),
+                    actorAccountType = "EMPLOYEE", createdAt = Instant.now()))
         return vendor(vendor.userId)
     }
 
     @Transactional
-    fun rejectVendor(vendorId: Long, reason: String?, actorUserId: Long): RentalVendorResponse {
+    fun rejectVendor(vendorId: Long, reason: String?, actor: EmployeeEntity): RentalVendorResponse {
         val vendor = vendors.findById(vendorId).orElseThrow { IllegalArgumentException("Vendor not found") }
         require(vendor.status != "VERIFIED") { "Verified vendors cannot be rejected from this action" }
         vendor.status = "REJECTED"
         vendor.rejectionReason = reason?.trim()?.takeIf { it.isNotBlank() } ?: "Additional information is required"
         vendor.updatedAt = Instant.now()
         vendors.save(vendor)
-        vendorReviews.save(RentalVendorReviewEntity(vendorId = vendorId, action = "REJECTED", reason = vendor.rejectionReason, actorUserId = actorUserId, createdAt = Instant.now()))
+        vendorReviews.save(RentalVendorReviewEntity(vendorId = vendorId, action = "REJECTED", reason = vendor.rejectionReason, actorAccountId = requireNotNull(actor.id),
+                    actorAccountType = "EMPLOYEE", createdAt = Instant.now()))
         return vendor(vendor.userId)
     }
 
@@ -1061,7 +1067,7 @@ class RentalService(
     }
 
     @Transactional
-    fun approveVehicle(carId: Long, actorUserId: Long): RentalCarResponse {
+    fun approveVehicle(carId: Long, actor: EmployeeEntity): RentalCarResponse {
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
         val vendor = car.vendorId?.let { vendors.findById(it).orElse(null) }
             ?: throw IllegalArgumentException("Vehicle vendor not found")
@@ -1072,19 +1078,21 @@ class RentalService(
         require(driver.active) { "Driver must be active before approving a vehicle" }
         require(driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver license is expired" }
         car.approvalStatus = "APPROVED"; car.rejectionReason = null; car.active = true; cars.save(car)
-        carReviews.save(RentalCarReviewEntity(carId = carId, action = "APPROVED", actorUserId = actorUserId, createdAt = Instant.now()))
+        carReviews.save(RentalCarReviewEntity(carId = carId, action = "APPROVED", actorAccountId = requireNotNull(actor.id),
+                    actorAccountType = "EMPLOYEE", createdAt = Instant.now()))
         return toCarResponse(car)
     }
 
     @Transactional
-    fun rejectVehicle(carId: Long, reason: String?, actorUserId: Long): RentalCarResponse {
+    fun rejectVehicle(carId: Long, reason: String?, actor: EmployeeEntity): RentalCarResponse {
         val car = cars.findById(carId).orElseThrow { IllegalArgumentException("Vehicle not found") }
         require(car.approvalStatus == "PENDING_REVIEW") { "Only pending vehicles can be rejected" }
         car.approvalStatus = "REJECTED"
         car.rejectionReason = reason?.trim()?.takeIf { it.isNotBlank() } ?: "Additional vehicle information is required"
         car.active = false
         cars.save(car)
-        carReviews.save(RentalCarReviewEntity(carId = carId, action = "REJECTED", reason = car.rejectionReason, actorUserId = actorUserId, createdAt = Instant.now()))
+        carReviews.save(RentalCarReviewEntity(carId = carId, action = "REJECTED", reason = car.rejectionReason, actorAccountId = requireNotNull(actor.id),
+                    actorAccountType = "EMPLOYEE", createdAt = Instant.now()))
         return toCarResponse(car)
     }
 
@@ -1105,7 +1113,8 @@ class RentalService(
                 RentalCarReviewEntity(
                     carId = requireNotNull(car.id),
                     action = action,
-                    actorUserId = actorUserId,
+                    actorAccountId = actorUserId,
+                    actorAccountType = "USER",
                     createdAt = Instant.now()
                 )
             )

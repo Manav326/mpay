@@ -203,7 +203,7 @@ class RentalController(
     @PostMapping("/admin/vendors/{vendorId}/approve")
     fun approveVendor(authentication: Authentication, @PathVariable vendorId: Long): RentalVendorResponse {
         requireRentalPartnerAccess(authentication)
-        return rentalService.approveVendor(vendorId, userId(authentication))
+        return rentalService.approveVendor(vendorId, currentEmployee(authentication))
     }
 
     @PostMapping("/admin/vendors/{vendorId}/reject")
@@ -213,7 +213,7 @@ class RentalController(
         @RequestBody(required = false) request: RentalAdminDecisionRequest?
     ): RentalVendorResponse {
         requireRentalPartnerAccess(authentication)
-        return rentalService.rejectVendor(vendorId, request?.reason, userId(authentication))
+        return rentalService.rejectVendor(vendorId, request?.reason, currentEmployee(authentication))
     }
 
     @GetMapping("/admin/dashboard")
@@ -261,7 +261,7 @@ class RentalController(
     @PostMapping("/admin/vehicles/{carId}/approve")
     fun approveVehicle(authentication: Authentication, @PathVariable carId: Long): RentalCarResponse {
         requireRentalPartnerAccess(authentication)
-        return rentalService.approveVehicle(carId, userId(authentication))
+        return rentalService.approveVehicle(carId, currentEmployee(authentication))
     }
 
     @PostMapping("/admin/vehicles/{carId}/reject")
@@ -271,7 +271,7 @@ class RentalController(
         @RequestBody(required = false) request: RentalAdminDecisionRequest?
     ): RentalCarResponse {
         requireRentalPartnerAccess(authentication)
-        return rentalService.rejectVehicle(carId, request?.reason, userId(authentication))
+        return rentalService.rejectVehicle(carId, request?.reason, currentEmployee(authentication))
     }
 
     @GetMapping("/bookings")

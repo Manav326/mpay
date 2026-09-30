@@ -1,10 +1,9 @@
 -- Separate portal staff from customer accounts.
--- Customer records remain in users; all portal staff live in employees.
--- Employee ids intentionally share the users_id_seq sequence so existing support/
--- voice/account references can be migrated without id collisions.
+-- Existing seeded portal accounts are copied into employees with an independent
+-- employee id sequence. Their users rows remain ordinary customer accounts.
 
 CREATE TABLE IF NOT EXISTS employees (
-    id BIGINT PRIMARY KEY DEFAULT nextval('users_id_seq'),
+    id BIGSERIAL PRIMARY KEY,
     public_id VARCHAR(36) NOT NULL UNIQUE,
     mobile VARCHAR(15) NOT NULL UNIQUE,
     name VARCHAR(120),
@@ -34,7 +33,11 @@ CREATE TABLE IF NOT EXISTS employee_permission_overrides (
     changed_by_employee_id BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_employee_permission_override UNIQUE(employee_id, permission)
+    CONSTRAINT uq_employee_permission_override UNIQUE(employee_id, permission),
+    CONSTRAINT fk_employee_permission_override_employee
+        FOREIGN KEY(employee_id) REFERENCES employees(id),
+    CONSTRAINT fk_employee_permission_override_changed_by
+        FOREIGN KEY(changed_by_employee_id) REFERENCES employees(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_employee_permission_overrides_employee
@@ -48,7 +51,9 @@ CREATE TABLE IF NOT EXISTS employee_activity (
     subject_id VARCHAR(120),
     summary VARCHAR(500) NOT NULL,
     metadata_json TEXT NULL,
-    occurred_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_employee_activity_employee
+        FOREIGN KEY(employee_id) REFERENCES employees(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_employee_activity_employee_time
@@ -62,11 +67,10 @@ CREATE INDEX IF NOT EXISTS idx_employee_activity_subject_time
 -- unexpected portal accounts.
 DO $$
 DECLARE
+    v_count INTEGER;
     v_user_id BIGINT;
-    v_role VARCHAR(50);
+    v_employee_id BIGINT;
 BEGIN
-    -- DELETED is the normal tombstone role for customer accounts and must remain
-    -- in users. Only unexpected active/non-customer roles should block this migration.
     IF EXISTS (
         SELECT 1
         FROM users
@@ -74,56 +78,110 @@ BEGIN
           AND mobile NOT IN ('9999999999', '9999999998')
     ) THEN
         RAISE EXCEPTION
-            'Portal employee migration stopped: users contains an unexpected non-client/non-deleted account other than the seeded Admin/Manager. Review this account before migration.';
+            'Portal employee migration stopped: users contains an unexpected non-client/non-deleted account outside the seeded Admin/Manager accounts.';
     END IF;
 
-    FOR v_user_id, v_role IN
-        SELECT id, role
-        FROM users
-        WHERE mobile IN ('9999999999', '9999999998')
-          AND UPPER(role) IN ('ADMIN', 'MANAGER')
+    SELECT COUNT(*)
+      INTO v_count
+      FROM users
+     WHERE mobile IN ('9999999999', '9999999998')
+       AND UPPER(role) IN ('ADMIN', 'MANAGER');
+
+    IF v_count <> 2 THEN
+        RAISE EXCEPTION
+            'Portal employee migration stopped: expected both seeded Admin and Manager accounts.';
+    END IF;
+
+    FOR v_user_id IN
+        SELECT id
+          FROM users
+         WHERE mobile IN ('9999999999', '9999999998')
+           AND UPPER(role) IN ('ADMIN', 'MANAGER')
+         ORDER BY id
     LOOP
         INSERT INTO employees (
-            id, public_id, mobile, name, email, password_hash, role, active, created_at, updated_at
+            public_id, mobile, name, email, password_hash, role, active,
+            profile_image_key, profile_image_content_type,
+            profile_image_updated_at, profile_updated_at, last_login_at,
+            created_at, updated_at
         )
         SELECT
-            id, public_id, mobile, name, email, password_hash, role, active, created_at, CURRENT_TIMESTAMP
-        FROM users
-        WHERE id = v_user_id
-        ON CONFLICT (id) DO NOTHING;
+            gen_random_uuid()::text,
+            u.mobile, u.name, u.email, u.password_hash, u.role, TRUE,
+            u.profile_image_key, u.profile_image_content_type,
+            u.profile_image_updated_at, u.profile_updated_at, u.last_login_at,
+            u.created_at, CURRENT_TIMESTAMP
+        FROM users u
+        WHERE u.id = v_user_id;
+    END LOOP;
 
-        INSERT INTO employee_permission_overrides(
+    FOR v_user_id IN
+        SELECT id
+          FROM users
+         WHERE mobile IN ('9999999999', '9999999998')
+           AND UPPER(role) IN ('ADMIN', 'MANAGER')
+         ORDER BY id
+    LOOP
+        SELECT e.id
+          INTO v_employee_id
+          FROM employees e
+         WHERE e.mobile = (SELECT u.mobile FROM users u WHERE u.id = v_user_id);
+
+        IF v_employee_id IS NULL THEN
+            RAISE EXCEPTION
+                'Portal employee migration stopped: copied employee not found for legacy user %.', v_user_id;
+        END IF;
+
+        IF EXISTS (
+            SELECT 1
+              FROM user_permission_overrides o
+              LEFT JOIN users granter ON granter.id = o.granted_by_user_id
+             WHERE o.user_id = v_user_id
+               AND (
+                   granter.id IS NULL
+                   OR granter.mobile NOT IN ('9999999999', '9999999998')
+                   OR UPPER(granter.role) NOT IN ('ADMIN', 'MANAGER')
+               )
+        ) THEN
+            RAISE EXCEPTION
+                'Portal employee migration stopped: a legacy staff permission override has a non-staff grantor.';
+        END IF;
+
+        INSERT INTO employee_permission_overrides (
             employee_id, permission, allowed, changed_by_employee_id, created_at, updated_at
         )
         SELECT
-            o.user_id, o.permission, o.allowed, o.granted_by_user_id, o.created_at, o.updated_at
+            v_employee_id,
+            o.permission,
+            o.allowed,
+            granter_employee.id,
+            o.created_at,
+            o.updated_at
         FROM user_permission_overrides o
+        JOIN users granter_user ON granter_user.id = o.granted_by_user_id
+        JOIN employees granter_employee ON granter_employee.mobile = granter_user.mobile
         WHERE o.user_id = v_user_id
         ON CONFLICT (employee_id, permission) DO NOTHING;
 
         INSERT INTO employee_activity(employee_id, action, subject_type, subject_id, summary)
         VALUES (
-            v_user_id,
+            v_employee_id,
             'ACCOUNT_MIGRATED',
             'EMPLOYEE',
-            v_user_id::text,
-            'Existing portal account moved from the customer account store to the employee account store.'
+            v_employee_id::text,
+            'Legacy portal account copied into the employee account store.'
         );
-
-        -- Keep the legacy user row as an inert historical record so older business
-        -- and audit foreign keys remain valid. Live portal authentication now resolves
-        -- this identity from employees and CUSTOMER login rejects non-CLIENT roles.
-        UPDATE users
-        SET role = 'LEGACY_EMPLOYEE',
-            active = FALSE
-        WHERE id = v_user_id;
     END LOOP;
 
-    PERFORM setval(
-        'users_id_seq',
-        GREATEST(
-            COALESCE((SELECT MAX(id) FROM users), 0),
-            COALESCE((SELECT MAX(id) FROM employees), 0)
-        )
-    );
+    UPDATE users
+       SET role = 'CLIENT',
+           active = TRUE
+     WHERE mobile IN ('9999999999', '9999999998')
+       AND UPPER(role) IN ('ADMIN', 'MANAGER');
+
+    DELETE FROM user_permission_overrides
+     WHERE user_id IN (
+         SELECT id FROM users
+         WHERE mobile IN ('9999999999', '9999999998')
+     );
 END $$;

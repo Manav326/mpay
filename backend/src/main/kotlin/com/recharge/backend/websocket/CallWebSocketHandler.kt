@@ -26,21 +26,20 @@ class CallWebSocketHandler(
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
         val accountId = session.attributes["accountId"] as Long
-        val accountType = session.attributes["accountType"]?.toString() ?: "USER"
+        val accountType = session.attributes["accountType"]?.toString()?.uppercase() ?: "USER"
         val callId = session.attributes["callId"]?.toString()
-        registry.register(accountId, callId.orEmpty(), session)
+        registry.register(accountType, accountId, callId.orEmpty(), session)
         accountBySession[session.id] = accountId
         accountTypeBySession[session.id] = accountType
-
         if (!callId.isNullOrBlank()) {
-            registry.markReady(callId, accountId)
-            val otherAccountId = runCatching { calls.otherParticipant(callId, accountId) }.getOrNull()
-            if (otherAccountId != null &&
-                registry.hasOpenSession(callId, otherAccountId) &&
-                registry.isReady(callId, otherAccountId)
+            registry.markReady(callId, accountType, accountId)
+            val other = runCatching { calls.otherParticipant(callId, accountType, accountId) }.getOrNull()
+            if (other != null &&
+                registry.hasOpenSession(callId, other.accountType, other.accountId) &&
+                registry.isReady(callId, other.accountType, other.accountId)
             ) {
-                registry.sendToCallUser(callId, accountId, """{"type":"ready","callId":"$callId"}""")
-                registry.sendToCallUser(callId, otherAccountId, """{"type":"ready","callId":"$callId"}""")
+                registry.sendToCallUser(callId, accountType, accountId, """{"type":"ready","callId":"$callId"}""")
+                registry.sendToCallUser(callId, other.accountType, other.accountId, """{"type":"ready","callId":"$callId"}""")
             }
         }
     }
@@ -48,32 +47,31 @@ class CallWebSocketHandler(
     override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
         val textMessage = message as? TextMessage ?: return
         if (textMessage.payload.length > 64 * 1024) return
-
         val accountId = accountBySession[session.id] ?: return
         val accountType = accountTypeBySession[session.id] ?: "USER"
         val callId = session.attributes["callId"]?.toString() ?: return
         if (!calls.socketAuthorized(accountType, accountId, callId)) return
-
         val node = runCatching { objectMapper.readTree(textMessage.payload) }.getOrNull() ?: return
         if (node.get("callId")?.asText() != callId) return
-
         when (node.get("type")?.asText()) {
             "ready" -> {
-                val otherAccountId = calls.otherParticipant(callId, accountId)
-                registry.markReady(callId, accountId)
-                if (registry.hasOpenSession(callId, otherAccountId) && registry.isReady(callId, otherAccountId)) {
-                    registry.sendToCallUser(callId, accountId, """{"type":"ready","callId":"$callId"}""")
-                    registry.sendToCallUser(callId, otherAccountId, """{"type":"ready","callId":"$callId"}""")
+                val other = calls.otherParticipant(callId, accountType, accountId)
+                registry.markReady(callId, accountType, accountId)
+                if (registry.hasOpenSession(callId, other.accountType, other.accountId) &&
+                    registry.isReady(callId, other.accountType, other.accountId)
+                ) {
+                    registry.sendToCallUser(callId, accountType, accountId, """{"type":"ready","callId":"$callId"}""")
+                    registry.sendToCallUser(callId, other.accountType, other.accountId, """{"type":"ready","callId":"$callId"}""")
                 }
             }
             "signal" -> {
                 val payload = node.get("payload")
                 val kind = payload?.get("kind")?.asText()
                 if (payload == null || !payload.isObject || kind !in setOf("offer", "answer", "candidate")) return
-                val otherAccountId = calls.otherParticipant(callId, accountId)
-                registry.sendToCallUser(callId, otherAccountId, message.payload)
+                val other = calls.otherParticipant(callId, accountType, accountId)
+                registry.sendToCallUser(callId, other.accountType, other.accountId, message.payload)
             }
-            "connected" -> calls.markConnected(accountId, callId)
+            "connected" -> calls.markConnected(accountType, accountId, callId)
             "hangup" -> {
                 if (accountType == "EMPLOYEE") {
                     val employee = employees.findById(accountId).orElse(null) ?: return
@@ -90,13 +88,13 @@ class CallWebSocketHandler(
 
     override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
         val accountId = accountBySession.remove(session.id) ?: return
-        accountTypeBySession.remove(session.id)
+        val accountType = accountTypeBySession.remove(session.id) ?: "USER"
         val callId = session.attributes["callId"]?.toString()
         if (!callId.isNullOrBlank()) {
-            registry.unregister(accountId, callId, session)
-            if (!registry.hasOpenSession(callId, accountId)) registry.clearReady(callId, accountId)
+            registry.unregister(accountType, accountId, callId, session)
+            if (!registry.hasOpenSession(callId, accountType, accountId)) registry.clearReady(callId, accountType, accountId)
         } else {
-            registry.unregister(accountId, "", session)
+            registry.unregister(accountType, accountId, "", session)
         }
     }
 

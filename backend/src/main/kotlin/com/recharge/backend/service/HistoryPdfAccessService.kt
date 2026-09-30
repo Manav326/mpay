@@ -109,7 +109,7 @@ class HistoryPdfAccessService(
             }
         }
         request.reviewNote = reviewNote?.trim()?.takeIf { it.isNotBlank() }?.take(1000)
-        request.reviewedBy = viewer.id
+        request.reviewedByEmployeeId = viewer.id
         request.reviewedAt = Instant.now()
         return toResponse(requests.save(request))
     }
