@@ -494,6 +494,7 @@ fun CustomerCareScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomerCareInbox(
     tickets: List<SupportTicketSummaryResponse>,
@@ -636,6 +637,7 @@ private fun CustomerCareTicketCard(ticket: SupportTicketSummaryResponse, onClick
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomerCareDetail(
     ticket: SupportTicketResponse,
