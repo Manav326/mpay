@@ -3,6 +3,7 @@ package com.recharge.client.features.support
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -315,40 +316,22 @@ fun CustomerSupportFloatingChat(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .offset(y = (-14).dp)
-                    .size(width = 88.dp, height = 72.dp),
-                shape = RoundedCornerShape(22.dp),
-                color = if (dismissTargetActive) Color(0xFF2A1B1B) else Color(0xFF171B20),
+                    .size(width = 60.dp, height = 52.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = if (dismissTargetActive) Color(0xFFDC4C4C) else Color(0xFFB83232),
                 tonalElevation = 2.dp,
                 shadowElevation = 12.dp,
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    if (dismissTargetActive) Color(0xFFE07070) else Color(0xFF49515B)
+                    Color(0xFFFF8A8A)
                 )
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (dismissTargetActive) Color(0xFF3A2020) else Color(0xFF252C33),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (dismissTargetActive) Color(0xFFE07070) else Color(0xFF5B6570)
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Release to close support",
-                            tint = if (dismissTargetActive) Color(0xFFFFB4B4) else Color(0xFFF0F3F6),
-                            modifier = Modifier.padding(8.dp).size(20.dp)
-                        )
-                    }
-                    Text(
-                        "Drag here to close",
-                        color = if (dismissTargetActive) Color(0xFFFCA5A5) else Color(0xFF8F9AA7),
-                        style = MaterialTheme.typography.labelSmall
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        androidx.compose.material.icons.filled.Delete,
+                        contentDescription = "Delete support window",
+                        tint = Color.White,
+                        modifier = Modifier.size(23.dp)
                     )
                 }
             }
