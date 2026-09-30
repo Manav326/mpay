@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -43,8 +44,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -126,7 +133,6 @@ fun CustomerSupportFloatingChat(
     if (!open) return
 
     val scope = rememberCoroutineScope()
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val density = LocalDensity.current
 
     var chat by remember { mutableStateOf<SupportChatResponse?>(null) }
@@ -236,21 +242,42 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    val windowWidth = if (minimized) 56f else widthDp
-    val windowHeight = if (minimized) 56f else heightDp
-    val boundedWidth = windowWidth
-        .coerceAtMost(configuration.screenWidthDp.toFloat() - 16f)
-        .coerceAtLeast(if (minimized) 56f else minWidth)
-    val boundedHeight = windowHeight
-        .coerceAtMost(configuration.screenHeightDp.toFloat() - 16f)
-        .coerceAtLeast(if (minimized) 56f else minHeight)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val availableWidth = maxWidth.value
+        val availableHeight = maxHeight.value
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset { IntOffset(with(density) { offsetX.dp.roundToPx() }, with(density) { offsetY.dp.roundToPx() }) }
-    ) {
-        FloatingChatWindow(
+        fun clampPosition() {
+            val currentWidth = if (minimized) 56f else widthDp
+            val currentHeight = if (minimized) 56f else heightDp
+            offsetX = offsetX.coerceIn(
+                horizontalMargin,
+                (availableWidth - currentWidth - horizontalMargin).coerceAtLeast(horizontalMargin)
+            )
+            offsetY = offsetY.coerceIn(
+                horizontalMargin,
+                (availableHeight - currentHeight - bottomMargin).coerceAtLeast(horizontalMargin)
+            )
+        }
+
+        val maxContentWidth = (availableWidth - horizontalMargin * 2).coerceAtLeast(56f)
+        val maxContentHeight = (availableHeight - horizontalMargin - bottomMargin).coerceAtLeast(56f)
+        val boundedWidth = if (minimized) 56f else {
+            widthDp.coerceIn(minWidth.coerceAtMost(maxContentWidth), maxContentWidth)
+        }
+        val boundedHeight = if (minimized) 56f else {
+            heightDp.coerceIn(minHeight.coerceAtMost(maxContentHeight), maxContentHeight)
+        }
+
+        LaunchedEffect(minimized, availableWidth, availableHeight, boundedWidth, boundedHeight) {
+            clampPosition()
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset { IntOffset(with(density) { offsetX.dp.roundToPx() }, with(density) { offsetY.dp.roundToPx() }) }
+        ) {
+            FloatingChatWindow(
             modifier = Modifier
                 .width(boundedWidth.dp)
                 .height(boundedHeight.dp),
@@ -283,14 +310,15 @@ fun CustomerSupportFloatingChat(
             },
             onResize = { dx, dy ->
                 if (!minimized) {
-                    val maxW = configuration.screenWidthDp.toFloat() - horizontalMargin * 2
-                    val maxH = configuration.screenHeightDp.toFloat() - horizontalMargin * 2
-                    widthDp = (widthDp + dx).coerceIn(minWidth, maxW)
-                    heightDp = (heightDp + dy).coerceIn(minHeight, maxH)
+                    val maxW = maxContentWidth
+                    val maxH = maxContentHeight
+                    widthDp = (widthDp + dx).coerceIn(minWidth.coerceAtMost(maxW), maxW)
+                    heightDp = (heightDp + dy).coerceIn(minHeight.coerceAtMost(maxH), maxH)
                     clampPosition()
                 }
             }
         )
+    }
     }
 
 }
