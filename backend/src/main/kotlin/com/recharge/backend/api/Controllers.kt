@@ -425,7 +425,7 @@ class AdminController(
     fun visibleRoles(authentication: Authentication): PortalRolesResponse {
         val viewer = currentEmployee(authentication)
         roleAccess.requirePermission(viewer, "VIEW_USERS")
-        return PortalRolesResponse(roleAccess.visibleRolesFor(viewer.role).toList())
+        return PortalRolesResponse(roleAccess.visibleRolesFor(viewer.role).filter { it.equals("CLIENT", true) }.toList())
     }
 
     @GetMapping("/users")
