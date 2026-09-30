@@ -34,6 +34,66 @@ function Invoke-Compose {
     }
 }
 
+
+
+function Get-StorageFreeBytes {
+    param([string]$Path = "/var/lib/containerd")
+
+    $lines = @(& df -Pk $Path 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $lines.Count -lt 2) {
+        $lines = @(& df -Pk "/" 2>$null)
+    }
+    if ($LASTEXITCODE -ne 0 -or $lines.Count -lt 2) {
+        throw "Could not determine available filesystem storage for $Path."
+    }
+
+    $fields = ($lines[1] -split "\s+") | Where-Object { $_ -ne "" }
+    if ($fields.Count -lt 4 -or $fields[3] -notmatch "^[0-9]+$") {
+        throw "Could not parse available filesystem storage for $Path."
+    }
+
+    return ([int64]$fields[3] * 1024)
+}
+
+function Get-StorageFreeGb {
+    return [math]::Round((Get-StorageFreeBytes) / 1GB, 2)
+}
+
+function Show-DockerStorage {
+    Write-Host "Docker storage status:" -ForegroundColor DarkGray
+    & docker system df
+    Write-Host "Filesystem free space: $(Get-StorageFreeGb) GB" -ForegroundColor DarkGray
+}
+
+function Invoke-SafeDockerRetentionCleanup {
+    Write-Host "Low Docker storage detected. Removing unused Docker resources; volumes are NOT pruned." -ForegroundColor Yellow
+
+    # Never use 'docker system prune --volumes' here. The Compose deployment owns
+    # PostgreSQL/Redis/media volumes and those must survive deployment cleanup.
+    Invoke-CommandChecked "docker" @("container", "prune", "-f")
+    Invoke-CommandChecked "docker" @("image", "prune", "-af")
+    Invoke-CommandChecked "docker" @("builder", "prune", "-af")
+}
+
+function Ensure-DockerStorage {
+    param([int64]$MinimumFreeBytes = 4GB)
+
+    $freeBytes = Get-StorageFreeBytes
+    Write-Host "Docker filesystem free space: $([math]::Round($freeBytes / 1GB, 2)) GB" -ForegroundColor DarkGray
+
+    if ($freeBytes -lt $MinimumFreeBytes) {
+        Show-DockerStorage
+        Invoke-SafeDockerRetentionCleanup
+        $freeBytes = Get-StorageFreeBytes
+        Write-Host "Docker filesystem free space after cleanup: $([math]::Round($freeBytes / 1GB, 2)) GB" -ForegroundColor DarkGray
+    }
+
+    if ($freeBytes -lt $MinimumFreeBytes) {
+        Show-DockerStorage
+        throw "Insufficient Docker filesystem storage. At least $([math]::Round($MinimumFreeBytes / 1GB, 2)) GB must remain free after safe cleanup. No Docker volumes were pruned."
+    }
+}
+
 function Get-CurrentBranch {
     $value = (git branch --show-current).Trim()
     if ([string]::IsNullOrWhiteSpace($value)) {
@@ -166,6 +226,9 @@ try {
         throw "Compose resolved Admin Web image does not match deployment commit. Expected $expectedAdminWebImage"
     }
 
+    Write-Host "Checking Docker storage before image pull..." -ForegroundColor Yellow
+    Ensure-DockerStorage
+
     Write-Host "Pulling exact commit images..." -ForegroundColor Yellow
     Invoke-Compose @("pull", "backend", "admin-web", "coturn")
 
@@ -190,6 +253,13 @@ try {
 
     Write-Host ""
     Invoke-Compose @("ps")
+
+    # After the new stack is healthy, running containers keep their images alive.
+    # Remove only resources no longer referenced by the running/stopped stack.
+    Write-Host "Applying post-deployment Docker retention cleanup..." -ForegroundColor Yellow
+    Invoke-SafeDockerRetentionCleanup
+    Show-DockerStorage
+
     Write-Host ""
     Write-Host "Admin Web : https://mpay.thinkwithsujeet.in" -ForegroundColor Green
     Write-Host "Backend   : https://api.mpay.thinkwithsujeet.in" -ForegroundColor Green
