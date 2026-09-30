@@ -206,15 +206,18 @@ export default function CustomerCarePanel({
   const selectedUnread = supportChat?.unreadForStaff || 0;
   const queueItems = useMemo(() => {
     const items = queue?.items || [];
+    const query = customerQuery.trim().toLowerCase();
     return items.filter(item => {
-      if (queueFilter === 'MINE') return item.assignedToViewer;
-      if (queueFilter === 'UNASSIGNED') return !item.assignedUserPublicId;
-      if (queueFilter === 'CALLBACKS') return !!item.pendingCallback;
-      if (queueFilter === 'MESSAGES') return item.unreadMessages > 0;
-      if (queueFilter === 'CASES') return !!item.caseId;
-      return true;
+      if (queueFilter === 'MINE' && !item.assignedToViewer) return false;
+      if (queueFilter === 'UNASSIGNED' && item.assignedUserPublicId) return false;
+      if (queueFilter === 'CALLBACKS' && !item.pendingCallback) return false;
+      if (queueFilter === 'MESSAGES' && item.unreadMessages <= 0) return false;
+      if (queueFilter === 'CASES' && !item.caseId) return false;
+      if (!query) return true;
+      return [item.customerName, item.customerMobile, item.customerPublicId, item.caseId, item.subject]
+        .some(value => String(value || '').toLowerCase().includes(query));
     });
-  }, [queue, queueFilter]);
+  }, [queue, queueFilter, customerQuery]);
 
   const activityItems = useMemo(() => {
     if (!selected) return [];
@@ -497,6 +500,61 @@ export default function CustomerCarePanel({
       setAiSettings(await getSupportAiSettings());
     } catch (error: any) {
       setNotice(error?.message || 'Unable to load Customer Care AI settings.');
+    }
+  }
+
+  async function openAccessPanel() {
+    if (!canManageSupportAccess) return;
+    setAccessOpen(true);
+    setAccessLoading(true);
+    setAccessNotice('');
+    try {
+      setAccess(await getCustomerCareAccess());
+    } catch (error: any) {
+      setAccessNotice(error?.message || 'Unable to load Customer Care permissions.');
+    } finally {
+      setAccessLoading(false);
+    }
+  }
+
+  async function saveRolePermission(role: string, permission: string, enabled: boolean) {
+    const key = 'role:' + role + ':' + permission;
+    setAccessBusy(key);
+    setAccessNotice('');
+    try {
+      const updated = await updateCustomerCareRolePermission(role, permission, enabled);
+      setAccess(current => current ? {
+        ...current,
+        roles: current.roles.map(item => item.role === role ? updated : item),
+      } : current);
+      setAccessNotice((enabled ? 'Granted ' : 'Revoked ') + permission.replaceAll('_', ' ').toLowerCase() + ' for the ' + role + ' role.');
+    } catch (error: any) {
+      setAccessNotice(error?.message || 'Unable to update the role permission.');
+    } finally {
+      setAccessBusy('');
+    }
+  }
+
+  async function saveUserPermission(publicUserId: string, permission: string, mode: 'DEFAULT' | 'ALLOW' | 'DENY') {
+    const key = 'user:' + publicUserId + ':' + permission;
+    setAccessBusy(key);
+    setAccessNotice('');
+    try {
+      const updated = await updateCustomerCareUserPermission(publicUserId, permission, mode);
+      setAccess(current => current ? {
+        ...current,
+        users: current.users.map(item => item.publicUserId === publicUserId ? updated : item),
+      } : current);
+      const label = permission.replaceAll('_', ' ').toLowerCase();
+      setAccessNotice(
+        mode === 'ALLOW' ? 'Granted ' + label + ' to ' + (updated.name || updated.mobile) + '.' :
+        mode === 'DENY' ? 'Revoked ' + label + ' from ' + (updated.name || updated.mobile) + '.' :
+        'Returned ' + label + ' to the role default for ' + (updated.name || updated.mobile) + '.'
+      );
+    } catch (error: any) {
+      setAccessNotice(error?.message || 'Unable to update staff permission.');
+    } finally {
+      setAccessBusy('');
     }
   }
 
