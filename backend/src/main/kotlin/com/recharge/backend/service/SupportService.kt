@@ -153,6 +153,23 @@ class SupportService(
             .map(::toRequestResponse)
     }
 
+    fun searchCustomers(viewer: UserEntity, query: String): List<SupportCustomerSearchResultResponse> {
+        roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        val normalized = query.trim().take(80)
+        if (normalized.isBlank()) return emptyList()
+        return users.searchSupportCustomers(normalized, org.springframework.data.domain.PageRequest.of(0, 20))
+            .filter { roleAccess.canView(viewer, it) }
+            .take(12)
+            .map {
+                SupportCustomerSearchResultResponse(
+                    customerPublicId = it.publicId,
+                    customerName = it.name,
+                    mobile = it.mobile,
+                    email = it.email
+                )
+            }
+    }
+
     @Transactional
     fun queue(viewer: UserEntity): SupportQueueResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
