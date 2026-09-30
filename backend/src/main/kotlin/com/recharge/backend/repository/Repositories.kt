@@ -10,6 +10,31 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.Optional
 
+interface EmployeeRepository : JpaRepository<com.recharge.backend.domain.EmployeeEntity, Long> {
+    fun findByMobile(mobile: String): Optional<com.recharge.backend.domain.EmployeeEntity>
+    fun findByEmailIgnoreCase(email: String): Optional<com.recharge.backend.domain.EmployeeEntity>
+    fun findByPublicId(publicId: String): Optional<com.recharge.backend.domain.EmployeeEntity>
+    fun findAllByRoleInOrderByCreatedAtDesc(roles: Collection<String>): List<com.recharge.backend.domain.EmployeeEntity>
+    fun findAllByRoleInOrderByNameAsc(roles: Collection<String>): List<com.recharge.backend.domain.EmployeeEntity>
+    fun findAllByActiveTrueOrderByCreatedAtDesc(): List<com.recharge.backend.domain.EmployeeEntity>
+}
+
+interface EmployeePermissionOverrideRepository :
+    JpaRepository<com.recharge.backend.domain.EmployeePermissionOverrideEntity, Long> {
+    fun findAllByEmployeeId(employeeId: Long): List<com.recharge.backend.domain.EmployeePermissionOverrideEntity>
+    fun findByEmployeeIdAndPermissionIgnoreCase(
+        employeeId: Long,
+        permission: String
+    ): com.recharge.backend.domain.EmployeePermissionOverrideEntity?
+}
+
+interface EmployeeActivityRepository :
+    JpaRepository<com.recharge.backend.domain.EmployeeActivityEntity, Long> {
+    fun findTop100ByEmployeeIdOrderByOccurredAtDesc(
+        employeeId: Long
+    ): List<com.recharge.backend.domain.EmployeeActivityEntity>
+}
+
 interface UserRepository : JpaRepository<UserEntity, Long> {
     fun findByMobile(mobile: String): Optional<UserEntity>
     fun findByEmailIgnoreCase(email: String): Optional<UserEntity>
