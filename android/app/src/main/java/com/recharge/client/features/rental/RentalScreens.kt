@@ -97,23 +97,28 @@ private fun rentalPhotoSlots(
     photos: List<RentalPhotoResource> = emptyList(),
     variant: String? = null
 ): List<String> {
-    if (photos.isNotEmpty()) {
-        return List(4) { index ->
-            photos.firstOrNull { it.slot == index }?.let { photo ->
-                when (variant) {
-                    "thumb" -> photo.thumbnailUrl
-                    "large" -> photo.largeUrl
-                    else -> photo.url
-                }
-            }.orEmpty()
-        }
-    }
-    val values = imageUrl.orEmpty()
+    val legacyValues = imageUrl.orEmpty()
         .replace("\\n", "|")
         .split("|")
         .take(4)
         .map { it.trim() }
-    return List(4) { index -> values.getOrNull(index).orEmpty() }
+
+    if (photos.isNotEmpty()) {
+        return List(4) { index ->
+            photos.firstOrNull { it.slot == index }
+                ?.let { photo ->
+                    when (variant) {
+                        "thumb" -> photo.thumbnailUrl
+                        "large" -> photo.largeUrl
+                        else -> photo.url
+                    }
+                }
+                ?.takeIf { it.isNotBlank() }
+                ?: legacyValues.getOrNull(index).orEmpty()
+        }
+    }
+
+    return List(4) { index -> legacyValues.getOrNull(index).orEmpty() }
 }
 
 private fun rentalPhotoDisplayUrl(value: String?, variant: String = "thumb"): String? {
