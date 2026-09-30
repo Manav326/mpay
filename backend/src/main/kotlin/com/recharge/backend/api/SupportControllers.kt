@@ -123,7 +123,7 @@ class CustomerCareAdminController(
     @PostMapping("/requests/{requestId}/call")
     fun call(authentication: Authentication, @PathVariable requestId: String): VoiceCallResponse {
         val viewer = currentEmployee(authentication)
-        roleAccess.requirePermission(viewer, SupportService.SUPPORT_MANAGE)
+        roleAccess.requirePermission(viewer, "CALL_CUSTOMER")
         val request = support.request(viewer, requestId)
         val customerPublicId = request.customerPublicId
             ?: throw IllegalStateException("Support request customer is unavailable")
