@@ -252,7 +252,7 @@ fun RegisterScreen(
                 Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = { otp = ""; onSendOtp(mobile) },
-                    enabled = resendRemaining == 0 && registrationOtpState !is RegistrationOtpUiState.Sending
+                    enabled = resendRemaining == 0L && registrationOtpState !is RegistrationOtpUiState.Sending
                 ) {
                     Text(if (resendRemaining > 0) "Resend " + resendRemaining + "s" else "Resend")
                 }

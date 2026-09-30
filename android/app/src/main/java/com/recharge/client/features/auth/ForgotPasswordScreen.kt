@@ -180,7 +180,7 @@ fun ForgotPasswordScreen(
             Spacer(Modifier.height(8.dp))
             TextButton(
                 onClick = { otp = ""; newPassword = ""; confirmPassword = ""; onRequestOtp(mobile) },
-                enabled = resendRemaining == 0 && state !is PasswordResetUiState.Sending && state !is PasswordResetUiState.Resetting
+                enabled = resendRemaining == 0L && state !is PasswordResetUiState.Sending && state !is PasswordResetUiState.Resetting
             ) {
                 Text(if (resendRemaining > 0) "Send OTP again in " + resendRemaining + "s" else "Send OTP again")
             }
