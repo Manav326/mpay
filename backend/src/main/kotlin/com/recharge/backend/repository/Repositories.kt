@@ -30,7 +30,7 @@ interface EmployeePermissionOverrideRepository :
 
 interface EmployeeActivityRepository :
     JpaRepository<com.recharge.backend.domain.EmployeeActivityEntity, Long> {
-    fun findTop100ByEmployeeIdOrderByOccurredAtDesc(
+    fun findTop100ByEmployeeIdOrderByOccurredAtDescIdDesc(
         employeeId: Long
     ): List<com.recharge.backend.domain.EmployeeActivityEntity>
 }
