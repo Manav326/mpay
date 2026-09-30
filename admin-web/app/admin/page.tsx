@@ -196,6 +196,8 @@ export default function Page() {
   const canCallCustomer = permissions.includes('CALL_CUSTOMER');
   const canManageCallAccess = permissions.includes('MANAGE_CALL_ACCESS');
   const canManageSupportAi = permissions.includes('MANAGE_SUPPORT_AI');
+  const canViewCustomerContext = permissions.includes('SUPPORT_VIEW_CUSTOMER_CONTEXT');
+  const canManageSupportAccess = permissions.includes('MANAGE_SUPPORT_ACCESS');
   const canSupportView = permissions.includes('SUPPORT_VIEW');
   const canSupportManage = permissions.includes('SUPPORT_MANAGE');
   const menu = [
@@ -219,7 +221,7 @@ export default function Page() {
       {notice && <div className="admin-notice"><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
       {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} attention={attention} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
-      {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} users={users} />}
+      {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} canViewCustomerContext={canViewCustomerContext} canManageSupportAccess={canManageSupportAccess} users={users} />}
       {view==='voice' && canManageCallAccess && <VoiceAccessPanel />}
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
