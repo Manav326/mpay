@@ -62,6 +62,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -348,6 +349,18 @@ private fun FloatingChatWindow(
 ) {
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    val supportPresent = chat?.status == "OPEN" &&
+        chat.messages.any { it.senderType == "STAFF" || it.senderType == "AI" }
+    val liveTransition = if (supportPresent) rememberInfiniteTransition(label = "supportPresence") else null
+    val liveAlpha by (liveTransition?.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1100),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "supportPresencePulse"
+    ) ?: remember { mutableStateOf(1f) })
     LaunchedEffect(chat?.messages?.size) {
         val size = chat?.messages?.size ?: 0
         if (size > 0) listState.animateScrollToItem(size - 1)
@@ -371,24 +384,33 @@ private fun FloatingChatWindow(
                     )
                 },
             shape = CircleShape,
-            color = Color(0xFFFFFAF1),
-            shadowElevation = 16.dp,
+            color = Color(0xFF171B20),
+            shadowElevation = 18.dp,
             tonalElevation = 3.dp,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0E4D0))
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF39414A))
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 Surface(
+                    modifier = Modifier.align(Alignment.Center),
                     shape = CircleShape,
-                    color = Color(0xFFFFEFCF)
+                    color = Color(0xFF2A241A)
                 ) {
                     Icon(
                         Icons.Default.HeadsetMic,
                         contentDescription = "Open mPay Support",
-                        tint = AppColors.PrimaryDark,
+                        tint = AppColors.Primary,
                         modifier = Modifier.padding(11.dp).size(28.dp)
+                    )
+                }
+                if (supportPresent) {
+                    Box(
+                        Modifier
+                            .size(10.dp)
+                            .align(Alignment.TopEnd)
+                            .offset((-5).dp, 5.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF22C55E))
+                            .alpha(liveAlpha)
                     )
                 }
             }
@@ -399,17 +421,17 @@ private fun FloatingChatWindow(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(22.dp),
-        color = Color.White,
-        shadowElevation = 18.dp,
+        color = Color(0xFF14181D),
+        shadowElevation = 20.dp,
         tonalElevation = 3.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0E4D0))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF303840))
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
-                    .background(Color(0xFFFFFAF1))
+                    .background(Color(0xFF1B2026))
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDrag = { change, dragAmount ->
@@ -428,35 +450,52 @@ private fun FloatingChatWindow(
                     Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(8.dp).size(20.dp))
                 }
                 Spacer(Modifier.size(9.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("mPay Support", fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
-                    Text(
-                        if (chat?.status == "OPEN") "Your support conversation is active" else "Private support conversation",
-                        color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("mPay Support", fontWeight = FontWeight.Bold, color = Color(0xFFF3F5F7))
+                            if (supportPresent) {
+                                Spacer(Modifier.size(7.dp))
+                                Box(
+                                    Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF22C55E))
+                                        .alpha(liveAlpha)
+                                )
+                            }
+                        }
+                        Text(
+                            if (chat?.status == "OPEN") "Your support conversation is active" else "Private support conversation",
+                            color = Color(0xFFAAB3BF),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
                 IconButton(onClick = onRefresh, enabled = !loading) {
-                    Icon(Icons.Default.Refresh, "Refresh", tint = AppColors.TextSecondary)
+                    Icon(Icons.Default.Refresh, "Refresh", tint = Color(0xFFC7CED7))
                 }
                 IconButton(onClick = onMinimize) {
-                    Text(if (minimized) "+" else "−", color = AppColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                    Text("−", color = Color(0xFFE6EAF0), style = MaterialTheme.typography.titleMedium)
                 }
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, "Close", tint = AppColors.TextSecondary)
+                    Icon(Icons.Default.Close, "Close", tint = Color(0xFFC7CED7))
                 }
             }
 
             if (!minimized) {
                 if (error != null) {
-                    Surface(color = Color(0xFFFFF2F2), modifier = Modifier.fillMaxWidth()) {
-                        Text(error, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = Color(0xFFB42318), style = MaterialTheme.typography.labelSmall)
+                    Surface(color = Color(0xFF321D1D), modifier = Modifier.fillMaxWidth()) {
+                        Text(error, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = Color(0xFFFCA5A5), style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier.weight(1f).fillMaxWidth().background(Color(0xFF101419)),
                     contentPadding = PaddingValues(horizontal = 11.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
@@ -471,11 +510,11 @@ private fun FloatingChatWindow(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Primary.copy(alpha = .10f)) {
-                                    Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
+                                Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFF2A241A)) {
+                                    Icon(Icons.Default.HeadsetMic, null, tint = AppColors.Primary, modifier = Modifier.padding(10.dp).size(24.dp))
                                 }
-                                Text("How can we help?", fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
-                                Text("Choose a topic to start with guided help.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                                Text("How can we help?", fontWeight = FontWeight.Bold, color = Color(0xFFF3F5F7))
+                                Text("Choose a topic to start with guided help.", color = Color(0xFFAAB3BF), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         items(floatingSupportTopics, key = { it.title }) { topic ->
@@ -483,7 +522,7 @@ private fun FloatingChatWindow(
                                 onClick = { onChooseTopic(topic) },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(15.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2026)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -501,10 +540,10 @@ private fun FloatingChatWindow(
                                     }
                                     Spacer(Modifier.size(9.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text(topic.title, fontWeight = FontWeight.SemiBold, color = AppColors.TextPrimary)
-                                        Text(topic.description, color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(topic.title, fontWeight = FontWeight.SemiBold, color = Color(0xFFF1F4F7))
+                                        Text(topic.description, color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
                                     }
-                                    Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextSecondary)
+                                    Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF8C97A4))
                                 }
                             }
                         }
@@ -519,12 +558,21 @@ private fun FloatingChatWindow(
                                         bottomStart = if (mine) 15.dp else 4.dp,
                                         bottomEnd = if (mine) 4.dp else 15.dp
                                     ),
-                                    color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF3F5F7)
+                                    color = if (mine) AppColors.Primary.copy(alpha = .22f) else Color(0xFF232930)
                                 ) {
                                     Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
-                                        Text(if (mine) "You" else "mPay Support", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
-                                        Text(item.message, color = AppColors.TextPrimary, style = MaterialTheme.typography.bodySmall)
-                                        Text(formatSupportDate(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            when (item.senderType) {
+                                                "CUSTOMER" -> "You"
+                                                "AI" -> "mPay AI Support"
+                                                else -> "mPay Support"
+                                            },
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (mine) Color(0xFFFFC65A) else Color(0xFFD7DEE7),
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                        Text(item.message, color = Color(0xFFF0F3F6), style = MaterialTheme.typography.bodySmall)
+                                        Text(formatSupportDate(item.createdAt), color = Color(0xFF8F9AA7), style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             }
@@ -533,11 +581,11 @@ private fun FloatingChatWindow(
                 }
 
                 if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
-                    Surface(color = Color(0xFFFFFBF3), modifier = Modifier.fillMaxWidth()) {
+                    Surface(color = Color(0xFF181D23), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             if (chat?.pendingCallbackRequest != null) {
-                                Text("Callback requested", color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                                Text("Customer Care will handle the voice request from this same support case.", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                Text("Callback requested", color = Color(0xFFFFC65A), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                Text("Customer Care will handle the voice request from this same support case.", color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
                                 OutlinedButton(onClick = { onCancelCallback(requireNotNull(chat.pendingCallbackRequest)) }, enabled = !callbackBusy, shape = RoundedCornerShape(10.dp)) {
                                     Icon(Icons.Default.CallEnd, null)
                                     Spacer(Modifier.size(5.dp))
@@ -556,7 +604,7 @@ private fun FloatingChatWindow(
 
                 if (!chat?.messages.isNullOrEmpty()) {
                     Row(
-                        Modifier.fillMaxWidth().background(Color(0xFFFFFAF1)).padding(horizontal = 9.dp, vertical = 7.dp),
+                        Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 9.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
                         OutlinedTextField(
@@ -565,19 +613,30 @@ private fun FloatingChatWindow(
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("Write a message…") },
                             maxLines = 3,
-                            shape = RoundedCornerShape(13.dp)
+                            shape = RoundedCornerShape(13.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1C2228),
+                                unfocusedContainerColor = Color(0xFF1C2228),
+                                focusedTextColor = Color(0xFFF0F3F6),
+                                unfocusedTextColor = Color(0xFFF0F3F6),
+                                focusedPlaceholderColor = Color(0xFF8F9AA7),
+                                unfocusedPlaceholderColor = Color(0xFF8F9AA7),
+                                focusedBorderColor = AppColors.Primary,
+                                unfocusedBorderColor = Color(0xFF3A424C),
+                                cursorColor = AppColors.Primary
+                            )
                         )
                         Spacer(Modifier.size(6.dp))
                         IconButton(onClick = onSend, enabled = draft.isNotBlank() && !busy, modifier = Modifier.size(46.dp)) {
-                            Icon(Icons.Default.Send, "Send", tint = AppColors.PrimaryDark)
+                            Icon(Icons.Default.Send, "Send", tint = AppColors.Primary)
                         }
                     }
                 }
 
                 Box(
-                    Modifier.fillMaxWidth().background(Color(0xFFFFFAF1)).padding(horizontal = 7.dp, vertical = 4.dp)
+                    Modifier.fillMaxWidth().background(Color(0xFF171C21)).padding(horizontal = 7.dp, vertical = 4.dp)
                 ) {
-                    Text("Drag header to move · drag corner to resize", color = Color(0xFFA1988D), style = MaterialTheme.typography.labelSmall)
+                    Text("Drag header to move · drag corner to resize", color = Color(0xFF7F8A97), style = MaterialTheme.typography.labelSmall)
                     Box(
                         modifier = Modifier
                             .size(22.dp)
@@ -609,7 +668,7 @@ private fun GuidedFloatingHelp(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2026)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -618,8 +677,8 @@ private fun GuidedFloatingHelp(
                     Icon(Icons.Default.ArrowBack, "Back")
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(topic.title, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
-                    Text("Try these steps first", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text(topic.title, fontWeight = FontWeight.Bold, color = Color(0xFFF3F5F7))
+                    Text("Try these steps first", color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
                 }
             }
             topic.steps.forEachIndexed { index, step ->
@@ -628,11 +687,11 @@ private fun GuidedFloatingHelp(
                         Text((index + 1).toString(), modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp), color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.size(8.dp))
-                    Text(step, modifier = Modifier.weight(1f), color = AppColors.TextPrimary, style = MaterialTheme.typography.bodySmall)
+                    Text(step, modifier = Modifier.weight(1f), color = Color(0xFFE1E6EC), style = MaterialTheme.typography.bodySmall)
                 }
             }
-            Surface(shape = RoundedCornerShape(11.dp), color = Color(0xFFFFFBF3)) {
-                Text("Still stuck? A real mPay support member can continue from here.", modifier = Modifier.padding(10.dp), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            Surface(shape = RoundedCornerShape(11.dp), color = Color(0xFF20262D)) {
+                Text("Still stuck? A real mPay support member can continue from here.", modifier = Modifier.padding(10.dp), color = Color(0xFFAAB3BF), style = MaterialTheme.typography.labelSmall)
             }
             Button(onClick = onStartChat, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Icon(Icons.Default.HeadsetMic, null)
