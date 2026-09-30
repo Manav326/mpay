@@ -4,6 +4,7 @@ import com.recharge.backend.api.CallIceServerResponse
 import com.recharge.backend.api.VoiceCallResponse
 import com.recharge.backend.api.VoiceCallSignalingTokenResponse
 import com.recharge.backend.config.CallProperties
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.domain.UserEntity
 import com.recharge.backend.domain.VoiceCallEntity
 import com.recharge.backend.domain.VoiceCallParticipantEntity
@@ -24,6 +25,7 @@ class VoiceCallService(
     private val calls: VoiceCallRepository,
     private val participants: VoiceCallParticipantRepository,
     private val users: UserRepository,
+    private val employees: com.recharge.backend.repository.EmployeeRepository,
     private val roleAccess: RoleAccessService,
     private val push: CallPushService,
     private val jwtService: JwtService,
@@ -43,7 +45,7 @@ class VoiceCallService(
     }
 
     @Transactional
-    fun create(caller: UserEntity, targetPublicId: String, supportRequestId: String? = null): VoiceCallResponse {
+    fun create(caller: EmployeeEntity, targetPublicId: String, supportRequestId: String? = null): VoiceCallResponse {
         roleAccess.requirePermission(caller, "CALL_CUSTOMER")
 
         val target = users.findByPublicId(targetPublicId.trim()).orElseThrow {
@@ -70,7 +72,7 @@ class VoiceCallService(
             support.claimSupportRequestForCall(caller, supportRequestId, target.publicId)
         }
 
-        val callerParticipant = participants.findByUserId(callerId).orElse(null)
+        val callerParticipant = participants.findByAccountId(callerId).orElse(null)
         if (callerParticipant != null) {
             val existingCall = calls.findByCallId(callerParticipant.callId).orElse(null)
             when {
@@ -89,7 +91,7 @@ class VoiceCallService(
             }
         }
 
-        val targetParticipant = participants.findByUserId(targetId).orElse(null)
+        val targetParticipant = participants.findByAccountId(targetId).orElse(null)
         if (targetParticipant != null) {
             val existingCall = calls.findByCallId(targetParticipant.callId).orElse(null)
             when {
@@ -106,7 +108,7 @@ class VoiceCallService(
         }
         val call = calls.saveAndFlush(
             VoiceCallEntity(
-                callerUserId = callerId,
+                callerEmployeeId = callerId,
                 calleeUserId = targetId,
                 status = RINGING,
                 createdAt = now,
@@ -117,8 +119,8 @@ class VoiceCallService(
         try {
             participants.saveAllAndFlush(
                 listOf(
-                    VoiceCallParticipantEntity(callId = call.callId, userId = callerId),
-                    VoiceCallParticipantEntity(callId = call.callId, userId = targetId)
+                    VoiceCallParticipantEntity(callId = call.callId, accountId = callerId),
+                    VoiceCallParticipantEntity(callId = call.callId, accountId = targetId)
                 )
             )
         } catch (_: DataIntegrityViolationException) {
@@ -132,7 +134,7 @@ class VoiceCallService(
 
     @Transactional
     fun terminateActiveCallForUser(userId: Long, reason: String) {
-        val participant = participants.findByUserId(userId).orElse(null) ?: return
+        val participant = participants.findByAccountId(userId).orElse(null) ?: return
         val call = calls.findByCallIdForUpdate(participant.callId).orElse(null) ?: run {
             participants.delete(participant)
             return
@@ -147,7 +149,7 @@ class VoiceCallService(
         val otherUserId = otherParticipant(call, userId)
         call.status = ENDED
         call.endedAt = Instant.now()
-        call.endedByUserId = userId
+        call.endedByAccountId = userId
         call.endedReason = reason.take(80)
         calls.save(call)
         support.recordVoiceCallEnded(call)
@@ -193,7 +195,7 @@ class VoiceCallService(
 
         participants.deleteAllByCallId(call.callId)
         broadcastStatus(call)
-        push.sendCallEnded(call.callerUserId, call.callId, call.status)
+        push.sendCallEnded(call.callerEmployeeId, call.callId, call.status)
         return response(call)
     }
 
@@ -220,7 +222,7 @@ class VoiceCallService(
 
     @Transactional
     fun markConnected(userId: Long, callId: String): VoiceCallResponse {
-        val call = participantCallForUpdateByUserId(userId, callId)
+        val call = participantCallForUpdateByAccountId(userId, callId)
         if (call.status == ACCEPTED) {
             call.status = CONNECTED
             call.connectedAt = Instant.now()
@@ -319,7 +321,7 @@ class VoiceCallService(
         support.recordVoiceCallEnded(locked)
         participants.deleteAllByCallId(locked.callId)
         broadcastStatus(locked)
-        push.sendCallEnded(locked.callerUserId, locked.callId, locked.status)
+        push.sendCallEnded(locked.callerEmployeeId, locked.callId, locked.status)
         push.sendCallEnded(locked.calleeUserId, locked.callId, locked.status)
     }
 
@@ -342,12 +344,12 @@ class VoiceCallService(
     }
 
     private fun participantCall(user: UserEntity, callId: String): VoiceCallEntity =
-        participantCallByUserId(requireNotNull(user.id), callId)
+        participantCallByAccountId(requireNotNull(user.id), callId)
 
     private fun participantCallForUpdate(user: UserEntity, callId: String): VoiceCallEntity =
         participantCallForUpdateByUserId(requireNotNull(user.id), callId)
 
-    private fun participantCallByUserId(userId: Long, callId: String): VoiceCallEntity {
+    private fun participantCallByAccountId(userId: Long, callId: String): VoiceCallEntity {
         val call = calls.findByCallId(callId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Call not found")
         }
@@ -404,13 +406,19 @@ class VoiceCallService(
         else -> throw ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a participant in this call")
     }
 
-    fun socketAuthorized(userId: Long, callId: String): Boolean =
+    fun socketAuthorized(accountType: String, accountId: Long, callId: String): Boolean =
         calls.findByCallId(callId)
-            .map {
-                it.status in setOf(ACCEPTED, CONNECTED) &&
-                    (userId == it.callerUserId || userId == it.calleeUserId)
+            .map { call ->
+                val participant = when (accountType.uppercase()) {
+                    "EMPLOYEE" -> call.callerEmployeeId == accountId
+                    else -> call.calleeUserId == accountId
+                }
+                val active = when (accountType.uppercase()) {
+                    "EMPLOYEE" -> employees.findById(accountId).map { it.active }.orElse(false)
+                    else -> users.findById(accountId).map { it.active && it.deletedAt == null }.orElse(false)
+                }
+                call.status in setOf(ACCEPTED, CONNECTED) && participant && active
             }
-            .filter { users.findById(userId).map { user -> user.active && user.deletedAt == null }.orElse(false) }
             .orElse(false)
 
     private fun broadcastStatus(call: VoiceCallEntity) {
