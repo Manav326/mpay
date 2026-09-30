@@ -1157,8 +1157,8 @@ class SupportService(
             priority = entity.priority,
             status = entity.status,
             source = entity.source,
-            assignedUserPublicId = entity.assignedUserId?.let { users.findById(it).orElse(null)?.publicId },
-            assignedUserName = entity.assignedUserId?.let { users.findById(it).orElse(null)?.name },
+            assignedUserPublicId = entity.assignedUserId?.let { employees.findById(it).orElse(null)?.publicId },
+            assignedUserName = entity.assignedUserId?.let { employees.findById(it).orElse(null)?.name },
             createdAt = entity.createdAt.toString(),
             updatedAt = entity.updatedAt.toString(),
             resolvedAt = entity.resolvedAt?.toString(),
@@ -1167,7 +1167,8 @@ class SupportService(
         )
 
     private fun toInteractionResponse(entity: SupportInteractionEntity): SupportInteractionResponse {
-        val actor = entity.actorUserId?.let { employees.findById(it).orElse(null) ?: users.findById(it).orElse(null) }
+        val actorEmployee = entity.actorUserId?.let { employees.findById(it).orElse(null) }
+        val actorUser = if (actorEmployee == null) entity.actorUserId?.let { users.findById(it).orElse(null) } else null
         val duration = entity.durationSeconds
         return SupportInteractionResponse(
             interactionId = entity.interactionId,
@@ -1188,8 +1189,8 @@ class SupportService(
             wrapUpDurationLabel = if (entity.wrapUpCompletedAt != null && entity.endedAt != null) formatDuration(Duration.between(entity.endedAt, entity.wrapUpCompletedAt).seconds.coerceAtLeast(0)) else null,
             outcome = entity.outcome,
             voiceCallId = entity.voiceCallId,
-            actorUserPublicId = actor?.publicId,
-            actorName = actor?.name
+            actorUserPublicId = actorEmployee?.publicId ?: actorUser?.publicId,
+            actorName = actorEmployee?.name ?: actorUser?.name
         )
     }
 
