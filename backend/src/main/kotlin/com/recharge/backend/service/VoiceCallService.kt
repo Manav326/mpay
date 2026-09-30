@@ -31,7 +31,8 @@ class VoiceCallService(
     private val jwtService: JwtService,
     private val properties: CallProperties,
     private val websocket: CallWebSocketRegistry,
-    private val support: SupportService
+    private val support: SupportService,
+    private val employeeAudit: EmployeeAuditService
 ) {
     private companion object {
         const val RINGING = "RINGING"
@@ -129,6 +130,14 @@ class VoiceCallService(
 
         support.recordVoiceCallStarted(call, caller, supportRequestId)
         push.sendIncomingCall(targetId, call.callId, caller.name, call.ringingExpiresAt)
+        employeeAudit.record(
+            actor = caller,
+            action = "CALL_STARTED",
+            subjectType = "CUSTOMER",
+            subjectId = target.publicId,
+            summary = "Started a support call with " + (target.name ?: target.mobile) + ".",
+            metadata = mapOf("callId" to call.callId)
+        )
         return response(call)
     }
 
@@ -226,6 +235,14 @@ class VoiceCallService(
         participants.deleteAllByCallId(call.callId)
         broadcastStatus(call)
         push.sendCallEnded(otherUserId, call.callId, call.status)
+        employeeAudit.record(
+            actor = employee,
+            action = "CALL_ENDED",
+            subjectType = "CALL",
+            subjectId = call.callId,
+            summary = "Ended the support call.",
+            metadata = mapOf("status" to call.status, "reason" to call.endedReason)
+        )
         return response(call)
     }
 
