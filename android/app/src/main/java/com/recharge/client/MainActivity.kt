@@ -969,7 +969,7 @@ private fun AppNavHost(
                         initialEnd = initialEnd
                     )
                 }
-                rentalUiState.loading -> {
+                rentalUiState.marketplaceLoading -> {
                     Box(
                         Modifier.fillMaxSize(),
                         contentAlignment = androidx.compose.ui.Alignment.Center
