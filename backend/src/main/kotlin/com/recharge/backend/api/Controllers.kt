@@ -318,29 +318,40 @@ class AccountController(
 
 @RestController
 @RequestMapping("/api/v1/profile")
-class ProfileController(private val profileService: ProfileService) {
-    private fun authenticatedUserId(authentication: Authentication): Long =
-        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+class ProfileController(
+    private val profileService: ProfileService
+) {
+    private fun accountId(authentication: Authentication): Long =
+        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated account")
+
+    private fun isEmployee(authentication: Authentication): Boolean =
+        authentication.authorities.any { it.authority != "ROLE_CLIENT" }
 
     @GetMapping
     fun profile(authentication: Authentication): CurrentUserResponse =
-        profileService.getProfile(authenticatedUserId(authentication))
+        if (isEmployee(authentication)) profileService.getEmployeeProfile(accountId(authentication))
+        else profileService.getProfile(accountId(authentication))
 
     @PatchMapping
     fun update(
         authentication: Authentication,
         @Valid @RequestBody request: ProfileUpdateRequest
-    ): CurrentUserResponse = profileService.updateProfile(authenticatedUserId(authentication), request)
+    ): CurrentUserResponse =
+        if (isEmployee(authentication)) profileService.updateEmployeeProfile(accountId(authentication), request)
+        else profileService.updateProfile(accountId(authentication), request)
 
     @PutMapping("/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadImage(
         authentication: Authentication,
         @RequestPart("image") image: org.springframework.web.multipart.MultipartFile
-    ): CurrentUserResponse = profileService.uploadImage(authenticatedUserId(authentication), image)
+    ): CurrentUserResponse =
+        if (isEmployee(authentication)) profileService.uploadEmployeeImage(accountId(authentication), image)
+        else profileService.uploadImage(accountId(authentication), image)
 
     @DeleteMapping("/image")
     fun deleteImage(authentication: Authentication): CurrentUserResponse =
-        profileService.deleteImage(authenticatedUserId(authentication))
+        if (isEmployee(authentication)) profileService.deleteEmployeeImage(accountId(authentication))
+        else profileService.deleteImage(accountId(authentication))
 
     @GetMapping("/image")
     fun image(
@@ -348,7 +359,11 @@ class ProfileController(private val profileService: ProfileService) {
         @RequestParam(required = false) variant: String?
     ): ResponseEntity<org.springframework.core.io.Resource> {
         val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
-        val stored = profileService.image(authenticatedUserId(authentication), selectedVariant)
+        val stored = if (isEmployee(authentication)) {
+            profileService.employeeImage(accountId(authentication), selectedVariant)
+        } else {
+            profileService.image(accountId(authentication), selectedVariant)
+        }
         val etag = stored.key + ":" + selectedVariant.name + ":" + stored.lastModified.toEpochMilli() + ":" + stored.size
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
