@@ -964,7 +964,7 @@ private fun GuidedFloatingHelp(
     }
 }
 
-private fun formatSupportDate(value: String): String =
+internal fun formatSupportDate(value: String): String =
     runCatching {
         java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
             .withZone(java.time.ZoneId.systemDefault())
