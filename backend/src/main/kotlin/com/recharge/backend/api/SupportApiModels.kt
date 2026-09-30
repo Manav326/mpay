@@ -215,3 +215,37 @@ data class SupportAccessResponse(
     val roles: List<SupportRoleAccessResponse>,
     val users: List<SupportUserAccessResponse>
 )
+
+
+data class SupportQueueItemResponse(
+    val customerPublicId: String,
+    val customerName: String?,
+    val customerMobile: String?,
+    val caseId: String?,
+    val subject: String?,
+    val category: String?,
+    val priority: String?,
+    val caseStatus: String?,
+    val assignedUserPublicId: String?,
+    val assignedUserName: String?,
+    val source: String,
+    val attentionReason: String,
+    val unreadMessages: Int,
+    val lastActivityAt: String?,
+    val pendingCallback: SupportCallRequestResponse?
+)
+
+data class SupportQueueResponse(
+    val total: Int,
+    val callbacks: Int,
+    val unreadChats: Int,
+    val unassigned: Int,
+    val assignedToViewer: Int,
+    val items: List<SupportQueueItemResponse>
+)
+
+data class SupportAssignmentResponse(
+    val caseId: String,
+    val assignedUserPublicId: String?,
+    val assignedUserName: String?
+)
