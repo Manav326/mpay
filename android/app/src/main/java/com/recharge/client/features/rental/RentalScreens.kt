@@ -1856,6 +1856,108 @@ private class RentalVehicleFormState(car: RentalCarResponse?) {
     var driverAddress by mutableStateOf(car?.driverAddress.orEmpty())
     var driverPhoto by mutableStateOf<RentalPhotoCandidate?>(null)
     var submitAttempted by mutableStateOf(false)
+
+    companion object {
+        val Saver: Saver<RentalVehicleFormState, List<String>> = listSaver(
+            save = { form ->
+                buildList {
+                    add(form.name)
+                    add(form.make)
+                    add(form.model)
+                    add(form.variant)
+                    add(form.category)
+                    add(form.seats)
+                    add(form.transmission)
+                    add(form.fuel)
+                    add(form.manufacturingYear)
+                    add(form.registrationYear)
+                    add(form.registrationNumber)
+                    add(form.pickupAddress)
+                    add(form.pickupLocation?.address.orEmpty())
+                    add(form.pickupLocation?.latitude?.toString().orEmpty())
+                    add(form.pickupLocation?.longitude?.toString().orEmpty())
+                    add(form.pickupLocation?.placeId.orEmpty())
+                    add(form.city)
+                    add(form.stateName)
+                    add(form.pricePerDay)
+                    add(form.photoFront)
+                    add(form.photoSide)
+                    add(form.photoRear)
+                    add(form.photoInterior)
+                    repeat(4) { index ->
+                        val candidate = form.pendingPhotos[index].value
+                        add(candidate?.source?.name.orEmpty())
+                        add(candidate?.value.orEmpty())
+                    }
+                    add(form.driverName)
+                    add(form.driverMobile)
+                    add(form.licenseNumber)
+                    add(form.licenseExpiry)
+                    add(form.driverAddress)
+                    add(form.driverPhoto?.source?.name.orEmpty())
+                    add(form.driverPhoto?.value.orEmpty())
+                    add(form.submitAttempted.toString())
+                }
+            },
+            restore = { values ->
+                if (values.size < 36) return@listSaver null
+                RentalVehicleFormState(null).also { form ->
+                    var i = 0
+                    fun next() = values[i++]
+                    fun nextNullable() = next().takeIf { it.isNotBlank() }
+
+                    form.name = next()
+                    form.make = next()
+                    form.model = next()
+                    form.variant = next()
+                    form.category = next()
+                    form.seats = next()
+                    form.transmission = next()
+                    form.fuel = next()
+                    form.manufacturingYear = next()
+                    form.registrationYear = next()
+                    form.registrationNumber = next()
+                    form.pickupAddress = next()
+                    val locationAddress = next()
+                    val latitude = next().toDoubleOrNull()
+                    val longitude = next().toDoubleOrNull()
+                    val placeId = nextNullable()
+                    form.pickupLocation = if (locationAddress.isNotBlank() && latitude != null && longitude != null) {
+                        RentalLocationInput(locationAddress, latitude, longitude, placeId)
+                    } else null
+                    form.city = next()
+                    form.stateName = next()
+                    form.pricePerDay = next()
+                    form.photoFront = next()
+                    form.photoSide = next()
+                    form.photoRear = next()
+                    form.photoInterior = next()
+                    repeat(4) { index ->
+                        val source = nextNullable()
+                        val value = next()
+                        form.pendingPhotos[index].value = source?.let {
+                            runCatching { RentalPhotoCandidateSource.valueOf(it) }.getOrNull()
+                        }?.let { resolvedSource ->
+                            RentalPhotoCandidate(resolvedSource, value)
+                        }
+                    }
+                    form.driverName = next()
+                    form.driverMobile = next()
+                    form.licenseNumber = next()
+                    form.licenseExpiry = next()
+                    form.driverAddress = next()
+                    val driverSource = nextNullable()
+                    val driverValue = next()
+                    form.driverPhoto = driverSource?.let {
+                        runCatching { RentalPhotoCandidateSource.valueOf(it) }.getOrNull()
+                    }?.let { resolvedSource ->
+                        RentalPhotoCandidate(resolvedSource, driverValue)
+                    }
+                    form.submitAttempted = next().toBooleanStrictOrNull() ?: false
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -1866,7 +1968,12 @@ fun RentalVehicleOnboardingScreen(
     editingCar: RentalCarResponse? = null,
     onResubmit: ((String, RentalVehicleUpdateRequest, RentalVehiclePhotoChanges, () -> Unit) -> Unit)? = null
 ) {
-    val form = remember(editingCar?.id) { RentalVehicleFormState(editingCar) }
+    val form = rememberSaveable(
+        editingCar?.id,
+        saver = RentalVehicleFormState.Saver
+    ) {
+        RentalVehicleFormState(editingCar)
+    }
 
     val currentVehicleYear = LocalDate.now().year
     val earliestVehicleYear = currentVehicleYear - 20
