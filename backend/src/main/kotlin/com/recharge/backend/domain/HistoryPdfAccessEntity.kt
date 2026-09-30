@@ -18,7 +18,7 @@ class HistoryPdfAccessRequestEntity(
     @Column(nullable = false, length = 20) var status: String = "PENDING",
     @Column(name = "request_reason", nullable = false, length = 1000) var requestReason: String = "",
     @Column(name = "review_note", length = 1000) var reviewNote: String? = null,
-    @Column(name = "reviewed_by") var reviewedBy: Long? = null,
+    @Column(name = "reviewed_by_employee_id") var reviewedByEmployeeId: Long? = null,
     @Column(name = "requested_at", nullable = false) var requestedAt: Instant = Instant.now(),
     @Column(name = "reviewed_at") var reviewedAt: Instant? = null
 )

@@ -209,7 +209,8 @@ class AccountDeletionService(
             entityManager.createNativeQuery("""
                 update rental_vendor_review_history
                 set reason = null
-                where vendor_id = :vendorId or actor_user_id = :userId
+                where vendor_id = :vendorId
+                   or (actor_account_type = 'USER' and actor_account_id = :userId)
             """)
                 .setParameter("vendorId", vendorId)
                 .setParameter("userId", userId)
@@ -218,7 +219,7 @@ class AccountDeletionService(
             entityManager.createNativeQuery("""
                 update rental_car_review_history h
                 set reason = null
-                where h.actor_user_id = :userId
+                where (h.actor_account_type = 'USER' and h.actor_account_id = :userId)
                    or h.car_id in (select id from rental_cars where vendor_id = :vendorId)
             """)
                 .setParameter("vendorId", vendorId)

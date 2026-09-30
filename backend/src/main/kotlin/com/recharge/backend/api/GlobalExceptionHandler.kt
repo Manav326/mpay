@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import jakarta.validation.ConstraintViolationException
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import jakarta.servlet.http.HttpServletRequest
 
@@ -66,6 +67,11 @@ class GlobalExceptionHandler {
     fun handleAccountDeletionBlocked(ex: com.recharge.backend.service.AccountDeletionBlockedException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.CONFLICT)
             .body(ErrorResponse(ex.message ?: "Account deletion cannot be completed yet"))
+
+    @ExceptionHandler(ResponseStatusException::class)
+    fun handleResponseStatus(ex: ResponseStatusException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(ex.statusCode)
+            .body(ErrorResponse(ex.reason ?: ex.statusCode.toString()))
 
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleDataIntegrityViolation(ex: DataIntegrityViolationException): ResponseEntity<ErrorResponse> =

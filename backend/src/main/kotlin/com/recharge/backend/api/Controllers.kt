@@ -8,6 +8,8 @@ import com.recharge.backend.provider.payu.PayUPaymentGatewayProvider
 import com.recharge.backend.service.ProfileService
 import com.recharge.backend.service.HistoryPdfAccessService
 import com.recharge.backend.repository.RechargeTransactionRepository
+import com.recharge.backend.repository.EmployeeRepository
+import com.recharge.backend.domain.EmployeeEntity
 import org.springframework.http.CacheControl
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -316,29 +318,40 @@ class AccountController(
 
 @RestController
 @RequestMapping("/api/v1/profile")
-class ProfileController(private val profileService: ProfileService) {
-    private fun authenticatedUserId(authentication: Authentication): Long =
-        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated user")
+class ProfileController(
+    private val profileService: ProfileService
+) {
+    private fun accountId(authentication: Authentication): Long =
+        authentication.name.toLongOrNull() ?: throw IllegalStateException("Invalid authenticated account")
+
+    private fun isEmployee(authentication: Authentication): Boolean =
+        authentication.authorities.any { it.authority != "ROLE_CLIENT" }
 
     @GetMapping
     fun profile(authentication: Authentication): CurrentUserResponse =
-        profileService.getProfile(authenticatedUserId(authentication))
+        if (isEmployee(authentication)) profileService.getEmployeeProfile(accountId(authentication))
+        else profileService.getProfile(accountId(authentication))
 
     @PatchMapping
     fun update(
         authentication: Authentication,
         @Valid @RequestBody request: ProfileUpdateRequest
-    ): CurrentUserResponse = profileService.updateProfile(authenticatedUserId(authentication), request)
+    ): CurrentUserResponse =
+        if (isEmployee(authentication)) profileService.updateEmployeeProfile(accountId(authentication), request)
+        else profileService.updateProfile(accountId(authentication), request)
 
     @PutMapping("/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadImage(
         authentication: Authentication,
         @RequestPart("image") image: org.springframework.web.multipart.MultipartFile
-    ): CurrentUserResponse = profileService.uploadImage(authenticatedUserId(authentication), image)
+    ): CurrentUserResponse =
+        if (isEmployee(authentication)) profileService.uploadEmployeeImage(accountId(authentication), image)
+        else profileService.uploadImage(accountId(authentication), image)
 
     @DeleteMapping("/image")
     fun deleteImage(authentication: Authentication): CurrentUserResponse =
-        profileService.deleteImage(authenticatedUserId(authentication))
+        if (isEmployee(authentication)) profileService.deleteEmployeeImage(accountId(authentication))
+        else profileService.deleteImage(accountId(authentication))
 
     @GetMapping("/image")
     fun image(
@@ -346,7 +359,11 @@ class ProfileController(private val profileService: ProfileService) {
         @RequestParam(required = false) variant: String?
     ): ResponseEntity<org.springframework.core.io.Resource> {
         val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
-        val stored = profileService.image(authenticatedUserId(authentication), selectedVariant)
+        val stored = if (isEmployee(authentication)) {
+            profileService.employeeImage(accountId(authentication), selectedVariant)
+        } else {
+            profileService.image(accountId(authentication), selectedVariant)
+        }
         val etag = stored.key + ":" + selectedVariant.name + ":" + stored.lastModified.toEpochMilli() + ":" + stored.size
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
@@ -363,13 +380,16 @@ class ProfileController(private val profileService: ProfileService) {
 @RequestMapping("/api/v1/admin/commission-roles")
 class CommissionRoleAdminController(
     private val commissionRateService: com.recharge.backend.service.CommissionRateService,
-    private val users: com.recharge.backend.repository.UserRepository,
+    private val employees: EmployeeRepository,
     private val roleAccess: com.recharge.backend.service.RoleAccessService,
     private val historyPdfAccess: com.recharge.backend.service.HistoryPdfAccessService
 ) {
-    private fun currentUser(authentication: Authentication) = authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
-        ?: throw IllegalStateException("Invalid authenticated user")
-    private fun requireAdminPermission(authentication: Authentication) = roleAccess.requirePermission(currentUser(authentication), "MANAGE_COMMISSION_RATES")
+    private fun currentEmployee(authentication: Authentication): EmployeeEntity =
+        authentication.name.toLongOrNull()?.let { employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") } }
+            ?: throw IllegalStateException("Invalid authenticated employee")
+
+    private fun requireAdminPermission(authentication: Authentication) =
+        roleAccess.requirePermission(currentEmployee(authentication), "MANAGE_COMMISSION_RATES")
 
     @GetMapping
     fun list(authentication: Authentication): List<RoleCommissionRateResponse> {
@@ -389,22 +409,23 @@ class CommissionRoleAdminController(
 @RequestMapping("/api/v1/admin")
 class AdminController(
     private val adminService: com.recharge.backend.service.AdminService,
-    private val users: com.recharge.backend.repository.UserRepository,
+    private val employees: EmployeeRepository,
     private val roleAccess: com.recharge.backend.service.RoleAccessService,
     private val historyPdfAccess: HistoryPdfAccessService
 ) {
-    private fun currentUser(authentication: Authentication) = authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
-        ?: throw IllegalStateException("Invalid authenticated user")
+    private fun currentEmployee(authentication: Authentication): EmployeeEntity =
+        authentication.name.toLongOrNull()?.let { employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") } }
+            ?: throw IllegalStateException("Invalid authenticated employee")
 
     @GetMapping("/dashboard")
     fun dashboard(authentication: Authentication): AdminDashboardResponse =
-        adminService.dashboard(currentUser(authentication))
+        adminService.dashboard(currentEmployee(authentication))
 
     @GetMapping("/visible-roles")
     fun visibleRoles(authentication: Authentication): PortalRolesResponse {
-        val viewer = currentUser(authentication)
+        val viewer = currentEmployee(authentication)
         roleAccess.requirePermission(viewer, "VIEW_USERS")
-        return PortalRolesResponse(roleAccess.visibleRolesFor(viewer.role).toList())
+        return PortalRolesResponse(roleAccess.visibleRolesFor(viewer.role).filter { it.equals("CLIENT", true) }.toList())
     }
 
     @GetMapping("/users")
@@ -413,11 +434,37 @@ class AdminController(
         @RequestParam(required = false, defaultValue = "ALL") role: String,
         @RequestParam(required = false, defaultValue = "today-high") sort: String
     ): List<AdminUserSummaryResponse> =
-        adminService.users(role, sort, currentUser(authentication))
+        adminService.users(role, sort, currentEmployee(authentication))
+
+    @PostMapping("/staff")
+    fun createPortalStaff(
+        authentication: Authentication,
+        @Valid @RequestBody request: CreatePortalStaffRequest
+    ): PortalStaffResponse =
+        adminService.createPortalStaff(currentEmployee(authentication), request)
+
+    @GetMapping("/staff")
+    fun portalStaff(authentication: Authentication): List<PortalStaffResponse> =
+        adminService.portalStaff(currentEmployee(authentication))
+
+    @GetMapping("/staff/{publicId}/activity")
+    fun portalStaffActivity(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): List<PortalStaffActivityResponse> =
+        adminService.portalStaffActivity(currentEmployee(authentication), publicId)
+
+    @PostMapping("/staff/{publicId}/status")
+    fun portalStaffStatus(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @RequestBody request: AdminUserStatusRequest
+    ): PortalStaffStatusResponse =
+        adminService.updateEmployeeStatus(currentEmployee(authentication), publicId, request.active)
 
     @GetMapping("/users/{publicId}")
     fun userDetail(authentication: Authentication, @PathVariable publicId: String): AdminUserDetailResponse =
-        adminService.userDetail(currentUser(authentication), publicId)
+        adminService.userDetail(currentEmployee(authentication), publicId)
 
     @PostMapping("/users/{publicId}/status")
     fun userStatus(
@@ -425,7 +472,7 @@ class AdminController(
         @PathVariable publicId: String,
         @RequestBody request: AdminUserStatusRequest
     ): AdminUserStatusResponse =
-        adminService.updateUserStatus(currentUser(authentication), publicId, request.active)
+        adminService.updateUserStatus(currentEmployee(authentication), publicId, request.active)
 
     @GetMapping("/users/{publicId}/recharges")
     fun userRecharges(
@@ -434,7 +481,7 @@ class AdminController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "25") size: Int
     ): RechargeHistoryResponse =
-        adminService.rechargeHistory(currentUser(authentication), publicId, page, size)
+        adminService.rechargeHistory(currentEmployee(authentication), publicId, page, size)
 
     @GetMapping("/users/{publicId}/wallet-history")
     fun userWalletHistory(
@@ -443,7 +490,7 @@ class AdminController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "25") size: Int
     ): WalletHistoryResponse =
-        adminService.walletHistory(currentUser(authentication), publicId, page, size)
+        adminService.walletHistory(currentEmployee(authentication), publicId, page, size)
 
     @GetMapping("/users/{publicId}/withdrawals")
     fun userWithdrawals(
@@ -452,18 +499,18 @@ class AdminController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "25") size: Int
     ): WithdrawalHistoryResponse =
-        adminService.withdrawalHistory(currentUser(authentication), publicId, page, size)
+        adminService.withdrawalHistory(currentEmployee(authentication), publicId, page, size)
 
     @GetMapping("/history-pdf-access/pending")
     fun pendingHistoryPdfAccess(authentication: Authentication): List<HistoryPdfPendingAccessResponse> =
-        historyPdfAccess.pending(currentUser(authentication))
+        historyPdfAccess.pending(currentEmployee(authentication))
 
     @GetMapping("/users/{publicId}/history-pdf-access")
     fun userHistoryPdfAccess(
         authentication: Authentication,
         @PathVariable publicId: String
     ): HistoryPdfAccessResponse =
-        historyPdfAccess.adminStatus(currentUser(authentication), publicId)
+        historyPdfAccess.adminStatus(currentEmployee(authentication), publicId)
 
     @PostMapping("/users/{publicId}/history-pdf-access/decision")
     fun decideHistoryPdfAccess(
@@ -472,7 +519,7 @@ class AdminController(
         @Valid @RequestBody request: HistoryPdfAccessDecisionRequest
     ): HistoryPdfAccessResponse =
         historyPdfAccess.decide(
-            currentUser(authentication), publicId, request.requestId, request.action, request.reviewNote
+            currentEmployee(authentication), publicId, request.requestId, request.action, request.reviewNote
         )
 
     @GetMapping("/users/{publicId}/profile-image")
@@ -482,7 +529,7 @@ class AdminController(
         @RequestParam(required = false) variant: String?
     ): ResponseEntity<org.springframework.core.io.Resource> {
         val selectedVariant = com.recharge.backend.service.ImageVariant.parse(variant)
-        val stored = adminService.profileImage(currentUser(authentication), publicId, selectedVariant)
+        val stored = adminService.profileImage(currentEmployee(authentication), publicId, selectedVariant)
         val etag = stored.key + ":" + selectedVariant.name + ":" + stored.lastModified.toEpochMilli() + ":" + stored.size
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(stored.contentType))
@@ -492,57 +539,124 @@ class AdminController(
             .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate())
             .body(stored.resource)
     }
-
 }
-
 
 @RestController
 @RequestMapping("/api/v1/admin/financial")
 class AdminFinancialController(
     private val service: com.recharge.backend.service.AdminFinancialService,
-    private val users: com.recharge.backend.repository.UserRepository
+    private val employees: EmployeeRepository
+) {
+    private fun currentEmployee(authentication: Authentication): EmployeeEntity =
+        authentication.name.toLongOrNull()?.let { employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") } }
+            ?: throw IllegalStateException("Invalid authenticated employee")
+
+    @GetMapping("/recharges")
+    fun recharges(authentication: Authentication, @RequestParam(defaultValue = "0") page: Int, @RequestParam(defaultValue = "25") size: Int, @RequestParam(required = false) status: String?, @RequestParam(required = false) provider: String?): AdminFinancialRechargePageResponse =
+        service.recharges(currentEmployee(authentication), page, size, status, provider)
+
+    @PostMapping("/recharges/{transactionId}/refresh")
+    fun refreshRecharge(authentication: Authentication, @PathVariable transactionId: String): RechargeTransactionStatusResponse =
+        service.refreshRecharge(currentEmployee(authentication), transactionId)
+
+    @PostMapping("/recharges/{transactionId}/resolve-pre-submission-failure")
+    fun resolvePreSubmissionFailure(authentication: Authentication, @PathVariable transactionId: String): RechargeTransactionStatusResponse =
+        service.resolveConfirmedPreSubmissionFailure(currentEmployee(authentication), transactionId)
+
+    @GetMapping("/withdrawals")
+    fun withdrawals(authentication: Authentication, @RequestParam(defaultValue = "0") page: Int, @RequestParam(defaultValue = "25") size: Int, @RequestParam(required = false) status: String?, @RequestParam(required = false) provider: String?): AdminFinancialWithdrawalPageResponse =
+        service.withdrawals(currentEmployee(authentication), page, size, status, provider)
+
+    @GetMapping("/wallet-history")
+    fun walletHistory(authentication: Authentication, @RequestParam(defaultValue = "0") page: Int, @RequestParam(defaultValue = "25") size: Int, @RequestParam(required = false) referenceType: String?): AdminFinancialWalletPageResponse =
+        service.walletHistory(currentEmployee(authentication), page, size, referenceType)
+}
+
+@RestController
+@RequestMapping("/api/v1/calls")
+class VoiceCallController(
+    private val users: com.recharge.backend.repository.UserRepository,
+    private val employees: EmployeeRepository,
+    private val calls: com.recharge.backend.service.VoiceCallService,
+    private val push: com.recharge.backend.service.CallPushService
 ) {
     private fun currentUser(authentication: Authentication) =
         authentication.name.toLongOrNull()?.let { users.findById(it).orElseThrow { IllegalArgumentException("User not found") } }
             ?: throw IllegalStateException("Invalid authenticated user")
 
-    @GetMapping("/recharges")
-    fun recharges(
-        authentication: Authentication,
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "25") size: Int,
-        @RequestParam(required = false) status: String?,
-        @RequestParam(required = false) provider: String?
-    ): AdminFinancialRechargePageResponse =
-        service.recharges(currentUser(authentication), page, size, status, provider)
+    private fun currentEmployee(authentication: Authentication) =
+        authentication.name.toLongOrNull()?.let { employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") } }
+            ?: throw IllegalStateException("Invalid authenticated employee")
 
-    @PostMapping("/recharges/{transactionId}/refresh")
-    fun refreshRecharge(authentication: Authentication, @PathVariable transactionId: String): RechargeTransactionStatusResponse =
-        service.refreshRecharge(currentUser(authentication), transactionId)
+    private fun isEmployee(authentication: Authentication): Boolean =
+        authentication.authorities.any { it.authority != "ROLE_CLIENT" }
 
-    @PostMapping("/recharges/{transactionId}/resolve-pre-submission-failure")
-    fun resolvePreSubmissionFailure(
-        authentication: Authentication,
-        @PathVariable transactionId: String
-    ): RechargeTransactionStatusResponse =
-        service.resolveConfirmedPreSubmissionFailure(currentUser(authentication), transactionId)
+    @PostMapping
+    fun create(authentication: Authentication, @Valid @RequestBody request: CreateVoiceCallRequest): VoiceCallResponse =
+        calls.create(currentEmployee(authentication), request.targetPublicId, request.supportRequestId)
 
-    @GetMapping("/withdrawals")
-    fun withdrawals(
-        authentication: Authentication,
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "25") size: Int,
-        @RequestParam(required = false) status: String?,
-        @RequestParam(required = false) provider: String?
-    ): AdminFinancialWithdrawalPageResponse =
-        service.withdrawals(currentUser(authentication), page, size, status, provider)
+    @GetMapping("/active")
+    fun active(authentication: Authentication): VoiceCallResponse? =
+        if (isEmployee(authentication)) calls.active(currentEmployee(authentication)) else calls.active(currentUser(authentication))
 
-    @GetMapping("/wallet-history")
-    fun walletHistory(
-        authentication: Authentication,
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "25") size: Int,
-        @RequestParam(required = false) referenceType: String?
-    ): AdminFinancialWalletPageResponse =
-        service.walletHistory(currentUser(authentication), page, size, referenceType)
+    @GetMapping("/{callId}")
+    fun get(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        if (isEmployee(authentication)) calls.get(currentEmployee(authentication), callId) else calls.get(currentUser(authentication), callId)
+
+    @PostMapping("/{callId}/accept")
+    fun accept(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        calls.accept(currentUser(authentication), callId)
+
+    @PostMapping("/{callId}/decline")
+    fun decline(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        calls.decline(currentUser(authentication), callId)
+
+    @PostMapping("/{callId}/end")
+    fun end(authentication: Authentication, @PathVariable callId: String): VoiceCallResponse =
+        if (isEmployee(authentication)) calls.end(currentEmployee(authentication), callId) else calls.end(currentUser(authentication), callId)
+
+    @PostMapping("/signaling-token")
+    fun signalingToken(authentication: Authentication, @Valid @RequestBody request: VoiceCallSignalingTokenRequest): VoiceCallSignalingTokenResponse =
+        if (isEmployee(authentication)) calls.signalingToken(currentEmployee(authentication), request.callId)
+        else calls.signalingToken(currentUser(authentication), request.callId)
+
+    @PutMapping("/push-token")
+    fun registerPushToken(authentication: Authentication, @Valid @RequestBody request: CallPushTokenRequest) {
+        val user = currentUser(authentication)
+        push.register(requireNotNull(user.id), request.token, request.platform)
+    }
+
+    @PostMapping("/push-token/revoke")
+    fun revokePushToken(authentication: Authentication, @Valid @RequestBody request: CallPushTokenRequest) {
+        val user = currentUser(authentication)
+        push.revoke(requireNotNull(user.id), request.token)
+    }
 }
+
+@RestController
+@RequestMapping("/api/v1/admin/call-access")
+class VoiceCallAccessAdminController(
+    private val employees: EmployeeRepository,
+    private val access: com.recharge.backend.service.VoiceCallAccessService
+) {
+    private fun currentEmployee(authentication: Authentication): EmployeeEntity =
+        authentication.name.toLongOrNull()?.let { employees.findById(it).orElseThrow { IllegalArgumentException("Employee not found") } }
+            ?: throw IllegalStateException("Invalid authenticated employee")
+
+    @GetMapping("/roles")
+    fun roles(authentication: Authentication): List<VoiceCallRoleAccessResponse> =
+        access.roleAccess(currentEmployee(authentication))
+
+    @PutMapping("/roles/{role}")
+    fun updateRole(authentication: Authentication, @PathVariable role: String, @Valid @RequestBody request: VoiceCallRoleAccessRequest): VoiceCallRoleAccessResponse =
+        access.setRoleAccess(currentEmployee(authentication), role, request.enabled)
+
+    @GetMapping("/users")
+    fun listUsers(authentication: Authentication): List<VoiceCallUserAccessResponse> =
+        access.userAccess(currentEmployee(authentication))
+
+    @PutMapping("/users/{publicId}")
+    fun updateUser(authentication: Authentication, @PathVariable publicId: String, @Valid @RequestBody request: VoiceCallUserAccessRequest): VoiceCallUserAccessResponse =
+        access.setUserAccess(currentEmployee(authentication), publicId, request.mode)
+}
+

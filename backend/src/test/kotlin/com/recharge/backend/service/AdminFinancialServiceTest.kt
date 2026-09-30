@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.RechargeTransactionStatusResponse
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.domain.RechargeTransactionEntity
 import com.recharge.backend.domain.UserEntity
 import com.recharge.backend.repository.RechargeTransactionRepository
@@ -30,6 +31,7 @@ class AdminFinancialServiceTest {
         val roleAccess = mock(RoleAccessService::class.java)
         val rechargeService = mock(RechargeService::class.java)
         val walletService = mock(WalletService::class.java)
+        val employeeAudit = mock(EmployeeAuditService::class.java)
 
         val tx = RechargeTransactionEntity(
             transactionId = "RTX-HIST-001",
@@ -48,8 +50,8 @@ class AdminFinancialServiceTest {
             walletLedgerRef = null,
             message = "Recharge provider call did not complete: PayU biller/operator id is missing for recharge"
         )
-        val viewer = UserEntity(id = 1L, role = "ADMIN")
-        val target = UserEntity(id = 4L, role = "CLIENT")
+        val viewer = EmployeeEntity(id = 1L, mobile = "9999999999", role = "ADMIN")
+        val target = UserEntity(id = 4L, mobile = "9955131155", role = "CLIENT")
         val expected = mock(RechargeTransactionStatusResponse::class.java)
 
         `when`(recharges.findByTransactionId(tx.transactionId)).thenReturn(Optional.of(tx))
@@ -64,7 +66,8 @@ class AdminFinancialServiceTest {
             users = users,
             roleAccess = roleAccess,
             rechargeService = rechargeService,
-            walletService = walletService
+            walletService = walletService,
+            employeeAudit = employeeAudit
         )
 
         val actual = service.resolveConfirmedPreSubmissionFailure(viewer, tx.transactionId)
@@ -84,6 +87,7 @@ class AdminFinancialServiceTest {
         val roleAccess = mock(RoleAccessService::class.java)
         val rechargeService = mock(RechargeService::class.java)
         val walletService = mock(WalletService::class.java)
+        val employeeAudit = mock(EmployeeAuditService::class.java)
 
         val tx = RechargeTransactionEntity(
             transactionId = "RTX-HIST-002",
@@ -95,8 +99,8 @@ class AdminFinancialServiceTest {
             walletDebitAmount = BigDecimal("100.00"),
             message = "Recharge provider call did not complete: PayU biller/operator id is missing for recharge"
         )
-        val viewer = UserEntity(id = 1L, role = "ADMIN")
-        val target = UserEntity(id = 4L, role = "CLIENT")
+        val viewer = EmployeeEntity(id = 1L, mobile = "9999999999", role = "ADMIN")
+        val target = UserEntity(id = 4L, mobile = "9955131155", role = "CLIENT")
 
         `when`(recharges.findByTransactionId(tx.transactionId)).thenReturn(Optional.of(tx))
         `when`(users.findById(4L)).thenReturn(Optional.of(target))
@@ -108,7 +112,8 @@ class AdminFinancialServiceTest {
             users = users,
             roleAccess = roleAccess,
             rechargeService = rechargeService,
-            walletService = walletService
+            walletService = walletService,
+            employeeAudit = employeeAudit
         )
 
         assertThrows(IllegalArgumentException::class.java) {

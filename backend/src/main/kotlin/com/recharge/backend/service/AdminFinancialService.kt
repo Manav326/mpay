@@ -1,7 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.api.*
-import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.domain.WalletTransactionEntity
 import com.recharge.backend.repository.*
 import org.springframework.data.domain.Page
@@ -17,9 +17,10 @@ class AdminFinancialService(
     private val users: UserRepository,
     private val roleAccess: RoleAccessService,
     private val rechargeService: RechargeService,
-    private val walletService: WalletService
+    private val walletService: WalletService,
+    private val employeeAudit: EmployeeAuditService
 ) {
-    fun recharges(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialRechargePageResponse {
+    fun recharges(viewer: EmployeeEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialRechargePageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
         val result = rechargePage(viewer, page, size, status, provider)
         val userMap = users.findAllById(result.content.map { it.userId }.distinct()).associateBy { requireNotNull(it.id) }
@@ -56,7 +57,7 @@ class AdminFinancialService(
         )
     }
 
-    fun withdrawals(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialWithdrawalPageResponse {
+    fun withdrawals(viewer: EmployeeEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialWithdrawalPageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
         val result = withdrawalPage(viewer, page, size, status, provider)
         val userMap = users.findAllById(result.content.map { it.userId }.distinct()).associateBy { requireNotNull(it.id) }
@@ -89,7 +90,7 @@ class AdminFinancialService(
         )
     }
 
-    fun walletHistory(viewer: UserEntity, page: Int, size: Int, referenceType: String?): AdminFinancialWalletPageResponse {
+    fun walletHistory(viewer: EmployeeEntity, page: Int, size: Int, referenceType: String?): AdminFinancialWalletPageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
@@ -131,17 +132,19 @@ class AdminFinancialService(
     }
 
     @Transactional
-    fun refreshRecharge(viewer: UserEntity, transactionId: String): RechargeTransactionStatusResponse {
+    fun refreshRecharge(viewer: EmployeeEntity, transactionId: String): RechargeTransactionStatusResponse {
         roleAccess.requirePermission(viewer, "MANAGE_RECHARGE_OPERATIONS")
         val tx = recharges.findByTransactionId(transactionId)
             .orElseThrow { IllegalArgumentException("Recharge transaction not found") }
         val target = users.findById(tx.userId).orElseThrow { IllegalArgumentException("Recharge user not found") }
         roleAccess.requireCanView(viewer, target)
-        return rechargeService.transaction(tx.userId, tx.transactionId)
+        val result = rechargeService.transaction(tx.userId, tx.transactionId)
+        employeeAudit.record(viewer, "RECHARGE_REFRESHED", "RECHARGE", transactionId, "Refreshed a customer recharge status.")
+        return result
     }
 
     @Transactional
-    fun resolveConfirmedPreSubmissionFailure(viewer: UserEntity, transactionId: String): RechargeTransactionStatusResponse {
+    fun resolveConfirmedPreSubmissionFailure(viewer: EmployeeEntity, transactionId: String): RechargeTransactionStatusResponse {
         roleAccess.requirePermission(viewer, "MANAGE_RECHARGE_OPERATIONS")
 
         val tx = recharges.findByTransactionId(transactionId)
@@ -182,12 +185,12 @@ class AdminFinancialService(
         return rechargeService.transaction(tx.userId, tx.transactionId)
     }
 
-    private fun visibleUserIds(viewer: UserEntity): Set<Long> =
+    private fun visibleUserIds(viewer: EmployeeEntity): Set<Long> =
         users.findAllByRoleIn(roleAccess.visibleRolesFor(viewer.role).toList())
             .mapNotNull { it.id }
             .toSet()
 
-    private fun rechargePage(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.RechargeTransactionEntity> {
+    private fun rechargePage(viewer: EmployeeEntity, page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.RechargeTransactionEntity> {
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
         val pageable = PageRequest.of(page, size)
@@ -203,7 +206,7 @@ class AdminFinancialService(
         }
     }
 
-    private fun withdrawalPage(viewer: UserEntity, page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.WalletWithdrawalEntity> {
+    private fun withdrawalPage(viewer: EmployeeEntity, page: Int, size: Int, status: String?, provider: String?): Page<com.recharge.backend.domain.WalletWithdrawalEntity> {
         require(page >= 0) { "Page must be non-negative" }
         require(size in 1..50) { "Page size must be between 1 and 50" }
         val pageable = PageRequest.of(page, size)

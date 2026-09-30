@@ -110,7 +110,8 @@ class RentalVendorReviewEntity(
     @Column(name = "vendor_id", nullable = false) var vendorId: Long = 0,
     @Column(nullable = false, length = 30) var action: String = "",
     @Column(length = 500) var reason: String? = null,
-    @Column(name = "actor_user_id", nullable = false) var actorUserId: Long = 0,
+    @Column(name = "actor_account_id", nullable = false) var actorAccountId: Long = 0,
+    @Column(name = "actor_account_type", nullable = false, length = 20) var actorAccountType: String = "USER",
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
 )
 
@@ -121,7 +122,8 @@ class RentalCarReviewEntity(
     @Column(name = "car_id", nullable = false) var carId: Long = 0,
     @Column(nullable = false, length = 30) var action: String = "",
     @Column(length = 500) var reason: String? = null,
-    @Column(name = "actor_user_id", nullable = false) var actorUserId: Long = 0,
+    @Column(name = "actor_account_id", nullable = false) var actorAccountId: Long = 0,
+    @Column(name = "actor_account_type", nullable = false, length = 20) var actorAccountType: String = "USER",
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
 )
 

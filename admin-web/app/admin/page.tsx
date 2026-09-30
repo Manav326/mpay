@@ -1,19 +1,22 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle } from 'lucide-react';
+import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle, PhoneCall, MessageCircle } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { cancelRentalBooking, completeRentalBooking, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
+import { cancelRentalBooking, completeRentalBooking, createVoiceCall, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import FinancialOperations from './FinancialOperations';
 import AdminProfileMenu from './AdminProfileMenu';
 import RentalVendorReview from './RentalVendorReview';
 import RentalBookingActions from './RentalBookingActions';
 import RentalPayouts from './RentalPayouts';
+import { VoiceAccessPanel, VoiceCallWidget } from './VoiceCallPanel';
+import CustomerCarePanel from './CustomerCarePanel';
+import StaffManagementPanel from './StaffManagementPanel';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
-type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions';
+type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'|'team'|'voice'|'support';
 
 const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
   dashboard: '/admin',
@@ -22,6 +25,9 @@ const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
   vendors: '/admin/vendors',
   rental: '/admin/rental',
   commissions: '/admin/commissions',
+  team: '/admin/team',
+  voice: '/admin/voice',
+  support: '/admin/customer-care',
 };
 
 function adminViewFromPath(pathname: string): AdminView {
@@ -31,6 +37,9 @@ function adminViewFromPath(pathname: string): AdminView {
     case '/admin/vendors': return 'vendors';
     case '/admin/rental': return 'rental';
     case '/admin/commissions': return 'commissions';
+    case '/admin/team': return 'team';
+    case '/admin/voice': return 'voice';
+    case '/admin/customer-care': return 'support';
     default: return 'dashboard';
   }
 }
@@ -90,20 +99,28 @@ export default function Page() {
     if (typeof window === 'undefined' || !session) return;
 
     const permissions = session.permissions || [];
-    const allowed = new Set<AdminView>(['dashboard', 'users']);
+    const allowed = new Set<AdminView>();
+    if (permissions.includes('VIEW_DASHBOARD')) allowed.add('dashboard');
+    if (permissions.includes('VIEW_USERS')) allowed.add('users');
     if (permissions.includes('VIEW_FINANCIAL_OPERATIONS')) allowed.add('financial');
     if (permissions.includes('MANAGE_VENDORS')) allowed.add('vendors');
     if (permissions.includes('MANAGE_RENTAL_OPERATIONS')) allowed.add('rental');
     if (permissions.includes('MANAGE_COMMISSION_RATES')) allowed.add('commissions');
+    if (session.role?.toUpperCase() === 'ADMIN') allowed.add('team');
+    if (session.role?.toUpperCase() === 'ADMIN') allowed.add('voice');
+    if (permissions.includes('SUPPORT_VIEW')) allowed.add('support');
 
     const currentPath = window.location.pathname;
     const currentView = adminViewFromPath(currentPath);
     const knownPath = currentPath === '/admin' || Object.values(ADMIN_VIEW_PATHS).includes(currentPath);
 
     if (!knownPath || !allowed.has(currentView)) {
-      setViewState('dashboard');
-      if (currentPath !== '/admin') {
-        window.history.replaceState({ mpayAdminView: 'dashboard' }, '', '/admin');
+      const fallback = (['dashboard', 'support', 'voice', 'users', 'team', 'financial', 'vendors', 'rental', 'commissions'] as AdminView[])
+        .find(candidate => allowed.has(candidate)) || 'dashboard';
+      setViewState(fallback);
+      const fallbackPath = ADMIN_VIEW_PATHS[fallback];
+      if (currentPath !== fallbackPath) {
+        window.history.replaceState({ mpayAdminView: fallback }, '', fallbackPath);
       }
     }
   }, [session]);
@@ -185,6 +202,13 @@ export default function Page() {
   const canManageHistoryPdfAccess = permissions.includes('MANAGE_HISTORY_PDF_ACCESS');
   const canRefreshRecharge = permissions.includes('MANAGE_RECHARGE_OPERATIONS');
   const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
+  const canCallCustomer = permissions.includes('CALL_CUSTOMER');
+  const canManageCallAccess = permissions.includes('MANAGE_CALL_ACCESS');
+  const canManageSupportAi = permissions.includes('MANAGE_SUPPORT_AI');
+  const canViewCustomerContext = permissions.includes('SUPPORT_VIEW_CUSTOMER_CONTEXT');
+  const canManageSupportAccess = permissions.includes('MANAGE_SUPPORT_ACCESS');
+  const canSupportView = permissions.includes('SUPPORT_VIEW');
+  const canSupportManage = permissions.includes('SUPPORT_MANAGE');
   const menu = [
     ['dashboard','Dashboard',LayoutDashboard],
     ['users','Users & Wallet',Users],
@@ -192,6 +216,9 @@ export default function Page() {
     ...(canVendors ? [['vendors','Rental Partners',CarFront] as const] : []),
     ...(canRentalOperations ? [['rental','Rental Operations',CalendarDays] as const] : []),
     ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
+    ...(session.role?.toUpperCase() === 'ADMIN' ? [['team','Team & Access',Users] as const] : []),
+    ...(canSupportView ? [['support','Customer Care',MessageCircle] as const] : []),
+    ...(session.role?.toUpperCase() === 'ADMIN' ? [['voice','Voice & Access',PhoneCall] as const] : []),
   ] as const;
 
   return <div className="shell">
@@ -200,12 +227,15 @@ export default function Page() {
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><button className="nav" onClick={logout} title="Logout"><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':'Commission Rules'}</h1></div></div><div className="top-actions"><div className="admin-role-badge"><span className="admin-role-badge-icon"><ShieldCheck size={14}/></span><div><b>{session.role}</b><small>Authorized access</small></div></div><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
+    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':view==='commissions'?'Commission Rules':view==='team'?'Team & Access':view==='support'?'Customer Care':'Voice & Access'}</h1></div></div><div className="top-actions"><div className="admin-role-badge"><span className="admin-role-badge-icon"><ShieldCheck size={14}/></span><div><b>{session.role}</b><small>Authorized access</small></div></div><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
       {notice && <div className="admin-notice"><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
       {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} attention={attention} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
+      {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} canViewCustomerContext={canViewCustomerContext} canManageSupportAccess={canManageSupportAccess} onOpenAccessManagement={()=>setView('voice')} />}
+      {view==='team' && session.role?.toUpperCase() === 'ADMIN' && <StaffManagementPanel onManageAccess={()=>setView('voice')} />}
+      {view==='voice' && session.role?.toUpperCase() === 'ADMIN' && <VoiceAccessPanel />}
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
-      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
+      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
       {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id,reason)=>{setBusy(true);try{await cancelRentalBooking(id,reason);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} 
       {view==='vendors' && canVendors && <RentalVendorReview/>}
@@ -232,7 +262,7 @@ function userStatusMeta(value?: string){
   return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleUsers = users.filter(u => {
@@ -354,11 +384,11 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
       </div>
       {visibleUsers.length===0&&<div className="empty-state">No users match the selected filters.</div>}
     </section>
-    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated}/>}
+    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated}/>}
   </div>
 }
 
-function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
+function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
   const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
@@ -377,6 +407,21 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
   const [loadingWallet,setLoadingWallet] = useState(true);
   const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
   const [statusBusy,setStatusBusy] = useState(false);
+  const [voiceCallId,setVoiceCallId] = useState<string | null>(null);
+  const [voiceCallBusy,setVoiceCallBusy] = useState(false);
+
+  async function startVoiceSupportCall(){
+    if(voiceCallBusy || voiceCallId) return;
+    setVoiceCallBusy(true);
+    try {
+      const created = await createVoiceCall(user.publicUserId);
+      setVoiceCallId(created.callId);
+    } catch(error:any) {
+      window.alert(error?.message || 'Unable to start the customer call.');
+    } finally {
+      setVoiceCallBusy(false);
+    }
+  }
 
   useEffect(()=>{ if(canManageHistoryPdfAccess){ getUserHistoryPdfAccess(user.publicUserId).then(setHistoryPdfAccess).catch(()=>setHistoryPdfAccess(null)); } },[user.publicUserId,canManageHistoryPdfAccess]);
 
@@ -441,8 +486,14 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
   }, [walletHistory, user.balance]);
 
   const statusClass = (user.status || 'UNKNOWN').toLowerCase();
+  const requestDrawerClose = () => {
+    // Do not unmount the call widget while a call is active. The widget owns
+    // the WebRTC resources and the server-side termination sequence.
+    if (voiceCallId) return;
+    onClose();
+  };
 
-  return <div className="drawer-overlay" onClick={onClose}>
+  return <div className="drawer-overlay" onClick={requestDrawerClose}>
     <aside className="user-drawer user-drawer-wide" onClick={e=>e.stopPropagation()}>
       <div className="drawer-head">
         <div className="drawer-user-heading">
@@ -453,7 +504,7 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
             <div className="drawer-subtitle"><span>{user.accountType}</span><span>{user.publicUserId}</span><span className={"status " + statusClass}>{user.status}</span></div>
           </div>
         </div>
-        <button className="icon-btn" onClick={onClose}><X/></button>
+        <button className="icon-btn" onClick={requestDrawerClose}><X/></button>
       </div>
 
       <section className="detail-grid detail-grid-3">
@@ -480,6 +531,19 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
           <button className={user.status === 'ACTIVE' ? 'status-toggle off' : 'status-toggle on'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{const next=await updateUserStatus(user.publicUserId,user.status!=='ACTIVE');onStatusUpdated(user.publicUserId,next.status);}catch(error:any){window.alert(error?.message||'Unable to update account status.');}finally{setStatusBusy(false);}}}>{statusBusy ? 'Saving…' : user.status === 'ACTIVE' ? 'Block account' : 'Unblock account'}</button>
         </div>}
       </section>
+
+      {canCallCustomer && user.role.toUpperCase() === 'CLIENT' && user.status === 'ACTIVE' && <section className="drawer-section">
+        <div className="drawer-section-title">
+          <div><h3>Voice support</h3><p>Start a two-way support call. The customer must accept before audio connects.</p></div>
+          <PhoneCall size={17}/>
+        </div>
+        <div className="voice-drawer-card">
+          <div className="voice-drawer-copy"><b>Call {user.name}</b><span>mPay voice support · not recorded</span></div>
+          <button className="primary" disabled={voiceCallBusy || !!voiceCallId} onClick={()=>void startVoiceSupportCall()}>
+            <PhoneCall size={15}/>{voiceCallBusy ? 'Starting…' : voiceCallId ? 'Call active' : 'Start voice call'}
+          </button>
+        </div>
+      </section>}
 
       {canManageHistoryPdfAccess && <section className="drawer-section">
         <div className="drawer-section-title"><div><h3>History PDF access</h3><p>Per-account permission for exporting compact wallet or recharge statements.</p></div></div>
@@ -551,6 +615,7 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
         {walletHasNext && <button className="secondary load-more" onClick={loadMoreWallet}>Load more balance records <ChevronRight size={15}/></button>}
       </section>}
 
+      {voiceCallId && <VoiceCallWidget callId={voiceCallId} customerName={user.name || user.mobile} onClosed={()=>setVoiceCallId(null)}/>}
       <div className="drawer-note"><ShieldCheck size={15}/> Customer history is read-only here. Account status uses the protected user-lifecycle API; money and rental state changes remain owned by their authoritative workflows.</div>
     </aside>
   </div>

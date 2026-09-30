@@ -38,7 +38,24 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+          # Ubuntu 24.04 GitHub runners currently expose API 37 as
+          # platforms/android-37.0, not platforms/android-37.
+          packages: "platform-tools platforms;android-37.0 build-tools;36.0.0"
+
+      - name: Normalize Android API 37 SDK path
+        shell: bash
+        run: |
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          test -n "${sdk_root}"
+          test -d "${sdk_root}/platforms/android-37.0"
+
+          if [[ ! -e "${sdk_root}/platforms/android-37" ]]; then
+            ln -s "android-37.0" "${sdk_root}/platforms/android-37"
+          fi
+
+          test -d "${sdk_root}/platforms/android-37"
+          echo "Android API 37 SDK path:"
+          ls -ld "${sdk_root}/platforms/android-37" "${sdk_root}/platforms/android-37.0"
 
       - name: Reset Gradle transformed dependency cache
         run: |
@@ -58,6 +75,10 @@ jobs:
         working-directory: android
         env:
           MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          MPAY_FIREBASE_API_KEY: ${{ secrets.MPAY_FIREBASE_API_KEY }}
+          MPAY_FIREBASE_APP_ID: ${{ secrets.MPAY_FIREBASE_APP_ID }}
+          MPAY_FIREBASE_PROJECT_ID: ${{ secrets.MPAY_FIREBASE_PROJECT_ID }}
+          MPAY_FIREBASE_SENDER_ID: ${{ secrets.MPAY_FIREBASE_SENDER_ID }}
           MPAY_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/mpay-upload-key.jks
           MPAY_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           MPAY_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}

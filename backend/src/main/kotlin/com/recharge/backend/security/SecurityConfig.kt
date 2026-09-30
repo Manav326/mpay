@@ -55,7 +55,8 @@ class SecurityConfig {
                     "/api/v1/webhooks/payu/payout",
                     "/api/v1/webhooks/payu/payment",
                     "/api/v1/webhooks/razorpay/payout",
-                    "/api/v1/car-rental/photos/**"
+                    "/api/v1/car-rental/photos/**",
+                    "/ws/calls"
                 ).permitAll()
                     .anyRequest().authenticated()
             }

@@ -1,0 +1,287 @@
+package com.recharge.backend.api
+
+import java.time.Instant
+
+data class SupportCallRequestResponse(
+    val requestId: String,
+    val status: String,
+    val reason: String?,
+    val requestedAt: String,
+    val expiresAt: String,
+    val caseId: String?,
+    val customerPublicId: String? = null,
+    val customerName: String? = null,
+    val customerMobile: String? = null,
+    val voiceCallId: String? = null,
+    val assignedEmployeePublicId: String? = null,
+    val assignedEmployeeName: String? = null,
+    val claimedAt: String? = null,
+    val outcome: String? = null
+)
+
+data class SupportCaseResponse(
+    val caseId: String,
+    val customerPublicId: String,
+    val subject: String,
+    val category: String,
+    val priority: String,
+    val status: String,
+    val source: String,
+    val assignedEmployeePublicId: String? = null,
+    val assignedEmployeeName: String? = null,
+    val createdAt: String,
+    val updatedAt: String,
+    val lastMeaningfulUpdateAt: String? = null,
+    val expectedResolutionAt: String? = null,
+    val etaSource: String = "SYSTEM",
+    val resolvedAt: String? = null,
+    val resolutionCode: String? = null,
+    val resolutionNote: String? = null
+)
+
+data class SupportInteractionResponse(
+    val interactionId: String,
+    val caseId: String?,
+    val channel: String,
+    val direction: String,
+    val status: String,
+    val startedAt: String,
+    val endedAt: String?,
+    val durationSeconds: Long?,
+    val durationLabel: String?,
+    val ringDurationSeconds: Long? = null,
+    val ringDurationLabel: String? = null,
+    val handlingDurationSeconds: Long? = null,
+    val handlingDurationLabel: String? = null,
+    val wrapUpCompletedAt: String? = null,
+    val wrapUpDurationSeconds: Long? = null,
+    val wrapUpDurationLabel: String? = null,
+    val outcome: String?,
+    val voiceCallId: String?,
+    val actorAccountPublicId: String?,
+    val actorName: String?
+)
+
+data class SupportNoteResponse(
+    val id: Long,
+    val caseId: String?,
+    val visibility: String,
+    val note: String,
+    val authorEmployeePublicId: String?,
+    val authorName: String?,
+    val createdAt: String
+)
+
+data class SupportCaseEventResponse(
+    val eventId: String,
+    val caseId: String,
+    val eventType: String,
+    val visibility: String,
+    val channel: String?,
+    val summary: String,
+    val actorAccountPublicId: String?,
+    val actorName: String?,
+    val createdAt: String
+)
+
+data class SupportCustomerResponse(
+    val customerPublicId: String,
+    val customerName: String?,
+    val mobile: String,
+    val callbackRequestEnabled: Boolean,
+    val pendingRequest: SupportCallRequestResponse?,
+    val openCases: List<SupportCaseResponse>,
+    val interactions: List<SupportInteractionResponse>,
+    val notes: List<SupportNoteResponse>,
+    val events: List<SupportCaseEventResponse> = emptyList()
+)
+
+data class CustomerSupportOverviewResponse(
+    val callbackRequestEnabled: Boolean,
+    val pendingRequest: SupportCallRequestResponse?,
+    val cases: List<SupportCaseResponse>,
+    val interactions: List<SupportInteractionResponse>,
+    val customerNotes: List<SupportNoteResponse>,
+    val events: List<SupportCaseEventResponse> = emptyList()
+)
+
+data class CreateSupportCallRequest(
+    @field:jakarta.validation.constraints.Size(max = 500)
+    val reason: String? = null
+)
+
+data class UpdateSupportCaseRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    val status: String,
+    @field:jakarta.validation.constraints.Size(max = 100)
+    val resolutionCode: String? = null,
+    @field:jakarta.validation.constraints.Size(max = 1200)
+    val resolutionNote: String? = null,
+    val expectedResolutionAt: String? = null
+)
+
+data class CreateSupportNoteRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    @field:jakarta.validation.constraints.Size(max = 2000)
+    val note: String,
+    val visibility: String = "INTERNAL"
+)
+
+data class SupportRequestDecisionResponse(
+    val request: SupportCallRequestResponse,
+    val message: String
+)
+
+data class CustomerCallbackAccessResponse(
+    val publicUserId: String,
+    val enabled: Boolean
+)
+
+data class VoiceCallAvailabilityResponse(
+    val publicUserId: String,
+    val available: Boolean
+)
+
+data class CustomerCallbackAccessRequest(
+    val enabled: Boolean
+)
+
+data class VoiceCallSupportRequest(
+    val supportRequestId: String? = null
+)
+
+
+data class SupportRequestDecisionRequest(
+    @field:jakarta.validation.constraints.Size(max = 1000)
+    val note: String? = null
+)
+
+
+data class SupportMessageResponse(
+    val messageId: String,
+    val senderType: String,
+    val message: String,
+    val createdAt: String,
+    val restartSupportIntake: Boolean = false
+)
+
+data class SupportChatItemResponse(
+    val itemId: String,
+    val type: String,
+    val senderType: String? = null,
+    val message: String? = null,
+    val status: String? = null,
+    val outcome: String? = null,
+    val durationLabel: String? = null,
+    val actorName: String? = null,
+    val createdAt: String
+)
+
+data class SupportChatResponse(
+    val conversationId: String?,
+    val caseId: String?,
+    val status: String,
+    val messages: List<SupportMessageResponse>,
+    val unreadForCustomer: Int,
+    val unreadForStaff: Int,
+    val callbackRequestEnabled: Boolean = false,
+    val pendingCallbackRequest: SupportCallRequestResponse? = null,
+    val items: List<SupportChatItemResponse> = emptyList(),
+    val currentCase: SupportCaseResponse? = null
+)
+
+data class CreateSupportMessageRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    @field:jakarta.validation.constraints.Size(max = 4000)
+    val message: String,
+    @field:jakarta.validation.constraints.Size(max = 40)
+    val topic: String? = null
+)
+
+data class SupportAiSettingsResponse(
+    val enabled: Boolean,
+    val providerConfigured: Boolean,
+    val vectorStoreConfigured: Boolean,
+    val model: String
+)
+
+data class UpdateSupportAiSettingsRequest(
+    val enabled: Boolean
+)
+
+
+data class SupportPermissionStateResponse(
+    val permission: String,
+    val label: String,
+    val description: String,
+    val group: String,
+    val enabled: Boolean,
+    val mode: String?,
+    val inherited: Boolean,
+    val editable: Boolean,
+    val lockedReason: String? = null
+)
+
+data class SupportRoleAccessResponse(
+    val role: String,
+    val protected: Boolean,
+    val permissions: List<SupportPermissionStateResponse>
+)
+
+data class SupportUserAccessResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String,
+    val role: String,
+    val protected: Boolean,
+    val permissions: List<SupportPermissionStateResponse>
+)
+
+data class SupportAccessResponse(
+    val permissions: List<SupportPermissionStateResponse>,
+    val roles: List<SupportRoleAccessResponse>,
+    val users: List<SupportUserAccessResponse>
+)
+
+
+data class SupportQueueItemResponse(
+    val customerPublicId: String,
+    val customerName: String?,
+    val customerMobile: String?,
+    val caseId: String?,
+    val subject: String?,
+    val category: String?,
+    val priority: String?,
+    val caseStatus: String?,
+    val assignedEmployeePublicId: String?,
+    val assignedEmployeeName: String?,
+    val assignedToViewer: Boolean,
+    val source: String,
+    val attentionReason: String,
+    val unreadMessages: Int,
+    val lastActivityAt: String?,
+    val pendingCallback: SupportCallRequestResponse?
+)
+
+data class SupportQueueResponse(
+    val total: Int,
+    val callbacks: Int,
+    val unreadChats: Int,
+    val unassigned: Int,
+    val assignedToViewer: Int,
+    val items: List<SupportQueueItemResponse>
+)
+
+data class SupportAssignmentResponse(
+    val caseId: String,
+    val assignedEmployeePublicId: String?,
+    val assignedEmployeeName: String?
+)
+
+
+data class SupportCustomerSearchResultResponse(
+    val customerPublicId: String,
+    val customerName: String?,
+    val mobile: String,
+    val email: String?
+)

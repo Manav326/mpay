@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject, type PointerEvent as ReactPointerEvent } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
-  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X
+  ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, Headset, LogOut, Menu,
+  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X, PhoneCall, PhoneOff
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -42,6 +42,137 @@ function portalViewFromPath(pathname: string): PortalView {
 }
 
 type Wallet = { balance: number; availableBalance: number; reservedBalance: number };
+
+type SupportMessage = {
+  messageId: string;
+  senderType: string;
+  message: string;
+  createdAt: string;
+  restartSupportIntake?: boolean;
+};
+type SupportChatItem = {
+  itemId: string;
+  type: 'MESSAGE' | 'VOICE_CALL';
+  senderType?: string | null;
+  message?: string | null;
+  status?: string | null;
+  outcome?: string | null;
+  durationLabel?: string | null;
+  actorName?: string | null;
+  createdAt: string;
+};
+type SupportChat = {
+  conversationId?: string | null;
+  caseId?: string | null;
+  status: string;
+  messages: SupportMessage[];
+  unreadForCustomer: number;
+  unreadForStaff: number;
+  callbackRequestEnabled?: boolean;
+  pendingCallbackRequest?: {
+    requestId: string;
+    status: string;
+    reason?: string | null;
+    requestedAt: string;
+    expiresAt: string;
+  } | null;
+  items?: SupportChatItem[];
+  currentCase?: {
+    caseId: string;
+    subject: string;
+    status: string;
+    updatedAt: string;
+    lastMeaningfulUpdateAt?: string | null;
+    expectedResolutionAt?: string | null;
+    etaSource?: string;
+  } | null;
+};
+type CustomerSupportTopic = {
+  code: string;
+  title: string;
+  description: string;
+  message: string;
+  steps: string[];
+};
+const customerSupportTopics: CustomerSupportTopic[] = [
+  {
+    code: 'ADD_MONEY',
+    title: 'Add money',
+    description: 'Payment completed but wallet not updated',
+    message: 'I need help with adding money to my mPay wallet.',
+    steps: [
+      'Open Wallet and check the latest transaction.',
+      'Confirm whether the payment shows completed, pending or failed.',
+      'If money was paid but the wallet is still unchanged, continue to chat with mPay Support.'
+    ]
+  },
+  {
+    code: 'WITHDRAWAL',
+    title: 'Withdrawal',
+    description: 'UPI withdrawal, status or failed request',
+    message: 'I need help with a wallet withdrawal.',
+    steps: [
+      'Open Wallet → Withdrawals and check the latest status.',
+      'Confirm the UPI ID used for the request.',
+      'If the request is stuck, failed or the wallet amount needs clarification, continue to chat with mPay Support.'
+    ]
+  },
+  {
+    code: 'RECHARGE',
+    title: 'Mobile recharge',
+    description: 'Recharge failed, pending or wrong plan',
+    message: 'I need help with a mobile recharge.',
+    steps: [
+      'Open Recharge History and select the affected recharge.',
+      'Check the mobile number, operator, amount and transaction status.',
+      'If the recharge is still unresolved, continue to chat with mPay Support before retrying.'
+    ]
+  },
+  {
+    code: 'CAR_RENTAL',
+    title: 'Car rental',
+    description: 'Booking, cancellation or payment issue',
+    message: 'I need help with an mPay car rental booking.',
+    steps: [
+      'Open My Bookings and select the affected booking.',
+      'Check its status, trip dates and wallet payment details.',
+      'If the booking or refund issue remains, continue to chat with mPay Support.'
+    ]
+  },
+  {
+    code: 'WALLET',
+    title: 'Wallet & transactions',
+    description: 'Balance, debit, refund or transaction history',
+    message: 'I need help with a wallet transaction.',
+    steps: [
+      'Open Wallet or Transaction History and select the transaction.',
+      'Check the amount, status, reference and description.',
+      'If the ledger entry still needs explanation, continue to chat with mPay Support.'
+    ]
+  },
+  {
+    code: 'ACCOUNT',
+    title: 'Account & profile',
+    description: 'Profile, login or account access',
+    message: 'I need help with my mPay account or profile.',
+    steps: [
+      'Check Profile and Account Settings for the affected detail.',
+      'Confirm that the account is active and your profile information is current.',
+      'If you still cannot complete the action, continue to chat with mPay Support.'
+    ]
+  },
+  {
+    code: 'OTHER',
+    title: 'Something else',
+    description: 'Another issue not covered above',
+    message: 'I need help with an mPay issue that is not covered by the support topics.',
+    steps: [
+      'Choose this when your issue does not match the topics above.',
+      'Describe what happened, including any relevant transaction, booking or error details.',
+      'mPay Support can take over the conversation and help investigate the issue.'
+    ]
+  }
+];
 type Me = {
   userId?: number; publicUserId: string; mobile: string; name?: string; email?: string; profileImageUrl?: string | null;
   profileImageVersion?: number | null; role: string; commissionRate?: number; createdAt?: string; profileUpdatedAt?: string | null;
@@ -106,6 +237,8 @@ type VehicleUnavailability = {
   reasonNote?: string | null; status: string; createdAt: string;
 };
 type CalendarDay = { date: string; status: string; bookingId?: string | null; reasonCode?: string | null; reasonLabel?: string | null };
+
+const CUSTOMER_SUPPORT_CHAT_OPEN_KEY = 'mpay_customer_support_chat_open';
 
 const webSession = {
   accessKey: 'mpay_token',
@@ -918,6 +1051,26 @@ export default function Portal() {
   const rentalLoadSeq = useRef(0);
   const historyLoadSeq = useRef(0);
 
+  const [supportChatOpen, setSupportChatOpen] = useState(false);
+  const [supportPanelExpanded, setSupportPanelExpanded] = useState(false);
+  const [supportChat, setSupportChat] = useState<SupportChat>();
+  const [supportChatLoading, setSupportChatLoading] = useState(false);
+  const [supportChatBusy, setSupportChatBusy] = useState(false);
+  const [supportChatDraft, setSupportChatDraft] = useState('');
+  const [supportChatError, setSupportChatError] = useState('');
+  const [supportGuidedTopic, setSupportGuidedTopic] = useState<CustomerSupportTopic>();
+  const [supportIntakeMode, setSupportIntakeMode] = useState(false);
+  const [supportCallbackBusy, setSupportCallbackBusy] = useState(false);
+  const [supportCallbackReason, setSupportCallbackReason] = useState('');
+  const [supportChatMinimized, setSupportChatMinimized] = useState(false);
+  const [supportChatPosition, setSupportChatPosition] = useState({
+    x: 12,
+    y: 72,
+    width: 390,
+    height: 360,
+    autoSizeEnabled: true
+  });
+
   const walletSigned = (item: WalletItem) => {
     const amount = Math.abs(Number(item.amount || 0));
     const negative = ['DEBIT', 'WITHDRAW'].includes(String(item.type || '').toUpperCase()) || String(item.referenceType || '').toUpperCase() === 'RENTAL_PAYMENT';
@@ -925,6 +1078,132 @@ export default function Portal() {
   };
   const walletAmountClass = (item: WalletItem) => walletSigned(item) < 0 ? 'amount-debit' : 'amount-credit';
   const walletAmountLabel = (item: WalletItem) => (walletSigned(item) < 0 ? '-' : '+') + money(Math.abs(Number(item.amount || 0)));
+
+
+  async function loadCustomerSupportChat() {
+    setSupportChatLoading(true);
+    setSupportChatError('');
+    try {
+      const data = await api<SupportChat>('/api/v1/support/chat');
+      setSupportChat(data);
+    } catch (e:any) {
+      setSupportChatError(e.message || 'Unable to load the support chat.');
+    } finally {
+      setSupportChatLoading(false);
+    }
+  }
+
+  function openCustomerSupportChat() {
+    setSupportPanelExpanded(true);
+    window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY, '1');
+    setSupportChatOpen(true);
+    setSupportChatMinimized(false);
+    setSupportChatPosition(value => ({ ...value, autoSizeEnabled: true }));
+    void loadCustomerSupportChat();
+  }
+
+  function closeCustomerSupportChat() {
+    window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY);
+    setSupportChatOpen(false);
+  }
+
+  async function sendCustomerSupportMessage(messageOverride?: string, topicCode?: string) {
+    const message = (messageOverride ?? supportChatDraft).trim();
+    if (!message || supportChatBusy) return;
+    setSupportChatBusy(true);
+    setSupportChatError('');
+    try {
+      const response = await api<SupportMessage>('/api/v1/support/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify({ message, topic: topicCode || null })
+      });
+      setSupportChatDraft('');
+      setSupportIntakeMode(response.restartSupportIntake === true);
+      await loadCustomerSupportChat();
+    } catch (e:any) {
+      setSupportChatError(e.message || 'Unable to send your message.');
+    } finally {
+      setSupportChatBusy(false);
+    }
+  }
+
+  async function requestCustomerSupportCallback() {
+    if (!supportChat?.callbackRequestEnabled || supportCallbackBusy) return;
+    setSupportCallbackBusy(true);
+    setSupportChatError('');
+    try {
+      await api('/api/v1/support/call-request', {
+        method: 'POST',
+        body: JSON.stringify({ reason: supportCallbackReason.trim() || null })
+      });
+      setSupportCallbackReason('');
+      await loadCustomerSupportChat();
+    } catch (e:any) {
+      setSupportChatError(e.message || 'Unable to request a callback.');
+    } finally {
+      setSupportCallbackBusy(false);
+    }
+  }
+
+  async function cancelCustomerSupportCallback() {
+    const requestId = supportChat?.pendingCallbackRequest?.requestId;
+    if (!requestId || supportCallbackBusy) return;
+    setSupportCallbackBusy(true);
+    setSupportChatError('');
+    try {
+      await api('/api/v1/support/call-request/' + encodeURIComponent(requestId) + '/cancel', { method: 'POST' });
+      await loadCustomerSupportChat();
+    } catch (e:any) {
+      setSupportChatError(e.message || 'Unable to cancel the callback request.');
+    } finally {
+      setSupportCallbackBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY) === '1') {
+      setSupportChatOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view === 'account') void loadCustomerSupportChat();
+  }, [view]);
+
+  useEffect(() => {
+    if (!supportChatOpen) return;
+    const timer = window.setInterval(() => { void loadCustomerSupportChat(); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [supportChatOpen]);
+
+  useEffect(() => {
+    if (!supportChatOpen || supportChatMinimized || !supportChatPosition.autoSizeEnabled) return;
+    const messageCount = supportChat?.messages?.length ?? 0;
+    const targetHeight = supportGuidedTopic
+      ? 500
+      : messageCount <= 0
+        ? 360
+        : messageCount <= 2
+          ? 390
+          : messageCount <= 4
+            ? 460
+            : messageCount <= 7
+              ? 540
+              : 600;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const maxHeight = Math.max(320, viewportHeight - 16);
+    const nextHeight = Math.min(targetHeight, maxHeight);
+    if (Math.abs(nextHeight - supportChatPosition.height) > 0.5) {
+      setSupportChatPosition(value => ({ ...value, height: nextHeight }));
+    }
+  }, [
+    supportChatOpen,
+    supportChatMinimized,
+    supportChat?.messages?.length,
+    supportGuidedTopic,
+    supportChatPosition.autoSizeEnabled,
+    supportChatPosition.height
+  ]);
 
   async function loadHistory(
     page = 0,
@@ -3162,6 +3441,51 @@ export default function Portal() {
 
           {vendorStatus==='REJECTED' && vendor?.rejectionReason && <div className="account-review-note"><b>Admin note</b><span>{vendor.rejectionReason}</span></div>}
 
+          <section className={'portal-panel account-support-card ' + (supportPanelExpanded ? 'expanded' : 'collapsed')}>
+            <button className="customer-support-collapse-toggle" onClick={() => setSupportPanelExpanded(value => !value)} aria-expanded={supportPanelExpanded}>
+              <span className="customer-support-collapse-icon"><Headset size={20}/></span>
+              <span className="customer-support-collapse-copy"><b>Help & Support</b><small>Choose how you want mPay Support to help.</small></span>
+              <ChevronRight className={'customer-support-collapse-chevron' + (supportPanelExpanded ? ' open' : '')} size={18}/>
+            </button>
+            {supportPanelExpanded && (
+              <div className="customer-support-inline-content">
+                <div className="customer-support-inline-actions">
+                  <button className="customer-support-inline-action primary" onClick={openCustomerSupportChat}>
+                    <Headset size={18}/>
+                    <span><b>Chat with Support</b><small>Choose how you want mPay Support to help.</small></span>
+                    <ChevronRight size={16}/>
+                  </button>
+                  {supportChat?.pendingCallbackRequest ? (
+                    <button className="customer-support-inline-action" onClick={() => void cancelCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                      <PhoneOff size={18}/>
+                      <span><b>Cancel callback</b><small>Callback requested · {supportChat.pendingCallbackRequest.status.replaceAll('_',' ')}</small></span>
+                    </button>
+                  ) : supportChat?.callbackRequestEnabled ? (
+                    <button className="customer-support-inline-action" onClick={() => void requestCustomerSupportCallback()} disabled={supportCallbackBusy}>
+                      <PhoneCall size={18}/>
+                      <span><b>{supportCallbackBusy ? 'Requesting…' : 'Request a callback'}</b><small>Available for this support conversation.</small></span>
+                    </button>
+                  ) : null}
+                </div>
+                <div className="customer-support-issue-summary">
+                  <div className="customer-support-issue-heading"><b>Your Support Issue</b><span>Latest support status</span></div>
+                  {supportChat?.currentCase ? (
+                    <>
+                      <h4>{supportChat.currentCase.subject}</h4>
+                      <span className={'support-issue-status ' + (['RESOLVED','CLOSED'].includes(supportChat.currentCase.status) ? 'done' : 'active')}>{supportChat.currentCase.status.replaceAll('_',' ')}</span>
+                      <div className="customer-support-issue-facts">
+                        <span><small>Last updated</small><b>{dt(supportChat.currentCase.lastMeaningfulUpdateAt || supportChat.currentCase.updatedAt)}</b></span>
+                        <span><small>Expected resolution</small><b>{dt(supportChat.currentCase.expectedResolutionAt)}</b></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="customer-support-no-issue"><b>No active support issue</b><span>Start a support chat and mPay Support will create the issue summary here.</span></div>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
           <section className="portal-panel account-settings-card">
             <div className="account-section-heading"><div><h3>Settings & policies</h3><p>Manage your account, privacy and session</p></div><Settings size={18}/></div>
             <button className="account-action-row" onClick={()=>setEditingProfile(true)}>
@@ -3664,6 +3988,327 @@ export default function Portal() {
           </div>
         </div>;
       })()}
+
+      {supportChatOpen && (
+        <CustomerSupportChatModal
+          chat={supportChat}
+          loading={supportChatLoading}
+          busy={supportChatBusy}
+          draft={supportChatDraft}
+          error={supportChatError}
+          guidedTopic={supportGuidedTopic}
+          supportIntakeMode={supportIntakeMode}
+          callbackBusy={supportCallbackBusy}
+          minimized={supportChatMinimized}
+          position={supportChatPosition}
+          onDraftChange={value => setSupportChatDraft(value.slice(0, 4000))}
+          onSend={() => void sendCustomerSupportMessage()}
+          onChooseTopic={topic => setSupportGuidedTopic(topic)}
+          onStartChat={() => {
+            if (!supportGuidedTopic) return;
+            const topic = supportGuidedTopic;
+            setSupportGuidedTopic(undefined);
+            setSupportIntakeMode(false);
+            void sendCustomerSupportMessage(topic.message, topic.code);
+          }}
+          onRequestCallback={() => void requestCustomerSupportCallback()}
+          onCancelCallback={() => void cancelCustomerSupportCallback()}
+          onBackToTopics={() => setSupportGuidedTopic(undefined)}
+          onMinimize={() => {
+            if (!supportChatMinimized) {
+              const width = window.visualViewport?.width ?? window.innerWidth;
+              const height = window.visualViewport?.height ?? window.innerHeight;
+              setSupportChatPosition(value => ({
+                ...value,
+                x: Math.max(8, width - 56 - 12),
+                y: Math.max(8, height - 56 - 12),
+                autoSizeEnabled: value.autoSizeEnabled
+              }));
+            }
+            setSupportChatMinimized(value => !value);
+          }}
+          onMove={(x, y) => setSupportChatPosition(value => ({ ...value, x, y }))}
+          onResize={(width, height) => setSupportChatPosition(value => ({
+            ...value,
+            width,
+            height,
+            autoSizeEnabled: false
+          }))}
+          onDismiss={closeCustomerSupportChat}
+          onRefresh={() => void loadCustomerSupportChat()}
+        />
+      )}
     </main>
+  </div>;
+}
+
+
+type CustomerSupportChatModalProps = {
+  chat?: SupportChat;
+  loading: boolean;
+  busy: boolean;
+  draft: string;
+  error: string;
+  guidedTopic?: CustomerSupportTopic;
+  supportIntakeMode: boolean;
+  callbackBusy: boolean;
+  minimized: boolean;
+  position: { x: number; y: number; width: number; height: number; autoSizeEnabled: boolean };
+  onDraftChange: (value: string) => void;
+  onSend: () => void;
+  onChooseTopic: (topic: CustomerSupportTopic) => void;
+  onStartChat: () => void;
+  onRequestCallback: () => void;
+  onCancelCallback: () => void;
+  onBackToTopics: () => void;
+  onMinimize: () => void;
+  onMove: (x: number, y: number) => void;
+  onResize: (width: number, height: number) => void;
+  onDismiss: () => void;
+  onRefresh: () => void;
+};
+
+function CustomerSupportChatModal({
+  chat, loading, busy, draft, error, guidedTopic, supportIntakeMode, callbackBusy, minimized, position,
+  onDraftChange, onSend, onChooseTopic, onStartChat, onRequestCallback, onCancelCallback,
+  onBackToTopics, onMinimize, onMove, onResize, onDismiss, onRefresh
+}: CustomerSupportChatModalProps) {
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX:number; startY:number; x:number; y:number } | null>(null);
+  const resizeRef = useRef<{ startX:number; startY:number; width:number; height:number } | null>(null);
+  const minimizedDragMovedRef = useRef(false);
+  const suppressMinimizedClickRef = useRef(false);
+  const [minimizedDragging, setMinimizedDragging] = useState(false);
+  const [dismissTargetActive, setDismissTargetActive] = useState(false);
+  const edgeGap = 8;
+  const supportPresent = chat?.status === 'OPEN' && chat.messages.some(item => item.senderType === 'STAFF' || item.senderType === 'AI');
+
+  useEffect(() => {
+    if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+  }, [chat?.messages.length]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const clamp = () => {
+      const vw = viewport?.width ?? window.innerWidth;
+      const vh = viewport?.height ?? window.innerHeight;
+      const rect = modalRef.current?.getBoundingClientRect();
+      const w = rect?.width ?? (minimized ? 56 : position.width);
+      const h = rect?.height ?? (minimized ? 56 : position.height);
+      const nx = Math.min(Math.max(position.x, edgeGap), Math.max(edgeGap, vw - w - edgeGap));
+      const ny = Math.min(Math.max(position.y, edgeGap), Math.max(edgeGap, vh - h - edgeGap));
+      if (Math.abs(nx-position.x)>0.5 || Math.abs(ny-position.y)>0.5) onMove(nx,ny);
+    };
+    const move = (event: globalThis.PointerEvent) => {
+      if (dragRef.current) {
+        const d=dragRef.current, vw=viewport?.width ?? window.innerWidth, vh=viewport?.height ?? window.innerHeight;
+        const rect=modalRef.current?.getBoundingClientRect();
+        const w=rect?.width ?? (minimized?56:position.width), h=rect?.height ?? (minimized?56:position.height);
+        const nx=Math.min(Math.max(d.x+(event.clientX-d.startX),edgeGap),Math.max(edgeGap,vw-w-edgeGap));
+        const ny=Math.min(Math.max(d.y+(event.clientY-d.startY),edgeGap),Math.max(edgeGap,vh-h-edgeGap));
+        if(minimized){
+          if(Math.abs(event.clientX-d.startX)>5 || Math.abs(event.clientY-d.startY)>5){
+            minimizedDragMovedRef.current=true;
+            suppressMinimizedClickRef.current=true;
+          }
+          updateDismissTarget(nx,ny);
+        }
+        onMove(nx,ny);
+      }
+      if (resizeRef.current && !minimized) {
+        const d=resizeRef.current, vw=viewport?.width ?? window.innerWidth, vh=viewport?.height ?? window.innerHeight;
+        const minW=Math.min(300,Math.max(1,vw-16)), minH=Math.min(320,Math.max(1,vh-16));
+        onResize(
+          Math.min(Math.max(minW,d.width+(event.clientX-d.startX)),Math.max(minW,vw-position.x-edgeGap)),
+          Math.min(Math.max(minH,d.height+(event.clientY-d.startY)),Math.max(minH,vh-position.y-edgeGap))
+        );
+      }
+    };
+    const up=()=>{
+      if(dragRef.current && minimized){
+        const vw=viewport?.width ?? window.innerWidth;
+        const vh=viewport?.height ?? window.innerHeight;
+        const bubbleCenterX=position.x+28;
+        const bubbleCenterY=position.y+28;
+        const targetWidth=88;
+        const targetHeight=72;
+        const targetLeft=(vw-targetWidth)/2;
+        const targetTop=vh-targetHeight-14;
+        const overTarget=bubbleCenterX>=targetLeft && bubbleCenterX<=targetLeft+targetWidth &&
+          bubbleCenterY>=targetTop && bubbleCenterY<=targetTop+targetHeight;
+        if(overTarget && minimizedDragMovedRef.current){
+          setDismissTargetActive(false);
+          setMinimizedDragging(false);
+          dragRef.current=null;
+          resizeRef.current=null;
+          onDismiss();
+          return;
+        }
+        suppressMinimizedClickRef.current = minimizedDragMovedRef.current;
+        setDismissTargetActive(false);
+        setMinimizedDragging(false);
+      }
+      dragRef.current=null;
+      resizeRef.current=null;
+    };
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',up);
+    window.addEventListener('resize',clamp);
+    viewport?.addEventListener('resize',clamp);
+    viewport?.addEventListener('scroll',clamp);
+    clamp();
+    return ()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('resize',clamp);viewport?.removeEventListener('resize',clamp);viewport?.removeEventListener('scroll',clamp);};
+  }, [minimized,position.x,position.y,position.width,position.height,onMove,onResize]);
+
+  const updateDismissTarget=(x:number,y:number)=>{
+    const vw=window.visualViewport?.width ?? window.innerWidth;
+    const vh=window.visualViewport?.height ?? window.innerHeight;
+    const bubbleCenterX=x+28;
+    const bubbleCenterY=y+28;
+    const targetWidth=88;
+    const targetHeight=72;
+    const targetLeft=(vw-targetWidth)/2;
+    const targetTop=vh-targetHeight-14;
+    setDismissTargetActive(
+      bubbleCenterX>=targetLeft &&
+      bubbleCenterX<=targetLeft+targetWidth &&
+      bubbleCenterY>=targetTop &&
+      bubbleCenterY<=targetTop+targetHeight
+    );
+  };
+
+  const beginDrag=(event:ReactPointerEvent<HTMLDivElement>)=>{
+    if((event.target as HTMLElement).closest('button')) return;
+    event.preventDefault();
+    dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};
+  };
+  const beginResize=(event:ReactPointerEvent<HTMLDivElement>)=>{
+    event.preventDefault();
+    event.stopPropagation();
+    resizeRef.current={startX:event.clientX,startY:event.clientY,width:position.width,height:position.height};
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const topicIcon=(topic:CustomerSupportTopic)=>{
+    const t=topic.title.toLowerCase();
+    if(t.includes('money')||t.includes('transaction')) return <WalletCards size={19}/>;
+    if(t.includes('recharge')) return <Smartphone size={19}/>;
+    if(t.includes('rental')) return <CarFront size={19}/>;
+    if(t.includes('account')) return <UserRound size={19}/>;
+    return <Headset size={19}/>;
+  };
+
+  if(minimized){
+    const minimizedPointerDown=(event:ReactPointerEvent<HTMLDivElement>)=>{
+      event.preventDefault();
+      event.stopPropagation();
+      minimizedDragMovedRef.current=false;
+      suppressMinimizedClickRef.current=false;
+      setMinimizedDragging(true);
+      setDismissTargetActive(false);
+      dragRef.current={startX:event.clientX,startY:event.clientY,x:position.x,y:position.y};
+      onMove(position.x,position.y);
+    };
+    return <div className="customer-support-floating-layer">
+      {minimizedDragging && <div className={'customer-support-dismiss-zone ' + (dismissTargetActive ? 'active' : '')}>
+        <X size={34}/>
+      </div>}
+      <div ref={modalRef} className="customer-support-modal minimized" style={{left:position.x,top:position.y}}
+        onPointerDown={minimizedPointerDown}
+        onClick={event=>{
+          event.stopPropagation();
+          if(suppressMinimizedClickRef.current){
+            suppressMinimizedClickRef.current=false;
+            return;
+          }
+          onMinimize();
+        }}>
+        <div className="customer-support-minimized-icon"><Headset size={28}/></div>
+        {supportPresent && <span className="customer-support-live-dot"/>}
+      </div>
+    </div>;
+  }
+
+  return <div className="customer-support-floating-layer">
+    <div className="customer-support-modal" ref={modalRef}
+      style={{left:position.x,top:position.y,width:position.width,height:position.height}}
+      onClick={event=>event.stopPropagation()}>
+      <div className="customer-support-modal-head" onPointerDown={beginDrag}>
+        <div className="customer-support-modal-brand">
+          <span><Headset size={20}/></span>
+          <div>
+            <div className="customer-support-title-line"><b>mPay Support</b>{supportPresent&&<span className="customer-support-live-dot-inline"/>}</div>
+            <small>{chat?.status === 'OPEN' ? 'Your support conversation is active' : 'Private support conversation'}</small>
+          </div>
+        </div>
+        <div className="customer-support-modal-actions">
+          <button className="customer-support-icon-button" onClick={onRefresh} disabled={loading} title="Refresh"><RefreshCw size={15}/></button>
+          <button className="customer-support-icon-button" onClick={onMinimize} title="Minimize chat"><span className="customer-support-minus">−</span></button>
+          <button className="customer-support-icon-button" onClick={onDismiss} title="Close"><X size={17}/></button>
+        </div>
+      </div>
+
+      {error&&<div className="customer-support-error">{error}</div>}
+
+      <div className="customer-support-messages" ref={messagesRef}>
+        {(!chat?.items?.length && !chat?.messages?.length && !supportIntakeMode) ? (
+          <>
+            <div className="customer-support-empty"><div className="customer-support-welcome-icon"><Headset size={24}/></div><b>How can we help?</b><span>Choose a topic to start with guided help.</span></div>
+            <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
+              <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
+            </button>)}</div>
+          </>
+        ) : (
+          <>
+            {(chat?.items?.length ? chat.items : (chat?.messages || []).map(item=>({...item,type:'MESSAGE' as const,itemId:item.messageId}))).map(item=>{
+              if(item.type==='VOICE_CALL') return <div key={item.itemId} className="customer-support-call-event">
+                <div className="customer-support-call-icon"><PhoneCall size={16}/></div>
+                <div className="customer-support-call-copy"><b>{item.outcome === 'NO_ANSWER' || item.status === 'MISSED' ? 'Support tried to call you' : item.status === 'DECLINED' ? 'Support call declined' : 'Support voice call'}</b><span>{item.outcome || item.status || 'Support call'}</span>{item.durationLabel && <small>{item.durationLabel}</small>}</div>
+                <time>{dt(item.createdAt)}</time>
+              </div>;
+              const mine=item.senderType==='CUSTOMER';
+              const sender=mine?'You':item.senderType==='AI'?'mPay AI Support':'mPay Support';
+              return <div key={item.itemId} className={'customer-support-row '+(mine?'mine':'staff')}>
+                <div className={'customer-support-bubble '+(mine?'mine':'staff')}><span>{sender}</span><p>{item.message}</p><small>{dt(item.createdAt)}</small></div>
+              </div>;
+            })}
+            {supportIntakeMode && (
+              guidedTopic ? <div className="customer-support-guided">
+                <div className="customer-support-guided-head"><button className="customer-support-icon-button" onClick={onBackToTopics}><ChevronLeft size={15}/></button><div><b>{guidedTopic.title}</b><small>Try these steps first</small></div></div>
+                <div className="customer-support-guided-steps">{guidedTopic.steps.map((step,index)=><div className="customer-support-guided-step" key={step}><span>{index+1}</span><p>{step}</p></div>)}</div>
+                <div className="customer-support-guided-note">Still stuck? A real mPay support member can continue from here.</div>
+                <button className="customer-support-guided-cta" onClick={onStartChat} disabled={busy}><Headset size={15}/>Chat with mPay Support</button>
+              </div> : <div className="customer-support-intake">
+                <div className="customer-support-empty"><b>What can we help you with?</b><span>Choose a topic to start this support request.</span></div>
+                <div className="customer-support-topics">{customerSupportTopics.map(topic=><button key={topic.title} className="customer-support-topic" onClick={()=>onChooseTopic(topic)} disabled={busy}>
+                  <span className="customer-support-topic-icon">{topicIcon(topic)}</span><span className="customer-support-topic-copy"><b>{topic.title}</b><small>{topic.description}</small></span><ChevronRight size={16}/>
+                </button>)}</div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {(chat?.messages?.some(item=>item.senderType==='STAFF')||chat?.pendingCallbackRequest) && <div className={'customer-support-callback-escalation '+(chat?.pendingCallbackRequest?'requested':'')}>
+        {chat.pendingCallbackRequest ? <><div><b>Callback requested</b><span>Customer Care will handle the voice request from this same support case.</span></div>
+          <button className="customer-support-outline-button" onClick={onCancelCallback} disabled={callbackBusy}><PhoneOff size={15}/>Cancel callback</button></>
+        : chat.callbackRequestEnabled ? <button className="customer-support-outline-button callback-full" onClick={onRequestCallback} disabled={callbackBusy}><PhoneCall size={15}/>{callbackBusy?'Requesting callback…':'Still need help? Request a callback'}</button> : null}
+      </div>}
+
+      {chat?.messages?.length ? <div className="customer-support-composer">
+        <textarea value={draft} onChange={event=>onDraftChange(event.target.value)} placeholder="Write a message…" maxLength={4000} rows={3} disabled={busy}
+          onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();onSend();}}}/>
+        <button className="customer-support-send-button" onClick={onSend} disabled={!draft.trim()||busy} title="Send"><Send size={21}/></button>
+      </div> : null}
+
+      <div className="customer-support-resize-hint"><span>Drag header to move · drag corner to resize</span>
+        <div
+          className="customer-support-resize-handle"
+          onPointerDown={beginResize}
+          role="presentation"
+          aria-label="Resize support window"
+        ><i/><i/><i/></div>
+      </div>
+    </div>
   </div>;
 }

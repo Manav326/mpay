@@ -1,8 +1,9 @@
 import { dashboardMock, getUserDetail, usersMock } from './mock-data';
 import { redirectToLogin, refreshWebSession } from './session';
-import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile } from './types';
+import { DashboardSummary, RechargeHistoryResponse, Role, SortMode, UserDetail, UserSummary, WalletHistoryResponse, WithdrawalHistoryResponse, RentalAdminVendor, RentalAdminVehicleUnavailability, RentalAdminBookingResponse, RentalAdminDashboard, AdminFinancialRechargePageResponse, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse, AdminFinancialWithdrawalPageResponse, AdminFinancialWalletPageResponse, AdminProfile, VoiceCallResponse, VoiceCallSignalingTokenResponse, VoiceCallRoleAccess, VoiceCallUserAccess, VoiceCallAvailability, SupportAiSettings, SupportCallRequest, SupportCase, SupportInteraction, SupportNote, SupportCustomer, CustomerCallbackAccess, CustomerSupportOverview, SupportChat, SupportMessage, SupportAccessResponse, SupportRoleAccess, SupportUserAccess, SupportQueueResponse, SupportAssignmentResponse, SupportCustomerSearchResult, PortalStaff, PortalStaffActivity } from './types';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
+export function getAdminApiBaseUrl(): string { return baseUrl; }
 const demo = process.env.NEXT_PUBLIC_ADMIN_DEMO_MODE === 'true';
 
 function normalizeDisplayValue<T>(value: T): T {
@@ -80,6 +81,19 @@ export async function getPortalRoles(): Promise<string[]> {
   if (demo) return ['ADMIN', 'MANAGER'];
   const result = await api<{ roles: string[] }>('/api/v1/auth/portal-roles');
   return result.roles;
+}
+
+export async function createPortalStaff(payload: {
+  name: string;
+  mobile: string;
+  email?: string;
+  password: string;
+  role: string;
+}): Promise<PortalStaff> {
+  return api('/api/v1/admin/staff', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function login(mobile: string, password: string, role: string) {
@@ -184,6 +198,21 @@ export async function getVisibleRoles(): Promise<string[]> {
 export async function getDashboard(): Promise<DashboardSummary> {
   if (demo) return dashboardMock;
   return api('/api/v1/admin/dashboard');
+}
+
+export async function getPortalStaff(): Promise<PortalStaff[]> {
+  return api('/api/v1/admin/staff');
+}
+
+export async function getPortalStaffActivity(publicUserId: string): Promise<PortalStaffActivity[]> {
+  return api('/api/v1/admin/staff/' + encodeURIComponent(publicUserId) + '/activity');
+}
+
+export async function updatePortalStaffStatus(publicUserId: string, active: boolean): Promise<{ publicUserId: string; active: boolean; status: string }> {
+  return api('/api/v1/admin/staff/' + encodeURIComponent(publicUserId) + '/status', {
+    method: 'POST',
+    body: JSON.stringify({ active }),
+  });
 }
 
 export async function getUsers(role: Role | 'ALL' = 'ALL', sort: SortMode = 'today-high'): Promise<UserSummary[]> {
@@ -443,5 +472,193 @@ export async function updateCommissionRate(role: string, commissionPercent: numb
   return api('/api/v1/admin/commission-roles/' + encodeURIComponent(role), {
     method: 'PUT',
     body: JSON.stringify({ commissionPercent, active }),
+  });
+}
+
+
+export async function createVoiceCall(targetPublicId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/calls', { method: 'POST', body: JSON.stringify({ targetPublicId }) });
+}
+
+export async function getVoiceCall(callId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/calls/' + encodeURIComponent(callId));
+}
+
+export async function endVoiceCall(callId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/calls/' + encodeURIComponent(callId) + '/end', { method: 'POST' });
+}
+
+export async function getVoiceCallSignalingToken(callId: string): Promise<VoiceCallSignalingTokenResponse> {
+  return api('/api/v1/calls/signaling-token', {
+    method: 'POST',
+    body: JSON.stringify({ callId }),
+  });
+}
+
+export async function getVoiceCallRoleAccess(): Promise<VoiceCallRoleAccess[]> {
+  return api('/api/v1/admin/call-access/roles');
+}
+
+export async function updateVoiceCallRoleAccess(role: string, enabled: boolean): Promise<VoiceCallRoleAccess> {
+  return api('/api/v1/admin/call-access/roles/' + encodeURIComponent(role), {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function getVoiceCallUserAccess(): Promise<VoiceCallUserAccess[]> {
+  return api('/api/v1/admin/call-access/users');
+}
+
+export async function updateVoiceCallUserAccess(publicUserId: string, mode: VoiceCallUserAccess['mode']): Promise<VoiceCallUserAccess> {
+  return api('/api/v1/admin/call-access/users/' + encodeURIComponent(publicUserId), {
+    method: 'PUT',
+    body: JSON.stringify({ mode }),
+  });
+}
+
+
+export async function getSupportAiSettings(): Promise<SupportAiSettings> {
+  return api('/api/v1/admin/customer-care/ai');
+}
+
+export async function updateSupportAiSettings(enabled: boolean): Promise<SupportAiSettings> {
+  return api('/api/v1/admin/customer-care/ai', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+
+export async function searchCustomerCareCustomers(query: string): Promise<SupportCustomerSearchResult[]> {
+  return api('/api/v1/admin/customer-care/customers/search?query=' + encodeURIComponent(query));
+}
+
+export async function getCustomerCareQueue(): Promise<SupportQueueResponse> {
+  return api('/api/v1/admin/customer-care/queue');
+}
+
+export async function markCustomerCareChatRead(publicUserId: string): Promise<SupportChat> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat/read', {
+    method: 'POST',
+  });
+}
+
+export async function takeSupportCaseOwnership(caseId: string): Promise<SupportAssignmentResponse> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId) + '/ownership', {
+    method: 'POST',
+  });
+}
+
+export async function releaseSupportCaseOwnership(caseId: string): Promise<SupportAssignmentResponse> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId) + '/ownership', {
+    method: 'DELETE',
+  });
+}
+
+export async function getCustomerCareAccess(): Promise<SupportAccessResponse> {
+  return api('/api/v1/admin/customer-care/access');
+}
+
+export async function updateCustomerCareRolePermission(role: string, permission: string, enabled: boolean): Promise<SupportRoleAccess> {
+  return api(
+    '/api/v1/admin/customer-care/access/roles/' + encodeURIComponent(role) + '/' + encodeURIComponent(permission),
+    { method: 'PUT', body: JSON.stringify({ enabled }) }
+  );
+}
+
+export async function updateCustomerCareUserPermission(publicUserId: string, permission: string, mode: 'DEFAULT' | 'ALLOW' | 'DENY'): Promise<SupportUserAccess> {
+  return api(
+    '/api/v1/admin/customer-care/access/users/' + encodeURIComponent(publicUserId) + '/' + encodeURIComponent(permission),
+    { method: 'PUT', body: JSON.stringify({ mode }) }
+  );
+}
+
+export async function getCustomerCareRequests(): Promise<SupportCallRequest[]> {
+  return api('/api/v1/admin/customer-care/requests');
+}
+
+export async function getCustomerCareRequest(requestId: string): Promise<SupportCallRequest> {
+  return api('/api/v1/admin/customer-care/requests/' + encodeURIComponent(requestId));
+}
+
+export async function startCustomerCareCall(requestId: string): Promise<VoiceCallResponse> {
+  return api('/api/v1/admin/customer-care/requests/' + encodeURIComponent(requestId) + '/call', { method: 'POST' });
+}
+
+export async function declineCustomerCareRequest(requestId: string, note?: string): Promise<SupportCallRequest> {
+  return api('/api/v1/admin/customer-care/requests/' + encodeURIComponent(requestId) + '/decline', {
+    method: 'POST',
+    body: JSON.stringify({ note: note || null }),
+  });
+}
+
+export async function getCustomerCareChat(publicUserId: string): Promise<SupportChat> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat');
+}
+
+export async function sendCustomerCareChatMessage(publicUserId: string, message: string, topic?: string): Promise<SupportMessage> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/chat/messages', {
+    method: 'POST',
+    body: JSON.stringify({ message, topic: topic || null }),
+  });
+}
+
+export async function getCustomerCareCustomerContext(publicUserId: string): Promise<UserDetail> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/context');
+}
+
+export async function getCustomerCareCustomer(publicUserId: string): Promise<SupportCustomer> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId));
+}
+
+export async function getCustomerCareVoiceCallAvailability(publicUserId: string): Promise<VoiceCallAvailability> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/voice-availability');
+}
+
+export async function getCustomerCallbackAccess(publicUserId: string): Promise<CustomerCallbackAccess> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/callback-access');
+}
+
+export async function updateCustomerCallbackAccess(publicUserId: string, enabled: boolean): Promise<CustomerCallbackAccess> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/callback-access', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function updateSupportCase(caseId: string, status: string, resolutionCode?: string, resolutionNote?: string, expectedResolutionAt?: string): Promise<SupportCase> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId), {
+    method: 'PUT',
+    body: JSON.stringify({
+      status,
+      resolutionCode: resolutionCode || null,
+      resolutionNote: resolutionNote || null,
+      expectedResolutionAt: expectedResolutionAt || null,
+    }),
+  });
+}
+
+export async function addSupportCaseNote(caseId: string, note: string, visibility: 'INTERNAL' | 'CUSTOMER' = 'INTERNAL'): Promise<SupportNote> {
+  return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId) + '/notes', {
+    method: 'POST',
+    body: JSON.stringify({ note, visibility }),
+  });
+}
+
+export async function getCustomerSupportOverview(): Promise<CustomerSupportOverview> {
+  return api('/api/v1/support/overview');
+}
+
+export async function requestCustomerSupportCall(reason?: string): Promise<SupportCallRequest> {
+  return api('/api/v1/support/call-request', {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason || null }),
+  });
+}
+
+export async function cancelCustomerSupportCall(requestId: string): Promise<SupportCallRequest> {
+  return api('/api/v1/support/call-request/' + encodeURIComponent(requestId) + '/cancel', {
+    method: 'POST',
   });
 }

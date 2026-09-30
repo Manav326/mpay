@@ -394,6 +394,49 @@ data class UpdateRoleCommissionRateRequest(
     val active: Boolean = true
 )
 
+data class CreatePortalStaffRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    @field:jakarta.validation.constraints.Size(max = 120, message = "Name must be 120 characters or fewer")
+    val name: String,
+    @field:jakarta.validation.constraints.Email(message = "Email must be valid")
+    @field:jakarta.validation.constraints.Size(max = 254, message = "Email must be 254 characters or fewer")
+    val email: String? = null,
+    @field:jakarta.validation.constraints.Pattern(
+        regexp = "[6-9][0-9]{9}",
+        message = "Mobile number must be a valid 10 digit Indian mobile number"
+    )
+    val mobile: String,
+    @field:jakarta.validation.constraints.Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters")
+    val password: String,
+    @field:jakarta.validation.constraints.NotBlank
+    val role: String
+)
+
+data class PortalStaffResponse(
+    val publicUserId: String,
+    val name: String?,
+    val email: String?,
+    val mobile: String,
+    val role: String,
+    val active: Boolean,
+    val createdAt: Instant,
+    val lastLoginAt: Instant? = null
+)
+
+data class PortalStaffActivityResponse(
+    val action: String,
+    val subjectType: String?,
+    val subjectId: String?,
+    val summary: String,
+    val occurredAt: Instant
+)
+
+data class PortalStaffStatusResponse(
+    val publicUserId: String,
+    val active: Boolean,
+    val status: String
+)
+
 data class AdminUserStatusRequest(
     val active: Boolean
 )
@@ -590,4 +633,80 @@ data class HistoryPdfPendingAccessResponse(
     val mobile: String,
     val requestReason: String,
     val requestedAt: Instant
+)
+
+
+data class CallIceServerResponse(
+    val urls: List<String>,
+    val username: String? = null,
+    val credential: String? = null
+)
+
+data class VoiceCallResponse(
+    val callId: String,
+    val status: String,
+    val callerName: String?,
+    val callerPublicId: String,
+    val calleeName: String?,
+    val calleePublicId: String,
+    val createdAt: String,
+    val ringingExpiresAt: String,
+    val acceptedAt: String? = null,
+    val connectedAt: String? = null,
+    val endedAt: String? = null,
+    val endedReason: String? = null,
+    val iceServers: List<CallIceServerResponse> = emptyList()
+)
+
+data class CreateVoiceCallRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    val targetPublicId: String,
+    @field:jakarta.validation.constraints.Size(max = 40)
+    val supportRequestId: String? = null
+)
+
+data class VoiceCallSignalingTokenRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    val callId: String
+)
+
+data class VoiceCallSignalingTokenResponse(
+    val token: String,
+    val expiresInSeconds: Long,
+    val websocketPath: String
+)
+
+data class CallPushTokenRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    val token: String,
+    val platform: String = "ANDROID"
+)
+
+data class VoiceCallRoleAccessResponse(
+    val role: String,
+    val enabled: Boolean
+)
+
+data class VoiceCallRoleAccessRequest(
+    val enabled: Boolean
+)
+
+data class VoiceCallUserAccessResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String,
+    val role: String,
+    val mode: String,
+    val enabled: Boolean
+)
+
+data class VoiceCallUserAccessRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    val mode: String
+)
+
+data class VoiceCallStatusBroadcast(
+    val type: String = "status",
+    val callId: String,
+    val status: String
 )

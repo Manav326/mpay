@@ -53,6 +53,48 @@ interface ClientApi {
     @GET("api/v1/me")
     suspend fun me(): Response<CurrentUserResponse>
 
+    @POST("api/v1/calls")
+    suspend fun createVoiceCall(@Body request: CreateVoiceCallRequest): Response<VoiceCallResponse>
+
+    @GET("api/v1/calls/active")
+    suspend fun activeVoiceCall(): Response<VoiceCallResponse?>
+
+    @GET("api/v1/calls/{callId}")
+    suspend fun voiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/{callId}/accept")
+    suspend fun acceptVoiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/{callId}/decline")
+    suspend fun declineVoiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/{callId}/end")
+    suspend fun endVoiceCall(@Path("callId") callId: String): Response<VoiceCallResponse>
+
+    @POST("api/v1/calls/signaling-token")
+    suspend fun voiceCallSignalingToken(@Body request: VoiceCallSignalingTokenRequest): Response<VoiceCallSignalingTokenResponse>
+
+    @PUT("api/v1/calls/push-token")
+    suspend fun registerCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
+
+    @POST("api/v1/calls/push-token/revoke")
+    suspend fun revokeCallPushToken(@Body request: CallPushTokenRequest): Response<Void>
+
+    @GET("api/v1/support/overview")
+    suspend fun customerSupportOverview(): Response<CustomerSupportOverviewResponse>
+
+    @GET("api/v1/support/chat")
+    suspend fun customerSupportChat(): Response<SupportChatResponse>
+
+    @POST("api/v1/support/chat/messages")
+    suspend fun sendCustomerSupportChatMessage(@Body request: CreateSupportMessageRequest): Response<SupportMessageResponse>
+
+    @POST("api/v1/support/call-request")
+    suspend fun requestCustomerSupportCall(@Body request: CreateSupportCallRequest): Response<SupportCallRequestResponse>
+
+    @POST("api/v1/support/call-request/{requestId}/cancel")
+    suspend fun cancelCustomerSupportCall(@Path("requestId") requestId: String): Response<SupportCallRequestResponse>
+
 
     @GET("api/v1/history/pdf-access")
     suspend fun historyPdfAccess(): Response<HistoryPdfAccessResponse>

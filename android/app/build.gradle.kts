@@ -34,9 +34,22 @@ val mapsApiKey = providers.gradleProperty("mapsApiKey")
     .orElse(providers.environmentVariable("MAPS_API_KEY"))
     .orElse("")
 
+val firebaseApiKey = providers.gradleProperty("firebaseApiKey")
+    .orElse(providers.environmentVariable("MPAY_FIREBASE_API_KEY"))
+    .orElse("")
+val firebaseAppId = providers.gradleProperty("firebaseAppId")
+    .orElse(providers.environmentVariable("MPAY_FIREBASE_APP_ID"))
+    .orElse("")
+val firebaseProjectId = providers.gradleProperty("firebaseProjectId")
+    .orElse(providers.environmentVariable("MPAY_FIREBASE_PROJECT_ID"))
+    .orElse("")
+val firebaseSenderId = providers.gradleProperty("firebaseSenderId")
+    .orElse(providers.environmentVariable("MPAY_FIREBASE_SENDER_ID"))
+    .orElse("")
+
 android {
     namespace = "com.recharge.client"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.client.mpay"
@@ -44,8 +57,20 @@ android {
         targetSdk = 36
         versionCode = 2
         versionName = "1.0.0"
+
+        // Ship only Android ARM ABIs. WebRTC also publishes x86/x86_64
+        // native binaries for emulators, which are not needed in the
+        // production mobile distribution and materially increase size.
+        ndk {
+            abiFilters += setOf("arm64-v8a", "armeabi-v7a")
+        }
+
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
         buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseApiKey.get()}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseAppId.get()}\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebaseProjectId.get()}\"")
+        buildConfigField("String", "FIREBASE_SENDER_ID", "\"${firebaseSenderId.get()}\"")
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey.get()
     }
 
@@ -100,6 +125,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
     implementation("androidx.navigation:navigation-compose:2.9.3")
@@ -108,6 +134,7 @@ dependencies {
 
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.13.1")
 
     implementation("com.razorpay:checkout:1.6.41")
@@ -115,6 +142,10 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.google.maps.android:maps-compose:7.0.0")
     implementation("com.google.android.libraries.places:places:5.3.0")
+
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("io.github.webrtc-sdk:android:150.7871.01")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

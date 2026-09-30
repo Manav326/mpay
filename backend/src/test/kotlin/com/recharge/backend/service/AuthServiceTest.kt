@@ -1,6 +1,7 @@
 package com.recharge.backend.service
 
 import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.repository.EmployeeRepository
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.repository.WalletRepository
 import com.recharge.backend.security.JwtService
@@ -14,21 +15,25 @@ import java.util.Optional
 class AuthServiceTest {
 
     private val users = Mockito.mock(UserRepository::class.java)
+    private val employees = Mockito.mock(EmployeeRepository::class.java)
     private val wallets = Mockito.mock(WalletRepository::class.java)
     private val passwordEncoder = Mockito.mock(PasswordEncoder::class.java)
     private val jwtService = Mockito.mock(JwtService::class.java)
     private val commissionRateService = Mockito.mock(CommissionRateService::class.java)
     private val roleAccessService = Mockito.mock(RoleAccessService::class.java)
     private val otpService = Mockito.mock(OtpService::class.java)
+    private val employeeAudit = Mockito.mock(EmployeeAuditService::class.java)
 
     private val service = AuthService(
         users = users,
+        employees = employees,
         wallets = wallets,
         passwordEncoder = passwordEncoder,
         jwtService = jwtService,
         commissionRateService = commissionRateService,
         roleAccessService = roleAccessService,
-        otpService = otpService
+        otpService = otpService,
+        employeeAudit = employeeAudit
     )
 
     @Test
@@ -48,6 +53,15 @@ class AuthServiceTest {
         }
 
         assertEquals("User account is inactive", ex.message)
-        Mockito.verifyNoInteractions(passwordEncoder, jwtService, wallets, commissionRateService, roleAccessService, otpService)
+        Mockito.verifyNoInteractions(
+            passwordEncoder,
+            jwtService,
+            wallets,
+            commissionRateService,
+            roleAccessService,
+            otpService,
+            employeeAudit
+        )
+        Mockito.verifyNoInteractions(employees)
     }
 }

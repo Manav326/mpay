@@ -47,6 +47,25 @@ export interface UserDetail extends UserSummary {
   }>;
 }
 
+export interface PortalStaff {
+  publicUserId: string;
+  name?: string | null;
+  email?: string | null;
+  mobile: string;
+  role: string;
+  active: boolean;
+  createdAt: string;
+  lastLoginAt?: string | null;
+}
+
+export interface PortalStaffActivity {
+  action: string;
+  subjectType?: string | null;
+  subjectId?: string | null;
+  summary: string;
+  occurredAt: string;
+}
+
 export interface LoginSession { token: string; refreshToken: string; role: Role; userId: string; name: string; permissions: string[]; }
 
 export interface DashboardSummary {
@@ -388,4 +407,269 @@ export interface HistoryPdfPendingAccessResponse {
   mobile: string;
   requestReason: string;
   requestedAt: string;
+}
+
+
+export interface VoiceCallResponse {
+  callId: string;
+  status: string;
+  callerName?: string | null;
+  callerPublicId: string;
+  calleeName?: string | null;
+  calleePublicId: string;
+  createdAt: string;
+  ringingExpiresAt: string;
+  acceptedAt?: string | null;
+  connectedAt?: string | null;
+  endedAt?: string | null;
+  endedReason?: string | null;
+  iceServers: Array<{ urls: string[]; username?: string | null; credential?: string | null }>;
+}
+
+export interface VoiceCallSignalingTokenResponse {
+  token: string;
+  expiresInSeconds: number;
+  websocketPath: string;
+}
+
+export interface VoiceCallRoleAccess {
+  role: string;
+  enabled: boolean;
+}
+
+export interface VoiceCallUserAccess {
+  publicUserId: string;
+  name?: string | null;
+  mobile: string;
+  role: string;
+  mode: 'DEFAULT' | 'ALLOW' | 'DENY';
+  enabled: boolean;
+}
+
+
+export interface SupportAiSettings {
+  enabled: boolean;
+  providerConfigured: boolean;
+  vectorStoreConfigured: boolean;
+  model: string;
+}
+
+export interface SupportCallRequest {
+  requestId: string;
+  status: string;
+  reason?: string | null;
+  requestedAt: string;
+  expiresAt: string;
+  caseId?: string | null;
+  customerPublicId?: string | null;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  voiceCallId?: string | null;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
+  claimedAt?: string | null;
+  outcome?: string | null;
+}
+
+export interface SupportCase {
+  caseId: string;
+  customerPublicId: string;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  source: string;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  resolutionCode?: string | null;
+  resolutionNote?: string | null;
+  lastMeaningfulUpdateAt?: string | null;
+  expectedResolutionAt?: string | null;
+  etaSource?: string;
+}
+
+export interface SupportInteraction {
+  interactionId: string;
+  caseId?: string | null;
+  channel: string;
+  direction: string;
+  status: string;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+  durationLabel?: string | null;
+  ringDurationSeconds?: number | null;
+  ringDurationLabel?: string | null;
+  handlingDurationSeconds?: number | null;
+  handlingDurationLabel?: string | null;
+  wrapUpCompletedAt?: string | null;
+  wrapUpDurationSeconds?: number | null;
+  wrapUpDurationLabel?: string | null;
+  outcome?: string | null;
+  voiceCallId?: string | null;
+  actorAccountPublicId?: string | null;
+  actorName?: string | null;
+}
+
+export interface SupportNote {
+  id: number;
+  caseId?: string | null;
+  visibility: string;
+  note: string;
+  authorEmployeePublicId?: string | null;
+  authorName?: string | null;
+  createdAt: string;
+}
+
+export interface SupportMessage {
+  messageId: string;
+  senderType: string;
+  message: string;
+  createdAt: string;
+  restartSupportIntake?: boolean;
+}
+
+export interface SupportChatItem {
+  itemId: string;
+  type: 'MESSAGE' | 'VOICE_CALL';
+  senderType?: string | null;
+  message?: string | null;
+  status?: string | null;
+  outcome?: string | null;
+  durationLabel?: string | null;
+  actorName?: string | null;
+  createdAt: string;
+}
+
+export interface SupportChat {
+  conversationId?: string | null;
+  caseId?: string | null;
+  status: string;
+  messages: SupportMessage[];
+  unreadForCustomer: number;
+  unreadForStaff: number;
+  callbackRequestEnabled?: boolean;
+  pendingCallbackRequest?: SupportCallRequest | null;
+  items?: SupportChatItem[];
+}
+
+export interface SupportCaseEvent {
+  eventId: string;
+  caseId: string;
+  eventType: string;
+  visibility: string;
+  channel?: string | null;
+  summary: string;
+  actorAccountPublicId?: string | null;
+  actorName?: string | null;
+  createdAt: string;
+}
+
+export interface SupportCustomer {
+  customerPublicId: string;
+  customerName?: string | null;
+  mobile: string;
+  callbackRequestEnabled: boolean;
+  pendingRequest?: SupportCallRequest | null;
+  openCases: SupportCase[];
+  interactions: SupportInteraction[];
+  notes: SupportNote[];
+  events: SupportCaseEvent[];
+}
+
+export interface CustomerCallbackAccess {
+  publicUserId: string;
+  enabled: boolean;
+}
+
+export interface VoiceCallAvailability {
+  publicUserId: string;
+  available: boolean;
+}
+
+export interface CustomerSupportOverview {
+  callbackRequestEnabled: boolean;
+  pendingRequest?: SupportCallRequest | null;
+  cases: SupportCase[];
+  interactions: SupportInteraction[];
+  customerNotes: SupportNote[];
+  events: SupportCaseEvent[];
+}
+
+
+export interface SupportPermissionState {
+  permission: string;
+  label: string;
+  description: string;
+  group: string;
+  enabled: boolean;
+  mode: 'DEFAULT' | 'ALLOW' | 'DENY' | null;
+  inherited: boolean;
+  editable: boolean;
+  lockedReason?: string | null;
+}
+
+export interface SupportRoleAccess {
+  role: string;
+  protected: boolean;
+  permissions: SupportPermissionState[];
+}
+
+export interface SupportUserAccess {
+  publicUserId: string;
+  name?: string | null;
+  mobile: string;
+  role: string;
+  protected: boolean;
+  permissions: SupportPermissionState[];
+}
+
+export interface SupportAccessResponse {
+  permissions: SupportPermissionState[];
+  roles: SupportRoleAccess[];
+  users: SupportUserAccess[];
+}
+
+export interface SupportCustomerSearchResult {
+  customerPublicId: string;
+  customerName?: string | null;
+  mobile: string;
+  email?: string | null;
+}
+
+export interface SupportQueueItem {
+  customerPublicId: string;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  caseId?: string | null;
+  subject?: string | null;
+  category?: string | null;
+  priority?: string | null;
+  caseStatus?: string | null;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
+  assignedToViewer: boolean;
+  source: string;
+  attentionReason: string;
+  unreadMessages: number;
+  lastActivityAt?: string | null;
+  pendingCallback?: SupportCallRequest | null;
+}
+
+export interface SupportQueueResponse {
+  total: number;
+  callbacks: number;
+  unreadChats: number;
+  unassigned: number;
+  assignedToViewer: number;
+  items: SupportQueueItem[];
+}
+
+export interface SupportAssignmentResponse {
+  caseId: string;
+  assignedEmployeePublicId?: string | null;
+  assignedEmployeeName?: string | null;
 }

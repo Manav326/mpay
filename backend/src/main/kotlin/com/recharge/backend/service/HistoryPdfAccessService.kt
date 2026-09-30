@@ -3,7 +3,7 @@ package com.recharge.backend.service
 import com.recharge.backend.api.HistoryPdfAccessResponse
 import com.recharge.backend.api.HistoryPdfPendingAccessResponse
 import com.recharge.backend.domain.HistoryPdfAccessRequestEntity
-import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.EmployeeEntity
 import com.recharge.backend.repository.HistoryPdfAccessRequestRepository
 import com.recharge.backend.repository.UserRepository
 import org.springframework.security.access.AccessDeniedException
@@ -24,13 +24,13 @@ class HistoryPdfAccessService(
             ?.let(::toResponse)
             ?: HistoryPdfAccessResponse("NOT_REQUESTED", null, null, null, null, null)
 
-    fun adminStatus(viewer: UserEntity, targetPublicId: String): HistoryPdfAccessResponse {
+    fun adminStatus(viewer: EmployeeEntity, targetPublicId: String): HistoryPdfAccessResponse {
         roleAccess.requirePermission(viewer, "MANAGE_HISTORY_PDF_ACCESS")
         val target = users.findByPublicId(targetPublicId).orElseThrow { IllegalArgumentException("User not found") }
         return status(target.id!!)
     }
 
-    fun pending(viewer: UserEntity): List<HistoryPdfPendingAccessResponse> {
+    fun pending(viewer: EmployeeEntity): List<HistoryPdfPendingAccessResponse> {
         roleAccess.requirePermission(viewer, "MANAGE_HISTORY_PDF_ACCESS")
         return requests.findTop50ByFeatureKeyAndStatusOrderByRequestedAtAsc(FEATURE_KEY, "PENDING")
             .mapNotNull { request ->
@@ -78,7 +78,7 @@ class HistoryPdfAccessService(
 
     @Transactional
     fun decide(
-        viewer: UserEntity,
+        viewer: EmployeeEntity,
         targetPublicId: String,
         requestId: Long,
         action: String,
@@ -109,7 +109,7 @@ class HistoryPdfAccessService(
             }
         }
         request.reviewNote = reviewNote?.trim()?.takeIf { it.isNotBlank() }?.take(1000)
-        request.reviewedBy = viewer.id
+        request.reviewedByEmployeeId = viewer.id
         request.reviewedAt = Instant.now()
         return toResponse(requests.save(request))
     }

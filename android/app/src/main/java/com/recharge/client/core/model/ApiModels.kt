@@ -236,3 +236,38 @@ data class HistoryPdfAccessResponse(
     val requestedAt: String?,
     val reviewedAt: String?
 )
+
+
+data class CallIceServer(
+    val urls: List<String>,
+    val username: String? = null,
+    val credential: String? = null
+)
+
+data class VoiceCallResponse(
+    val callId: String,
+    val status: String,
+    val callerName: String?,
+    val callerPublicId: String,
+    val calleeName: String?,
+    val calleePublicId: String,
+    val createdAt: String,
+    val ringingExpiresAt: String,
+    val acceptedAt: String? = null,
+    val connectedAt: String? = null,
+    val endedAt: String? = null,
+    val endedReason: String? = null,
+    val iceServers: List<CallIceServer> = emptyList()
+)
+
+data class CreateVoiceCallRequest(val targetPublicId: String)
+data class VoiceCallSignalingTokenRequest(val callId: String)
+data class VoiceCallSignalingTokenResponse(
+    val token: String,
+    val expiresInSeconds: Long,
+    val websocketPath: String
+)
+data class CallPushTokenRequest(
+    val token: String,
+    val platform: String = "ANDROID"
+)

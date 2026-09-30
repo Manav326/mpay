@@ -10,6 +10,31 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.Optional
 
+interface EmployeeRepository : JpaRepository<com.recharge.backend.domain.EmployeeEntity, Long> {
+    fun findByMobile(mobile: String): Optional<com.recharge.backend.domain.EmployeeEntity>
+    fun findByEmailIgnoreCase(email: String): Optional<com.recharge.backend.domain.EmployeeEntity>
+    fun findByPublicId(publicId: String): Optional<com.recharge.backend.domain.EmployeeEntity>
+    fun findAllByRoleInOrderByCreatedAtDesc(roles: Collection<String>): List<com.recharge.backend.domain.EmployeeEntity>
+    fun findAllByRoleInOrderByNameAsc(roles: Collection<String>): List<com.recharge.backend.domain.EmployeeEntity>
+    fun findAllByActiveTrueOrderByCreatedAtDesc(): List<com.recharge.backend.domain.EmployeeEntity>
+}
+
+interface EmployeePermissionOverrideRepository :
+    JpaRepository<com.recharge.backend.domain.EmployeePermissionOverrideEntity, Long> {
+    fun findAllByEmployeeId(employeeId: Long): List<com.recharge.backend.domain.EmployeePermissionOverrideEntity>
+    fun findByEmployeeIdAndPermissionIgnoreCase(
+        employeeId: Long,
+        permission: String
+    ): com.recharge.backend.domain.EmployeePermissionOverrideEntity?
+}
+
+interface EmployeeActivityRepository :
+    JpaRepository<com.recharge.backend.domain.EmployeeActivityEntity, Long> {
+    fun findTop100ByEmployeeIdOrderByOccurredAtDescIdDesc(
+        employeeId: Long
+    ): List<com.recharge.backend.domain.EmployeeActivityEntity>
+}
+
 interface UserRepository : JpaRepository<UserEntity, Long> {
     fun findByMobile(mobile: String): Optional<UserEntity>
     fun findByEmailIgnoreCase(email: String): Optional<UserEntity>
@@ -17,6 +42,18 @@ interface UserRepository : JpaRepository<UserEntity, Long> {
     fun findByPublicId(publicId: String): Optional<UserEntity>
     fun findAllByRoleIn(roles: Collection<String>): List<UserEntity>
     fun findAllByRoleInOrderByCreatedAtDesc(roles: Collection<String>): List<UserEntity>
+    @Query("""
+        select u from UserEntity u
+        where upper(u.role) = 'CLIENT'
+          and (
+            lower(coalesce(u.name, '')) like lower(concat('%', :query, '%'))
+            or lower(coalesce(u.mobile, '')) like lower(concat('%', :query, '%'))
+            or lower(coalesce(u.publicId, '')) like lower(concat('%', :query, '%'))
+            or lower(coalesce(u.email, '')) like lower(concat('%', :query, '%'))
+          )
+        order by u.name asc
+    """)
+    fun searchSupportCustomers(@Param("query") query: String, pageable: Pageable): List<UserEntity>
 }
 
 interface WalletRepository : JpaRepository<WalletEntity, Long> {
@@ -101,6 +138,7 @@ interface RolePermissionRepository : JpaRepository<RolePermissionEntity, Long> {
     fun findAllByRoleIgnoreCaseOrderByPermissionAsc(role: String): List<RolePermissionEntity>
     fun findAllByPermissionIgnoreCaseOrderByRoleAsc(permission: String): List<RolePermissionEntity>
     fun existsByRoleIgnoreCaseAndPermissionIgnoreCase(role: String, permission: String): Boolean
+    fun deleteByRoleIgnoreCaseAndPermissionIgnoreCase(role: String, permission: String)
 }
 
 interface RoleHierarchyRepository : JpaRepository<RoleHierarchyEntity, Long> {
@@ -287,6 +325,8 @@ interface RechargeOfferCacheRepository : JpaRepository<RechargeOfferCacheEntity,
 }
 
 interface PaymentOrderRepository : JpaRepository<PaymentOrderEntity, Long> {
+    fun findTopByUserIdOrderByCreatedAtDesc(userId: Long): PaymentOrderEntity?
+
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<PaymentOrderEntity>
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
