@@ -618,22 +618,38 @@ export default function CustomerCarePanel({
           <p>Resolve customer issues from one compact workspace — conversation, case state, history and customer context stay connected.</p>
         </div>
         <div className="customer-care-top-actions">
-          <div className="care-metric"><span>Callbacks waiting</span><strong>{requests.length}</strong></div>
-          <div className="care-metric"><span>{selected ? 'Selected cases' : 'Active cases'}</span><strong>{selected ? selected.openCases.length : '—'}</strong></div>
-          <div className={'care-metric ' + (selectedUnread ? 'attention' : '')}><span>Chat {selected ? 'unread' : 'status'}</span><strong>{selected ? selectedUnread : 'Ready'}</strong></div>
-          <div className={'care-ai-badge ' + (aiSettings?.enabled ? 'on' : 'off')}>
-            <Sparkles size={13} />
-            <span>AI {aiSettings?.enabled ? 'On' : 'Off'}</span>
+          <div className="care-metric attention"><span>Needs attention</span><strong>{queue?.total ?? 0}</strong></div>
+          <div className="care-metric"><span>Callbacks</span><strong>{queue?.callbacks ?? 0}</strong></div>
+          <div className={'care-metric ' + ((queue?.unreadChats ?? 0) > 0 ? 'attention' : '')}><span>New chats</span><strong>{queue?.unreadChats ?? 0}</strong></div>
+          <div className="care-capability-strip">
+            {[
+              ['View', true],
+              ['Manage', canManageSupport],
+              ['Voice', canCallCustomer],
+              ['Callback', canManageCallAccess],
+              ['Context', canViewCustomerContext],
+              ['AI', canManageSupportAi],
+            ].map(([label, enabled]) => (
+              <span key={String(label)} className={'care-capability ' + (enabled ? 'on' : 'restricted')} title={enabled ? String(label) + ' access enabled' : String(label) + ' access is restricted'}>
+                {!enabled && <LockKeyhole size={9} />}
+                {label}
+              </span>
+            ))}
           </div>
-          <button className="secondary compact" onClick={() => void loadRequests()} disabled={requestsLoading} title="Refresh queue">
+          {canManageSupportAccess && (
+            <button className="secondary compact" onClick={() => void openAccessPanel()} title="Manage Customer Care permissions">
+              <SlidersHorizontal size={14} /> Access
+            </button>
+          )}
+          <button className="secondary compact" onClick={() => void loadRequests()} disabled={requestsLoading} title="Refresh support queue">
             <RefreshCw size={14} className={requestsLoading ? 'spin' : ''} />
           </button>
         </div>
       </section>
 
       {notice && (
-        <div className="customer-care-notice">
-          <CheckCircle2 size={14} />
+        <div className={'customer-care-notice ' + (/unable|failed|cannot|denied|error/i.test(notice) ? 'error' : 'success')}>
+          {/unable|failed|cannot|denied|error/i.test(notice) ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
           <span>{notice}</span>
           <button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button>
         </div>
