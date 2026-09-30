@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -30,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +36,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -66,7 +63,6 @@ fun CustomerSupportScreen(
     var busy by remember { mutableStateOf(false) }
     var reason by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var callbackBusy by remember { mutableStateOf(false) }
 
     suspend fun load() {
         loading = true
@@ -293,33 +289,6 @@ fun CustomerSupportScreen(
         }
     }
 
-    if (chatOpen) {
-        SupportChatDialog(
-            chat = chat,
-            loading = chatLoading,
-            busy = chatBusy,
-            draft = chatDraft,
-            error = chatError,
-            onDraftChange = { chatDraft = it.take(4000) },
-            onSend = { sendChatMessage() },
-            onChooseTopic = { topic -> guidedTopic = topic },
-            onStartChat = {
-                guidedTopic?.let {
-                    guidedTopic = null
-                    supportIntakeMode = false
-                    sendChatMessage(it.message, it.code)
-                }
-            },
-            onRequestCallback = ::requestCallbackFromChat,
-            onCancelCallback = ::cancelChatCallback,
-            callbackBusy = callbackBusy,
-            guidedTopic = guidedTopic,
-            supportIntakeMode = supportIntakeMode,
-            onBackToTopics = { guidedTopic = null; supportIntakeMode = true },
-            onDismiss = { chatOpen = false },
-            onRefresh = { scope.launch { loadChat() } }
-        )
-    }
 }
 
 @Composable
