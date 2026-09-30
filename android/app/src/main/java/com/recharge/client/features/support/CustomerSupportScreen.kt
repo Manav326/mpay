@@ -71,6 +71,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class SupportTopicOption(
+    val code: String,
     val title: String,
     val description: String,
     val message: String,
@@ -79,42 +80,49 @@ data class SupportTopicOption(
 
 private val supportTopicOptions = listOf(
     SupportTopicOption(
+        "ADD_MONEY",
         "Add money",
         "Payment completed but wallet not updated",
         "I need help with adding money to my mPay wallet.",
         listOf("Open Wallet and check the latest transaction.", "Confirm whether the payment shows completed, pending or failed.", "If money was paid but the wallet is still unchanged, continue to chat with mPay Support.")
     ),
     SupportTopicOption(
+        "WITHDRAWAL",
         "Withdrawal",
         "UPI withdrawal, status or failed request",
         "I need help with a wallet withdrawal.",
         listOf("Open Wallet → Withdrawals and check the latest status.", "Confirm the UPI ID used for the request.", "If the request is stuck, failed or the wallet amount needs clarification, continue to chat with mPay Support.")
     ),
     SupportTopicOption(
+        "RECHARGE",
         "Mobile recharge",
         "Recharge failed, pending or wrong plan",
         "I need help with a mobile recharge.",
         listOf("Open Recharge History and select the affected recharge.", "Check the mobile number, operator, amount and transaction status.", "If the recharge is still unresolved, continue to chat with mPay Support before retrying.")
     ),
     SupportTopicOption(
+        "CAR_RENTAL",
         "Car rental",
         "Booking, cancellation or payment issue",
         "I need help with an mPay car rental booking.",
         listOf("Open My Bookings and select the affected booking.", "Check its status, trip dates and wallet payment details.", "If the booking or refund issue remains, continue to chat with mPay Support.")
     ),
     SupportTopicOption(
+        "WALLET",
         "Wallet & transactions",
         "Balance, debit, refund or transaction history",
         "I need help with a wallet transaction.",
         listOf("Open Wallet or Transaction History and select the transaction.", "Check the amount, status, reference and description.", "If the ledger entry still needs explanation, continue to chat with mPay Support.")
     ),
     SupportTopicOption(
+        "ACCOUNT",
         "Account & profile",
         "Profile, login or account access",
         "I need help with my mPay account or profile.",
         listOf("Check Profile and Account Settings for the affected detail.", "Confirm that the account is active and your profile information is current.", "If you still cannot complete the action, continue to chat with mPay Support.")
     ),
     SupportTopicOption(
+        "OTHER",
         "Something else",
         "Another issue not covered above",
         "I need help with an mPay issue that is not covered by the support topics.",
@@ -141,6 +149,7 @@ fun CustomerSupportScreen(
     var chatError by remember { mutableStateOf<String?>(null) }
     var chat by remember { mutableStateOf<com.recharge.client.core.model.SupportChatResponse?>(null) }
     var guidedTopic by remember { mutableStateOf<SupportTopicOption?>(null) }
+    var supportIntakeMode by remember { mutableStateOf(false) }
     var callbackBusy by remember { mutableStateOf(false) }
 
     suspend fun load() {
@@ -193,7 +202,7 @@ fun CustomerSupportScreen(
         scope.launch { loadChat() }
     }
 
-    fun sendChatMessage(messageOverride: String? = null) {
+    fun sendChatMessage(messageOverride: String? = null, topicCode: String? = null) {
         val message = (messageOverride ?: chatDraft).trim()
         if (message.isBlank() || chatBusy) return
         chatBusy = true
@@ -201,11 +210,12 @@ fun CustomerSupportScreen(
         scope.launch {
             runCatching {
                 NetworkModule.clientApi(context).sendCustomerSupportChatMessage(
-                    com.recharge.client.core.model.CreateSupportMessageRequest(message)
+                    com.recharge.client.core.model.CreateSupportMessageRequest(message = message, topic = topicCode)
                 )
             }.onSuccess { response ->
                 if (response.isSuccessful) {
                     chatDraft = ""
+                    supportIntakeMode = response.body()?.restartSupportIntake == true
                     loadChat()
                 } else {
                     chatError = "Unable to send your message."
@@ -391,7 +401,7 @@ fun CustomerSupportScreen(
                         }
                     }
                 } else {
-                    items(overview?.cases.orEmpty(), key = { it.caseId }) { item ->
+                    items(overview?.cases.orEmpty().take(1), key = { it.caseId }) { item ->
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             shape = RoundedCornerShape(18.dp),
@@ -471,14 +481,16 @@ fun CustomerSupportScreen(
             onStartChat = {
                 guidedTopic?.let {
                     guidedTopic = null
-                    sendChatMessage(it.message)
+                    supportIntakeMode = false
+                    sendChatMessage(it.message, it.code)
                 }
             },
             onRequestCallback = ::requestCallbackFromChat,
             onCancelCallback = ::cancelChatCallback,
             callbackBusy = callbackBusy,
             guidedTopic = guidedTopic,
-            onBackToTopics = { guidedTopic = null },
+            supportIntakeMode = supportIntakeMode,
+            onBackToTopics = { guidedTopic = null; supportIntakeMode = true },
             onDismiss = { chatOpen = false },
             onRefresh = { scope.launch { loadChat() } }
         )
@@ -497,86 +509,50 @@ private fun SupportHero(
     onCancel: (SupportCallRequestResponse) -> Unit
 ) {
     Card(
-        onClick = onOpenChat,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(13.dp), color = AppColors.Primary.copy(alpha = .14f)) {
-                    Icon(Icons.Default.HeadsetMic, contentDescription = null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
+                    Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
                 }
                 Spacer(Modifier.size(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Talk to mPay Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                    Text("Chat with mPay Support or request a callback when you need a voice conversation.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("Help & Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                    Text("Choose how you want mPay Support to help.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            Button(
-                onClick = onOpenChat,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Icon(Icons.Default.HeadsetMic, contentDescription = null)
-                Spacer(Modifier.size(7.dp))
-                Text("Open support chat", fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onOpenChat, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
+                    Icon(Icons.Default.HeadsetMic, null)
+                    Spacer(Modifier.size(6.dp))
+                    Text("Chat with Support", fontWeight = FontWeight.Bold)
+                }
+                if (pending != null) {
+                    OutlinedButton(onClick = { onCancel(pending) }, enabled = !busy, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
+                        Icon(Icons.Default.CallEnd, null)
+                        Spacer(Modifier.size(6.dp))
+                        Text("Cancel callback")
+                    }
+                } else if (enabled) {
+                    OutlinedButton(onClick = onRequest, enabled = !busy, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
+                        Icon(Icons.Default.Call, null)
+                        Spacer(Modifier.size(6.dp))
+                        Text(if (busy) "Requesting…" else "Request a callback")
+                    }
+                }
             }
 
-            when {
-                pending != null -> {
-                    Surface(
-                        color = Color.White.copy(alpha = .75f),
-                        shape = RoundedCornerShape(15.dp)
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("Callback requested", color = AppColors.PrimaryDark, fontWeight = FontWeight.Bold)
-                            Text("Status: " + pending.status.replace('_', ' '), fontWeight = FontWeight.SemiBold)
-                            Text("Requested " + formatSupportDate(pending.requestedAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            pending.reason?.takeIf { it.isNotBlank() }?.let {
-                                Text(it, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                            }
-                            OutlinedButton(onClick = { onCancel(pending) }, enabled = !busy, shape = RoundedCornerShape(12.dp)) {
-                                Icon(Icons.Default.CallEnd, contentDescription = null)
-                                Spacer(Modifier.size(6.dp))
-                                Text("Cancel request")
-                            }
-                        }
-                    }
-                }
-                !enabled -> {
-                    Text(
-                        "Callback requests are currently unavailable for this account. You can still review previous support activity here.",
-                        color = AppColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                else -> {
-                    OutlinedTextField(
-                        value = reason,
-                        onValueChange = onReasonChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("What do you need help with? (optional)") },
-                        minLines = 2,
-                        maxLines = 3,
-                        shape = RoundedCornerShape(14.dp)
-                    )
-                    Button(
-                        onClick = onRequest,
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Default.Call, contentDescription = null)
-                        Spacer(Modifier.size(7.dp))
-                        Text(if (busy) "Requesting…" else "Request a support call", fontWeight = FontWeight.Bold)
-                    }
-                }
+            if (pending != null) {
+                Text("Callback requested · " + pending.status.replace('_', ' '), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
+}
 }
 
 @Composable
@@ -721,6 +697,7 @@ private fun SupportChatDialog(
     onCancelCallback: (SupportCallRequestResponse) -> Unit,
     callbackBusy: Boolean,
     guidedTopic: SupportTopicOption?,
+    supportIntakeMode: Boolean,
     onBackToTopics: () -> Unit,
     onDismiss: () -> Unit,
     onRefresh: () -> Unit
@@ -791,7 +768,7 @@ private fun SupportChatDialog(
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (chat?.messages.isNullOrEmpty() && guidedTopic != null) {
+                    if ((supportIntakeMode || (chat?.items.isNullOrEmpty() && chat?.messages.isNullOrEmpty())) && guidedTopic != null) {
                         item {
                             SupportGuidedHelp(
                                 topic = requireNotNull(guidedTopic),
@@ -799,73 +776,89 @@ private fun SupportChatDialog(
                                 onStartChat = onStartChat
                             )
                         }
-                    } else if (chat?.messages.isNullOrEmpty()) {
+                    } else if (supportIntakeMode || (chat?.items.isNullOrEmpty() && chat?.messages.isNullOrEmpty())) {
                         item {
                             Column(
                                 Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 10.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = AppColors.Primary.copy(alpha = .10f)
-                                ) {
-                                    Icon(
-                                        Icons.Default.HeadsetMic,
-                                        contentDescription = null,
-                                        tint = AppColors.PrimaryDark,
-                                        modifier = Modifier.padding(11.dp).size(27.dp)
-                                    )
+                                Surface(shape = RoundedCornerShape(14.dp), color = AppColors.Primary.copy(alpha = .10f)) {
+                                    Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(11.dp).size(27.dp))
                                 }
                                 Text("How can we help?", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Choose a topic to start your first support message, or type your own question below.",
-                                    color = AppColors.TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Text("Choose a topic to start or continue your support request.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         items(supportTopicOptions, key = { it.title }) { topic ->
                             SupportTopicOptionCard(topic = topic, onClick = { onChooseTopic(topic) })
                         }
                     } else {
-                        items(chat?.messages.orEmpty(), key = { it.messageId }) { item ->
-                            val mine = item.senderType == "CUSTOMER"
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
-                            ) {
+                        items(chat?.items.orEmpty(), key = { it.itemId }) { item ->
+                            if (item.type == "VOICE_CALL") {
                                 Surface(
-                                    modifier = Modifier.fillMaxWidth(0.82f),
-                                    shape = RoundedCornerShape(
-                                        topStart = 16.dp,
-                                        topEnd = 16.dp,
-                                        bottomStart = if (mine) 16.dp else 4.dp,
-                                        bottomEnd = if (mine) 4.dp else 16.dp
-                                    ),
-                                    color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF4F5F7)
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 3.dp),
+                                    color = Color(0xFFF7F3EC),
+                                    shape = RoundedCornerShape(14.dp)
                                 ) {
-                                    Column(Modifier.padding(horizontal = 13.dp, vertical = 9.dp)) {
-                                        Text(
-                                            if (mine) "You" else "mPay Support",
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (mine) AppColors.PrimaryDark else AppColors.TextPrimary,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                        Text(item.message, color = AppColors.TextPrimary)
-                                        Spacer(Modifier.size(2.dp))
-                                        Text(
-                                            formatSupportDate(item.createdAt),
-                                            color = AppColors.TextSecondary,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
+                                    Row(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(shape = RoundedCornerShape(10.dp), color = AppColors.Primary.copy(alpha = .12f)) {
+                                            Icon(Icons.Default.Call, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(8.dp).size(17.dp))
+                                        }
+                                        Spacer(Modifier.size(9.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                when {
+                                                    item.outcome == "NO_ANSWER" || item.status == "MISSED" -> "Support tried to call you"
+                                                    item.status == "DECLINED" -> "Support call declined"
+                                                    else -> "Support voice call"
+                                                },
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                listOfNotNull(item.actorName ?: "mPay Support", item.outcome ?: item.status, item.durationLabel).joinToString(" · "),
+                                                color = AppColors.TextSecondary,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                        Text(formatSupportDate(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            } else {
+                                val mine = item.senderType == "CUSTOMER"
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
+                                ) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(0.82f),
+                                        shape = RoundedCornerShape(
+                                            topStart = 16.dp, topEnd = 16.dp,
+                                            bottomStart = if (mine) 16.dp else 4.dp,
+                                            bottomEnd = if (mine) 16.dp else 4.dp
+                                        ),
+                                        color = if (mine) AppColors.Primary.copy(alpha = .15f) else Color(0xFFF4F5F7)
+                                    ) {
+                                        Column(Modifier.padding(horizontal = 13.dp, vertical = 9.dp)) {
+                                            Text(
+                                                when (item.senderType) {
+                                                    "CUSTOMER" -> "You"
+                                                    "AI" -> "mPay AI Support"
+                                                    else -> "mPay Support"
+                                                },
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (mine) AppColors.PrimaryDark else AppColors.TextPrimary,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                            Text(item.message.orEmpty(), color = AppColors.TextPrimary)
+                                            Text(formatSupportDate(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-
                 if (chat?.messages?.any { it.senderType == "STAFF" } == true || chat?.pendingCallbackRequest != null) {
                     Surface(
                         color = Color(0xFFFFFBF3),
