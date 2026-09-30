@@ -351,8 +351,8 @@ private fun FloatingChatWindow(
     val density = LocalDensity.current
     val supportPresent = chat?.status == "OPEN" &&
         chat.messages.any { it.senderType == "STAFF" || it.senderType == "AI" }
-    val liveTransition = if (supportPresent) rememberInfiniteTransition(label = "supportPresence") else null
-    val liveAlpha by (liveTransition?.animateFloat(
+    val liveTransition = rememberInfiniteTransition(label = "supportPresence")
+    val liveAlpha by liveTransition.animateFloat(
         initialValue = 0.45f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -360,7 +360,7 @@ private fun FloatingChatWindow(
             repeatMode = RepeatMode.Reverse
         ),
         label = "supportPresencePulse"
-    ) ?: remember { mutableStateOf(1f) })
+    )
     LaunchedEffect(chat?.messages?.size) {
         val size = chat?.messages?.size ?: 0
         if (size > 0) listState.animateScrollToItem(size - 1)
