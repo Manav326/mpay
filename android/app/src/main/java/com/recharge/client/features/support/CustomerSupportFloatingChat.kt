@@ -149,10 +149,11 @@ fun CustomerSupportFloatingChat(
     var loading by remember { mutableStateOf(false) }
     var chatRequestInFlight by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
-    var draft by remember { mutableStateOf("") }
+    var draft by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var guidedTopic by remember { mutableStateOf<FloatingSupportTopic?>(null) }
-    var supportIntakeMode by remember { mutableStateOf(false) }
+    var guidedTopicCode by rememberSaveable { mutableStateOf<String?>(null) }
+    val guidedTopic = floatingSupportTopics.firstOrNull { it.code == guidedTopicCode }
+    var supportIntakeMode by rememberSaveable { mutableStateOf(false) }
     var callbackBusy by remember { mutableStateOf(false) }
     var minimized by rememberSaveable { mutableStateOf(false) }
     var widthDp by rememberSaveable { mutableStateOf(390f) }
@@ -356,10 +357,10 @@ fun CustomerSupportFloatingChat(
             onRefresh = { scope.launch { loadChat() } },
             onDraftChange = { draft = it.take(4000) },
             onSend = { sendMessage() },
-            onChooseTopic = { guidedTopic = it },
+            onChooseTopic = { guidedTopicCode = it?.code },
             onStartChat = {
                 guidedTopic?.let {
-                    guidedTopic = null
+                    guidedTopicCode = null
                     supportIntakeMode = false
                     sendMessage(it.message, it.code)
                 }
