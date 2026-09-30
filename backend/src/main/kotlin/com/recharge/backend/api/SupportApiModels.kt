@@ -229,6 +229,7 @@ data class SupportQueueItemResponse(
     val caseStatus: String?,
     val assignedUserPublicId: String?,
     val assignedUserName: String?,
+    val assignedToViewer: Boolean,
     val source: String,
     val attentionReason: String,
     val unreadMessages: Int,
