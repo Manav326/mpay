@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -322,8 +323,17 @@ fun CustomerSupportScreen(
         }
     }
 
-    Surface(modifier = if (embedded) modifier.fillMaxWidth() else modifier.fillMaxSize(), color = AppColors.Background) {
-        Column(Modifier.fillMaxSize()) {
+    Surface(
+        modifier = if (embedded) {
+            modifier.fillMaxWidth().wrapContentHeight()
+        } else {
+            modifier.fillMaxSize()
+        },
+        color = AppColors.Background
+    ) {
+        Column(
+            modifier = if (embedded) Modifier.wrapContentHeight() else Modifier.fillMaxSize()
+        ) {
             if (!embedded) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
@@ -346,7 +356,12 @@ fun CustomerSupportScreen(
             }
 
             if (loading && overview == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .then(if (embedded) Modifier.height(180.dp) else Modifier.fillMaxHeight()),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator(color = AppColors.PrimaryDark)
                 }
                 return@Surface
