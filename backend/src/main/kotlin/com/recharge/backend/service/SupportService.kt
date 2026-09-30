@@ -422,9 +422,12 @@ class SupportService(
             status = conversation.status,
             messages = legacyChatMessages(chatItems),
 
-            unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
-                messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
-            unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
+            unreadForCustomer = (
+                messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
+                    messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI")
+                ).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER")
+                .coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             callbackRequestEnabled = callbackRequestEnabled(customer),
             pendingCallbackRequest = pending,
             items = chatItems,
@@ -587,9 +590,12 @@ class SupportService(
             caseId = currentCase?.caseId,
             status = conversation.status,
             messages = legacyChatMessages(chatItems),
-            unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
-                messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
-            unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
+            unreadForCustomer = (
+                messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
+                    messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI")
+                ).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER")
+                .coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             items = chatItems,
             currentCase = currentCase?.let { toCaseResponse(it, customer) }
         )
