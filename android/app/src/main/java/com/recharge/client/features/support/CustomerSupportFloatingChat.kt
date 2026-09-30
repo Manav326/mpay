@@ -326,12 +326,23 @@ fun CustomerSupportFloatingChat(
                     Color(0xFFFF8A8A)
                 )
             ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 9.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
-                        androidx.compose.material.icons.filled.Delete,
-                        contentDescription = "Delete support window",
+                        Icons.Default.Close,
+                        contentDescription = "Close support window",
                         tint = Color.White,
-                        modifier = Modifier.size(23.dp)
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        "Close",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelMedium
                     )
                 }
             }
