@@ -169,21 +169,6 @@ fun CustomerSupportFloatingChat(
     val horizontalMargin = 8f
     val bottomMargin = 8f
 
-    fun clampPosition() {
-        val availableWidth = configuration.screenWidthDp.toFloat()
-        val availableHeight = configuration.screenHeightDp.toFloat()
-        val currentWidth = if (minimized) 56f else widthDp
-        val currentHeight = if (minimized) 56f else heightDp
-        offsetX = offsetX.coerceIn(
-            horizontalMargin,
-            (availableWidth - currentWidth - horizontalMargin).coerceAtLeast(horizontalMargin)
-        )
-        offsetY = offsetY.coerceIn(
-            horizontalMargin,
-            (availableHeight - currentHeight - bottomMargin).coerceAtLeast(horizontalMargin)
-        )
-    }
-
     suspend fun loadChat() {
         if (chatRequestInFlight) return
         chatRequestInFlight = true
@@ -209,10 +194,6 @@ fun CustomerSupportFloatingChat(
             delay(5000)
             loadChat()
         }
-    }
-
-    LaunchedEffect(minimized, configuration.screenWidthDp, configuration.screenHeightDp) {
-        if (!minimized) clampPosition()
     }
 
     LaunchedEffect(chat?.messages?.size, guidedTopic) {
