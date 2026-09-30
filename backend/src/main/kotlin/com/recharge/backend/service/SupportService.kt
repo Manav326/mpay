@@ -173,7 +173,6 @@ class SupportService(
     @Transactional
     fun queue(viewer: UserEntity): SupportQueueResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
-        roleAccess.requirePermission(viewer, "VIEW_USER_DETAIL")
         expirePendingRequests(Instant.now())
 
         data class Work(
@@ -282,8 +281,7 @@ class SupportService(
     fun request(viewer: UserEntity, requestId: String): SupportCallRequestResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val request = requestById(requestId)
-        val customer = users.findById(request.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
-        roleAccess.requireCanView(viewer, customer)
+        visibleClient(viewer, users.findById(request.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }.publicId)
         if (request.status == PENDING && request.expiresAt.isBefore(Instant.now())) {
             expirePendingRequests(Instant.now())
         }
@@ -857,7 +855,7 @@ class SupportService(
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
         }
         val customer = users.findById(entity.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
-        roleAccess.requireCanView(viewer, customer)
+        visibleClient(viewer, customer.publicId)
         if (entity.status != OPEN) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Only open support cases can be assigned")
         }
@@ -875,7 +873,7 @@ class SupportService(
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
         }
         val customer = users.findById(entity.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
-        roleAccess.requireCanView(viewer, customer)
+        visibleClient(viewer, customer.publicId)
         val currentAssigned = entity.assignedUserId
         val canRelease = currentAssigned == viewer.id || viewer.role.equals("ADMIN", true)
         if (!canRelease) {
@@ -895,7 +893,7 @@ class SupportService(
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
         }
         val customer = users.findById(entity.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }
-        roleAccess.requireCanView(viewer, customer)
+        visibleClient(viewer, customer.publicId)
         val visibility = request.visibility.trim().uppercase()
         if (visibility !in setOf("INTERNAL", "CUSTOMER")) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Visibility must be INTERNAL or CUSTOMER")
@@ -987,7 +985,10 @@ class SupportService(
 
     private fun visibleClient(viewer: UserEntity, publicId: String): UserEntity {
         val target = clientByPublicId(publicId)
-        roleAccess.requireCanView(viewer, target)
+        roleAccess.requirePermission(viewer, SUPPORT_VIEW)
+        if (!roleAccess.canView(viewer, target)) {
+            throw org.springframework.security.access.AccessDeniedException("You cannot view this customer")
+        }
         return target
     }
 
