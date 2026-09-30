@@ -309,7 +309,15 @@ fun CustomerSupportFloatingChat(
             minimized = minimized,
             callbackBusy = callbackBusy,
             onDismiss = onDismiss,
-            onMinimize = { minimized = !minimized },
+            onMinimize = {
+                if (!minimized) {
+                    offsetX = (availableWidth - 56f - horizontalMargin)
+                        .coerceAtLeast(horizontalMargin)
+                    offsetY = (availableHeight - 56f - bottomMargin)
+                        .coerceAtLeast(horizontalMargin)
+                }
+                minimized = !minimized
+            },
             onRefresh = { scope.launch { loadChat() } },
             onDraftChange = { draft = it.take(4000) },
             onSend = { sendMessage() },
