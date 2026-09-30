@@ -1860,7 +1860,7 @@ private class RentalVehicleFormState(car: RentalCarResponse?) {
     var submitAttempted by mutableStateOf(false)
 
     companion object {
-        val Saver: Saver<RentalVehicleFormState, List<String>> = listSaver(
+        val Saver = listSaver<RentalVehicleFormState, String>(
             save = { form ->
                 buildList {
                     add(form.name)
