@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS employees (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    profile_image_key VARCHAR(255),
+    profile_image_content_type VARCHAR(100),
+    profile_image_updated_at TIMESTAMPTZ NULL,
+    profile_updated_at TIMESTAMPTZ NULL,
     last_login_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
