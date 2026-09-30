@@ -137,7 +137,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(ApiConfig.BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create(Gson()))
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(AuthApi::class.java)
     }
