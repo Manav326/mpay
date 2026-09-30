@@ -1268,7 +1268,7 @@ export default function CustomerCarePanel({
                   <b>Financial context restricted</b>
                   <span>Your role can support this customer, but an administrator has not granted access to wallet and transaction details.</span>
                 </section>
-              )
+              )}
 
               <section className="care-context-card">
                 <div className="care-context-head">
