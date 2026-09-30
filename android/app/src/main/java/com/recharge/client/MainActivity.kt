@@ -935,27 +935,79 @@ private fun AppNavHost(
             )
         }
         composable("rental-booking") {
-            val carId = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_car_id")
-            val car = rentalViewModel.state.collectAsState().value.cars.firstOrNull { it.id == carId }
-            if (car != null) {
-                RentalBookingScreen(
-                    car = car,
-                    state = rentalViewModel.state.collectAsState().value,
-                    wallet = homeViewModel.wallet.collectAsState().value,
-                    onQuote = rentalViewModel::quoteBooking,
-                    onBack = { nav.popBackStack() },
-                    onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
-                    onRefreshWallet = homeViewModel::refreshWallet,
-                    onConfirm = { request, onDone ->
-                        rentalViewModel.createBooking(request) {
-                            homeViewModel.refreshWallet()
-                            rentalViewModel.loadBookings()
-                            onDone()
+            val previousEntry = nav.previousBackStackEntry
+            val carId = previousEntry?.savedStateHandle?.get<String>("rental_car_id")
+            val initialStart = previousEntry?.savedStateHandle?.get<String>("rental_start_date")
+            val initialEnd = previousEntry?.savedStateHandle?.get<String>("rental_end_date")
+            val rentalUiState = rentalViewModel.state.collectAsState().value
+            val car = rentalUiState.cars.firstOrNull { it.id == carId }
+
+            LaunchedEffect(carId, initialStart, initialEnd) {
+                if (carId != null && car == null) {
+                    rentalViewModel.loadCars(initialStart, initialEnd)
+                }
+            }
+
+            when {
+                car != null -> {
+                    RentalBookingScreen(
+                        car = car,
+                        state = rentalUiState,
+                        wallet = homeViewModel.wallet.collectAsState().value,
+                        onQuote = rentalViewModel::quoteBooking,
+                        onBack = { nav.popBackStack() },
+                        onAddMoney = { paymentViewModel.reset(); showFundingDialogSetter(true) },
+                        onRefreshWallet = homeViewModel::refreshWallet,
+                        onConfirm = { request, onDone ->
+                            rentalViewModel.createBooking(request) {
+                                homeViewModel.refreshWallet()
+                                rentalViewModel.loadBookings()
+                                onDone()
+                            }
+                        },
+                        initialStart = initialStart,
+                        initialEnd = initialEnd
+                    )
+                }
+                rentalUiState.loading -> {
+                    Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = AppColors.Primary)
+                    }
+                }
+                else -> {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp, vertical = 24.dp),
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                    ) {
+                        Text(
+                            "This rental vehicle is no longer available.",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        rentalUiState.error?.takeIf { it.isNotBlank() }?.let {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                it,
+                                color = AppColors.Error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        } ?: Text(
+                            "We could not restore the selected vehicle after the app was recreated.",
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        OutlinedButton(onClick = { nav.popBackStack() }) {
+                            Text("Back to marketplace")
                         }
-                    },
-                    initialStart = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_start_date"),
-                    initialEnd = nav.previousBackStackEntry?.savedStateHandle?.get<String>("rental_end_date")
-                )
+                    }
+                }
             }
         }
         composable("rental-bookings") {
