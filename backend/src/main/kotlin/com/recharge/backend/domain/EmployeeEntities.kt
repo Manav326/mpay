@@ -30,6 +30,14 @@ class EmployeeEntity(
     var role: String = "",
     @Column(nullable = false)
     var active: Boolean = true,
+    @Column(name = "profile_image_key", length = 255)
+    var profileImageKey: String? = null,
+    @Column(name = "profile_image_content_type", length = 100)
+    var profileImageContentType: String? = null,
+    @Column(name = "profile_image_updated_at")
+    var profileImageUpdatedAt: Instant? = null,
+    @Column(name = "profile_updated_at")
+    var profileUpdatedAt: Instant? = null,
     @Column(name = "last_login_at")
     var lastLoginAt: Instant? = null,
     @Column(name = "created_at", nullable = false)
