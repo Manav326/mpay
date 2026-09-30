@@ -394,6 +394,34 @@ data class UpdateRoleCommissionRateRequest(
     val active: Boolean = true
 )
 
+data class CreatePortalStaffRequest(
+    @field:jakarta.validation.constraints.NotBlank
+    @field:jakarta.validation.constraints.Size(max = 120, message = "Name must be 120 characters or fewer")
+    val name: String,
+    @field:jakarta.validation.constraints.Email(message = "Email must be valid")
+    @field:jakarta.validation.constraints.Size(max = 254, message = "Email must be 254 characters or fewer")
+    val email: String? = null,
+    @field:jakarta.validation.constraints.Pattern(
+        regexp = "[6-9][0-9]{9}",
+        message = "Mobile number must be a valid 10 digit Indian mobile number"
+    )
+    val mobile: String,
+    @field:jakarta.validation.constraints.Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters")
+    val password: String,
+    @field:jakarta.validation.constraints.NotBlank
+    val role: String
+)
+
+data class PortalStaffResponse(
+    val publicUserId: String,
+    val name: String?,
+    val email: String?,
+    val mobile: String,
+    val role: String,
+    val active: Boolean,
+    val createdAt: Instant
+)
+
 data class AdminUserStatusRequest(
     val active: Boolean
 )
