@@ -6230,3 +6230,41 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .care-access-user-permission select{
   font-size:var(--admin-font-sm);
 }
+
+/* Customer support: space-efficient layout with readable typography. */
+.customer-support-direct-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.customer-support-direct-action{display:flex;align-items:center;gap:10px;min-height:68px;padding:12px;border:1px solid var(--border);border-radius:14px;background:#fff;text-align:left}
+.customer-support-direct-action.primary{border-color:#f0d49e;background:#fffaf0}
+.customer-support-direct-action>span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:3px}
+.customer-support-direct-action b{font-size:13px;color:var(--text)}
+.customer-support-direct-action small{font-size:11px;color:var(--muted);line-height:1.35}
+.customer-support-action-state{font-size:11px;color:var(--muted);font-weight:700}
+.customer-support-issue-summary{margin-top:12px;border:1px solid var(--border);border-radius:14px;background:#fffaf4;padding:14px}
+.customer-support-issue-heading{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.customer-support-issue-heading b{font-size:13px;color:var(--text)}
+.customer-support-issue-heading span{font-size:11px;color:var(--muted)}
+.customer-support-issue-summary h4{margin:10px 0 7px;font-size:15px;color:var(--text)}
+.support-issue-status{display:inline-flex;padding:4px 8px;border-radius:999px;background:#fff1d8;color:#9a6408;font-size:11px;font-weight:700}
+.support-issue-status.done{background:#eaf8ef;color:#15803d}
+.customer-support-issue-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:11px}
+.customer-support-issue-facts span{display:flex;flex-direction:column;gap:3px}
+.customer-support-issue-facts small{font-size:10px;color:var(--muted)}
+.customer-support-issue-facts b{font-size:12px;color:var(--text)}
+.customer-support-no-issue{display:flex;flex-direction:column;gap:3px;margin-top:10px}
+.customer-support-no-issue b{font-size:13px}.customer-support-no-issue span{font-size:11px;color:var(--muted)}
+.customer-support-call-event{display:flex;align-items:center;gap:9px;max-width:88%;margin:4px auto;padding:9px 11px;border:1px solid #eadfce;border-radius:14px;background:#fffaf2}
+.customer-support-call-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#fff0d7;color:#9a6408}
+.customer-support-call-copy{display:flex;flex-direction:column;gap:2px;flex:1}
+.customer-support-call-copy b{font-size:12px;color:var(--text)}
+.customer-support-call-copy span,.customer-support-call-copy small{font-size:10px;color:var(--muted)}
+.customer-support-call-event time{font-size:10px;color:var(--muted);white-space:nowrap}
+.care-chat-call-event{display:flex;align-items:center;gap:9px;width:min(90%,420px);margin:5px auto;padding:9px 11px;border:1px solid #eadfce;border-radius:12px;background:#fffaf3}
+.care-chat-call-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:#fff0d7;color:#9a6408}
+.care-chat-call-event>div:nth-child(2){flex:1;display:flex;flex-direction:column;gap:2px}
+.care-chat-call-event b{font-size:11px}
+.care-chat-call-event span,.care-chat-call-event small,.care-chat-call-event time{font-size:10px;color:var(--muted)}
+.care-case-eta{display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px 10px;border-radius:10px;background:#fffaf4;border:1px solid var(--border)}
+.care-case-eta span{font-size:10px;color:var(--muted)}.care-case-eta b{font-size:11px;color:var(--text)}.care-case-eta small{font-size:10px;color:#9a6408}
+.care-eta-field{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted)}
+.care-eta-field input{height:36px;border:1px solid var(--border);border-radius:9px;padding:0 10px;background:#fff;color:var(--text)}
+@media (max-width:760px){.customer-support-direct-actions{grid-template-columns:1fr}.customer-support-issue-facts{grid-template-columns:1fr}}
