@@ -1136,53 +1136,67 @@ export default function CustomerCarePanel({
         <aside className="customer-care-context">
           {selected ? (
             <>
-              <section className="care-context-card identity-card">
-                <div className="care-context-head">
-                  <span>ACCOUNT SNAPSHOT</span>
-                  <WalletCards size={14} />
-                </div>
-                <div className="care-wallet-balance">{money(selectedDetail?.availableBalance)}</div>
-                <div className="care-wallet-label">available wallet balance</div>
-                <div className="care-wallet-grid">
-                  <span><small>Total</small><b>{money(selectedDetail?.balance)}</b></span>
-                  <span><small>Reserved</small><b>{money(selectedDetail?.reservedBalance)}</b></span>
-                </div>
-                <div className="care-divider" />
-                <div className="care-context-list">
-                  <div><span>Recharge volume</span><b>{selectedDetail?.rechargeCount ?? '—'}</b></div>
-                  <div><span>Add money</span><b>{selectedDetail ? money(selectedDetail.addMoneyTotal) : '—'}</b></div>
-                  <div><span>Withdrawn</span><b>{selectedDetail ? money(selectedDetail.withdrawalTotal) : '—'}</b></div>
-                </div>
-              </section>
+              {canViewCustomerContext ? (
+                <>
+                  <section className="care-context-card identity-card">
+                    <div className="care-context-head">
+                      <span>ACCOUNT SNAPSHOT</span>
+                      <WalletCards size={14} />
+                    </div>
+                    <div className="care-wallet-balance">{money(selectedDetail?.availableBalance)}</div>
+                    <div className="care-wallet-label">available wallet balance</div>
+                    <div className="care-wallet-grid">
+                      <span><small>Total</small><b>{money(selectedDetail?.balance)}</b></span>
+                      <span><small>Reserved</small><b>{money(selectedDetail?.reservedBalance)}</b></span>
+                    </div>
+                    <div className="care-divider" />
+                    <div className="care-context-list">
+                      <div><span>Recharge count</span><b>{selectedDetail?.rechargeCount ?? '—'}</b></div>
+                      <div><span>Add money</span><b>{selectedDetail ? money(selectedDetail.addMoneyTotal) : '—'}</b></div>
+                      <div><span>Withdrawn</span><b>{selectedDetail ? money(selectedDetail.withdrawalTotal) : '—'}</b></div>
+                    </div>
+                  </section>
 
-              <section className="care-context-card">
-                <div className="care-context-head">
-                  <span>RECENT ACTIVITY</span>
-                  <Clock3 size={14} />
-                </div>
-                {selectedDetail?.latestRecharge ? (
-                  <div className="care-mini-activity">
-                    <div className="care-mini-icon recharge"><MessageSquareText size={13} /></div>
-                    <div>
-                      <b>Latest recharge</b>
-                      <span>{selectedDetail.latestRecharge.operator} · {money(selectedDetail.latestRecharge.amount)}</span>
-                      <small>{selectedDetail.latestRecharge.status} · {relativeAge(selectedDetail.latestRecharge.createdAt)}</small>
+                  <section className="care-context-card">
+                    <div className="care-context-head">
+                      <span>RECENT MONEY ACTIVITY</span>
+                      <Clock3 size={14} />
                     </div>
+                    {selectedDetail?.latestRecharge ? (
+                      <div className="care-mini-activity">
+                        <div className="care-mini-icon recharge"><MessageSquareText size={13} /></div>
+                        <div>
+                          <b>Latest recharge</b>
+                          <span>{selectedDetail.latestRecharge.operator} · {money(selectedDetail.latestRecharge.amount)}</span>
+                          <small>{selectedDetail.latestRecharge.status} · {relativeAge(selectedDetail.latestRecharge.createdAt)}</small>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="care-muted">No recent recharge found.</div>
+                    )}
+                    {selectedDetail?.recentWalletEntries?.slice(0, 3).map(entry => (
+                      <div className="care-mini-activity" key={entry.id}>
+                        <div className="care-mini-icon wallet"><WalletCards size={13} /></div>
+                        <div>
+                          <b>{entry.type.replaceAll('_', ' ')}</b>
+                          <span>{money(entry.amount)} · {entry.reference}</span>
+                          <small>{relativeAge(entry.createdAt)}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </>
+              ) : (
+                <section className="care-context-card care-context-restricted">
+                  <div className="care-context-head">
+                    <span>FINANCIAL CONTEXT</span>
+                    <LockKeyhole size={14} />
                   </div>
-                ) : (
-                  <div className="care-muted">No recent recharge found.</div>
-                )}
-                {selectedDetail?.recentWalletEntries?.slice(0, 3).map(entry => (
-                  <div className="care-mini-activity" key={entry.id}>
-                    <div className="care-mini-icon wallet"><WalletCards size={13} /></div>
-                    <div>
-                      <b>{entry.type.replaceAll('_', ' ')}</b>
-                      <span>{money(entry.amount)} · {entry.reference}</span>
-                      <small>{relativeAge(entry.createdAt)}</small>
-                    </div>
-                  </div>
-                ))}
-              </section>
+                  <div className="care-context-placeholder-icon"><LockKeyhole size={19} /></div>
+                  <b>Financial context restricted</b>
+                  <span>Your role can support this customer, but an administrator has not granted access to wallet and transaction details.</span>
+                </section>
+              )
 
               <section className="care-context-card">
                 <div className="care-context-head">
@@ -1204,8 +1218,8 @@ export default function CustomerCarePanel({
                       <span />
                     </button>
                   ) : (
-                    <span className={'care-status ' + (selected.callbackRequestEnabled ? 'success' : 'quiet')}>
-                      {selected.callbackRequestEnabled ? 'ON' : 'OFF'}
+                    <span className={'care-status ' + (selected.callbackRequestEnabled ? 'success' : 'quiet')} title="Requires callback-access permission">
+                      <LockKeyhole size={9} /> {selected.callbackRequestEnabled ? 'ON' : 'OFF'}
                     </span>
                   )}
                 </div>
@@ -1232,7 +1246,7 @@ export default function CustomerCarePanel({
                     <span>{aiSettings?.providerConfigured ? aiSettings.model : 'Provider not configured'}</span>
                   </div>
                 </div>
-                {canManageSupportAi && (
+                {canManageSupportAi ? (
                   <button
                     className={'care-ai-toggle ' + (aiSettings?.enabled ? 'on' : '')}
                     disabled={!aiSettings?.providerConfigured || aiBusy}
@@ -1241,6 +1255,8 @@ export default function CustomerCarePanel({
                     <Bot size={13} />
                     {aiBusy ? 'Updating…' : aiSettings?.enabled ? 'Disable AI' : 'Enable AI'}
                   </button>
+                ) : (
+                  <div className="care-ai-readonly"><LockKeyhole size={11} /> AI availability is admin-controlled</div>
                 )}
               </section>
             </>
