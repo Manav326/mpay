@@ -112,13 +112,6 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         pendingRazorpayTarget = savedInstanceState?.getString(STATE_RAZORPAY_TARGET)
             ?.let { runCatching { RazorpayCheckoutTarget.valueOf(it) }.getOrNull() }
         pendingRazorpayOrderId = savedInstanceState?.getString(STATE_RAZORPAY_ORDER_ID)
-        Checkout.preload(applicationContext)
-        if (BuildConfig.MAPS_API_KEY.isNotBlank() && !com.google.android.libraries.places.api.Places.isInitialized()) {
-            com.google.android.libraries.places.api.Places.initializeWithNewPlacesApiEnabled(
-                applicationContext,
-                BuildConfig.MAPS_API_KEY
-            )
-        }
         setContent { RechargeTheme { AppRoot(::startWalletPaymentCheckout, ::startGatewayRechargeCheckout, walletPaymentViewModel, { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, rechargeViewModel = rechargeViewModel) } }
     }
 
@@ -126,6 +119,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         outState.putString(STATE_RAZORPAY_TARGET, pendingRazorpayTarget?.name)
         outState.putString(STATE_RAZORPAY_ORDER_ID, pendingRazorpayOrderId)
         super.onSaveInstanceState(outState)
+    }
+
+    private fun ensurePlacesInitialized() {
+        if (BuildConfig.MAPS_API_KEY.isBlank() || com.google.android.libraries.places.api.Places.isInitialized()) return
+        com.google.android.libraries.places.api.Places.initializeWithNewPlacesApiEnabled(
+            applicationContext,
+            BuildConfig.MAPS_API_KEY
+        )
     }
 
     private fun startWalletPaymentCheckout(order: PaymentOrderResponse) {
@@ -224,6 +225,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                     }
                     pendingRazorpayTarget = RazorpayCheckoutTarget.WALLET
                     pendingRazorpayOrderId = order.orderId
+                    Checkout.preload(applicationContext)
+
                     checkout.open(this, options)
                 }
                 else -> {
@@ -659,7 +662,10 @@ private fun AppRoot(
     LaunchedEffect(currentRoute) {
         when (currentRoute) {
             "marketplace" -> Unit
-            "car-rental" -> rentalViewModel.clearCarSearch()
+            "car-rental" -> {
+                ensurePlacesInitialized()
+                rentalViewModel.clearCarSearch()
+            }
             "rental-booking" -> homeViewModel.refreshWallet()
             "rental-vendor" -> rentalViewModel.loadVendor()
             "rental-vehicle" -> rentalViewModel.loadVendorVehicles()
