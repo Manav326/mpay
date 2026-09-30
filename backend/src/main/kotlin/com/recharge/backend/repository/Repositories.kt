@@ -17,6 +17,18 @@ interface UserRepository : JpaRepository<UserEntity, Long> {
     fun findByPublicId(publicId: String): Optional<UserEntity>
     fun findAllByRoleIn(roles: Collection<String>): List<UserEntity>
     fun findAllByRoleInOrderByCreatedAtDesc(roles: Collection<String>): List<UserEntity>
+    @Query("""
+        select u from UserEntity u
+        where upper(u.role) = 'CLIENT'
+          and (
+            lower(coalesce(u.name, '')) like lower(concat('%', :query, '%'))
+            or lower(coalesce(u.mobile, '')) like lower(concat('%', :query, '%'))
+            or lower(coalesce(u.publicId, '')) like lower(concat('%', :query, '%'))
+            or lower(coalesce(u.email, '')) like lower(concat('%', :query, '%'))
+          )
+        order by u.name asc
+    """)
+    fun searchSupportCustomers(@Param("query") query: String, pageable: Pageable): List<UserEntity>
 }
 
 interface WalletRepository : JpaRepository<WalletEntity, Long> {
