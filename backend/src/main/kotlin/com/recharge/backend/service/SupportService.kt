@@ -232,6 +232,7 @@ class SupportService(
                 caseStatus = supportCase?.status,
                 assignedUserPublicId = assignedId?.let { staffMap[it]?.publicId },
                 assignedUserName = assignedId?.let { staffMap[it]?.name },
+                assignedToViewer = assignedId == viewer.id,
                 source = source,
                 attentionReason = attentionReason,
                 unreadMessages = current.unreadMessages,
