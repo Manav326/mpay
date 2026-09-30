@@ -81,17 +81,45 @@ class TokenAuthenticator(
 }
 
 object NetworkModule {
-    fun authApi(context: Context): AuthApi = createAuthApi(context.applicationContext)
+    @Volatile
+    private var clientApiInstance: ClientApi? = null
+
+    @Volatile
+    private var authApiInstance: AuthApi? = null
+
+    @Volatile
+    private var applicationContext: Context? = null
+
+    fun authApi(context: Context): AuthApi {
+        val appContext = context.applicationContext
+        authApiInstance?.let { return it }
+        return synchronized(this) {
+            authApiInstance ?: createAuthApi(appContext).also {
+                authApiInstance = it
+                applicationContext = appContext
+            }
+        }
+    }
 
     fun clientApi(context: Context): ClientApi {
         val appContext = context.applicationContext
+        clientApiInstance?.let { return it }
+        return synchronized(this) {
+            clientApiInstance ?: createClientApi(appContext).also {
+                clientApiInstance = it
+                applicationContext = appContext
+            }
+        }
+    }
+
+    private fun createClientApi(appContext: Context): ClientApi {
         val tokenStore = TokenStore(appContext)
         val client = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(AuthInterceptor(tokenStore))
-            .authenticator(TokenAuthenticator(tokenStore) { createAuthApi(appContext) })
+            .authenticator(TokenAuthenticator(tokenStore) { authApi(appContext) })
             .build()
 
         return Retrofit.Builder()
