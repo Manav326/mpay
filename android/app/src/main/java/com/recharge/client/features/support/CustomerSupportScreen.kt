@@ -366,7 +366,7 @@ fun CustomerSupportScreen(
 
                 item {
                     Text(
-                        "My Support",
+                        "Your Support Issue",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = AppColors.TextPrimary
@@ -380,88 +380,53 @@ fun CustomerSupportScreen(
                             shape = RoundedCornerShape(18.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = AppColors.Primary.copy(alpha = .10f)
-                                ) {
-                                    Icon(
-                                        Icons.Default.HeadsetMic,
-                                        contentDescription = null,
-                                        tint = AppColors.PrimaryDark,
-                                        modifier = Modifier.padding(10.dp).size(24.dp)
-                                    )
-                                }
-                                Spacer(Modifier.size(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text("No support cases yet", fontWeight = FontWeight.Bold)
-                                    Text("Your calls and future support conversations will appear here.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                }
+                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("No active support issue", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "Start a support chat and mPay Support will create the issue summary here.",
+                                    color = AppColors.TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
                     }
                 } else {
-                    items(overview?.cases.orEmpty().take(1), key = { it.caseId }) { item ->
+                    item {
+                        val item = overview?.cases.orEmpty().first()
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             shape = RoundedCornerShape(18.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (item.status == "CLOSED" || item.status == "RESOLVED") Color(0xFFEFFAF2) else AppColors.SurfaceWarm
+                            Column(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(7.dp)
+                            ) {
+                                Text(item.subject, fontWeight = FontWeight.Bold)
+                                Text(
+                                    item.status.replace('_', ' '),
+                                    color = if (item.status == "RESOLVED" || item.status == "CLOSED") Color(0xFF15803D) else AppColors.PrimaryDark,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(18.dp)
                                 ) {
-                                    Icon(
-                                        if (item.status == "CLOSED" || item.status == "RESOLVED") Icons.Default.CheckCircle else Icons.Default.History,
-                                        contentDescription = null,
-                                        tint = if (item.status == "CLOSED" || item.status == "RESOLVED") Color(0xFF15803D) else AppColors.PrimaryDark,
-                                        modifier = Modifier.padding(10.dp).size(24.dp)
-                                    )
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text("Last updated", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(formatSupportDate(item.lastMeaningfulUpdateAt ?: item.updatedAt), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text("Expected resolution", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                                        Text(formatSupportDate(item.expectedResolutionAt ?: item.updatedAt), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                    }
                                 }
-                                Spacer(Modifier.size(12.dp))
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(item.subject, fontWeight = FontWeight.Bold)
-                                    Text(item.category + " · " + item.status, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                                    Text(formatSupportDate(item.updatedAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                }
-                                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.TextSecondary)
                             }
                         }
                     }
                 }
 
-                item {
-                    Text(
-                        "Recent support activity",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.TextPrimary,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                }
-
-                if (overview?.interactions.isNullOrEmpty() && overview?.customerNotes.isNullOrEmpty()) {
-                    item {
-                        Text("No calls or support notes recorded yet.", color = AppColors.TextSecondary)
-                    }
-                } else {
-                    items(overview?.interactions.orEmpty(), key = { it.interactionId }) { interaction ->
-                        SupportInteractionCard(interaction)
-                    }
-                    items(overview?.customerNotes.orEmpty(), key = { "note-" + it.id }) { note ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text("Support note", fontWeight = FontWeight.Bold)
-                                Text(note.note, color = AppColors.TextSecondary)
-                                Text(formatSupportDate(note.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
-                    }
-                }
 
                 item { Spacer(Modifier.size(12.dp)) }
             }
