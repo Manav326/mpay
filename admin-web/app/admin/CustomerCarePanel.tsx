@@ -1495,9 +1495,11 @@ export default function CustomerCarePanel({
                     ? 'Decline callback request'
                     : dialog.kind === 'note'
                       ? 'Add support note'
-                      : dialog.status === 'RESOLVED'
-                        ? 'Resolve support case'
-                        : 'Close support case'}
+                      : dialog.kind === 'eta'
+                        ? 'Set expected resolution'
+                        : dialog.status === 'RESOLVED'
+                          ? 'Resolve support case'
+                          : 'Close support case'}
                 </h3>
               </div>
               <button className="care-icon-button" onClick={() => !busyKey && setDialog(null)} aria-label="Close dialog"><X size={15} /></button>
