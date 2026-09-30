@@ -2,6 +2,7 @@ package com.recharge.backend.websocket
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.recharge.backend.repository.UserRepository
+import com.recharge.backend.repository.EmployeeRepository
 import com.recharge.backend.service.CallWebSocketRegistry
 import com.recharge.backend.service.VoiceCallService
 import org.springframework.stereotype.Component
@@ -17,68 +18,70 @@ class CallWebSocketHandler(
     private val objectMapper: ObjectMapper,
     private val registry: CallWebSocketRegistry,
     private val calls: VoiceCallService,
-    private val users: UserRepository
+    private val users: UserRepository,
+    private val employees: EmployeeRepository
 ) : WebSocketHandler {
-    private val userBySession = ConcurrentHashMap<String, Long>()
+    private val accountBySession = ConcurrentHashMap<String, Long>()
+    private val accountTypeBySession = ConcurrentHashMap<String, String>()
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
-        val userId = session.attributes["userId"] as Long
+        val accountId = session.attributes["accountId"] as Long
+        val accountType = session.attributes["accountType"]?.toString() ?: "USER"
         val callId = session.attributes["callId"]?.toString()
-        registry.register(userId, callId.orEmpty(), session)
-        userBySession[session.id] = userId
+        registry.register(accountId, callId.orEmpty(), session)
+        accountBySession[session.id] = accountId
+        accountTypeBySession[session.id] = accountType
 
-        // The authenticated socket is already fully authorized for this call.
-        // Treat the connection itself as readiness, so negotiation does not depend
-        // on a one-shot client "ready" frame arriving in a particular order.
         if (!callId.isNullOrBlank()) {
-            registry.markReady(callId, userId)
-            val otherUserId = runCatching { calls.otherParticipant(callId, userId) }.getOrNull()
-            if (otherUserId != null &&
-                registry.hasOpenSession(callId, otherUserId) &&
-                registry.isReady(callId, otherUserId)
+            registry.markReady(callId, accountId)
+            val otherAccountId = runCatching { calls.otherParticipant(callId, accountId) }.getOrNull()
+            if (otherAccountId != null &&
+                registry.hasOpenSession(callId, otherAccountId) &&
+                registry.isReady(callId, otherAccountId)
             ) {
-                registry.sendToCallUser(callId, userId, """{"type":"ready","callId":"$callId"}""")
-                registry.sendToCallUser(callId, otherUserId, """{"type":"ready","callId":"$callId"}""")
+                registry.sendToCallUser(callId, accountId, """{"type":"ready","callId":"$callId"}""")
+                registry.sendToCallUser(callId, otherAccountId, """{"type":"ready","callId":"$callId"}""")
             }
         }
     }
 
     override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
         val textMessage = message as? TextMessage ?: return
-        // WebRTC SDP/candidate payloads are small. Reject oversized authenticated
-        // messages before JSON parsing/relaying to limit abuse of the signaling socket.
         if (textMessage.payload.length > 64 * 1024) return
 
-        val userId = userBySession[session.id] ?: return
+        val accountId = accountBySession[session.id] ?: return
+        val accountType = accountTypeBySession[session.id] ?: "USER"
         val callId = session.attributes["callId"]?.toString() ?: return
-        if (!calls.socketAuthorized(userId, callId)) return
+        if (!calls.socketAuthorized(accountType, accountId, callId)) return
 
         val node = runCatching { objectMapper.readTree(textMessage.payload) }.getOrNull() ?: return
         if (node.get("callId")?.asText() != callId) return
 
         when (node.get("type")?.asText()) {
             "ready" -> {
-                val otherUserId = calls.otherParticipant(callId, userId)
-                registry.markReady(callId, userId)
-
-                // Readiness is state, not a one-shot event. Either participant may
-                // connect first; once both are ready, start negotiation.
-                if (registry.hasOpenSession(callId, otherUserId) && registry.isReady(callId, otherUserId)) {
-                    registry.sendToCallUser(callId, userId, """{"type":"ready","callId":"$callId"}""")
-                    registry.sendToCallUser(callId, otherUserId, """{"type":"ready","callId":"$callId"}""")
+                val otherAccountId = calls.otherParticipant(callId, accountId)
+                registry.markReady(callId, accountId)
+                if (registry.hasOpenSession(callId, otherAccountId) && registry.isReady(callId, otherAccountId)) {
+                    registry.sendToCallUser(callId, accountId, """{"type":"ready","callId":"$callId"}""")
+                    registry.sendToCallUser(callId, otherAccountId, """{"type":"ready","callId":"$callId"}""")
                 }
             }
             "signal" -> {
                 val payload = node.get("payload")
                 val kind = payload?.get("kind")?.asText()
                 if (payload == null || !payload.isObject || kind !in setOf("offer", "answer", "candidate")) return
-                val otherUserId = calls.otherParticipant(callId, userId)
-                registry.sendToCallUser(callId, otherUserId, message.payload)
+                val otherAccountId = calls.otherParticipant(callId, accountId)
+                registry.sendToCallUser(callId, otherAccountId, message.payload)
             }
-            "connected" -> calls.markConnected(userId, callId)
+            "connected" -> calls.markConnected(accountId, callId)
             "hangup" -> {
-                val user = users.findById(userId).orElse(null) ?: return
-                calls.end(user, callId)
+                if (accountType == "EMPLOYEE") {
+                    val employee = employees.findById(accountId).orElse(null) ?: return
+                    calls.end(employee, callId)
+                } else {
+                    val user = users.findById(accountId).orElse(null) ?: return
+                    calls.end(user, callId)
+                }
             }
         }
     }
@@ -86,15 +89,14 @@ class CallWebSocketHandler(
     override fun handleTransportError(session: WebSocketSession, exception: Throwable) = Unit
 
     override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
-        val userId = userBySession.remove(session.id) ?: return
+        val accountId = accountBySession.remove(session.id) ?: return
+        accountTypeBySession.remove(session.id)
         val callId = session.attributes["callId"]?.toString()
         if (!callId.isNullOrBlank()) {
-            registry.unregister(userId, callId, session)
-            if (!registry.hasOpenSession(callId, userId)) {
-                registry.clearReady(callId, userId)
-            }
+            registry.unregister(accountId, callId, session)
+            if (!registry.hasOpenSession(callId, accountId)) registry.clearReady(callId, accountId)
         } else {
-            registry.unregister(userId, "", session)
+            registry.unregister(accountId, "", session)
         }
     }
 
