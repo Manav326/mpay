@@ -625,6 +625,12 @@ class VoiceCallController(
         val user = currentUser(authentication)
         push.register(requireNotNull(user.id), request.token, request.platform)
     }
+
+    @PostMapping("/push-token/revoke")
+    fun revokePushToken(authentication: Authentication, @Valid @RequestBody request: CallPushTokenRequest) {
+        val user = currentUser(authentication)
+        push.revoke(requireNotNull(user.id), request.token)
+    }
 }
 
 @RestController
