@@ -17,7 +17,8 @@ class AdminFinancialService(
     private val users: UserRepository,
     private val roleAccess: RoleAccessService,
     private val rechargeService: RechargeService,
-    private val walletService: WalletService
+    private val walletService: WalletService,
+    private val employeeAudit: EmployeeAuditService
 ) {
     fun recharges(viewer: EmployeeEntity, page: Int, size: Int, status: String?, provider: String?): AdminFinancialRechargePageResponse {
         roleAccess.requirePermission(viewer, "VIEW_FINANCIAL_OPERATIONS")
@@ -137,7 +138,9 @@ class AdminFinancialService(
             .orElseThrow { IllegalArgumentException("Recharge transaction not found") }
         val target = users.findById(tx.userId).orElseThrow { IllegalArgumentException("Recharge user not found") }
         roleAccess.requireCanView(viewer, target)
-        return rechargeService.transaction(tx.userId, tx.transactionId)
+        val result = rechargeService.transaction(tx.userId, tx.transactionId)
+        employeeAudit.record(viewer, "RECHARGE_REFRESHED", "RECHARGE", transactionId, "Refreshed a customer recharge status.")
+        return result
     }
 
     @Transactional
