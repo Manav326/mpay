@@ -215,7 +215,8 @@ class RechargeHistoryViewModel(application: Application) : AndroidViewModel(appl
     fun refreshAll() { refreshHistory(); loadCommission() }
 
     fun loadCommission() {
-        if (_state.value.commissionLoading) return
+        val current = _state.value
+        if (current.commissionLoading || current.commission != null) return
         viewModelScope.launch {
             _state.value = _state.value.copy(commissionLoading = true, commissionError = null)
             repository.rechargeCommissionSummary()
