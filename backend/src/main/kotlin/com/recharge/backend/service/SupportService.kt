@@ -52,7 +52,7 @@ class SupportService(
         ensureClient(customer)
 
         val customerId = requireNotNull(customer.id)
-        val activeParticipant = voiceParticipants.findByUserId(customerId).orElse(null)
+        val activeParticipant = voiceParticipants.findByAccountId(customerId).orElse(null)
         if (activeParticipant != null) {
             val activeCall = voiceCalls.findByCallId(activeParticipant.callId).orElse(null)
             if (activeCall != null && activeCall.status !in setOf("DECLINED", "MISSED", "CANCELLED", "ENDED")) {
@@ -1194,20 +1194,22 @@ class SupportService(
     }
 
     private fun toNoteResponse(entity: SupportNoteEntity): SupportNoteResponse {
-        val author = employees.findById(entity.authorUserId).orElse(null) ?: users.findById(entity.authorUserId).orElse(null)
+        val authorEmployee = employees.findById(entity.authorUserId).orElse(null)
+        val authorUser = if (authorEmployee == null) users.findById(entity.authorUserId).orElse(null) else null
         return SupportNoteResponse(
             id = requireNotNull(entity.id),
             caseId = entity.caseId?.let { cases.findById(it).orElse(null)?.caseId },
             visibility = entity.visibility,
             note = entity.note,
-            authorUserPublicId = author?.publicId,
-            authorName = author?.name,
+            authorUserPublicId = authorEmployee?.publicId ?: authorUser?.publicId,
+            authorName = authorEmployee?.name ?: authorUser?.name,
             createdAt = entity.createdAt.toString()
         )
     }
 
     private fun toEventResponse(entity: SupportCaseEventEntity): SupportCaseEventResponse {
-        val actor = entity.actorUserId?.let { users.findById(it).orElse(null) }
+        val actorEmployee = entity.actorUserId?.let { employees.findById(it).orElse(null) }
+        val actorUser = if (actorEmployee == null) entity.actorUserId?.let { users.findById(it).orElse(null) } else null
         return SupportCaseEventResponse(
             eventId = entity.eventId,
             caseId = cases.findById(entity.caseId).orElse(null)?.caseId ?: "",
@@ -1215,8 +1217,8 @@ class SupportService(
             visibility = entity.visibility,
             channel = entity.channel,
             summary = entity.summary,
-            actorUserPublicId = actor?.publicId,
-            actorName = actor?.name,
+            actorUserPublicId = actorEmployee?.publicId ?: actorUser?.publicId,
+            actorName = actorEmployee?.name ?: actorUser?.name,
             createdAt = entity.createdAt.toString()
         )
     }
