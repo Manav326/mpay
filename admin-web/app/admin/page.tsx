@@ -268,7 +268,7 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
     finally { setPendingPdfLoading(false); }
   }
 
-  useEffect(()=>{ if(view==='users') void loadPendingPdfRequests(); },[view,canManageHistoryPdfAccess]);
+  useEffect(()=>{ void loadPendingPdfRequests(); },[canManageHistoryPdfAccess]);
 
   return <div className="content users-wallet-page">
     {canManageHistoryPdfAccess && <section className="panel history-pdf-queue-panel">
