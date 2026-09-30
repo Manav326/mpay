@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -820,7 +821,7 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             } else {
-                items(state.vendorCars.chunked(2), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
+                items(state.vendorCars.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
                     // Availability is secondary data. Fetch it when this vehicle row
                     // actually enters the composition instead of for the entire fleet.
                     LaunchedEffect(rowCars.map { it.id }) {
@@ -1584,7 +1585,7 @@ fun CarRentalMarketplaceScreen(
         }
 
         items(
-            state.cars.chunked(2),
+            state.cars.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1),
             key = { row -> row.firstOrNull()?.id ?: row.hashCode() }
         ) { rowCars ->
             Row(
@@ -3080,7 +3081,7 @@ fun RentalMyBookingsScreen(
         }
 
         items(
-            filteredBookings.chunked(2),
+            filteredBookings.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1),
             key = { row -> row.firstOrNull()?.bookingId ?: row.hashCode() }
         ) { rowBookings ->
             Row(
