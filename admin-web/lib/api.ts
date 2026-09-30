@@ -627,10 +627,15 @@ export async function updateCustomerCallbackAccess(publicUserId: string, enabled
   });
 }
 
-export async function updateSupportCase(caseId: string, status: string, resolutionCode?: string, resolutionNote?: string): Promise<SupportCase> {
+export async function updateSupportCase(caseId: string, status: string, resolutionCode?: string, resolutionNote?: string, expectedResolutionAt?: string): Promise<SupportCase> {
   return api('/api/v1/admin/customer-care/cases/' + encodeURIComponent(caseId), {
     method: 'PUT',
-    body: JSON.stringify({ status, resolutionCode: resolutionCode || null, resolutionNote: resolutionNote || null }),
+    body: JSON.stringify({
+      status,
+      resolutionCode: resolutionCode || null,
+      resolutionNote: resolutionNote || null,
+      expectedResolutionAt: expectedResolutionAt || null,
+    }),
   });
 }
 

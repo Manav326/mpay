@@ -518,7 +518,6 @@ private fun SupportHero(
         }
     }
 }
-}
 
 @Composable
 private fun SupportInteractionCard(item: SupportInteractionResponse) {
