@@ -556,3 +556,70 @@ export interface CustomerSupportOverview {
   customerNotes: SupportNote[];
   events: SupportCaseEvent[];
 }
+
+
+export interface SupportPermissionState {
+  permission: string;
+  label: string;
+  description: string;
+  group: string;
+  enabled: boolean;
+  mode: 'DEFAULT' | 'ALLOW' | 'DENY' | null;
+  inherited: boolean;
+  editable: boolean;
+  lockedReason?: string | null;
+}
+
+export interface SupportRoleAccess {
+  role: string;
+  protected: boolean;
+  permissions: SupportPermissionState[];
+}
+
+export interface SupportUserAccess {
+  publicUserId: string;
+  name?: string | null;
+  mobile: string;
+  role: string;
+  protected: boolean;
+  permissions: SupportPermissionState[];
+}
+
+export interface SupportAccessResponse {
+  permissions: SupportPermissionState[];
+  roles: SupportRoleAccess[];
+  users: SupportUserAccess[];
+}
+
+export interface SupportQueueItem {
+  customerPublicId: string;
+  customerName?: string | null;
+  customerMobile?: string | null;
+  caseId?: string | null;
+  subject?: string | null;
+  category?: string | null;
+  priority?: string | null;
+  caseStatus?: string | null;
+  assignedUserPublicId?: string | null;
+  assignedUserName?: string | null;
+  source: string;
+  attentionReason: string;
+  unreadMessages: number;
+  lastActivityAt?: string | null;
+  pendingCallback?: SupportCallRequest | null;
+}
+
+export interface SupportQueueResponse {
+  total: number;
+  callbacks: number;
+  unreadChats: number;
+  unassigned: number;
+  assignedToViewer: number;
+  items: SupportQueueItem[];
+}
+
+export interface SupportAssignmentResponse {
+  caseId: string;
+  assignedUserPublicId?: string | null;
+  assignedUserName?: string | null;
+}
