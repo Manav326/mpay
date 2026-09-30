@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Mic, MicOff, PhoneCall, PhoneOff, ShieldCheck } from 'lucide-react';
+import { Check, Mic, MicOff, PhoneCall, PhoneOff, ShieldCheck, UsersRound, UserCog, LockKeyhole, CircleHelp } from 'lucide-react';
 import {
   createVoiceCall,
   endVoiceCall,
@@ -12,8 +12,11 @@ import {
   getVoiceCallUserAccess,
   updateVoiceCallRoleAccess,
   updateVoiceCallUserAccess,
+  getCustomerCareAccess,
+  updateCustomerCareRolePermission,
+  updateCustomerCareUserPermission,
 } from '@/lib/api';
-import { VoiceCallResponse, VoiceCallRoleAccess, VoiceCallUserAccess } from '@/lib/types';
+import { SupportAccessResponse, VoiceCallResponse, VoiceCallRoleAccess, VoiceCallUserAccess } from '@/lib/types';
 
 function webSocketUrl(token: string, path: string) {
   const base = getAdminApiBaseUrl();
@@ -512,20 +515,23 @@ function formatCallDate(value: string) {
 }
 
 export function VoiceAccessPanel() {
-  const [roles, setRoles] = useState<VoiceCallRoleAccess[]>([]);
-  const [users, setUsers] = useState<VoiceCallUserAccess[]>([]);
+  const [access, setAccess] = useState<SupportAccessResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [employeeQuery, setEmployeeQuery] = useState('');
   const [notice, setNotice] = useState('');
 
   async function load() {
     setLoading(true);
     try {
-      const [roleData, userData] = await Promise.all([getVoiceCallRoleAccess(), getVoiceCallUserAccess()]);
-      setRoles(roleData);
-      setUsers(userData);
+      const data = await getCustomerCareAccess();
+      setAccess(data);
+      if (!selectedRole && data.roles.length) setSelectedRole(data.roles.find(item => !item.protected)?.role || data.roles[0].role);
+      if (!selectedEmployeeId && data.users.length) setSelectedEmployeeId(data.users.find(item => !item.protected)?.publicUserId || data.users[0].publicUserId);
     } catch (error: any) {
-      setNotice(error?.message || 'Unable to load voice-call access.');
+      setNotice(error?.message || 'Unable to load staff access.');
     } finally {
       setLoading(false);
     }
@@ -533,96 +539,203 @@ export function VoiceAccessPanel() {
 
   useEffect(() => { void load(); }, []);
 
-  async function saveRole(role: string, enabled: boolean) {
-    setSavingKey('role:' + role);
+  async function saveRolePermission(role: string, permission: string, enabled: boolean) {
+    const key = 'role:' + role + ':' + permission;
+    setSavingKey(key);
+    setNotice('');
     try {
-      const updated = await updateVoiceCallRoleAccess(role, enabled);
-      setRoles(current => current.map(item => item.role === role ? updated : item));
-      setNotice(role + (enabled ? ' can now call customers.' : ' no longer has calling access.'));
-      if (!enabled) setUsers(current => current.map(user => user.role === role && user.mode === 'DEFAULT' ? { ...user, enabled: false } : user));
+      const updated = await updateCustomerCareRolePermission(role, permission, enabled);
+      setAccess(current => current ? {
+        ...current,
+        roles: current.roles.map(item => item.role === role ? updated : item)
+      } : current);
+      setNotice(enabled ? 'That role can now use the selected capability.' : 'That capability has been removed from the role.');
     } catch (error: any) {
-      setNotice(error?.message || 'Unable to update role access.');
+      setNotice(error?.message || 'Unable to change the role access.');
     } finally {
       setSavingKey('');
     }
   }
 
-  async function saveUser(publicUserId: string, mode: VoiceCallUserAccess['mode']) {
-    setSavingKey('user:' + publicUserId);
+  async function saveEmployeePermission(
+    publicUserId: string,
+    permission: string,
+    mode: 'DEFAULT' | 'ALLOW' | 'DENY'
+  ) {
+    const key = 'employee:' + publicUserId + ':' + permission;
+    setSavingKey(key);
+    setNotice('');
     try {
-      const updated = await updateVoiceCallUserAccess(publicUserId, mode);
-      setUsers(current => current.map(item => item.publicUserId === publicUserId ? updated : item));
+      const updated = await updateCustomerCareUserPermission(publicUserId, permission, mode);
+      setAccess(current => current ? {
+        ...current,
+        users: current.users.map(item => item.publicUserId === publicUserId ? updated : item)
+      } : current);
+      const message = mode === 'ALLOW'
+        ? 'This employee is now allowed to use that capability.'
+        : mode === 'DENY'
+          ? 'This employee is no longer allowed to use that capability.'
+          : 'This employee now follows the role setting again.';
+      setNotice(message);
     } catch (error: any) {
-      setNotice(error?.message || 'Unable to update staff access.');
+      setNotice(error?.message || 'Unable to change the employee access.');
     } finally {
       setSavingKey('');
     }
+  }
+
+  const chosenRole = access?.roles.find(item => item.role === selectedRole) || null;
+  const employees = access?.users.filter(employee => {
+    const q = employeeQuery.trim().toLowerCase();
+    return !q || (employee.name || '').toLowerCase().includes(q) || employee.mobile.includes(q) || employee.role.toLowerCase().includes(q);
+  }) || [];
+  const chosenEmployee = access?.users.find(item => item.publicUserId === selectedEmployeeId) || null;
+
+  function friendlyRole(role: string) {
+    if (role === 'MANAGER') return 'Manager';
+    if (role === 'CUSTOMER_SUPPORT') return 'Customer care';
+    return role.replace(/_/g, ' ').toLowerCase().replace(/(^| )\w/g, value => value.toUpperCase());
   }
 
   return (
     <div className="content voice-access-page">
       <section className="voice-access-hero">
         <div>
-          <div className="eyebrow">Calling & access</div>
-          <h2>Voice support controls</h2>
-          <p>Allow trusted portal staff to place two-way calls to customer accounts. Every customer explicitly accepts or declines the call.</p>
+          <div className="eyebrow">Administrator controls</div>
+          <h2>Voice & Access</h2>
+          <p>Choose what each employee role can do. Then make a specific employee more or less privileged without changing everyone else.</p>
         </div>
-        <div className="voice-access-hero-icon"><PhoneCall size={25} /></div>
+        <div className="voice-access-hero-icon"><ShieldCheck size={25} /></div>
       </section>
 
       {notice && <div className="voice-access-notice">{notice}</div>}
 
+      <section className="voice-admin-guide">
+        <div><CircleHelp size={17} /></div>
+        <div>
+          <b>How to use this page</b>
+          <span>First set the normal access for a job role. Use an employee override only when one person needs something different.</span>
+        </div>
+      </section>
+
       <section className="panel">
         <div className="panel-head wrap">
-          <div><h2>Role access</h2><p>Enable calling for a staff group, then fine-tune individual accounts below.</p></div>
+          <div><h2>1. Role access</h2><p>These settings apply to every employee in that job role unless you change one person below.</p></div>
           <button className="secondary compact" onClick={() => void load()} disabled={loading}>Refresh</button>
         </div>
         <div className="voice-role-grid">
-          {loading && roles.length === 0 ? <div className="empty-state">Loading call-access roles…</div> :
-            roles.map(role => (
-              <div className="voice-role-card" key={role.role}>
-                <div className="voice-role-icon"><PhoneCall size={17} /></div>
-                <div className="voice-role-copy"><b>{role.role.replace(/_/g, ' ')}</b><span>Staff role</span></div>
-                <button className={role.enabled ? 'voice-access-toggle enabled' : 'voice-access-toggle'} onClick={() => void saveRole(role.role, !role.enabled)} disabled={savingKey === 'role:' + role.role}>
-                  {role.enabled ? <Check size={14} /> : <ChevronDown size={14} />}
-                  {savingKey === 'role:' + role.role ? 'Saving…' : role.enabled ? 'Enabled' : 'Off'}
-                </button>
-              </div>
+          {loading && !access ? <div className="empty-state">Loading access settings…</div> :
+            access?.roles.filter(role => !role.protected).map(role => (
+              <button
+                className={selectedRole === role.role ? 'voice-role-card selected' : 'voice-role-card'}
+                key={role.role}
+                onClick={() => setSelectedRole(role.role)}
+              >
+                <div className="voice-role-icon"><UserCog size={17} /></div>
+                <div className="voice-role-copy"><b>{friendlyRole(role.role)}</b><span>{role.permissions.filter(permission => permission.enabled).length} capabilities enabled</span></div>
+                <span className="status active">Choose</span>
+              </button>
             ))
           }
         </div>
       </section>
 
+      {chosenRole && (
+        <section className="panel">
+          <div className="panel-head wrap">
+            <div>
+              <h2>{friendlyRole(chosenRole.role)} permissions</h2>
+              <p>Turn a capability on or off for everyone with this job role.</p>
+            </div>
+            <span className="voice-access-role-note"><ShieldCheck size={13} /> Administrator only</span>
+          </div>
+          <div className="voice-friendly-permissions">
+            {['Customer Care', 'Customer information', 'Voice', 'AI'].map(group => {
+              const items = chosenRole.permissions.filter(permission => permission.group === group);
+              if (!items.length) return null;
+              return (
+                <div className="voice-friendly-group" key={group}>
+                  <div className="voice-friendly-group-title">{group}</div>
+                  {items.map(permission => {
+                    const busy = savingKey === 'role:' + chosenRole.role + ':' + permission.permission;
+                    return (
+                      <div className="voice-friendly-row" key={permission.permission}>
+                        <div>
+                          <b>{permission.label}</b>
+                          <span>{permission.description}</span>
+                        </div>
+                        <button
+                          className={permission.enabled ? 'voice-access-toggle enabled' : 'voice-access-toggle'}
+                          disabled={!!savingKey}
+                          onClick={() => void saveRolePermission(chosenRole.role, permission.permission, !permission.enabled)}
+                        >
+                          {busy ? 'Saving…' : permission.enabled ? 'Allowed' : 'Not allowed'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className="panel voice-staff-panel">
         <div className="panel-head wrap">
-          <div><h2>Individual staff access</h2><p>Override the role setting for a specific Manager or Team Lead without changing the whole group.</p></div>
-        </div>
-        {users.length === 0 && !loading ? <div className="empty-state">No portal staff accounts are available.</div> :
-          <div className="voice-staff-list">
-            {users.map(user => (
-              <div className="voice-staff-row" key={user.publicUserId}>
-                <div className="voice-staff-main">
-                  <div className="voice-staff-avatar">{(user.name || user.role || 'S').charAt(0).toUpperCase()}</div>
-                  <div><b>{user.name || 'Unnamed staff'}</b><span>{user.role} · {user.mobile}</span></div>
-                </div>
-                <div className="voice-staff-access">
-                  <label><span>Access</span><select value={user.mode} disabled={savingKey === 'user:' + user.publicUserId} onChange={e => void saveUser(user.publicUserId, e.target.value as VoiceCallUserAccess['mode'])}>
-                    <option value="DEFAULT">Role default</option>
-                    <option value="ALLOW">Allow</option>
-                    <option value="DENY">Deny</option>
-                  </select></label>
-                </div>
-                <span className={user.enabled ? 'status active' : 'status blocked'}>{user.enabled ? 'Can call' : 'No call access'}</span>
-              </div>
-            ))}
+          <div>
+            <h2>2. Employee-specific access</h2>
+            <p>Use this only when one employee should differ from their normal role.</p>
           </div>
-        }
+        </div>
+        <div className="voice-employee-picker">
+          <div className="voice-employee-search"><UsersRound size={14} /><input value={employeeQuery} onChange={event => setEmployeeQuery(event.target.value)} placeholder="Search employee by name, mobile or role" /></div>
+          <select value={selectedEmployeeId} onChange={event => setSelectedEmployeeId(event.target.value)}>
+            <option value="">Choose employee</option>
+            {employees.map(employee => <option key={employee.publicUserId} value={employee.publicUserId}>{employee.name || employee.mobile} — {friendlyRole(employee.role)}</option>)}
+          </select>
+        </div>
+
+        {chosenEmployee && (
+          <div className="voice-selected-employee">
+            <div className="voice-selected-employee-head">
+              <div className="voice-staff-main">
+                <div className="voice-staff-avatar">{(chosenEmployee.name || chosenEmployee.role || 'E').charAt(0).toUpperCase()}</div>
+                <div><b>{chosenEmployee.name || 'Unnamed employee'}</b><span>{friendlyRole(chosenEmployee.role)} · {chosenEmployee.mobile}</span></div>
+              </div>
+            </div>
+            <div className="voice-friendly-permissions">
+              {chosenEmployee.permissions.map(permission => {
+                const busy = savingKey === 'employee:' + chosenEmployee.publicUserId + ':' + permission.permission;
+                const locked = chosenEmployee.protected || !permission.editable;
+                return (
+                  <div className="voice-friendly-row" key={permission.permission}>
+                    <div>
+                      <b>{permission.label}</b>
+                      <span>{permission.description}</span>
+                    </div>
+                    <div className="voice-access-choice">
+                      <button disabled={locked || !!savingKey} className={permission.mode === 'DEFAULT' ? 'selected' : ''} onClick={() => void saveEmployeePermission(chosenEmployee.publicUserId, permission.permission, 'DEFAULT')}>Role setting</button>
+                      <button disabled={locked || !!savingKey} className={permission.mode === 'ALLOW' ? 'selected allow' : ''} onClick={() => void saveEmployeePermission(chosenEmployee.publicUserId, permission.permission, 'ALLOW')}>Allow</button>
+                      <button disabled={locked || !!savingKey} className={permission.mode === 'DENY' ? 'selected deny' : ''} onClick={() => void saveEmployeePermission(chosenEmployee.publicUserId, permission.permission, 'DENY')}>Do not allow</button>
+                      {locked && <span className="voice-locked"><LockKeyhole size={11} /> Protected</span>}
+                      {busy && <span className="voice-saving">Saving…</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!chosenEmployee && !loading && <div className="empty-state">Choose an employee to review or change their individual access.</div>}
       </section>
 
       <section className="voice-access-privacy">
         <ShieldCheck size={18} />
-        <div><b>Privacy by design</b><span>mPay stores call state and access decisions, not call audio. The microphone is only activated after the customer accepts.</span></div>
+        <div><b>What gets recorded</b><span>Important employee actions such as access changes, account changes and support work are recorded for review. Ordinary page reading and searches are not stored as activity events.</span></div>
       </section>
     </div>
   );
 }
+
