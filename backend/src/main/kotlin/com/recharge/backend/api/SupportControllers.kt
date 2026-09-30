@@ -54,6 +54,7 @@ class CustomerSupportController(
 @RequestMapping("/api/v1/admin/customer-care")
 class CustomerCareAdminController(
     private val users: UserRepository,
+    private val adminService: AdminService,
     private val support: SupportService,
     private val supportAiSettings: SupportAiSettingsService,
     private val supportAccess: com.recharge.backend.service.SupportAccessService,
@@ -157,6 +158,13 @@ class CustomerCareAdminController(
         @Valid @RequestBody request: CreateSupportMessageRequest
     ): SupportMessageResponse =
         support.sendAdminChatMessage(currentUser(authentication), publicId, request.message)
+
+    @GetMapping("/customers/{publicId}/context")
+    fun customerContext(
+        authentication: Authentication,
+        @PathVariable publicId: String
+    ): AdminUserDetailResponse =
+        adminService.supportCustomerContext(currentUser(authentication), publicId)
 
     @GetMapping("/customers/{publicId}")
     fun customer(
