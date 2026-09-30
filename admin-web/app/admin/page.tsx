@@ -58,6 +58,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
 export default function Page() {
   const [session, setSession] = useState<{token:string; refreshToken:string; role:Role; name:string; permissions:string[]} | null>(null);
   const [loginState, setLoginState] = useState<'login'|'forgot'>('login');
+  const [sessionHydrated, setSessionHydrated] = useState(false);
   const [portalRoles, setPortalRoles] = useState<string[]>(['ADMIN','MANAGER']);
   const [selectedPortalRole, setSelectedPortalRole] = useState('ADMIN');
   const [mobile, setMobile] = useState(''); const [password, setPassword] = useState(''); const [otp, setOtp] = useState(''); const [newPassword, setNewPassword] = useState('');
@@ -86,10 +87,10 @@ export default function Page() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!session && window.location.pathname.startsWith('/admin/') && window.location.pathname !== '/admin/login') {
+    if (sessionHydrated && !session && window.location.pathname.startsWith('/admin/') && window.location.pathname !== '/admin/login') {
       window.location.replace('/admin/login');
     }
-  }, [session]);
+  }, [session, sessionHydrated]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !session) return;
@@ -139,9 +140,11 @@ export default function Page() {
 
   useEffect(()=>{
     const raw = localStorage.getItem('mpay_admin_session');
-    if(raw) setSession(JSON.parse(raw));
+    if(raw) {
+      try { setSession(JSON.parse(raw)); } catch { localStorage.removeItem('mpay_admin_session'); }
+    }
     setSidebarCollapsed(localStorage.getItem('mpay_admin_sidebar_collapsed') === '1');
-    getPortalRoles().then(roles=>{ if(roles.length) { setPortalRoles(roles); if(!roles.includes(selectedPortalRole)) setSelectedPortalRole(roles[0]); } }).catch(()=>{});
+    getPortalRoles().then(roles=>{ if(roles.length) { setPortalRoles(roles); if(!roles.includes(selectedPortalRole)) setSelectedPortalRole(roles[0]); } }).catch(()=>{}).finally(()=>setSessionHydrated(true));
   },[]);
 
   useEffect(()=>{ if(!session) return; if(view==='dashboard') { getDashboard().then(setDashboard).catch(()=>{}); loadAttention(); if(session.permissions?.includes('MANAGE_RENTAL_OPERATIONS')) getRentalAdminDashboard().then(setRentalDashboard).catch(()=>{}); } else if(view==='users') { getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); } },[session,view]);
@@ -181,6 +184,7 @@ export default function Page() {
   }
   async function loadRental(){ try { const [summary, page] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus)]); setRentalDashboard(summary); setRentalBookings(page.items); setRentalBookingHasNext(page.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
   useEffect(()=>{ if(session && view==='users') loadUsers(); },[session,view,roleFilter, sort]);
+  useEffect(()=>{ if(session && view==='commissions' && session.permissions?.includes('MANAGE_COMMISSION_RATES')) getCommissionRates().then(setCommissionRates).catch(()=>{}); },[session,view]);
   useEffect(()=>{ if(session && view==='rental' && permissionsForSession(session).includes('MANAGE_RENTAL_OPERATIONS')) loadRental(); },[session,view,rentalBookingPage,rentalBookingStatus]);
 
   async function doLogin(e: React.FormEvent){ e.preventDefault(); setBusy(true); setNotice(''); try { const r = await login(mobile, password, selectedPortalRole); const s={token:r.accessToken, refreshToken:r.refreshToken, role:r.role, name:r.name||r.role, permissions:r.permissions||[]}; localStorage.setItem('mpay_admin_session', JSON.stringify(s)); localStorage.setItem('mpay_admin_token', r.accessToken); startWebSessionRefresh({ accessKey: 'mpay_admin_token', refreshKey: 'mpay_admin_refresh_token', sessionKey: 'mpay_admin_session', redirectPath: '/admin' }); setSession(s); } catch(err:any){ setNotice(err.message||'Login failed'); } finally { setBusy(false); } }
