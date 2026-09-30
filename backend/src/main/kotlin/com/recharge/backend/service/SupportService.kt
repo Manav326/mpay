@@ -416,12 +416,14 @@ class SupportService(
         val conversationId = requireNotNull(conversation.id)
         messages.markCustomerRead(conversationId, listOf("STAFF", "AI"), Instant.now())
         val messageList = messages.findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT)).reversed()
+        val chatItems = buildChatItems(conversationId)
         val currentCase = conversation.caseId?.let { cases.findById(it).orElse(null) }
         return SupportChatResponse(
             conversationId = conversation.conversationId,
             caseId = currentCase?.caseId,
             status = conversation.status,
-            messages = messageList.map(::toMessageResponse),
+            messages = legacyChatMessages(chatItems),
+
             unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
                 messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
             unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
@@ -578,12 +580,13 @@ class SupportService(
             ?: return SupportChatResponse(null, null, OPEN, emptyList(), 0, 0, false, null, emptyList())
 
         val conversationId = requireNotNull(conversation.id)
-        val messageList = messages.findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, SUPPORT_CHAT_ITEM_LIMIT)).reversed()
+        val chatItems = buildChatItems(conversationId)
+        val currentCase = conversation.caseId?.let { cases.findById(it).orElse(null) }
         return SupportChatResponse(
             conversationId = conversation.conversationId,
-            caseId = conversation.caseId?.let { cases.findById(it).orElse(null)?.caseId },
+            caseId = currentCase?.caseId,
             status = conversation.status,
-            messages = messageList.map(::toMessageResponse),
+            messages = legacyChatMessages(chatItems),
             unreadForCustomer = messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "STAFF") +
                 messages.countByConversationIdAndSenderTypeAndCustomerReadAtIsNull(conversationId, "AI"),
             unreadForStaff = messages.countByConversationIdAndSenderTypeAndStaffReadAtIsNull(conversationId, "CUSTOMER"),
@@ -1119,6 +1122,31 @@ class SupportService(
         entity.etaSource = "SYSTEM"
         entity.expectedResolutionAt = defaultExpectedResolutionAt(at)
     }
+
+    private fun legacyChatMessages(items: List<SupportChatItemResponse>): List<SupportMessageResponse> =
+        items.map { item ->
+            if (item.type == "MESSAGE") {
+                SupportMessageResponse(
+                    messageId = item.itemId,
+                    senderType = item.senderType ?: "SYSTEM",
+                    message = item.message.orEmpty(),
+                    createdAt = item.createdAt
+                )
+            } else {
+                val label = when {
+                    item.outcome == "NO_ANSWER" || item.status == "MISSED" -> "Support tried to call you"
+                    item.status == "DECLINED" -> "Support call declined"
+                    else -> "Support voice call"
+                }
+                val detail = listOfNotNull(item.outcome?.replace('_', ' '), item.durationLabel).joinToString(" · ")
+                SupportMessageResponse(
+                    messageId = item.itemId,
+                    senderType = "SYSTEM",
+                    message = if (detail.isBlank()) label else "$label · $detail",
+                    createdAt = item.createdAt
+                )
+            }
+        }
 
     private fun buildChatItems(conversationId: Long): List<SupportChatItemResponse> {
         val messageItems = messages
