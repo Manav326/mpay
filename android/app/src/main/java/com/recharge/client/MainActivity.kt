@@ -535,7 +535,8 @@ private fun AppRoot(
                                             IncomingCallActivity.EXTRA_CALLER_NAME,
                                             callerName
                                         )
-                                ).onFailure { error ->
+                                )
+                            }.onFailure { error ->
                                     android.util.Log.e(
                                         "MainActivity",
                                         "Unable to open incoming call screen. callId=" + activeCall.callId,
