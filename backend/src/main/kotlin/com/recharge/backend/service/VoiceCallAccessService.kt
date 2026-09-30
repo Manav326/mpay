@@ -81,7 +81,8 @@ class VoiceCallAccessService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Administrator calling access is protected")
         }
 
-        when (val normalized = mode.trim().uppercase()) {
+        val normalized = mode.trim().uppercase()
+        when (normalized) {
             "DEFAULT" -> overrides.findByEmployeeIdAndPermissionIgnoreCase(requireNotNull(target.id), "CALL_CUSTOMER")?.let(overrides::delete)
             "ALLOW" -> saveOverride(target, true, viewer)
             "DENY" -> {
