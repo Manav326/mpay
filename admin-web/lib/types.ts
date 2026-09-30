@@ -603,6 +603,7 @@ export interface SupportQueueItem {
   caseStatus?: string | null;
   assignedUserPublicId?: string | null;
   assignedUserName?: string | null;
+  assignedToViewer: boolean;
   source: string;
   attentionReason: string;
   unreadMessages: number;
