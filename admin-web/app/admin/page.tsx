@@ -51,14 +51,6 @@ function adminViewFromPath(pathname: string): AdminView {
 const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 const dateTime = (v: string) => new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(v));
 
-interface AdminAttention {
-  pendingRecharges: number;
-  pendingWithdrawals: number;
-  pendingVendorApplications: number;
-  pendingVehicleReviews: number;
-  pendingPayouts: number;
-}
-
 function Logo({ compact = false }: { compact?: boolean }) {
   return <MpayBrandUnit variant="sidebar" className={compact ? 'compact' : ''} />;
 }
