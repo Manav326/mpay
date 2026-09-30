@@ -83,6 +83,19 @@ export async function getPortalRoles(): Promise<string[]> {
   return result.roles;
 }
 
+export async function createPortalStaff(payload: {
+  name: string;
+  mobile: string;
+  email?: string;
+  password: string;
+  role: string;
+}): Promise<PortalStaff> {
+  return api('/api/v1/admin/staff', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function login(mobile: string, password: string, role: string) {
   if (demo) {
     const upper = role.toUpperCase();
