@@ -55,7 +55,18 @@ class AdminService(
     }
 
     fun userDetail(viewer: UserEntity, targetPublicId: String): AdminUserDetailResponse {
-        val target = resolveTarget(viewer, targetPublicId)
+        val target = if (roleAccess.hasPermission(viewer, "VIEW_USER_DETAIL")) {
+            resolveTarget(viewer, targetPublicId)
+        } else {
+            roleAccess.requirePermission(viewer, "SUPPORT_VIEW_CUSTOMER_CONTEXT")
+            val resolved = users.findByPublicId(targetPublicId).orElse(null)
+                ?: targetPublicId.toLongOrNull()?.let { users.findById(it).orElse(null) }
+                ?: throw IllegalArgumentException("User not found")
+            if (!roleAccess.canView(viewer, resolved)) {
+                throw org.springframework.security.access.AccessDeniedException("You cannot view this customer")
+            }
+            resolved
+        }
 
         val now = ZonedDateTime.now(zoneId)
         val todayStart = now.toLocalDate().atStartOfDay(zoneId).toInstant()
