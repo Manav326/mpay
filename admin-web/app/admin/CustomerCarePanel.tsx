@@ -769,7 +769,7 @@ export default function CustomerCarePanel({
                   </button>
                 </div>
 
-                <div className="care-chat-window" ref={chatMessagesRef}>
+                <div className="care-chat-window" ref={chatMessagesRef} onScroll={() => void handleChatScroll()}>
                   {chatLoading && !supportChat ? (
                     <div className="care-empty">Loading conversation…</div>
                   ) : supportChat?.messages.length ? (
@@ -793,6 +793,18 @@ export default function CustomerCarePanel({
                     </div>
                   )}
                 </div>
+                {supportChat?.unreadForStaff && !chatAtBottom && (
+                  <button className="care-new-message-bar" onClick={() => {
+                    const node = chatMessagesRef.current;
+                    if (node) {
+                      node.scrollTop = node.scrollHeight;
+                      setChatAtBottom(true);
+                    }
+                    if (selected) void markCustomerCareChatRead(selected.customerPublicId).then(setSupportChat).catch(() => {});
+                  }}>
+                    <Inbox size={13} /> {supportChat.unreadForStaff} new message{supportChat.unreadForStaff === 1 ? '' : 's'} <ChevronDown size={12} />
+                  </button>
+                )}
 
                 {canManageSupport && (
                   <div className="care-composer">
