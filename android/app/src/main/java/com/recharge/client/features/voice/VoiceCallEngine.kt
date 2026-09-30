@@ -138,47 +138,7 @@ class VoiceCallEngine(private val context: Context) {
     fun setAudioOutput(outputId: String) {
         val manager = audioManager ?: return
         val output = buildAudioOutputs(manager).firstOrNull { it.id == outputId } ?: return
-        val applied = runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val deviceTypes = when (outputId) {
-                    "EARPIECE" -> setOf(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
-                    "SPEAKER" -> setOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
-                    "BLUETOOTH" -> setOf(
-                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-                        AudioDeviceInfo.TYPE_BLE_HEADSET,
-                        AudioDeviceInfo.TYPE_HEARING_AID
-                    )
-                    else -> setOf(
-                        AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                        AudioDeviceInfo.TYPE_USB_HEADSET
-                    )
-                }
-                val device = manager.availableCommunicationDevices.firstOrNull { it.type in deviceTypes }
-                device != null && manager.setCommunicationDevice(device)
-            } else {
-                @Suppress("DEPRECATION")
-                when (outputId) {
-                    "SPEAKER" -> {
-                        manager.stopBluetoothSco()
-                        manager.isBluetoothScoOn = false
-                        manager.isSpeakerphoneOn = true
-                        true
-                    }
-                    "BLUETOOTH" -> {
-                        manager.startBluetoothSco()
-                        manager.isBluetoothScoOn = true
-                        true
-                    }
-                    else -> {
-                        manager.stopBluetoothSco()
-                        manager.isBluetoothScoOn = false
-                        manager.isSpeakerphoneOn = false
-                        true
-                    }
-                }
-            }
-        }.getOrDefault(false)
+        val applied = applyAudioOutput(manager, outputId)
 
         if (applied) {
             stateFlow.value = stateFlow.value.copy(
@@ -198,18 +158,16 @@ class VoiceCallEngine(private val context: Context) {
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                outputs.add(AudioOutputOption("BLUETOOTH", "Bluetooth"))
                 return outputs
             }
             val devices = runCatching { manager.availableCommunicationDevices }.getOrDefault(emptyList())
-            devices.filter {
+            devices.firstOrNull {
                 it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
                     it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
                     it.type == AudioDeviceInfo.TYPE_HEARING_AID
-            }.mapNotNull { device ->
-                val name = device.productName?.toString()?.trim().orEmpty()
-                AudioOutputOption("BLUETOOTH", if (name.isBlank()) "Bluetooth" else "Bluetooth · $name")
-            }.distinctBy { it.label }.firstOrNull()?.let { outputs.add(it) }
+            }?.let { device ->
+                outputs.add(AudioOutputOption("BLUETOOTH", audioOutputLabelForDevice(device)))
+            }
 
             if (devices.any {
                     it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
@@ -220,11 +178,23 @@ class VoiceCallEngine(private val context: Context) {
             }
         } else {
             @Suppress("DEPRECATION")
-            if (manager.isBluetoothScoAvailableOffCall) {
+            val outputDevices = runCatching {
+                manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+            }.getOrDefault(emptyList())
+            if (manager.isBluetoothScoAvailableOffCall ||
+                outputDevices.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+            ) {
                 outputs.add(AudioOutputOption("BLUETOOTH", "Bluetooth"))
             }
+            if (outputDevices.any {
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                }) {
+                outputs.add(AudioOutputOption("WIRED", "Wired headset"))
+            }
         }
-        return outputs
+        return outputs.distinctBy { it.id }
     }
 
     fun stop() {
@@ -256,6 +226,11 @@ class VoiceCallEngine(private val context: Context) {
         previousAudioMode = manager.mode
         @Suppress("DEPRECATION")
         previousSpeakerState = manager.isSpeakerphoneOn
+        val previousCommunicationDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { manager.communicationDevice }.getOrNull()
+        } else {
+            null
+        }
 
         val attributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -285,27 +260,213 @@ class VoiceCallEngine(private val context: Context) {
 
         manager.mode = AudioManager.MODE_IN_COMMUNICATION
         val outputs = buildAudioOutputs(manager)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val earpiece = runCatching {
-                manager.availableCommunicationDevices.firstOrNull {
-                    it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-                }
-            }.getOrNull()
-            if (earpiece != null) {
-                runCatching { manager.setCommunicationDevice(earpiece) }
-            } else {
+        val initialOutput = selectInitialAudioOutput(
+            manager = manager,
+            previousCommunicationDevice = previousCommunicationDevice,
+            previousSpeakerState = previousSpeakerState
+        )
+
+        val applied = applyAudioOutput(manager, initialOutput?.id)
+
+        if (!applied) {
+            // Earpiece is the last-resort communication route. We do not force it
+            // when Android has a connected/usable external communication device.
+            Log.w(TAG, "Unable to apply preferred audio route; falling back to platform route.")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 runCatching { manager.clearCommunicationDevice() }
+            } else {
+                @Suppress("DEPRECATION")
+                manager.isSpeakerphoneOn = false
             }
+        }
+
+        val effectiveOutputId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { manager.communicationDevice?.let(::audioOutputIdForDevice) }.getOrNull()
+                ?: initialOutput?.id
+                ?: "EARPIECE"
         } else {
             @Suppress("DEPRECATION")
-            manager.isSpeakerphoneOn = false
+            when {
+                manager.isBluetoothScoOn -> "BLUETOOTH"
+                manager.isSpeakerphoneOn -> "SPEAKER"
+                else -> "EARPIECE"
+            }
         }
+        val effectiveOutput = buildAudioOutputs(manager)
+            .firstOrNull { it.id == effectiveOutputId }
+            ?: AudioOutputOption(effectiveOutputId, audioOutputLabel(effectiveOutputId))
+
         stateFlow.value = stateFlow.value.copy(
-            speaker = false,
-            audioOutputId = "EARPIECE",
-            audioOutput = "Phone",
+            speaker = effectiveOutputId == "SPEAKER",
+            audioOutputId = effectiveOutputId,
+            audioOutput = effectiveOutput.label,
             audioOutputs = outputs
         )
+    }
+
+    private fun selectInitialAudioOutput(
+        manager: AudioManager,
+        previousCommunicationDevice: AudioDeviceInfo?,
+        previousSpeakerState: Boolean
+    ): AudioOutputOption? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val devices = runCatching { manager.availableCommunicationDevices }.getOrDefault(emptyList())
+
+            // Prefer the currently active external communication route when Android
+            // already has one. If the previous route was only the earpiece, prefer
+            // a connected external route such as Bluetooth or a wired headset.
+            previousCommunicationDevice?.let { previous ->
+                if (previous.type != AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                    val matching = devices.firstOrNull { it.type == previous.type && it.address == previous.address }
+                        ?: devices.firstOrNull { it.type == previous.type }
+                    if (matching != null) {
+                        return AudioOutputOption(
+                            audioOutputIdForDevice(matching),
+                            audioOutputLabelForDevice(matching)
+                        )
+                    }
+                }
+            }
+
+            val bluetooth = devices.firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_HEARING_AID
+            }
+            if (bluetooth != null) {
+                return AudioOutputOption("BLUETOOTH", audioOutputLabelForDevice(bluetooth))
+            }
+
+            val wired = devices.firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
+            if (wired != null) {
+                return AudioOutputOption("WIRED", audioOutputLabelForDevice(wired))
+            }
+
+            if (previousSpeakerState && devices.any { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }) {
+                return AudioOutputOption("SPEAKER", "Speaker")
+            }
+
+            if (devices.any { it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }) {
+                return AudioOutputOption("EARPIECE", "Phone")
+            }
+
+            return devices.firstOrNull()?.let {
+                AudioOutputOption(audioOutputIdForDevice(it), audioOutputLabelForDevice(it))
+            }
+        }
+
+        @Suppress("DEPRECATION")
+        val outputDevices = runCatching {
+            manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+        }.getOrDefault(emptyList())
+
+        val bluetoothConnected = manager.isBluetoothScoOn ||
+            outputDevices.any { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+        if (bluetoothConnected) {
+            return AudioOutputOption("BLUETOOTH", "Bluetooth")
+        }
+
+        val wired = outputDevices.firstOrNull {
+            it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+        }
+        if (wired != null) {
+            return AudioOutputOption("WIRED", "Wired headset")
+        }
+
+        @Suppress("DEPRECATION")
+        if (previousSpeakerState) {
+            return AudioOutputOption("SPEAKER", "Speaker")
+        }
+
+        return AudioOutputOption("EARPIECE", "Phone")
+    }
+
+    private fun applyAudioOutput(manager: AudioManager, outputId: String?): Boolean {
+        val id = outputId ?: return false
+
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val deviceTypes = when (id) {
+                    "EARPIECE" -> setOf(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)
+                    "SPEAKER" -> setOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
+                    "BLUETOOTH" -> setOf(
+                        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                        AudioDeviceInfo.TYPE_BLE_HEADSET,
+                        AudioDeviceInfo.TYPE_HEARING_AID
+                    )
+                    else -> setOf(
+                        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                        AudioDeviceInfo.TYPE_USB_HEADSET
+                    )
+                }
+                val devices = manager.availableCommunicationDevices
+                val device = devices.firstOrNull { it.type in deviceTypes }
+                    ?: return@runCatching false
+                manager.setCommunicationDevice(device)
+            } else {
+                @Suppress("DEPRECATION")
+                when (id) {
+                    "SPEAKER" -> {
+                        manager.stopBluetoothSco()
+                        manager.isBluetoothScoOn = false
+                        manager.isSpeakerphoneOn = true
+                        true
+                    }
+                    "BLUETOOTH" -> {
+                        manager.startBluetoothSco()
+                        manager.isBluetoothScoOn = true
+                        true
+                    }
+                    else -> {
+                        manager.stopBluetoothSco()
+                        manager.isBluetoothScoOn = false
+                        manager.isSpeakerphoneOn = false
+                        true
+                    }
+                }
+            }
+        }.getOrDefault(false)
+    }
+
+    private fun audioOutputIdForDevice(device: AudioDeviceInfo): String {
+        return when (device.type) {
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "SPEAKER"
+            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "EARPIECE"
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_HEARING_AID -> "BLUETOOTH"
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_USB_HEADSET -> "WIRED"
+            else -> device.type.toString()
+        }
+    }
+
+    private fun audioOutputLabelForDevice(device: AudioDeviceInfo): String {
+        val name = device.productName?.toString()?.trim().orEmpty()
+        return when (audioOutputIdForDevice(device)) {
+            "BLUETOOTH" -> if (name.isBlank()) "Bluetooth" else "Bluetooth · $name"
+            "WIRED" -> "Wired headset"
+            "SPEAKER" -> "Speaker"
+            "EARPIECE" -> "Phone"
+            else -> if (name.isBlank()) "Audio device" else name
+        }
+    }
+
+    private fun audioOutputLabel(outputId: String): String {
+        return when (outputId) {
+            "BLUETOOTH" -> "Bluetooth"
+            "WIRED" -> "Wired headset"
+            "SPEAKER" -> "Speaker"
+            else -> "Phone"
+        }
     }
 
     private fun restoreAudio() {
