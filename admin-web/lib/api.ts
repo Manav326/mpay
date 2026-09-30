@@ -612,6 +612,10 @@ export async function getCustomerCareCustomer(publicUserId: string): Promise<Sup
   return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId));
 }
 
+export async function getCustomerCareVoiceCallAvailability(publicUserId: string): Promise<VoiceCallAvailability> {
+  return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/voice-availability');
+}
+
 export async function getCustomerCallbackAccess(publicUserId: string): Promise<CustomerCallbackAccess> {
   return api('/api/v1/admin/customer-care/customers/' + encodeURIComponent(publicUserId) + '/callback-access');
 }

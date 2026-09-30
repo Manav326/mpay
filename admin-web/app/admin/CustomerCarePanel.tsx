@@ -36,6 +36,7 @@ import {
   getCustomerCareChat,
   getCustomerCareCustomer,
   getCustomerCareCustomerContext,
+  getCustomerCareVoiceCallAvailability,
   searchCustomerCareCustomers,
   getCustomerCareQueue,
   getCustomerCareRequests,
@@ -61,6 +62,7 @@ import {
   SupportChat,
   SupportCustomer,
   SupportInteraction,
+  VoiceCallAvailability,
   SupportNote,
   SupportQueueResponse,
   SupportCustomerSearchResult,
@@ -177,6 +179,7 @@ export default function CustomerCarePanel({
   const [busyKey, setBusyKey] = useState('');
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const [activeCallName, setActiveCallName] = useState('');
+  const [voiceCallAvailable, setVoiceCallAvailable] = useState<boolean | null>(null);
   const [aiSettings, setAiSettings] = useState<SupportAiSettings | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -192,6 +195,34 @@ export default function CustomerCarePanel({
   const [accessNotice, setAccessNotice] = useState('');
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const customerSearchRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const publicId = selected?.customerPublicId;
+    if (!publicId) {
+      setVoiceCallAvailable(null);
+      return;
+    }
+
+    let active = true;
+    let poll: ReturnType<typeof setInterval> | null = null;
+
+    const loadAvailability = async () => {
+      try {
+        const result: VoiceCallAvailability = await getCustomerCareVoiceCallAvailability(publicId);
+        if (active) setVoiceCallAvailable(result.available);
+      } catch {
+        if (active) setVoiceCallAvailable(null);
+      }
+    };
+
+    void loadAvailability();
+    poll = setInterval(() => { void loadAvailability(); }, 5000);
+
+    return () => {
+      active = false;
+      if (poll) clearInterval(poll);
+    };
+  }, [selected?.customerPublicId]);
 
   const visibleClients = useMemo(() => {
     const query = customerQuery.trim();
@@ -355,6 +386,14 @@ export default function CustomerCarePanel({
     if (!canManageSupport || !canCallCustomer || busyKey) return;
     setBusyKey('call:' + request.requestId);
     try {
+      if (request.customerPublicId) {
+        const availability = await getCustomerCareVoiceCallAvailability(request.customerPublicId);
+        if (!availability.available) {
+          if (selected?.customerPublicId === request.customerPublicId) setVoiceCallAvailable(false);
+          setNotice('Customer is currently unavailable for voice calls.');
+          return;
+        }
+      }
       const call = await startCustomerCareCall(request.requestId);
       setActiveCallId(call.callId);
       setActiveCallName(request.customerName || request.customerMobile || 'mPay customer');
@@ -371,9 +410,15 @@ export default function CustomerCarePanel({
   }
 
   async function directCall() {
-    if (!selected || !canCallCustomer || busyKey) return;
+    if (!selected || !canCallCustomer || busyKey || voiceCallAvailable !== true) return;
     setBusyKey('direct-call');
     try {
+      const availability = await getCustomerCareVoiceCallAvailability(selected.customerPublicId);
+      setVoiceCallAvailable(availability.available);
+      if (!availability.available) {
+        setNotice('Customer is currently unavailable for voice calls.');
+        return;
+      }
       const call = await createVoiceCall(selected.customerPublicId);
       setActiveCallId(call.callId);
       setActiveCallName(selected.customerName || selected.mobile || 'mPay customer');
@@ -919,17 +964,39 @@ export default function CustomerCarePanel({
                   </div>
                 </div>
                 <div className="care-customer-actions">
+                  <span
+                    className={'care-status ' + (
+                      voiceCallAvailable === true
+                        ? 'active'
+                        : voiceCallAvailable === false
+                          ? 'danger'
+                          : 'pending'
+                    )}
+                    title="Based on the customer's registered voice-call device"
+                  >
+                    {voiceCallAvailable === true
+                      ? 'Voice call available'
+                      : voiceCallAvailable === false
+                        ? 'Voice call unavailable'
+                        : 'Checking call availability…'}
+                  </span>
                   {selected.pendingRequest && (
                     <button
                       className="primary compact"
-                      disabled={!canCallCustomer || !!busyKey || !!activeCallId}
+                      disabled={!canCallCustomer || voiceCallAvailable !== true || !!busyKey || !!activeCallId}
                       onClick={() => void startRequestCall(selected.pendingRequest!)}
+                      title={voiceCallAvailable === false ? 'Customer is unavailable for voice calls' : undefined}
                     >
                       <PhoneCall size={14} /> Call requested
                     </button>
                   )}
                   {canCallCustomer && !selected.pendingRequest && (
-                    <button className="secondary compact" disabled={!!busyKey || !!activeCallId} onClick={() => void directCall()}>
+                    <button
+                      className="secondary compact"
+                      disabled={voiceCallAvailable !== true || !!busyKey || !!activeCallId}
+                      onClick={() => void directCall()}
+                      title={voiceCallAvailable === false ? 'Customer is unavailable for voice calls' : undefined}
+                    >
                       <PhoneCall size={14} /> Call customer
                     </button>
                   )}

@@ -102,18 +102,28 @@ class CallPushService(
         }
 
         val messaging = firebaseMessaging() ?: return
-        // Calls intentionally use a data-only high-priority message. This keeps
-        // foreground and background delivery on the same Android code path, where the
-        // dedicated ringtone foreground service owns sound/vibration and authoritative
-        // expiry/terminal-state cleanup.
+        // Incoming calls use a high-priority notification + data message.
+        // Foreground delivery still reaches MpayFirebaseMessagingService so the app can
+        // render its full CallStyle/ringtone path. In the background/locked state, FCM/Android
+        // can independently place the audible call notification in the system tray even when
+        // the app process is not running.
         val androidConfigBuilder = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
             .setTtl(properties.ringingTimeoutSeconds.coerceAtLeast(10) * 1000L)
             .setFcmOptions(AndroidFcmOptions.withAnalyticsLabel("voice-call"))
 
-        // Incoming calls intentionally remain data-only. Android receives the
-        // high-priority event in MpayFirebaseMessagingService, which owns the
-        // CallStyle/full-screen notification, ringing service, expiry and actions.
+        if (data["event"] == "CALL_INCOMING") {
+            androidConfigBuilder.setNotification(
+                com.google.firebase.messaging.AndroidNotification.builder()
+                    .setTitle("Incoming mPay call")
+                    .setBody(data["callerName"] ?: "mPay Support")
+                    .setChannelId("incoming_calls_v5")
+                    .setSound("default")
+                    .setPriority(com.google.firebase.messaging.AndroidNotification.Priority.HIGH)
+                    .build()
+            )
+        }
+
         val androidConfig = androidConfigBuilder.build()
 
         try {

@@ -26,6 +26,7 @@ class SupportService(
     private val overrides: UserPermissionOverrideRepository,
     private val voiceParticipants: VoiceCallParticipantRepository,
     private val voiceCalls: VoiceCallRepository,
+    private val callPush: CallPushService,
     private val messages: SupportMessageRepository,
     private val eventPublisher: ApplicationEventPublisher,
     private val employeeAudit: EmployeeAuditService
@@ -368,6 +369,14 @@ class SupportService(
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val customer = visibleClient(viewer, publicId)
         return customerResponse(customer, includeInternalNotes = true)
+    }
+
+    fun voiceCallAvailability(viewer: EmployeeEntity, publicId: String): VoiceCallAvailabilityResponse {
+        val customer = visibleClient(viewer, publicId)
+        return VoiceCallAvailabilityResponse(
+            publicUserId = customer.publicId,
+            available = callPush.hasActiveDevice(requireNotNull(customer.id))
+        )
     }
 
     @Transactional

@@ -157,9 +157,15 @@ class VoiceCallEngine(private val context: Context) {
             AudioOutputOption("SPEAKER", "Speaker")
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                return outputs
+            val bluetoothPermissionGranted =
+                context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+            if (!bluetoothPermissionGranted) {
+                // Keep Bluetooth visible so the call UI can request BLUETOOTH_CONNECT on demand.
+                // Previously returning here made the Bluetooth option impossible to reach at all.
+                outputs.add(AudioOutputOption("BLUETOOTH", "Bluetooth"))
+                return outputs.distinctBy { it.id }
             }
+
             val devices = runCatching { manager.availableCommunicationDevices }.getOrDefault(emptyList())
             devices.firstOrNull {
                 it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||

@@ -568,6 +568,11 @@ export interface CustomerCallbackAccess {
   enabled: boolean;
 }
 
+export interface VoiceCallAvailability {
+  publicUserId: string;
+  available: boolean;
+}
+
 export interface CustomerSupportOverview {
   callbackRequestEnabled: boolean;
   pendingRequest?: SupportCallRequest | null;

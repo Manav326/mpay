@@ -162,6 +162,10 @@ class CustomerCareAdminController(
     fun customer(authentication: Authentication, @PathVariable publicId: String): SupportCustomerResponse =
         support.customer(currentEmployee(authentication), publicId)
 
+    @GetMapping("/customers/{publicId}/voice-availability")
+    fun voiceCallAvailability(authentication: Authentication, @PathVariable publicId: String): VoiceCallAvailabilityResponse =
+        support.voiceCallAvailability(currentEmployee(authentication), publicId)
+
     @GetMapping("/customers/{publicId}/callback-access")
     fun callbackAccess(authentication: Authentication, @PathVariable publicId: String): CustomerCallbackAccessResponse =
         support.callbackAccess(currentEmployee(authentication), publicId)

@@ -133,6 +133,11 @@ data class CustomerCallbackAccessResponse(
     val enabled: Boolean
 )
 
+data class VoiceCallAvailabilityResponse(
+    val publicUserId: String,
+    val available: Boolean
+)
+
 data class CustomerCallbackAccessRequest(
     val enabled: Boolean
 )
