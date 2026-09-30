@@ -399,9 +399,12 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
   const [withdrawalHasNext,setWithdrawalHasNext] = useState(false);
   const [walletPage,setWalletPage] = useState(0);
   const [walletHasNext,setWalletHasNext] = useState(false);
-  const [loadingRecharges,setLoadingRecharges] = useState(true);
-  const [loadingWallet,setLoadingWallet] = useState(true);
-  const [loadingWithdrawals,setLoadingWithdrawals] = useState(true);
+  const [loadingRecharges,setLoadingRecharges] = useState(false);
+  const [loadingWallet,setLoadingWallet] = useState(false);
+  const [loadingWithdrawals,setLoadingWithdrawals] = useState(false);
+  const [rechargesLoaded,setRechargesLoaded] = useState(false);
+  const [walletLoaded,setWalletLoaded] = useState(false);
+  const [withdrawalsLoaded,setWithdrawalsLoaded] = useState(false);
   const [statusBusy,setStatusBusy] = useState(false);
   const [voiceCallId,setVoiceCallId] = useState<string | null>(null);
   const [voiceCallBusy,setVoiceCallBusy] = useState(false);
@@ -423,27 +426,52 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
 
   useEffect(()=>{
     let active = true;
+    setRecharges([]);
+    setWalletHistory([]);
+    setWithdrawals([]);
+    setRechargePage(0);
+    setWalletPage(0);
+    setWithdrawalPage(0);
+    setRechargeHasNext(false);
+    setWalletHasNext(false);
+    setWithdrawalHasNext(false);
+    setRechargesLoaded(false);
+    setWalletLoaded(false);
+    setWithdrawalsLoaded(false);
+    setLoadingRecharges(false);
+    setLoadingWallet(false);
+    setLoadingWithdrawals(false);
     getUserProfileImage(user.id).then(src=>{ if(active) setImageSrc(src); }).catch(()=>{});
-    Promise.all([
-      getUserRechargeHistory(user.id,0,25),
-      getUserWalletHistory(user.id,0,25),
-      getUserWithdrawalHistory(user.id,0,25),
-    ]).then(([rechargePageData,walletPageData,withdrawalPageData])=>{
-      if(!active) return;
-      setRecharges(rechargePageData.items);
-      setRechargePage(rechargePageData.page);
-      setRechargeHasNext(rechargePageData.hasNext);
-      setWalletHistory(walletPageData.items);
-      setWalletPage(walletPageData.page);
-      setWalletHasNext(walletPageData.hasNext);
-      setWithdrawals(withdrawalPageData.items);
-      setWithdrawalPage(withdrawalPageData.page);
-      setWithdrawalHasNext(withdrawalPageData.hasNext);
-    }).catch(()=>{}).finally(()=>{
-      if(active){ setLoadingRecharges(false); setLoadingWallet(false); setLoadingWithdrawals(false); }
-    });
     return ()=>{ active=false; };
   },[user.id]);
+
+  useEffect(()=>{
+    if(tab==='recharges' && !rechargesLoaded){
+      setLoadingRecharges(true);
+      getUserRechargeHistory(user.id,0,25).then(data=>{
+        setRecharges(data.items);
+        setRechargePage(data.page);
+        setRechargeHasNext(data.hasNext);
+        setRechargesLoaded(true);
+      }).catch(()=>{}).finally(()=>setLoadingRecharges(false));
+    } else if(tab==='wallet' && !walletLoaded){
+      setLoadingWallet(true);
+      getUserWalletHistory(user.id,0,25).then(data=>{
+        setWalletHistory(data.items);
+        setWalletPage(data.page);
+        setWalletHasNext(data.hasNext);
+        setWalletLoaded(true);
+      }).catch(()=>{}).finally(()=>setLoadingWallet(false));
+    } else if(tab==='withdrawals' && !withdrawalsLoaded){
+      setLoadingWithdrawals(true);
+      getUserWithdrawalHistory(user.id,0,25).then(data=>{
+        setWithdrawals(data.items);
+        setWithdrawalPage(data.page);
+        setWithdrawalHasNext(data.hasNext);
+        setWithdrawalsLoaded(true);
+      }).catch(()=>{}).finally(()=>setLoadingWithdrawals(false));
+    }
+  },[tab,user.id,rechargesLoaded,walletLoaded,withdrawalsLoaded]);
 
   useEffect(()=>()=>{ if(imageSrc?.startsWith('blob:')) URL.revokeObjectURL(imageSrc); },[imageSrc]);
 
