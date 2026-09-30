@@ -886,7 +886,7 @@ private fun AppNavHost(
                 onLogout = authLogout,
                 onProfileUpdated = homeViewModel::load,
                 onBecomeVendor = { nav.navigate("rental-vendor") },
-                onHelpSupport = { nav.navigate("customer-support") },
+                onHelpSupport = onOpenSupportChat,
                 onDeleteAccount = { password, confirmation, closeDialog ->
                     profileViewModel.deleteAccount(password, confirmation) {
                         closeDialog()
