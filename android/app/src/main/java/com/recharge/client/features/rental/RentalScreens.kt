@@ -821,7 +821,8 @@ fun RentalVendorOnboardingScreen(
                     }
                 }
             } else {
-                items(state.vendorCars.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
+                val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
+                items(state.vendorCars.chunked(if (rentalTwoColumnLayout) 2 else 1), key = { row -> row.firstOrNull()?.id ?: row.hashCode() }) { rowCars ->
                     // Availability is secondary data. Fetch it when this vehicle row
                     // actually enters the composition instead of for the entire fleet.
                     LaunchedEffect(rowCars.map { it.id }) {
@@ -1584,6 +1585,7 @@ fun CarRentalMarketplaceScreen(
             }
         }
 
+    val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
         items(
             state.cars.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1),
             key = { row -> row.firstOrNull()?.id ?: row.hashCode() }
@@ -3080,6 +3082,7 @@ fun RentalMyBookingsScreen(
             item { MpayEmptyState(title = "No matching bookings", message = "Try another status filter.") }
         }
 
+    val rentalTwoColumnLayout = LocalConfiguration.current.screenWidthDp >= 600
         items(
             filteredBookings.chunked(if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1),
             key = { row -> row.firstOrNull()?.bookingId ?: row.hashCode() }
