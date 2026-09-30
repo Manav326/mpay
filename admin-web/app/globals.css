@@ -5851,28 +5851,13 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 
 
 /* ========================================================================
-   mPay Admin Design System — centralized typography, color & control scale
+   mPay Admin Design System — centralized typography & control scale
+   Uses the existing .shell admin palette so there is one admin color system.
+   Change --admin-header-color for every admin header without changing status colors.
    Keep admin screens compact through spacing, not unreadable text.
-   Change these tokens to retheme the three operational surfaces consistently.
    ======================================================================== */
-:root{
-  --admin-heading:#1b1916;
-  --admin-body:#403a34;
-  --admin-muted:#756d64;
-  --admin-subtle:#9a9187;
-  --admin-accent:#d97706;
-  --admin-accent-strong:#9a6408;
-  --admin-accent-soft:#fff4df;
-  --admin-surface:#ffffff;
-  --admin-surface-soft:#fffaf4;
-  --admin-border:#eee7dd;
-  --admin-border-strong:#e2d7c7;
-  --admin-success:#15803d;
-  --admin-success-soft:#eaf8ef;
-  --admin-danger:#b42318;
-  --admin-danger-soft:#fff0f0;
-  --admin-info:#2563eb;
-  --admin-info-soft:#eef6ff;
+.shell{
+  --admin-header-color:var(--admin-ink);
 
   --admin-font-xs:11px;
   --admin-font-sm:12px;
@@ -5888,45 +5873,46 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   --admin-radius-lg:16px;
 }
 
-/* Shared admin typography. */
-.admin-notice,
-.main .content,
-.main .panel,
-.main .drawer-section,
-.main .customer-care-workspace,
-.main .voice-access-page,
-.main .staff-management-page{
-  color:var(--admin-body);
+/* Admin-wide header source. Existing admin palette remains the source of truth. */
+.shell .topbar h1,
+.shell .content h1,
+.shell .content h2,
+.shell .content h3,
+.shell .panel-head h2,
+.shell .drawer-section-title h3,
+.shell .customer-care-topbar h2,
+.shell .voice-access-hero h2,
+.shell .staff-management-hero h2{
+  color:var(--admin-header-color);
 }
 
-.main .topbar h1,
-.main .content h1,
-.main .content h2,
-.main .content h3,
-.main .panel-head h2,
-.main .drawer-section-title h3,
-.main .customer-care-topbar h2,
-.main .voice-access-hero h2,
-.main .staff-management-hero h2{
-  color:var(--admin-heading);
-}
-
-.main .content p,
-.main .panel-head p,
-.main .drawer-section-title p{
-  color:var(--admin-muted);
-}
-
-.main .secondary,
-.main .primary,
-.main input,
-.main select,
-.main textarea{
+/* The typography/control migration is intentionally scoped to these three
+   recently redesigned operational surfaces. Other admin screens keep their
+   established spacing until they are migrated and visually checked. */
+.staff-management-page .secondary,
+.staff-management-page .primary,
+.staff-management-page input,
+.staff-management-page select,
+.staff-management-page textarea,
+.voice-access-page .secondary,
+.voice-access-page .primary,
+.voice-access-page input,
+.voice-access-page select,
+.voice-access-page textarea,
+.customer-care-console .secondary,
+.customer-care-console .primary,
+.customer-care-console input,
+.customer-care-console select,
+.customer-care-console textarea{
   font-size:var(--admin-font-sm);
 }
 
-.main .secondary,
-.main .primary{
+.staff-management-page .secondary,
+.staff-management-page .primary,
+.voice-access-page .secondary,
+.voice-access-page .primary,
+.customer-care-console .secondary,
+.customer-care-console .primary{
   min-height:var(--admin-control-h);
 }
 
@@ -5975,7 +5961,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 }
 .staff-identity-copy .staff-name-line>b{
   font-size:var(--admin-font-md);
-  color:var(--admin-heading);
+  color:var(--admin-header-color);
 }
 .staff-identity-copy>span{
   font-size:var(--admin-font-xs);
@@ -6051,7 +6037,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 }
 .voice-permission-copy>b{
   font-size:var(--admin-font-sm);
-  color:var(--admin-heading);
+  color:var(--admin-header-color);
 }
 .voice-permission-copy>span{
   font-size:var(--admin-font-xs);
@@ -6167,7 +6153,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
   font-size:var(--admin-font-xs);
 }
 .care-wallet-balance{
-  font-size:var(--admin-title-size,20px);
+  font-size:var(--admin-font-xl);
 }
 .care-wallet-label,
 .care-wallet-grid small{
@@ -6243,14 +6229,4 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .care-access-search input,
 .care-access-user-permission select{
   font-size:var(--admin-font-sm);
-}
-
-/* Centralized admin header color/typography — change --admin-heading once. */
-.main .topbar h1,
-.main .customer-care-topbar h2,
-.main .staff-management-hero h2,
-.main .voice-access-hero h2,
-.main .panel-head h2,
-.main .drawer-section-title h3{
-  color:var(--admin-heading);
 }
