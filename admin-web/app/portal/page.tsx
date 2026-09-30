@@ -4122,6 +4122,23 @@ function CustomerSupportChatModal({
     return ()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('resize',clamp);viewport?.removeEventListener('resize',clamp);viewport?.removeEventListener('scroll',clamp);};
   }, [minimized,position.x,position.y,position.width,position.height,onMove,onResize]);
 
+  const updateDismissTarget=(x:number,y:number)=>{
+    const vw=window.visualViewport?.width ?? window.innerWidth;
+    const vh=window.visualViewport?.height ?? window.innerHeight;
+    const bubbleCenterX=x+28;
+    const bubbleCenterY=y+28;
+    const targetWidth=88;
+    const targetHeight=72;
+    const targetLeft=(vw-targetWidth)/2;
+    const targetTop=vh-targetHeight-14;
+    setDismissTargetActive(
+      bubbleCenterX>=targetLeft &&
+      bubbleCenterX<=targetLeft+targetWidth &&
+      bubbleCenterY>=targetTop &&
+      bubbleCenterY<=targetTop+targetHeight
+    );
+  };
+
   const beginDrag=(event:ReactPointerEvent<HTMLDivElement>)=>{
     if((event.target as HTMLElement).closest('button')) return;
     event.preventDefault();
