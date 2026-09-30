@@ -208,6 +208,8 @@ type VehicleUnavailability = {
 };
 type CalendarDay = { date: string; status: string; bookingId?: string | null; reasonCode?: string | null; reasonLabel?: string | null };
 
+const CUSTOMER_SUPPORT_CHAT_OPEN_KEY = 'mpay_customer_support_chat_open';
+
 const webSession = {
   accessKey: 'mpay_token',
   refreshKey: 'mpay_refresh_token',
@@ -1019,7 +1021,10 @@ export default function Portal() {
   const rentalLoadSeq = useRef(0);
   const historyLoadSeq = useRef(0);
 
-  const [supportChatOpen, setSupportChatOpen] = useState(false);
+  const [supportChatOpen, setSupportChatOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY) === '1';
+  });
   const [supportChat, setSupportChat] = useState<SupportChat>();
   const [supportChatLoading, setSupportChatLoading] = useState(false);
   const [supportChatBusy, setSupportChatBusy] = useState(false);
@@ -1054,9 +1059,15 @@ export default function Portal() {
   }
 
   function openCustomerSupportChat() {
+    window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY, '1');
     setSupportChatOpen(true);
     setSupportChatMinimized(false);
     void loadCustomerSupportChat();
+  }
+
+  function closeCustomerSupportChat() {
+    window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY);
+    setSupportChatOpen(false);
   }
 
   async function sendCustomerSupportMessage(messageOverride?: string) {
@@ -3930,7 +3941,7 @@ export default function Portal() {
           onBackToTopics={() => setSupportGuidedTopic(undefined)}
           onMinimize={() => setSupportChatMinimized(value => !value)}
           onMove={(right, bottom) => setSupportChatPosition({ right, bottom })}
-          onDismiss={() => setSupportChatOpen(false)}
+          onDismiss={closeCustomerSupportChat}
           onRefresh={() => void loadCustomerSupportChat()}
           onCallbackReasonChange={value => setSupportCallbackReason(value.slice(0, 500))}
         />
