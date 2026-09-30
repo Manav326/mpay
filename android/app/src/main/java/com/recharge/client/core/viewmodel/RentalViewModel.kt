@@ -23,9 +23,21 @@ data class RentalUiState(
     val earnings: RentalVendorEarningsResponse? = null,
     val vehicleUnavailabilityByCar: Map<String, List<RentalVehicleUnavailabilityResponse>> = emptyMap(),
     val vehicleCalendar: RentalVehicleCalendarResponse? = null,
-    val loading: Boolean = false,
+    val vendorLoading: Boolean = false,
+    val marketplaceLoading: Boolean = false,
+    val bookingsLoading: Boolean = false,
+    val vendorVehiclesLoading: Boolean = false,
+    val payoutsLoading: Boolean = false,
+    val calendarLoading: Boolean = false,
     val saving: Boolean = false,
-    val error: String? = null
+    val vendorError: String? = null,
+    val marketplaceError: String? = null,
+    val bookingsError: String? = null,
+    val vendorVehiclesError: String? = null,
+    val payoutsError: String? = null,
+    val calendarError: String? = null,
+    val availabilityError: String? = null,
+    val mutationError: String? = null
 )
 
 class RentalViewModel(application: Application) : AndroidViewModel(application) {
@@ -53,24 +65,24 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadVendor() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
+            _state.value = _state.value.copy(vendorLoading = true, vendorError = null)
             repository.rentalVendor()
-                .onSuccess { _state.value = _state.value.copy(vendor = it, loading = false) }
-                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load rental vendor profile") }
+                .onSuccess { _state.value = _state.value.copy(vendor = it, vendorLoading = false) }
+                .onFailure { _state.value = _state.value.copy(vendorLoading = false, vendorError = it.message ?: "Unable to load rental vendor profile") }
         }
     }
 
     fun clearCarSearch() {
         carsJob?.cancel()
         carsGeneration++
-        _state.value = _state.value.copy(cars = emptyList(), loading = false, error = null)
+        _state.value = _state.value.copy(cars = emptyList(), marketplaceLoading = false, marketplaceError = null)
     }
 
     fun loadCars(startDate: String? = null, endDate: String? = null, location: String? = null) {
         carsJob?.cancel()
         val generation = ++carsGeneration
         carsJob = viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
+            _state.value = _state.value.copy(marketplaceLoading = true, marketplaceError = null)
             repository.rentalCars(
                 startDate?.takeIf { it.isNotBlank() },
                 endDate?.takeIf { it.isNotBlank() },
@@ -78,11 +90,11 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
             )
                 .onSuccess {
                     if (generation != carsGeneration) return@onSuccess
-                    _state.value = _state.value.copy(cars = it, loading = false, error = null)
+                    _state.value = _state.value.copy(cars = it, marketplaceLoading = false, marketplaceError = null)
                 }
                 .onFailure { failure ->
                     if (generation != carsGeneration || !kotlinx.coroutines.currentCoroutineContext().isActive) return@onFailure
-                    _state.value = _state.value.copy(loading = false, error = failure.message ?: "Unable to load rental cars")
+                    _state.value = _state.value.copy(marketplaceLoading = false, marketplaceError = failure.message ?: "Unable to load rental cars")
                 }
         }
     }
@@ -92,15 +104,15 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         bookingsJob?.cancel()
         val generation = ++bookingsGeneration
         bookingsJob = viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
+            _state.value = _state.value.copy(bookingsLoading = true, bookingsError = null)
             repository.rentalBookings()
                 .onSuccess { response ->
                     if (generation != bookingsGeneration) return@onSuccess
-                    _state.value = _state.value.copy(bookings = response.items, loading = false, error = null)
+                    _state.value = _state.value.copy(bookings = response.items, bookingsLoading = false, bookingsError = null)
                 }
                 .onFailure { e ->
                     if (generation != bookingsGeneration || !kotlinx.coroutines.currentCoroutineContext().isActive) return@onFailure
-                    _state.value = _state.value.copy(loading = false, error = e.message ?: "Unable to load rental bookings")
+                    _state.value = _state.value.copy(bookingsLoading = false, bookingsError = e.message ?: "Unable to load rental bookings")
                 }
         }
     }
@@ -108,7 +120,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     fun cancelBooking(bookingId: String, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.cancelRentalBooking(bookingId)
                 .onSuccess { cancelled ->
                     _state.value = _state.value.copy(
@@ -117,27 +129,27 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     onDone()
                 }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to cancel booking") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to cancel booking") }
         }
     }
 
     fun createBooking(request: RentalBookingRequest, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.createRentalBooking(request)
                 .onSuccess { booking -> _state.value = _state.value.copy(bookings = listOf(booking) + _state.value.bookings.filterNot { it.bookingId == booking.bookingId }, saving = false); onDone() }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to create booking") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to create booking") }
         }
     }
 
     fun quoteBooking(request: RentalBookingQuoteRequest, onDone: (RentalBookingQuoteResponse) -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.rentalBookingQuote(request)
                 .onSuccess { _state.value = _state.value.copy(saving = false); onDone(it) }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to calculate rental quote") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to calculate rental quote") }
         }
     }
 
@@ -145,38 +157,45 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     fun updateVendor(request: RentalVendorUpdateRequest, onDone: () -> Unit = {}) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.updateRentalVendor(request)
                 .onSuccess {
                     _state.value = _state.value.copy(vendor = it, saving = false)
                     onDone()
                 }
                 .onFailure {
-                    _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to update vendor profile")
+                    _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to update vendor profile")
                 }
         }
     }
 
     fun loadVendorPayouts() {
         viewModelScope.launch {
+            _state.value = _state.value.copy(payoutsLoading = true, payoutsError = null)
             val payoutsRequest = async { repository.rentalVendorPayouts() }
             val earningsRequest = async { repository.rentalVendorEarnings() }
 
             payoutsRequest.await()
                 .onSuccess { _state.value = _state.value.copy(payouts = it) }
-                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vendor payouts") }
+                .onFailure { _state.value = _state.value.copy(payoutsError = it.message ?: "Unable to load vendor payouts") }
 
             earningsRequest.await()
                 .onSuccess { _state.value = _state.value.copy(earnings = it) }
-                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load rental earnings") }
+                .onFailure {
+                    if (_state.value.payoutsError == null) {
+                        _state.value = _state.value.copy(payoutsError = it.message ?: "Unable to load rental earnings")
+                    }
+                }
+
+            _state.value = _state.value.copy(payoutsLoading = false)
         }
     }
     fun loadVendorVehicles() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(loading = true, error = null)
+            _state.value = _state.value.copy(vendorVehiclesLoading = true, vendorVehiclesError = null)
             repository.rentalVendorVehicles()
-                .onSuccess { _state.value = _state.value.copy(vendorCars = it, loading = false) }
-                .onFailure { _state.value = _state.value.copy(loading = false, error = it.message ?: "Unable to load vendor vehicles") }
+                .onSuccess { _state.value = _state.value.copy(vendorCars = it, vendorVehiclesLoading = false) }
+                .onFailure { _state.value = _state.value.copy(vendorVehiclesLoading = false, vendorVehiclesError = it.message ?: "Unable to load vendor vehicles") }
         }
     }
 
@@ -187,7 +206,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     ) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.takeRentalVehicleOffMarket(carId, request)
                 .onSuccess { created ->
                     val current = _state.value.vehicleUnavailabilityByCar[carId].orEmpty()
@@ -197,7 +216,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     onDone()
                 }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to take vehicle off market") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to take vehicle off market") }
         }
     }
 
@@ -209,14 +228,14 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                         vehicleUnavailabilityByCar = _state.value.vehicleUnavailabilityByCar + (carId to rows)
                     )
                 }
-                .onFailure { _state.value = _state.value.copy(error = it.message ?: "Unable to load vehicle availability") }
+                .onFailure { _state.value = _state.value.copy(availabilityError = it.message ?: "Unable to load vehicle availability") }
         }
     }
 
     fun restoreVehicleToMarket(carId: String, unavailableId: String, onDone: () -> Unit = {}) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.restoreRentalVehicleToMarket(carId, unavailableId)
                 .onSuccess {
                     val rows = _state.value.vehicleUnavailabilityByCar[carId].orEmpty()
@@ -227,14 +246,14 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     onDone()
                 }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to restore vehicle to market") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to restore vehicle to market") }
         }
     }
 
     fun loadVehicleCalendar(carId: String, year: Int, month: Int) {
         calendarJob?.cancel()
         calendarJob = viewModelScope.launch {
-            _state.value = _state.value.copy(error = null)
+            _state.value = _state.value.copy(calendarError = null)
             repository.rentalVehicleCalendar(carId, year, month)
                 .onSuccess { response ->
                     if (kotlinx.coroutines.currentCoroutineContext().isActive) {
@@ -243,7 +262,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 .onFailure { failure ->
                     if (kotlinx.coroutines.currentCoroutineContext().isActive) {
-                        _state.value = _state.value.copy(error = failure.message ?: "Unable to load vehicle calendar")
+                        _state.value = _state.value.copy(calendarError = failure.message ?: "Unable to load vehicle calendar")
                     }
                 }
         }
@@ -257,7 +276,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     ) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.resubmitRentalVehicle(carId, request)
                 .onSuccess { updated ->
                     _state.value = _state.value.copy(
@@ -276,18 +295,18 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                                 .onFailure {
                                     _state.value = _state.value.copy(
                                         saving = false,
-                                        error = it.message ?: "Vehicle submitted, but the driver photo could not be saved"
+                                        mutationError = it.message ?: "Vehicle submitted, but the driver photo could not be saved"
                                     )
                                 }
                         }
                         .onFailure {
                             _state.value = _state.value.copy(
                                 saving = false,
-                                error = it.message ?: "Vehicle submitted, but one or more photos could not be saved"
+                                mutationError = it.message ?: "Vehicle submitted, but one or more photos could not be saved"
                             )
                         }
                 }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to resubmit vehicle") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to resubmit vehicle") }
         }
     }
 
@@ -298,7 +317,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     ) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.onboardRentalVehicle(request)
                 .onSuccess { created ->
                     _state.value = _state.value.copy(vendorCars = _state.value.vendorCars + created)
@@ -315,18 +334,18 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
                                 .onFailure {
                                     _state.value = _state.value.copy(
                                         saving = false,
-                                        error = it.message ?: "Vehicle created, but the driver photo could not be saved"
+                                        mutationError = it.message ?: "Vehicle created, but the driver photo could not be saved"
                                     )
                                 }
                         }
                         .onFailure {
                             _state.value = _state.value.copy(
                                 saving = false,
-                                error = it.message ?: "Vehicle created, but one or more photos could not be saved"
+                                mutationError = it.message ?: "Vehicle created, but one or more photos could not be saved"
                             )
                         }
                 }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to submit vehicle") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to submit vehicle") }
         }
     }
 
@@ -390,10 +409,10 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
     fun onboardVendor(request: RentalVendorOnboardingRequest, onDone: () -> Unit) {
         if (_state.value.saving) return
         viewModelScope.launch {
-            _state.value = _state.value.copy(saving = true, error = null)
+            _state.value = _state.value.copy(saving = true, mutationError = null)
             repository.onboardRentalVendor(request)
                 .onSuccess { _state.value = _state.value.copy(vendor = it, saving = false); onDone() }
-                .onFailure { _state.value = _state.value.copy(saving = false, error = it.message ?: "Unable to submit vendor onboarding") }
+                .onFailure { _state.value = _state.value.copy(saving = false, mutationError = it.message ?: "Unable to submit vendor onboarding") }
         }
     }
 }
