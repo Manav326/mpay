@@ -5099,8 +5099,8 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .customer-care-customer-head{display:flex;gap:5px;color:#82776c;font-size:9px}
 .customer-care-detail-badges{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .customer-care-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px 16px;border-bottom:1px solid #f0ebe5;background:#fffaf4}
-.customer-care-timeline{flex:1;min-height:0;overflow:auto;display:grid;gap:8px;padding:13px 16px;background:#fcfbf9}
-.customer-care-message{max-width:88%;padding:9px 10px;border:1px solid #ebe4dc;border-radius:12px;background:#fff;box-shadow:0 3px 12px rgba(72,52,30,.025)}
+.customer-care-timeline{flex:1;min-height:0;overflow:auto;display:grid;gap:8px;padding:13px 16px;background:#fbf8f2;background-image:radial-gradient(circle at 10% 12%,rgba(214,155,49,.09) 0 44px,transparent 45px),radial-gradient(circle at 92% 88%,rgba(173,126,52,.055) 0 62px,transparent 63px),radial-gradient(circle at 54% 40%,rgba(217,188,132,.045) 0 34px,transparent 35px),linear-gradient(180deg,#fcfaf6,#f7f3ec);background-attachment:local;position:relative}
+.customer-care-message{max-width:88%;padding:9px 10px;border:1px solid #ebe4dc;border-radius:12px;background:rgba(255,255,255,.94);box-shadow:0 3px 12px rgba(72,52,30,.025);backdrop-filter:blur(3px)}
 .customer-care-message.customer{justify-self:start;border-top-left-radius:5px}
 .customer-care-message.agent{justify-self:end;border-top-right-radius:5px;background:#fff9ee;border-color:#ecd9b9}
 .customer-care-message.internal{justify-self:end;border-top-right-radius:5px;background:#f7f5ff;border-color:#ddd7f2}

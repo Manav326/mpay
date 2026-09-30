@@ -36,17 +36,29 @@ import com.recharge.client.core.ui.ProfileAvatar
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
 import com.recharge.client.core.ui.MpayStatusPill
+import com.recharge.client.core.viewmodel.CustomerCareUiState
 import com.recharge.client.core.viewmodel.ProfileUiState
+import com.recharge.client.features.support.CustomerCareInlineCard
 import java.math.BigDecimal
 
 @Composable
 fun ProfileScreen(
     state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
     onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
-    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onCustomerCare: () -> Unit,
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit,
+    customerCareState: CustomerCareUiState,
+    onCustomerCareLoad: () -> Unit,
+    onCustomerCareRefresh: () -> Unit,
+    onCustomerCareOpen: (String) -> Unit,
+    onCustomerCareCreate: (String, String, String) -> Unit,
+    onCustomerCareReply: (String) -> Unit,
+    onCustomerCareClose: () -> Unit,
+    onCustomerCareClearSelected: () -> Unit,
+    onCustomerCareClearError: () -> Unit,
     onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
 ) {
     var editing by remember { mutableStateOf(false) }
+    var helpSupportExpanded by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     LaunchedEffect(isVisible) { if (isVisible) { onLoad(); onRefreshVendor() } }
@@ -149,14 +161,34 @@ fun ProfileScreen(
             }
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+            CustomerCareInlineCard(
+                state = customerCareState,
+                expanded = helpSupportExpanded,
+                onExpandedChange = { helpSupportExpanded = it },
+                onLoad = onCustomerCareLoad,
+                onRefresh = onCustomerCareRefresh,
+                onOpen = onCustomerCareOpen,
+                onCreate = onCustomerCareCreate,
+                onReply = onCustomerCareReply,
+                onClose = onCustomerCareClose,
+                onClearSelected = onCustomerCareClearSelected,
+                onClearError = onCustomerCareClearError
+            )
+        }
+        item {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text("Settings & policies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                    Text(
+                        "Settings & policies",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
                     ProfileActionRow(Icons.Default.Settings, "Account settings", "Update your name, email and profile photo") { editing = true }
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                    ProfileActionRow(Icons.Default.Help, "Customer Care", "Create a support case or continue an existing conversation") {
-                        onCustomerCare()
-                    }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {
                         context.startActivity(

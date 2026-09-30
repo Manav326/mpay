@@ -1,6 +1,9 @@
 
 package com.recharge.client.features.support
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,6 +37,390 @@ import java.time.format.DateTimeFormatter
 private val customerCareCategories = listOf(
     "ACCOUNT", "WALLET", "RECHARGE", "WITHDRAWAL", "RENTAL", "PAYMENT", "VOICE_CALL", "OTHER"
 )
+
+@Composable
+fun CustomerCareInlineCard(
+    state: CustomerCareUiState,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onLoad: () -> Unit,
+    onRefresh: () -> Unit,
+    onOpen: (String) -> Unit,
+    onCreate: (String, String, String) -> Unit,
+    onReply: (String) -> Unit,
+    onClose: () -> Unit,
+    onClearSelected: () -> Unit,
+    onClearError: () -> Unit
+) {
+    var showCreate by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(expanded) {
+        if (expanded) onLoad()
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandedChange(!expanded) }
+                    .padding(horizontal = 16.dp, vertical = 15.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppColors.Primary.copy(alpha = .11f)
+                ) {
+                    Icon(
+                        Icons.Default.SupportAgent,
+                        contentDescription = null,
+                        tint = AppColors.PrimaryDark,
+                        modifier = Modifier.padding(9.dp).size(22.dp)
+                    )
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Help & Support", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Chat with mPay support and manage your cases",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppColors.TextSecondary
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse help and support" else "Expand help and support",
+                    tint = AppColors.PrimaryDark
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    HorizontalDivider(color = Color(0xFFF1ECE5))
+
+                    state.error?.let {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFF4F0)
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    it,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AppColors.Error
+                                )
+                                TextButton(onClick = onClearError) {
+                                    Text("Dismiss", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+
+                    if (state.selected != null) {
+                        CustomerCareInlineChat(
+                            ticket = state.selected,
+                            saving = state.saving,
+                            onReply = onReply,
+                            onClose = onClose,
+                            onBack = onClearSelected,
+                            onRefresh = { onOpen(state.selected.ticketId) }
+                        )
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    state.tickets.firstOrNull { it.status != "CLOSED" }?.let(onOpen)
+                                        ?: run { showCreate = true }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AppColors.PrimaryDark,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(Icons.Default.Message, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Chat with support", fontWeight = FontWeight.Bold)
+                            }
+                            IconButton(
+                                onClick = onRefresh,
+                                enabled = !state.loading
+                            ) {
+                                Icon(Icons.Default.SupportAgent, contentDescription = "Refresh support", tint = AppColors.PrimaryDark)
+                            }
+                        }
+
+                        if (state.loading && state.tickets.isEmpty()) {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().height(3.dp),
+                                color = AppColors.PrimaryDark
+                            )
+                            Text(
+                                "Loading your support cases…",
+                                modifier = Modifier.padding(horizontal = 3.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppColors.TextSecondary
+                            )
+                        } else if (state.tickets.isEmpty()) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                color = AppColors.SurfaceWarm
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text("No support cases yet", fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        "Start a chat with support and your conversation will stay here.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = AppColors.TextSecondary
+                                    )
+                                }
+                            }
+                        } else {
+                            val recentTickets = state.tickets.take(4)
+                            recentTickets.forEach { ticket ->
+                                CustomerCareCompactTicketRow(
+                                    ticket = ticket,
+                                    onClick = { onOpen(ticket.ticketId) }
+                                )
+                            }
+                            if (state.tickets.size > recentTickets.size) {
+                                Text(
+                                    "Showing your 4 most recent cases.",
+                                    modifier = Modifier.padding(start = 4.dp, bottom = 5.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AppColors.TextSecondary
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { showCreate = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Help, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Start a new support case")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCreate) {
+        CreateSupportCaseDialog(
+            saving = state.saving,
+            onDismiss = { if (!state.saving) showCreate = false },
+            onCreate = { category, subject, message ->
+                showCreate = false
+                onCreate(category, subject, message)
+            }
+        )
+    }
+}
+
+@Composable
+private fun CustomerCareCompactTicketRow(
+    ticket: SupportTicketSummaryResponse,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 5.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = ticketStatusBackground(ticket.status)
+        ) {
+            Icon(
+                if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") Icons.Default.CheckCircle else Icons.Default.Message,
+                contentDescription = null,
+                tint = ticketStatusColor(ticket.status),
+                modifier = Modifier.padding(8.dp).size(18.dp)
+            )
+        }
+        Spacer(Modifier.width(9.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    ticket.subject,
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+                SupportPriorityPill(ticket.priority)
+            }
+            Text(
+                ticket.ticketId + " · " + statusLabel(ticket.status),
+                style = MaterialTheme.typography.labelSmall,
+                color = ticketStatusColor(ticket.status)
+            )
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.TextSecondary)
+    }
+}
+
+@Composable
+private fun CustomerCareInlineChat(
+    ticket: SupportTicketResponse,
+    saving: Boolean,
+    onReply: (String) -> Unit,
+    onClose: () -> Unit,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    var draft by rememberSaveable(ticket.ticketId) { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(ticket.ticketId, ticket.messages.size) {
+        if (ticket.messages.isNotEmpty()) {
+            listState.scrollToItem(ticket.messages.lastIndex)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "Back to support cases")
+        }
+        Column(Modifier.weight(1f)) {
+            Text(ticket.subject, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(
+                statusLabel(ticket.status),
+                style = MaterialTheme.typography.labelSmall,
+                color = ticketStatusColor(ticket.status),
+                fontWeight = FontWeight.Bold
+            )
+        }
+        IconButton(onClick = onRefresh, enabled = !saving) {
+            Icon(Icons.Default.SupportAgent, contentDescription = "Refresh conversation", tint = AppColors.PrimaryDark)
+        }
+        if (ticket.status != "CLOSED") {
+            IconButton(onClick = onClose, enabled = !saving) {
+                Icon(Icons.Default.Close, contentDescription = "Close case")
+            }
+        }
+    }
+
+    Text(
+        ticket.ticketId + " · " + ticket.category.replace('_', ' '),
+        modifier = Modifier.padding(horizontal = 4.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = AppColors.TextSecondary
+    )
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 170.dp, max = 320.dp)
+            .supportChatBackground(),
+        contentPadding = PaddingValues(horizontal = 11.dp, vertical = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(ticket.messages, key = { it.id }) { message ->
+            CustomerCareMessageBubble(message)
+        }
+    }
+
+    if (ticket.status != "CLOSED") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { if (it.length <= 8000) draft = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Reply to Customer Care…") },
+                minLines = 1,
+                maxLines = 4,
+                shape = RoundedCornerShape(13.dp)
+            )
+            Spacer(Modifier.width(7.dp))
+            IconButton(
+                onClick = {
+                    val message = draft.trim()
+                    if (message.isNotBlank()) {
+                        onReply(message)
+                        draft = ""
+                    }
+                },
+                enabled = !saving && draft.trim().isNotEmpty()
+            ) {
+                if (saving) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Send, contentDescription = "Send reply", tint = AppColors.PrimaryDark)
+                }
+            }
+        }
+    } else {
+        Text(
+            "This support case is closed. Start a new case for another issue.",
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = AppColors.TextSecondary
+        )
+    }
+}
+
+private fun Modifier.supportChatBackground(): Modifier =
+    this
+        .background(Color(0xFFFBF8F2))
+        .drawBehind {
+            val min = size.minDimension
+            drawCircle(
+                color = AppColors.Primary.copy(alpha = .055f),
+                radius = min * .70f,
+                center = Offset(size.width * .06f, size.height * .10f)
+            )
+            drawCircle(
+                color = AppColors.PrimaryDark.copy(alpha = .035f),
+                radius = min * .55f,
+                center = Offset(size.width * .94f, size.height * .88f)
+            )
+            drawCircle(
+                color = Color(0xFFD9C4A1).copy(alpha = .035f),
+                radius = min * .38f,
+                center = Offset(size.width * .54f, size.height * .42f)
+            )
+        }
 
 @Composable
 fun CustomerCareScreen(
@@ -300,7 +687,10 @@ private fun CustomerCareDetail(
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .supportChatBackground(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
