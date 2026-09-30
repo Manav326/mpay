@@ -18,7 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.recharge.client.core.ui.MpayProviderSelector
 import androidx.compose.material3.SegmentedButton
@@ -38,8 +38,8 @@ fun AddMoneyDialog(
     onClearMessage: () -> Unit,
     availableBalance: BigDecimal = BigDecimal.ZERO
 ) {
-    var amount by remember { mutableStateOf("100") }
-    var provider by remember { mutableStateOf("mock") }
+    var amount by rememberSaveable { mutableStateOf("100") }
+    var provider by rememberSaveable { mutableStateOf("mock") }
 
     val busy = paymentState is PaymentUiState.CreatingOrder || paymentState is PaymentUiState.Verifying
     val error = (paymentState as? PaymentUiState.Error)?.message
