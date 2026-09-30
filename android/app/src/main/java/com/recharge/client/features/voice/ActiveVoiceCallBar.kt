@@ -153,6 +153,21 @@ fun ActiveVoiceCallBar(
         }
     }
 
+    LaunchedEffect(containerSize, callId, density) {
+        if (containerSize == androidx.compose.ui.unit.IntSize.Zero) return@LaunchedEffect
+
+        val barPx = with(density) { squareSize.toPx() }
+        val horizontalInset = with(density) { 8.dp.toPx() }
+        val minX = (-(containerSize.width - barPx)).coerceAtMost(0f) - horizontalInset
+        val maxX = -horizontalInset
+        val maxY = (containerSize.height - barPx).coerceAtLeast(horizontalInset) - horizontalInset
+
+        dragOffset = Offset(
+            x = dragOffset.x.coerceIn(minX, maxX),
+            y = dragOffset.y.coerceIn(horizontalInset, maxY)
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
