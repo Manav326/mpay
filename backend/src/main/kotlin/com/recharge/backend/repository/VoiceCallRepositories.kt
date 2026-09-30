@@ -26,12 +26,12 @@ interface VoiceCallRepository : JpaRepository<VoiceCallEntity, Long> {
 }
 
 interface VoiceCallParticipantRepository : JpaRepository<VoiceCallParticipantEntity, Long> {
-    fun existsByUserId(userId: Long): Boolean
+    fun existsByAccountId(accountId: Long): Boolean
     fun findAllByCallId(callId: String): List<VoiceCallParticipantEntity>
     fun deleteAllByCallId(callId: String)
 
-    @Query("select p from VoiceCallParticipantEntity p where p.userId = :userId")
-    fun findByUserId(@Param("userId") userId: Long): Optional<VoiceCallParticipantEntity>
+    @Query("select p from VoiceCallParticipantEntity p where p.accountId = :accountId")
+    fun findByAccountId(@Param("accountId") accountId: Long): Optional<VoiceCallParticipantEntity>
 }
 
 interface CallPushDeviceRepository : JpaRepository<CallPushDeviceEntity, Long> {
