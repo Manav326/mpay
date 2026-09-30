@@ -1,6 +1,7 @@
 package com.recharge.backend.security
 
 import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.repository.EmployeeRepository
 import com.recharge.backend.repository.UserRepository
 import io.jsonwebtoken.Claims
 import jakarta.servlet.ServletException
@@ -17,7 +18,8 @@ class JwtAuthenticationFilterTest {
 
     private val jwtService = Mockito.mock(JwtService::class.java)
     private val users = Mockito.mock(UserRepository::class.java)
-    private val filter = JwtAuthenticationFilter(jwtService, users)
+    private val employees = Mockito.mock(EmployeeRepository::class.java)
+    private val filter = JwtAuthenticationFilter(jwtService, users, employees)
 
     @AfterEach
     fun clearSecurityContext() {
@@ -37,6 +39,7 @@ class JwtAuthenticationFilterTest {
         Mockito.doReturn(true).`when`(jwtService).isAccessToken(claims)
         Mockito.doReturn("42").`when`(claims).subject
         Mockito.doReturn(Optional.of(user)).`when`(users).findById(42L)
+        Mockito.doReturn(null).`when`(claims).get("accountType")
         Mockito.doThrow(ServletException("downstream failure"))
             .`when`(chain).doFilter(Mockito.any(ServletRequest::class.java), Mockito.any(ServletResponse::class.java))
 
