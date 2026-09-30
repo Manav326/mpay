@@ -419,7 +419,22 @@ data class PortalStaffResponse(
     val mobile: String,
     val role: String,
     val active: Boolean,
-    val createdAt: Instant
+    val createdAt: Instant,
+    val lastLoginAt: Instant? = null
+)
+
+data class PortalStaffActivityResponse(
+    val action: String,
+    val subjectType: String?,
+    val subjectId: String?,
+    val summary: String,
+    val occurredAt: Instant
+)
+
+data class PortalStaffStatusResponse(
+    val publicUserId: String,
+    val active: Boolean,
+    val status: String
 )
 
 data class AdminUserStatusRequest(
