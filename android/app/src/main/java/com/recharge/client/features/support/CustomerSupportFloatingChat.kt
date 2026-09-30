@@ -169,21 +169,6 @@ fun CustomerSupportFloatingChat(
     val horizontalMargin = 8f
     val bottomMargin = 8f
 
-    fun clampPosition() {
-        val availableWidth = configuration.screenWidthDp.toFloat()
-        val availableHeight = configuration.screenHeightDp.toFloat()
-        val currentWidth = if (minimized) 56f else widthDp
-        val currentHeight = if (minimized) 56f else heightDp
-        offsetX = offsetX.coerceIn(
-            horizontalMargin,
-            (availableWidth - currentWidth - horizontalMargin).coerceAtLeast(horizontalMargin)
-        )
-        offsetY = offsetY.coerceIn(
-            horizontalMargin,
-            (availableHeight - currentHeight - bottomMargin).coerceAtLeast(horizontalMargin)
-        )
-    }
-
     suspend fun loadChat() {
         if (chatRequestInFlight) return
         chatRequestInFlight = true
@@ -211,22 +196,22 @@ fun CustomerSupportFloatingChat(
         }
     }
 
-    LaunchedEffect(minimized, configuration.screenWidthDp, configuration.screenHeightDp) {
-        if (!minimized) clampPosition()
-    }
-
-    LaunchedEffect(chat?.messages?.size, guidedTopic) {
+    LaunchedEffect(chat?.items?.size, chat?.messages?.size, guidedTopic, supportIntakeMode) {
         if (!minimized && autoSizeEnabled) {
-            val messageCount = chat?.messages?.size ?: 0
+            val timelineCount = chat?.items?.size?.takeIf { it > 0 }
+                ?: (chat?.messages?.size ?: 0)
             val targetHeight = when {
                 guidedTopic != null -> 500f
-                messageCount <= 0 -> 360f
-                messageCount <= 2 -> 390f
-                messageCount <= 4 -> 460f
-                messageCount <= 7 -> 540f
+                supportIntakeMode -> 600f
+                timelineCount <= 0 -> 360f
+                timelineCount <= 2 -> 390f
+                timelineCount <= 4 -> 460f
+                timelineCount <= 7 -> 540f
                 else -> 600f
             }
-            heightDp = targetHeight.coerceAtMost(configuration.screenHeightDp.toFloat().coerceAtLeast(minHeight))
+            heightDp = targetHeight.coerceAtMost(
+                configuration.screenHeightDp.toFloat().coerceAtLeast(minHeight)
+            )
         }
     }
 
