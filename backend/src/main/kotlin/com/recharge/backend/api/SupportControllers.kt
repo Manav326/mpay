@@ -101,6 +101,13 @@ class CustomerCareAdminController(
     ): SupportAiSettingsResponse =
         supportAiSettings.update(currentUser(authentication), request.enabled)
 
+    @GetMapping("/customers/search")
+    fun searchCustomers(
+        authentication: Authentication,
+        @RequestParam query: String
+    ): List<SupportCustomerSearchResultResponse> =
+        support.searchCustomers(currentUser(authentication), query)
+
     @GetMapping("/queue")
     fun queue(authentication: Authentication): SupportQueueResponse =
         support.queue(currentUser(authentication))
