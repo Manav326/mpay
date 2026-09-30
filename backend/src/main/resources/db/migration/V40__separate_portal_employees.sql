@@ -62,9 +62,9 @@ CREATE INDEX IF NOT EXISTS idx_employee_activity_subject_time
     ON employee_activity(subject_type, subject_id, occurred_at DESC);
 
 -- The application previously seeded the portal Admin and Manager in users.
--- Move those portal accounts to employees while preserving their ids so existing
--- credentials/profile are preserved, and staff references are remapped to employee ids by V41. Abort rather than silently moving
--- unexpected portal accounts.
+-- Copy those portal accounts into employees so existing credentials/profile are
+-- preserved, and staff references are remapped to employee ids by V41. Abort
+-- rather than silently moving unexpected portal accounts.
 DO $$
 DECLARE
     v_count INTEGER;
@@ -109,7 +109,7 @@ BEGIN
             gen_random_uuid()::text,
             u.mobile, u.name, u.email, u.password_hash, u.role, TRUE,
             u.profile_image_key, u.profile_image_content_type,
-            u.profile_image_updated_at, u.profile_updated_at, u.last_login_at,
+            u.profile_image_updated_at, u.profile_updated_at, NULL::timestamptz,
             u.created_at, CURRENT_TIMESTAMP
         FROM users u
         WHERE u.id = v_user_id;
