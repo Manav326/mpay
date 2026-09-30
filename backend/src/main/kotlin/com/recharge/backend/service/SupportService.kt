@@ -21,12 +21,14 @@ class SupportService(
     private val callRequests: SupportCallRequestRepository,
     private val events: SupportCaseEventRepository,
     private val users: UserRepository,
+    private val employees: EmployeeRepository,
     private val roleAccess: RoleAccessService,
     private val overrides: UserPermissionOverrideRepository,
     private val voiceParticipants: VoiceCallParticipantRepository,
     private val voiceCalls: VoiceCallRepository,
     private val messages: SupportMessageRepository,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val employeeAudit: EmployeeAuditService
 ) {
     companion object {
         const val SUPPORT_VIEW = "SUPPORT_VIEW"
@@ -141,7 +143,7 @@ class SupportService(
         return toRequestResponse(request)
     }
 
-    fun pendingRequests(viewer: UserEntity): List<SupportCallRequestResponse> {
+    fun pendingRequests(viewer: EmployeeEntity): List<SupportCallRequestResponse> {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         roleAccess.requirePermission(viewer, "VIEW_USER_DETAIL")
         val now = Instant.now()
@@ -153,7 +155,7 @@ class SupportService(
             .map(::toRequestResponse)
     }
 
-    fun searchCustomers(viewer: UserEntity, query: String): List<SupportCustomerSearchResultResponse> {
+    fun searchCustomers(viewer: EmployeeEntity, query: String): List<SupportCustomerSearchResultResponse> {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val normalized = query.trim().take(80)
         if (normalized.isBlank()) return emptyList()
@@ -171,7 +173,7 @@ class SupportService(
     }
 
     @Transactional
-    fun queue(viewer: UserEntity): SupportQueueResponse {
+    fun queue(viewer: EmployeeEntity): SupportQueueResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         expirePendingRequests(Instant.now())
 
@@ -278,7 +280,7 @@ class SupportService(
         )
     }
 
-    fun request(viewer: UserEntity, requestId: String): SupportCallRequestResponse {
+    fun request(viewer: EmployeeEntity, requestId: String): SupportCallRequestResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val request = requestById(requestId)
         visibleClient(viewer, users.findById(request.customerUserId).orElseThrow { IllegalArgumentException("Customer not found") }.publicId)
@@ -289,7 +291,7 @@ class SupportService(
     }
 
     @Transactional
-    fun claimSupportRequestForCall(viewer: UserEntity, requestId: String, targetPublicId: String): SupportCallRequestEntity {
+    fun claimSupportRequestForCall(viewer: EmployeeEntity, requestId: String, targetPublicId: String): SupportCallRequestEntity {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val request = callRequests.findByRequestIdForUpdate(requestId.trim()).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support call request not found")
@@ -325,7 +327,7 @@ class SupportService(
         return request
     }
 
-    fun declineRequest(viewer: UserEntity, requestId: String, note: String?): SupportCallRequestResponse {
+    fun declineRequest(viewer: EmployeeEntity, requestId: String, note: String?): SupportCallRequestResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val request = requestById(requestId)
         if (request.status != PENDING) {
@@ -348,7 +350,7 @@ class SupportService(
         return toRequestResponse(request)
     }
 
-    fun customer(viewer: UserEntity, publicId: String): SupportCustomerResponse {
+    fun customer(viewer: EmployeeEntity, publicId: String): SupportCustomerResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val customer = visibleClient(viewer, publicId)
         return customerResponse(customer, includeInternalNotes = true)
@@ -525,7 +527,7 @@ class SupportService(
     }
 
     @Transactional
-    fun adminChat(viewer: UserEntity, publicId: String): SupportChatResponse {
+    fun adminChat(viewer: EmployeeEntity, publicId: String): SupportChatResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val customer = visibleClient(viewer, publicId)
         val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
@@ -546,7 +548,7 @@ class SupportService(
     }
 
     @Transactional
-    fun markChatRead(viewer: UserEntity, publicId: String): SupportChatResponse {
+    fun markChatRead(viewer: EmployeeEntity, publicId: String): SupportChatResponse {
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         val customer = visibleClient(viewer, publicId)
         val conversation = conversations.findFirstByCustomerUserIdAndStatusOrderByLastActivityAtDesc(requireNotNull(customer.id), OPEN)
@@ -564,7 +566,7 @@ class SupportService(
     }
 
     @Transactional
-    fun sendAdminChatMessage(viewer: UserEntity, publicId: String, messageText: String): SupportMessageResponse {
+    fun sendAdminChatMessage(viewer: EmployeeEntity, publicId: String, messageText: String): SupportMessageResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val customer = visibleClient(viewer, publicId)
         val message = messageText.trim().take(4000)
@@ -640,14 +642,14 @@ class SupportService(
         )
     }
 
-    fun callbackAccess(viewer: UserEntity, publicId: String): CustomerCallbackAccessResponse {
+    fun callbackAccess(viewer: EmployeeEntity, publicId: String): CustomerCallbackAccessResponse {
         roleAccess.requirePermission(viewer, "MANAGE_CALL_ACCESS")
         val customer = clientByPublicId(publicId)
         return CustomerCallbackAccessResponse(customer.publicId, callbackRequestEnabled(customer))
     }
 
     @Transactional
-    fun setCallbackAccess(viewer: UserEntity, publicId: String, enabled: Boolean): CustomerCallbackAccessResponse {
+    fun setCallbackAccess(viewer: EmployeeEntity, publicId: String, enabled: Boolean): CustomerCallbackAccessResponse {
         roleAccess.requirePermission(viewer, "MANAGE_CALL_ACCESS")
         val customer = clientByPublicId(publicId)
         val userId = requireNotNull(customer.id)
@@ -685,7 +687,7 @@ class SupportService(
     }
 
     @Transactional
-    fun recordVoiceCallStarted(call: VoiceCallEntity, actor: UserEntity, supportRequestId: String? = null) {
+    fun recordVoiceCallStarted(call: VoiceCallEntity, actor: EmployeeEntity, supportRequestId: String? = null) {
         if (interactions.findByVoiceCallId(call.callId).isPresent) return
 
         val customerId = call.calleeUserId.takeIf { it == actor.id } ?: call.calleeUserId
@@ -826,7 +828,7 @@ class SupportService(
     }
 
     @Transactional
-    fun updateCase(viewer: UserEntity, caseId: String, request: UpdateSupportCaseRequest): SupportCaseResponse {
+    fun updateCase(viewer: EmployeeEntity, caseId: String, request: UpdateSupportCaseRequest): SupportCaseResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val entity = cases.findByCaseId(caseId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
@@ -849,7 +851,7 @@ class SupportService(
     }
 
     @Transactional
-    fun takeCaseOwnership(viewer: UserEntity, caseId: String): SupportAssignmentResponse {
+    fun takeCaseOwnership(viewer: EmployeeEntity, caseId: String): SupportAssignmentResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val entity = cases.findByCaseId(caseId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
@@ -867,7 +869,7 @@ class SupportService(
     }
 
     @Transactional
-    fun releaseCaseOwnership(viewer: UserEntity, caseId: String): SupportAssignmentResponse {
+    fun releaseCaseOwnership(viewer: EmployeeEntity, caseId: String): SupportAssignmentResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val entity = cases.findByCaseId(caseId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
@@ -887,7 +889,7 @@ class SupportService(
     }
 
     @Transactional
-    fun addNote(viewer: UserEntity, caseId: String, request: CreateSupportNoteRequest): SupportNoteResponse {
+    fun addNote(viewer: EmployeeEntity, caseId: String, request: CreateSupportNoteRequest): SupportNoteResponse {
         roleAccess.requirePermission(viewer, SUPPORT_MANAGE)
         val entity = cases.findByCaseId(caseId).orElseThrow {
             ResponseStatusException(HttpStatus.NOT_FOUND, "Support case not found")
@@ -983,7 +985,7 @@ class SupportService(
         return target
     }
 
-    private fun visibleClient(viewer: UserEntity, publicId: String): UserEntity {
+    private fun visibleClient(viewer: EmployeeEntity, publicId: String): UserEntity {
         val target = clientByPublicId(publicId)
         roleAccess.requirePermission(viewer, SUPPORT_VIEW)
         if (!roleAccess.canView(viewer, target)) {
