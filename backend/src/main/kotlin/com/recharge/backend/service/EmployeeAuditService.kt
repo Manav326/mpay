@@ -37,6 +37,17 @@ class EmployeeAuditService(
         )
     }
 
+    fun list(employee: EmployeeEntity): List<com.recharge.backend.api.PortalStaffActivityResponse> =
+        activities.findTop100ByEmployeeIdOrderByOccurredAtDesc(requireNotNull(employee.id)).map {
+            com.recharge.backend.api.PortalStaffActivityResponse(
+                action = it.action,
+                subjectType = it.subjectType,
+                subjectId = it.subjectId,
+                summary = it.summary,
+                occurredAt = it.occurredAt
+            )
+        }
+
     fun recordById(
         employeeId: Long,
         action: String,
