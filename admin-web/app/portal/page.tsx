@@ -2317,9 +2317,6 @@ export default function Portal() {
           view==='rental-booking'?'Book with driver':view==='bookings'?'My Bookings':'Your account'
         }</h1></div>
         <MpayServiceShowcase view={view} />
-        <div className="portal-topbar-brand" aria-label="mPay — Secure, Simple, Smart">
-          <MpayBrandUnit variant="landing" />
-        </div>
         <div className="portal-avatar portal-topbar-avatar">{pendingProfileImagePreview ? <img src={pendingProfileImagePreview} alt="Profile"/> : profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
       </header>
 
