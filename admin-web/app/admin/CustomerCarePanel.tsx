@@ -956,7 +956,7 @@ export default function CustomerCarePanel({
               <section className="care-tab-card">
                 <div className="care-tab-bar">
                   <button className={activeSection === 'cases' ? 'active' : ''} onClick={() => setActiveSection('cases')}>
-                    <FileText size={14} /> Cases <span>{selected.openCases.length}</span>
+                    <FileText size={14} /> Cases <span>{selectedActiveCases.length}</span>
                   </button>
                   <button className={activeSection === 'activity' ? 'active' : ''} onClick={() => setActiveSection('activity')}>
                     <Clock3 size={14} /> Activity <span>{selected.interactions.length + selected.notes.length + selected.events.length}</span>
@@ -967,66 +967,89 @@ export default function CustomerCarePanel({
                   <div className="care-case-panel">
                     <div className="care-case-toolbar">
                       <div>
-                        <b>Cases requiring support action</b>
-                        <span>Resolve or close only after the customer-facing outcome is documented.</span>
+                        <b>Active cases</b>
+                        <span>Own the case, reply, document the outcome, then resolve or close it.</span>
                       </div>
                       {selectedOpenCase && <span className={'care-status ' + priorityTone(selectedOpenCase.priority)}>{selectedOpenCase.priority}</span>}
                     </div>
 
-                    {selected.openCases.length ? (
-                      <div className="care-case-list">
-                        {selected.openCases.map(caseItem => (
-                          <article className="care-case-card" key={caseItem.caseId}>
-                            <div className="care-case-top">
-                              <div>
-                                <div className="care-case-title">
-                                  <b>{caseItem.subject}</b>
-                                  <span className={'care-status ' + statusTone(caseItem.status)}>{caseItem.status}</span>
+                    {selectedActiveCases.length ? (
+                      <>
+                        <div className="care-case-list">
+                          {selectedActiveCases.map(caseItem => (
+                            <article className="care-case-card" key={caseItem.caseId}>
+                              <div className="care-case-top">
+                                <div>
+                                  <div className="care-case-title">
+                                    <b>{caseItem.subject}</b>
+                                    <span className={'care-status ' + statusTone(caseItem.status)}>{caseItem.status}</span>
+                                  </div>
+                                  <span>{caseItem.category} · {caseItem.source} · updated {shortDate(caseItem.updatedAt)}</span>
                                 </div>
-                                <span>{caseItem.category} · {caseItem.source} · updated {shortDate(caseItem.updatedAt)}</span>
+                                <span className={'care-status ' + priorityTone(caseItem.priority)}>{caseItem.priority}</span>
                               </div>
-                              <span className={'care-status ' + priorityTone(caseItem.priority)}>{caseItem.priority}</span>
-                            </div>
 
-                            <div className="care-case-facts">
-                              <span><small>Case</small><b>{caseItem.caseId}</b></span>
-                              <span><small>Assigned</small><b>{caseItem.assignedUserPublicId || 'Unassigned'}</b></span>
-                              <span><small>Opened</small><b>{shortDate(caseItem.createdAt)}</b></span>
-                              <span><small>Source</small><b>{caseItem.source.replaceAll('_', ' ')}</b></span>
-                            </div>
-
-                            {caseItem.resolutionNote && (
-                              <div className="care-resolution-note">
-                                <CheckCircle2 size={13} />
-                                <span>{caseItem.resolutionNote}</span>
+                              <div className="care-case-facts">
+                                <span><small>Case</small><b>{caseItem.caseId}</b></span>
+                                <span><small>Assigned</small><b>{caseItem.assignedUserName || 'Unassigned'}</b></span>
+                                <span><small>Opened</small><b>{shortDate(caseItem.createdAt)}</b></span>
+                                <span><small>Source</small><b>{caseItem.source.replaceAll('_', ' ')}</b></span>
                               </div>
-                            )}
 
-                            <div className="care-case-actions">
-                              <select
-                                value={caseItem.status}
-                                disabled={!canManageSupport || busyKey === 'case:' + caseItem.caseId}
-                                onChange={event => requestCaseStatusChange(caseItem, event.target.value)}
-                                aria-label="Case status"
-                              >
-                                <option value="OPEN">Open</option>
-                                <option value="RESOLVED">Resolved</option>
-                                <option value="CLOSED">Closed</option>
-                              </select>
-                              {canManageSupport && (
-                                <button className="secondary compact" onClick={() => openNoteDialog(caseItem)} disabled={!!busyKey}>
-                                  <MessageSquareText size={13} /> Add note
-                                </button>
+                              {caseItem.resolutionNote && (
+                                <div className="care-resolution-note">
+                                  <CheckCircle2 size={13} />
+                                  <span>{caseItem.resolutionNote}</span>
+                                </div>
                               )}
-                            </div>
-                          </article>
-                        ))}
-                      </div>
+
+                              <div className="care-case-actions">
+                                {canManageSupport && (
+                                  <button
+                                    className="secondary compact"
+                                    onClick={() => void takeOwnership(caseItem.caseId)}
+                                    disabled={!!busyKey}
+                                  >
+                                    <UserCheck size={13} /> {caseItem.assignedUserName ? 'Take ownership' : 'Assign to me'}
+                                  </button>
+                                )}
+                                <select
+                                  value={caseItem.status}
+                                  disabled={!canManageSupport || busyKey === 'case:' + caseItem.caseId}
+                                  onChange={event => requestCaseStatusChange(caseItem, event.target.value)}
+                                  aria-label="Case status"
+                                >
+                                  <option value="OPEN">Open</option>
+                                  <option value="RESOLVED">Resolved</option>
+                                  <option value="CLOSED">Closed</option>
+                                </select>
+                                {canManageSupport && (
+                                  <button className="secondary compact" onClick={() => openNoteDialog(caseItem)} disabled={!!busyKey}>
+                                    <MessageSquareText size={13} /> Add note
+                                  </button>
+                                )}
+                                {caseItem.assignedUserPublicId && canManageSupport && (
+                                  <button className="care-text-button" onClick={() => void releaseOwnership(caseItem.caseId)} disabled={!!busyKey}>
+                                    Release
+                                  </button>
+                                )}
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                        {selectedResolvedCases.length > 0 && (
+                          <div className="care-resolved-summary">
+                            <CheckCircle2 size={13} />
+                            <span>{selectedResolvedCases.length} recently resolved case{selectedResolvedCases.length === 1 ? '' : 's'} remains visible in the support history.</span>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="care-empty compact-empty">
                         <CheckCircle2 size={16} />
-                        <b>No open support cases</b>
-                        <span>The customer account has no unresolved case right now.</span>
+                        <b>No active support cases</b>
+                        <span>The customer account has no open case requiring action right now.</span>
+                        {selectedResolvedCases.length > 0 && <small>{selectedResolvedCases.length} resolved case{selectedResolvedCases.length === 1 ? '' : 's'} remains in this support record.</small>}
                       </div>
                     )}
                   </div>
