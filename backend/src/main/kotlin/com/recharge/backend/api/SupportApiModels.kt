@@ -13,8 +13,8 @@ data class SupportCallRequestResponse(
     val customerName: String? = null,
     val customerMobile: String? = null,
     val voiceCallId: String? = null,
-    val assignedUserPublicId: String? = null,
-    val assignedUserName: String? = null,
+    val assignedEmployeePublicId: String? = null,
+    val assignedEmployeeName: String? = null,
     val claimedAt: String? = null,
     val outcome: String? = null
 )
@@ -27,8 +27,8 @@ data class SupportCaseResponse(
     val priority: String,
     val status: String,
     val source: String,
-    val assignedUserPublicId: String? = null,
-    val assignedUserName: String? = null,
+    val assignedEmployeePublicId: String? = null,
+    val assignedEmployeeName: String? = null,
     val createdAt: String,
     val updatedAt: String,
     val resolvedAt: String? = null,
@@ -55,7 +55,7 @@ data class SupportInteractionResponse(
     val wrapUpDurationLabel: String? = null,
     val outcome: String?,
     val voiceCallId: String?,
-    val actorUserPublicId: String?,
+    val actorAccountPublicId: String?,
     val actorName: String?
 )
 
@@ -64,7 +64,7 @@ data class SupportNoteResponse(
     val caseId: String?,
     val visibility: String,
     val note: String,
-    val authorUserPublicId: String?,
+    val authorEmployeePublicId: String?,
     val authorName: String?,
     val createdAt: String
 )
@@ -76,7 +76,7 @@ data class SupportCaseEventResponse(
     val visibility: String,
     val channel: String?,
     val summary: String,
-    val actorUserPublicId: String?,
+    val actorAccountPublicId: String?,
     val actorName: String?,
     val createdAt: String
 )
@@ -227,8 +227,8 @@ data class SupportQueueItemResponse(
     val category: String?,
     val priority: String?,
     val caseStatus: String?,
-    val assignedUserPublicId: String?,
-    val assignedUserName: String?,
+    val assignedEmployeePublicId: String?,
+    val assignedEmployeeName: String?,
     val assignedToViewer: Boolean,
     val source: String,
     val attentionReason: String,
@@ -248,8 +248,8 @@ data class SupportQueueResponse(
 
 data class SupportAssignmentResponse(
     val caseId: String,
-    val assignedUserPublicId: String?,
-    val assignedUserName: String?
+    val assignedEmployeePublicId: String?,
+    val assignedEmployeeName: String?
 )
 
 
