@@ -11,11 +11,12 @@ import RentalBookingActions from './RentalBookingActions';
 import RentalPayouts from './RentalPayouts';
 import { VoiceAccessPanel, VoiceCallWidget } from './VoiceCallPanel';
 import CustomerCarePanel from './CustomerCarePanel';
+import StaffManagementPanel from './StaffManagementPanel';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
-type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'|'voice'|'support';
+type AdminView = 'dashboard'|'users'|'financial'|'vendors'|'rental'|'commissions'|'team'|'voice'|'support';
 
 const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
   dashboard: '/admin',
@@ -24,6 +25,7 @@ const ADMIN_VIEW_PATHS: Record<AdminView, string> = {
   vendors: '/admin/vendors',
   rental: '/admin/rental',
   commissions: '/admin/commissions',
+  team: '/admin/team',
   voice: '/admin/voice',
   support: '/admin/customer-care',
 };
@@ -35,6 +37,7 @@ function adminViewFromPath(pathname: string): AdminView {
     case '/admin/vendors': return 'vendors';
     case '/admin/rental': return 'rental';
     case '/admin/commissions': return 'commissions';
+    case '/admin/team': return 'team';
     case '/admin/voice': return 'voice';
     case '/admin/customer-care': return 'support';
     default: return 'dashboard';
@@ -96,11 +99,14 @@ export default function Page() {
     if (typeof window === 'undefined' || !session) return;
 
     const permissions = session.permissions || [];
-    const allowed = new Set<AdminView>(['dashboard', 'users']);
+    const allowed = new Set<AdminView>();
+    if (permissions.includes('VIEW_DASHBOARD')) allowed.add('dashboard');
+    if (permissions.includes('VIEW_USERS')) allowed.add('users');
     if (permissions.includes('VIEW_FINANCIAL_OPERATIONS')) allowed.add('financial');
     if (permissions.includes('MANAGE_VENDORS')) allowed.add('vendors');
     if (permissions.includes('MANAGE_RENTAL_OPERATIONS')) allowed.add('rental');
     if (permissions.includes('MANAGE_COMMISSION_RATES')) allowed.add('commissions');
+    if (session.role?.toUpperCase() === 'ADMIN') allowed.add('team');
     if (permissions.includes('MANAGE_CALL_ACCESS')) allowed.add('voice');
     if (permissions.includes('SUPPORT_VIEW')) allowed.add('support');
 
@@ -109,9 +115,12 @@ export default function Page() {
     const knownPath = currentPath === '/admin' || Object.values(ADMIN_VIEW_PATHS).includes(currentPath);
 
     if (!knownPath || !allowed.has(currentView)) {
-      setViewState('dashboard');
-      if (currentPath !== '/admin') {
-        window.history.replaceState({ mpayAdminView: 'dashboard' }, '', '/admin');
+      const fallback = (['dashboard', 'support', 'voice', 'users', 'team', 'financial', 'vendors', 'rental', 'commissions'] as AdminView[])
+        .find(candidate => allowed.has(candidate)) || 'dashboard';
+      setViewState(fallback);
+      const fallbackPath = ADMIN_VIEW_PATHS[fallback];
+      if (currentPath !== fallbackPath) {
+        window.history.replaceState({ mpayAdminView: fallback }, '', fallbackPath);
       }
     }
   }, [session]);
@@ -207,6 +216,7 @@ export default function Page() {
     ...(canVendors ? [['vendors','Rental Partners',CarFront] as const] : []),
     ...(canRentalOperations ? [['rental','Rental Operations',CalendarDays] as const] : []),
     ...(canCommission ? [['commissions','Commission Rules',CircleDollarSign] as const] : []),
+    ...(session.role?.toUpperCase() === 'ADMIN' ? [['team','Team & Access',Users] as const] : []),
     ...(canSupportView ? [['support','Customer Care',MessageCircle] as const] : []),
     ...(canManageCallAccess ? [['voice','Voice & Access',PhoneCall] as const] : []),
   ] as const;
@@ -217,11 +227,12 @@ export default function Page() {
       <nav>{menu.map(([key,label,Icon])=><button key={key} className={view===key?'nav active':'nav'} onClick={()=>{setView(key as any);setDrawer(false)}}><Icon size={18}/><span>{label}</span></button>)}</nav>
       <div className="side-bottom"><button className="nav" onClick={logout} title="Logout"><LogOut size={18}/><span>Logout</span></button></div>
     </aside>
-    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':view==='commissions'?'Commission Rules':view==='support'?'Customer Care':'Voice & Access'}</h1></div></div><div className="top-actions"><div className="admin-role-badge"><span className="admin-role-badge-icon"><ShieldCheck size={14}/></span><div><b>{session.role}</b><small>Authorized access</small></div></div><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
+    <main className="main"><header className="topbar"><div className="topbar-leading"><button className="icon-btn mobile-only" onClick={()=>setDrawer(true)}><Menu size={20}/></button><button className="icon-btn sidebar-collapse-btn" onClick={()=>{setSidebarCollapsed(v=>{const next=!v;localStorage.setItem('mpay_admin_sidebar_collapsed',next?'1':'0');return next;})}} aria-label={sidebarCollapsed?'Expand navigation':'Collapse navigation'}>{sidebarCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button><div><div className="eyebrow">mPay admin console</div><h1>{view==='dashboard'?'Company Overview':view==='users'?'Users & Wallet':view==='financial'?'Money Operations':view==='vendors'?'Rental Partners':view==='rental'?'Rental Operations':view==='commissions'?'Commission Rules':view==='team'?'Team & Access':view==='support'?'Customer Care':'Voice & Access'}</h1></div></div><div className="top-actions"><div className="admin-role-badge"><span className="admin-role-badge-icon"><ShieldCheck size={14}/></span><div><b>{session.role}</b><small>Authorized access</small></div></div><AdminProfileMenu name={session.name} role={session.role} onLogout={logout}/></div></header>
       {notice && <div className="admin-notice"><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
       {view==='dashboard' && <Dashboard data={dashboard} rental={rentalDashboard} showRental={canRentalOperations} attention={attention} onUsers={()=>setView('users')} onRental={()=>setView('rental')} onVendors={()=>setView('vendors')} onFinancial={canFinancial?()=>setView('financial'):undefined} onCommissions={canCommission?()=>setView('commissions'):undefined} />}
       {view==='financial' && canFinancial && <FinancialOperations canRefreshRecharge={canRefreshRecharge}/>} 
-      {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} canViewCustomerContext={canViewCustomerContext} canManageSupportAccess={canManageSupportAccess} />}
+      {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} canViewCustomerContext={canViewCustomerContext} canManageSupportAccess={canManageSupportAccess} onOpenAccessManagement={()=>setView('voice')} />}
+      {view==='team' && session.role?.toUpperCase() === 'ADMIN' && <StaffManagementPanel onManageAccess={()=>setView('voice')} />}
       {view==='voice' && canManageCallAccess && <VoiceAccessPanel />}
       {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
