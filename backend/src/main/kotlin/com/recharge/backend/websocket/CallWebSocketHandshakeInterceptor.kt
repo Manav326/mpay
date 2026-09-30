@@ -1,5 +1,6 @@
 package com.recharge.backend.websocket
 
+import com.recharge.backend.repository.EmployeeRepository
 import com.recharge.backend.repository.UserRepository
 import com.recharge.backend.security.JwtService
 import com.recharge.backend.service.VoiceCallService
@@ -15,6 +16,7 @@ import org.springframework.web.util.UriComponentsBuilder
 class CallWebSocketHandshakeInterceptor(
     private val jwtService: JwtService,
     private val users: UserRepository,
+    private val employees: EmployeeRepository,
     private val calls: VoiceCallService
 ) : HandshakeInterceptor {
 
@@ -24,15 +26,8 @@ class CallWebSocketHandshakeInterceptor(
         wsHandler: WebSocketHandler,
         attributes: MutableMap<String, Any>
     ): Boolean {
-        val queryToken = UriComponentsBuilder.fromUri(request.uri)
-            .build()
-            .queryParams
-            .getFirst("token")
-
-        val headerToken = request.headers.getFirst("Authorization")
-            ?.removePrefix("Bearer ")
-            ?.trim()
-
+        val queryToken = UriComponentsBuilder.fromUri(request.uri).build().queryParams.getFirst("token")
+        val headerToken = request.headers.getFirst("Authorization")?.removePrefix("Bearer ")?.trim()
         val token = queryToken?.takeIf { it.isNotBlank() } ?: headerToken
         if (token.isNullOrBlank()) {
             response.setStatusCode(HttpStatus.UNAUTHORIZED)
@@ -45,20 +40,24 @@ class CallWebSocketHandshakeInterceptor(
                 response.setStatusCode(HttpStatus.UNAUTHORIZED)
                 false
             } else {
-                val userId = claims.subject.toLongOrNull()
+                val accountId = claims.subject.toLongOrNull()
+                val accountType = jwtService.accountType(claims)
                 val callId = claims["call_id"]?.toString()
-                val user = userId?.let { users.findById(it).orElse(null) }
+                val active = when (accountType) {
+                    "EMPLOYEE" -> accountId?.let { employees.findById(it).map { employee -> employee.active }.orElse(false) } ?: false
+                    else -> accountId?.let { users.findById(it).map { user -> user.active && user.deletedAt == null }.orElse(false) } ?: false
+                }
                 if (
-                    userId == null ||
+                    accountId == null ||
                     callId.isNullOrBlank() ||
-                    user == null ||
-                    !user.active ||
-                    !calls.socketAuthorized(userId, callId)
+                    !active ||
+                    !calls.socketAuthorized(accountType, accountId, callId)
                 ) {
                     response.setStatusCode(HttpStatus.FORBIDDEN)
                     false
                 } else {
-                    attributes["userId"] = userId
+                    attributes["accountId"] = accountId
+                    attributes["accountType"] = accountType
                     attributes["callId"] = callId
                     true
                 }
