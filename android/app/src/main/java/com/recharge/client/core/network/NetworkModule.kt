@@ -81,6 +81,8 @@ class TokenAuthenticator(
 }
 
 object NetworkModule {
+    private val gson = Gson()
+
     @Volatile
     private var clientApiInstance: ClientApi? = null
 
@@ -120,7 +122,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(ApiConfig.BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create(Gson()))
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(ClientApi::class.java)
     }
