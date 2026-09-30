@@ -19,6 +19,7 @@ import com.google.maps.android.compose.*
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
+import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.android.libraries.places.widget.PlaceAutocomplete
 import com.recharge.client.BuildConfig
 import com.recharge.client.core.model.RentalLocationInput
@@ -35,7 +36,9 @@ fun RentalLocationPickerField(
     error: String? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val placesClient = remember(context) { if (BuildConfig.MAPS_API_KEY.isNotBlank()) Places.createClient(context) else null }
+    // Do not initialize the Places SDK or allocate its client until the user
+    // actually opens location search.
+    var placesClient by remember { mutableStateOf<PlacesClient?>(null) }
     val launcher = rememberLauncherForActivityResult(StartActivityForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK || result.data == null || placesClient == null) return@rememberLauncherForActivityResult
         val prediction = runCatching { PlaceAutocomplete.getPredictionFromIntent(result.data!!) }.getOrNull() ?: return@rememberLauncherForActivityResult
@@ -67,6 +70,13 @@ fun RentalLocationPickerField(
         OutlinedButton(
             onClick = {
                 if (BuildConfig.MAPS_API_KEY.isBlank()) return@OutlinedButton
+                if (!Places.isInitialized()) {
+                    Places.initializeWithNewPlacesApiEnabled(
+                        context.applicationContext,
+                        BuildConfig.MAPS_API_KEY
+                    )
+                }
+                placesClient = Places.createClient(context)
                 val intent = PlaceAutocomplete.createIntent(context) {
                     setCountries(listOf("IN"))
                     setRegionCode("IN")
