@@ -415,6 +415,13 @@ class AdminController(
     ): List<AdminUserSummaryResponse> =
         adminService.users(role, sort, currentUser(authentication))
 
+    @PostMapping("/staff")
+    fun createPortalStaff(
+        authentication: Authentication,
+        @Valid @RequestBody request: CreatePortalStaffRequest
+    ): PortalStaffResponse =
+        adminService.createPortalStaff(currentUser(authentication), request)
+
     @GetMapping("/users/{publicId}")
     fun userDetail(authentication: Authentication, @PathVariable publicId: String): AdminUserDetailResponse =
         adminService.userDetail(currentUser(authentication), publicId)
