@@ -205,7 +205,7 @@ fun CustomerSupportFloatingChat(
                 messageCount <= 7 -> 540f
                 else -> 600f
             }
-            heightDp = targetHeight.coerceAtMost(availableHeight.coerceAtLeast(minHeight))
+            heightDp = targetHeight.coerceAtMost(configuration.screenHeightDp.toFloat().coerceAtLeast(minHeight))
         }
     }
 
