@@ -13,9 +13,9 @@ import javax.crypto.SecretKey
 
 @Service
 class JwtService(
-    @Value("${app.security.jwt-secret}") private val jwtSecret: String,
-    @Value("${app.security.access-token-minutes:30}") private val accessTokenMinutes: Long,
-    @Value("${app.security.refresh-token-days:30}") private val refreshTokenDays: Long
+    @Value("\${app.security.jwt-secret}") private val jwtSecret: String,
+    @Value("\${app.security.access-token-minutes:30}") private val accessTokenMinutes: Long,
+    @Value("\${app.security.refresh-token-days:30}") private val refreshTokenDays: Long
 ) {
     private val key: SecretKey by lazy {
         require(jwtSecret.toByteArray(StandardCharsets.UTF_8).size >= 32) {
