@@ -55,6 +55,15 @@ export interface PortalStaff {
   role: string;
   active: boolean;
   createdAt: string;
+  lastLoginAt?: string | null;
+}
+
+export interface PortalStaffActivity {
+  action: string;
+  subjectType?: string | null;
+  subjectId?: string | null;
+  summary: string;
+  occurredAt: string;
 }
 
 export interface LoginSession { token: string; refreshToken: string; role: Role; userId: string; name: string; permissions: string[]; }
