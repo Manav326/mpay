@@ -1029,6 +1029,7 @@ export default function Portal() {
   const [supportChatError, setSupportChatError] = useState('');
   const [supportGuidedTopic, setSupportGuidedTopic] = useState<CustomerSupportTopic>();
   const [supportCallbackBusy, setSupportCallbackBusy] = useState(false);
+  const [supportCallbackReason, setSupportCallbackReason] = useState('');
   const [supportChatMinimized, setSupportChatMinimized] = useState(false);
   const [supportChatPosition, setSupportChatPosition] = useState({
     x: 12,
@@ -1099,8 +1100,9 @@ export default function Portal() {
     try {
       await api('/api/v1/support/call-request', {
         method: 'POST',
-        body: JSON.stringify({ reason: null })
+        body: JSON.stringify({ reason: supportCallbackReason.trim() || null })
       });
+      setSupportCallbackReason('');
       await loadCustomerSupportChat();
     } catch (e:any) {
       setSupportChatError(e.message || 'Unable to request a callback.');
@@ -3960,7 +3962,6 @@ export default function Portal() {
           draft={supportChatDraft}
           error={supportChatError}
           guidedTopic={supportGuidedTopic}
-          callbackReason={supportCallbackReason}
           callbackBusy={supportCallbackBusy}
           minimized={supportChatMinimized}
           position={supportChatPosition}
