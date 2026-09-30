@@ -714,6 +714,8 @@ private fun AppNavHost(
     authLogout: () -> Unit, onChooseContact: () -> Unit, modifier: Modifier = Modifier,
     customerCareViewModel: CustomerCareViewModel = viewModel()
 ) {
+    val customerCareState by customerCareViewModel.state.collectAsState()
+
     NavHost(navController = nav, startDestination = "home", modifier = modifier.fillMaxSize()) {
         composable("home") {
             HomeScreen(
@@ -799,7 +801,17 @@ private fun AppNavHost(
                 onLogout = authLogout,
                 onProfileUpdated = homeViewModel::load,
                 onBecomeVendor = { nav.navigate("rental-vendor") },
-                onCustomerCare = { nav.navigate("customer-care") },
+                customerCareState = customerCareState,
+                onCustomerCareLoad = { customerCareViewModel.load() },
+                onCustomerCareRefresh = customerCareViewModel::refresh,
+                onCustomerCareOpen = customerCareViewModel::open,
+                onCustomerCareCreate = { category, subject, message ->
+                    customerCareViewModel.create(category, subject, message)
+                },
+                onCustomerCareReply = customerCareViewModel::reply,
+                onCustomerCareClose = customerCareViewModel::closeSelected,
+                onCustomerCareClearSelected = customerCareViewModel::clearSelected,
+                onCustomerCareClearError = customerCareViewModel::clearError,
                 onDeleteAccount = { password, confirmation, closeDialog ->
                     profileViewModel.deleteAccount(password, confirmation) {
                         closeDialog()
@@ -813,7 +825,7 @@ private fun AppNavHost(
         composable("customer-care") {
             CustomerCareScreen(
                 state = customerCareViewModel.state.collectAsState().value,
-                onLoad = customerCareViewModel::load,
+                onLoad = { customerCareViewModel.load() },
                 onOpen = customerCareViewModel::open,
                 onCreate = { category, subject, message ->
                     customerCareViewModel.create(category, subject, message)
