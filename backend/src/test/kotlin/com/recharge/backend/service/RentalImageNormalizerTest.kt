@@ -5,8 +5,8 @@ import org.junit.jupiter.api.assertThrows
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 class RentalImageNormalizerTest {
     @Test fun normalizesLargeJpegToSafePersistedSize() {
