@@ -68,7 +68,7 @@ class RechargeTransactionWorkflowServiceTest {
         workflow.applyProviderResult("RCH-201", "FAILED", "PROVIDER-201", "failed")
 
         Mockito.verify(walletService).releaseReservation(2L, BigDecimal("99.00"))
-        Mockito.verify(clientCommissionService, Mockito.never()).creditUpstreamCommission(Mockito.any())
+        Mockito.verify(clientCommissionService, Mockito.never()).creditUpstreamCommission(tx)
         assertEquals("FAILED", tx.status)
         Mockito.verify(repository).save(tx)
     }
