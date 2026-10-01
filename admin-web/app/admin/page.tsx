@@ -3,10 +3,10 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle, PhoneCall, MessageCircle } from 'lucide-react';
-import { cancelRentalBooking, completeRentalBooking, createVoiceCall, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
+import { cancelRentalBooking, completeRentalBooking, createVoiceCall, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, getClientCommissionSettings, updateClientCommissionSettings, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import AdminProfileMenu from './AdminProfileMenu';
 import type { AdminAttention } from './DashboardView';
-import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
+import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, ClientCommissionSettings, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
@@ -126,6 +126,7 @@ export default function Page() {
   const [rentalBookingHasNext, setRentalBookingHasNext] = useState(false);
   const [rentalBookingStatus, setRentalBookingStatus] = useState('ALL');
   const [commissionRates, setCommissionRates] = useState<RoleCommissionRate[]>([]);
+  const [clientCommissionSettings, setClientCommissionSettings] = useState<ClientCommissionSettings | null>(null);
   const [attention, setAttention] = useState<AdminAttention>({ pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingVehicleReviews: 0, pendingPayouts: 0 });
 
   useEffect(()=>{
@@ -184,7 +185,13 @@ export default function Page() {
   }
   async function loadRental(){ try { const [summary, page] = await Promise.all([getRentalAdminDashboard(), getRentalAdminBookings(rentalBookingPage,25,rentalBookingStatus)]); setRentalDashboard(summary); setRentalBookings(page.items); setRentalBookingHasNext(page.hasNext); } catch(err:any){ setNotice(err.message||'Unable to load rental administration data.'); } }
   useEffect(()=>{ if(session && view==='users') loadUsers(); },[session,view,roleFilter, sort]);
-  useEffect(()=>{ if(session && view==='commissions' && session.permissions?.includes('MANAGE_COMMISSION_RATES')) getCommissionRates().then(setCommissionRates).catch(()=>{}); },[session,view]);
+  useEffect(()=>{
+    if(session && view==='commissions' && session.permissions?.includes('MANAGE_COMMISSION_RATES')) {
+      Promise.all([getCommissionRates(), getClientCommissionSettings()])
+        .then(([rates, settings]) => { setCommissionRates(rates.filter(r => r.role.toUpperCase() === 'CLIENT')); setClientCommissionSettings(settings); })
+        .catch(()=>{});
+    }
+  },[session,view]);
   useEffect(()=>{ if(session && view==='rental' && permissionsForSession(session).includes('MANAGE_RENTAL_OPERATIONS')) loadRental(); },[session,view,rentalBookingPage,rentalBookingStatus]);
 
   async function doLogin(e: React.FormEvent){ e.preventDefault(); setBusy(true); setNotice(''); try { const r = await login(mobile, password, selectedPortalRole); const s={token:r.accessToken, refreshToken:r.refreshToken, role:r.role, name:r.name||r.role, permissions:r.permissions||[]}; localStorage.setItem('mpay_admin_session', JSON.stringify(s)); localStorage.setItem('mpay_admin_token', r.accessToken); startWebSessionRefresh({ accessKey: 'mpay_admin_token', refreshKey: 'mpay_admin_refresh_token', sessionKey: 'mpay_admin_session', redirectPath: '/admin' }); setSession(s); } catch(err:any){ setNotice(err.message||'Login failed'); } finally { setBusy(false); } }
@@ -234,7 +241,31 @@ export default function Page() {
       {view==='support' && canSupportView && <CustomerCarePanel canManageSupport={canSupportManage} canCallCustomer={canCallCustomer} canManageCallAccess={canManageCallAccess} canManageSupportAi={canManageSupportAi} canViewCustomerContext={canViewCustomerContext} canManageSupportAccess={canManageSupportAccess} onOpenAccessManagement={()=>setView('voice')} />}
       {view==='team' && session.role?.toUpperCase() === 'ADMIN' && <StaffManagementPanel onManageAccess={()=>setView('voice')} />}
       {view==='voice' && session.role?.toUpperCase() === 'ADMIN' && <VoiceAccessPanel />}
-      {view==='commissions' && canCommission && <CommissionView rates={commissionRates} busy={busy} onSave={async(role,percent,active)=>{setBusy(true);try{const saved=await updateCommissionRate(role,percent,active);setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x));setNotice('Commission rule updated.')}catch(err:any){setNotice(err.message||'Unable to update commission rule.')}finally{setBusy(false)}}}/>} 
+      {view==='commissions' && canCommission && <CommissionView
+        rates={commissionRates}
+        settings={clientCommissionSettings}
+        busy={busy}
+        onSaveRate={async(role,percent,active)=>{
+          setBusy(true);
+          try {
+            const saved=await updateCommissionRate(role,percent,active);
+            setCommissionRates(xs=>xs.map(x=>x.role===saved.role?saved:x).filter(x=>x.role.toUpperCase()==='CLIENT'));
+            setNotice('Client commission rule updated.');
+          } catch(err:any) {
+            setNotice(err.message||'Unable to update commission rule.');
+          } finally { setBusy(false); }
+        }}
+        onSaveSettings={async(threshold,percent,active)=>{
+          setBusy(true);
+          try {
+            const saved=await updateClientCommissionSettings(threshold,percent,active);
+            setClientCommissionSettings(saved);
+            setNotice('Referral commission settings updated.');
+          } catch(err:any) {
+            setNotice(err.message||'Unable to update referral commission settings.');
+          } finally { setBusy(false); }
+        }}
+      />} 
       {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
       {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id,reason)=>{setBusy(true);try{await cancelRentalBooking(id,reason);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} 
@@ -724,15 +755,85 @@ function RentalOperations(p:{
   </div>;
 }
 
-function CommissionView(p:{rates:RoleCommissionRate[];busy:boolean;onSave:(role:string,percent:number,active:boolean)=>void}){
+function CommissionView(p:{
+  rates:RoleCommissionRate[];
+  settings:ClientCommissionSettings|null;
+  busy:boolean;
+  onSaveRate:(role:string,percent:number,active:boolean)=>void;
+  onSaveSettings:(threshold:number,percent:number,active:boolean)=>void;
+}){
   return <div className="content">
     <section className="panel">
-      <div className="panel-head wrap"><div><h2>Commission rules</h2><p>Role-based recharge commission rules used by the backend. Changes are saved through the protected admin API.</p></div></div>
-      {p.rates.length===0 ? <div className="empty-state">No commission rules available for this account.</div> :
-      <div className="table-wrap"><table><thead><tr><th>Role</th><th>Commission %</th><th>State</th><th>Action</th></tr></thead><tbody>
-        {p.rates.map(r=><CommissionRow key={r.role} rate={r} busy={p.busy} onSave={p.onSave}/>)}
+      <div className="panel-head wrap">
+        <div>
+          <h2>Client commission</h2>
+          <p>Commission rules apply only to client accounts. Employee accounts are never part of the customer commission network.</p>
+        </div>
+      </div>
+      {p.rates.length===0 ? <div className="empty-state">No client commission rule is available.</div> :
+      <div className="table-wrap"><table><thead><tr><th>Account</th><th>Commission %</th><th>State</th><th>Action</th></tr></thead><tbody>
+        {p.rates.filter(r=>r.role.toUpperCase()==='CLIENT').map(r=><CommissionRow key={r.role} rate={r} busy={p.busy} onSave={p.onSaveRate}/>)}
       </tbody></table></div>}
     </section>
+
+    <section className="panel">
+      <div className="panel-head wrap">
+        <div>
+          <h2>Referral / upstream commission</h2>
+          <p>Level 2 clients earn this additional amount from successful direct-client recharges. The direct client is not charged this commission.</p>
+        </div>
+      </div>
+      {p.settings === null ? <div className="empty-state">Referral settings are unavailable.</div> :
+      <CommissionSettingsEditor settings={p.settings} busy={p.busy} onSave={p.onSaveSettings}/>}
+    </section>
+  </div>;
+}
+
+function CommissionRow(p:{rate:RoleCommissionRate;busy:boolean;onSave:(role:string,percent:number,active:boolean)=>void}){
+  const [percent,setPercent]=useState(String(p.rate.commissionPercent));
+  const [active,setActive]=useState(p.rate.active);
+  useEffect(()=>{setPercent(String(p.rate.commissionPercent));setActive(p.rate.active)},[p.rate.commissionPercent,p.rate.active]);
+  return <tr>
+    <td><b>CLIENT</b></td>
+    <td><input className="inline-number" type="number" min="0" max="99.99" step="0.01" value={percent} onChange={e=>setPercent(e.target.value)}/></td>
+    <td><button className={"status-toggle "+(active?'on':'off')} onClick={()=>setActive(v=>!v)}>{active?'ACTIVE':'INACTIVE'}</button></td>
+    <td><button className="secondary" disabled={p.busy || Number(percent)<0 || Number(percent)>=100} onClick={()=>p.onSave('CLIENT',Number(percent),active)}>Save</button></td>
+  </tr>;
+}
+
+function CommissionSettingsEditor(p:{
+  settings:ClientCommissionSettings;
+  busy:boolean;
+  onSave:(threshold:number,percent:number,active:boolean)=>void;
+}){
+  const [threshold,setThreshold]=useState(String(p.settings.level2DirectClientThreshold));
+  const [percent,setPercent]=useState(String(p.settings.upstreamCommissionPercent));
+  const [active,setActive]=useState(p.settings.upstreamCommissionActive);
+  useEffect(()=>{
+    setThreshold(String(p.settings.level2DirectClientThreshold));
+    setPercent(String(p.settings.upstreamCommissionPercent));
+    setActive(p.settings.upstreamCommissionActive);
+  },[p.settings.level2DirectClientThreshold,p.settings.upstreamCommissionPercent,p.settings.upstreamCommissionActive]);
+
+  return <div className="form-grid">
+    <label>
+      <span>Level 2 direct-client threshold</span>
+      <input className="inline-number" type="number" min="1" step="1" value={threshold} onChange={e=>setThreshold(e.target.value)}/>
+      <small>Number of verified direct clients required to become Level 2.</small>
+    </label>
+    <label>
+      <span>Upstream commission %</span>
+      <input className="inline-number" type="number" min="0" max="99.99" step="0.01" value={percent} onChange={e=>setPercent(e.target.value)}/>
+      <small>Credited to the Level 2 parent only after the child recharge succeeds.</small>
+    </label>
+    <div className="panel-actions">
+      <button className={"status-toggle "+(active?'on':'off')} onClick={()=>setActive(v=>!v)}>{active?'ACTIVE':'INACTIVE'}</button>
+      <button
+        className="primary"
+        disabled={p.busy || !Number.isInteger(Number(threshold)) || Number(threshold)<1 || Number(percent)<0 || Number(percent)>=100}
+        onClick={()=>p.onSave(Number(threshold),Number(percent),active)}
+      >Save referral settings</button>
+    </div>
   </div>;
 }
 
