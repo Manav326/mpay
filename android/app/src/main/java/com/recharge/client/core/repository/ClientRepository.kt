@@ -255,6 +255,36 @@ class ClientRepository(context: Context) {
         response.body()!!
     }
 
+    suspend fun clientCommissionOverview(): Result<com.recharge.client.core.model.ClientCommissionOverviewResponse> = apiCall {
+        val response = api.clientCommissionOverview()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun clientCommissionClients(): Result<List<com.recharge.client.core.model.ClientReferralMemberResponse>> = apiCall {
+        val response = api.clientCommissionClients()
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun searchCommissionClients(query: String): Result<List<com.recharge.client.core.model.ClientSearchResultResponse>> = apiCall {
+        val response = api.searchCommissionClients(query.trim())
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun addCommissionClient(clientPublicId: String): Result<com.recharge.client.core.model.ClientReferralMemberResponse> = apiCall {
+        val response = api.addCommissionClient(com.recharge.client.core.model.AddClientCommissionMemberRequest(clientPublicId.trim()))
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
+    suspend fun upstreamCommissionHistory(page: Int = 0, size: Int = 20): Result<com.recharge.client.core.model.ClientUpstreamCommissionPageResponse> = apiCall {
+        val response = api.upstreamCommissionHistory(page, size)
+        if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
+        response.body()!!
+    }
+
     suspend fun walletHistory(page: Int = 0, size: Int = 20, kind: String? = null, from: String? = null, to: String? = null): Result<WalletHistoryResponse> = apiCall {
         val response = api.walletHistory(page, size, kind, from, to)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
