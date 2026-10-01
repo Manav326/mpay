@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Settings
