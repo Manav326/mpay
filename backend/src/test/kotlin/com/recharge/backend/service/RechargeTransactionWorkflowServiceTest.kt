@@ -58,7 +58,7 @@ class RechargeTransactionWorkflowServiceTest {
     fun preSubmissionFailureRecordsAnEventWithoutWalletMovement() {
         val request = RechargeRequestData("RCH-202", "client-202", "9955131155", null, "AIRTEL", "Bihar and Jharkhand")
         val plan = com.recharge.backend.provider.RechargePlan("PLAN-202", BigDecimal("349.00"), "28 days", "Test plan")
-        Mockito.doReturn(Optional.empty()).`when`(repository).findByClientRequestIdAndUserId("client-202", 2L)
+        Mockito.`when`(repository.findByClientRequestIdAndUserId("client-202", 2L)).thenReturn(Optional.empty())
         val saved = RechargeTransactionEntity(transactionId = "RCH-202", userId = 2L, status = "FAILED")
         Mockito.doReturn(saved).`when`(repository).save(Mockito.any(RechargeTransactionEntity::class.java))
 
