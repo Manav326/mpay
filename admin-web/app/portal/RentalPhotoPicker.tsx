@@ -16,7 +16,10 @@ type Props = {
   onUse: (result: RentalPhotoPickerResult) => void;
 };
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+const TARGET_BYTES = 4_750_000;
+const MAX_PIXELS = 40_000_000;
+const MAX_DIMENSION = 2_560;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 function isHttpUrl(value: string) {
@@ -38,6 +41,7 @@ export default function RentalPhotoPicker({
   const [urlState, setUrlState] = useState<'idle'|'checking'|'loading'|'ready'|'error'>('idle');
   const [urlPreview, setUrlPreview] = useState('');
   const [fileError, setFileError] = useState('');
+  const [fileBusy, setFileBusy] = useState(false);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function RentalPhotoPicker({
     setSource(next);
   }
 
-  function handleFile(file?: File) {
+  async function handleFile(file?: File) {
     if (!file) return;
 
     if (!ALLOWED_TYPES.has(file.type)) {
@@ -116,18 +120,23 @@ export default function RentalPhotoPicker({
       setDevicePreview('');
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setFileError('Photo must be 5 MB or smaller.');
-      setSelectedFile(null);
-      setDevicePreview('');
-      return;
-    }
 
+    setFileBusy(true);
     setFileError('');
+    setSelectedFile(null);
     if (devicePreview.startsWith('blob:')) URL.revokeObjectURL(devicePreview);
-    setSelectedFile(file);
-    setDevicePreview(URL.createObjectURL(file));
-    setSource('device');
+    setDevicePreview('');
+
+    try {
+      const normalized = await normalizeDevicePhoto(file);
+      setSelectedFile(normalized);
+      setDevicePreview(URL.createObjectURL(normalized));
+      setSource('device');
+    } catch (error: any) {
+      setFileError(error?.message || 'Unable to prepare this photo.');
+    } finally {
+      setFileBusy(false);
+    }
   }
 
   const candidatePreview = source === 'device' ? devicePreview : urlPreview;
@@ -164,7 +173,7 @@ export default function RentalPhotoPicker({
             <span className="photo-picker-source-icon"><Camera size={18} /></span>
             <span>
               <b>From device</b>
-              <small>JPG, PNG or WebP · up to 5 MB</small>
+              <small>JPG, PNG or WebP · large photos optimized automatically</small>
             </span>
           </button>
 
@@ -176,7 +185,7 @@ export default function RentalPhotoPicker({
             <span className="photo-picker-source-icon"><Link2 size={18} /></span>
             <span>
               <b>Image URL</b>
-              <small>Direct JPG, PNG or WebP · up to 5 MB</small>
+              <small>Direct JPG, PNG or WebP · server optimizes larger images</small>
             </span>
           </button>
         </div>
@@ -187,7 +196,7 @@ export default function RentalPhotoPicker({
           hidden
           accept="image/jpeg,image/png,image/webp"
           onChange={event => {
-            handleFile(event.target.files?.[0]);
+            void handleFile(event.target.files?.[0]);
             event.target.value = '';
           }}
         />
@@ -204,6 +213,7 @@ export default function RentalPhotoPicker({
 
         {source === 'device' && (
           <div className="photo-picker-candidate">
+            {fileBusy && (<div className="photo-picker-result loading"><LoaderCircle size={16} className="photo-picker-spin" /><span>Optimizing photo before upload…</span></div>)}
             {fileError && (
               <div className="photo-picker-result error">
                 <AlertCircle size={16} />
@@ -271,7 +281,7 @@ export default function RentalPhotoPicker({
 
             {urlState === 'idle' && (
               <div className="photo-picker-url-help">
-                Paste a direct public image URL. Web pages, file pages (for example Wikipedia/Commons), private links and images over 5 MB are not accepted.
+                Paste a direct public image URL. Web pages and private links are not accepted. The server validates, resizes and compresses the downloaded image before storing it.
               </div>
             )}
           </div>
@@ -286,7 +296,7 @@ export default function RentalPhotoPicker({
             className="landing-primary"
             disabled={
               source === null ||
-              (source === 'device' && !selectedFile) ||
+              (source === 'device' && (!selectedFile || fileBusy)) ||
               (source === 'url' && urlState !== 'ready')
             }
             onClick={() => {
