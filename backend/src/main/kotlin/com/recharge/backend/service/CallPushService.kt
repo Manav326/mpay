@@ -6,6 +6,8 @@ import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.AndroidConfig
 import com.google.firebase.messaging.AndroidFcmOptions
 import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.FirebaseMessagingException
+import com.google.firebase.messaging.MessagingErrorCode
 import com.google.firebase.messaging.MulticastMessage
 import com.recharge.backend.config.CallProperties
 import com.recharge.backend.domain.CallPushDeviceEntity
@@ -77,6 +79,16 @@ class CallPushService(
     fun hasActiveDevice(userId: Long): Boolean =
         devices.findAllByUserIdAndActiveTrue(userId).isNotEmpty()
 
+    private fun deactivateInvalidToken(token: String) {
+        devices.findByToken(token).orElse(null)?.let { device ->
+            if (device.active) {
+                device.active = false
+                device.updatedAt = Instant.now()
+                devices.save(device)
+            }
+        }
+    }
+
     fun revoke(userId: Long, token: String) {
         val normalized = token.trim()
         if (normalized.isBlank()) return
@@ -142,12 +154,25 @@ class CallPushService(
                     successCount++
                 } else {
                     failureCount++
+                    val exception = result.exception
+                    if (
+                        exception is FirebaseMessagingException &&
+                        exception.messagingErrorCode == MessagingErrorCode.UNREGISTERED
+                    ) {
+                        deactivateInvalidToken(tokens[index])
+                        log.info(
+                            "Deactivated invalid FCM voice-call token. event={} callId={} tokenIndex={}",
+                            data["event"],
+                            data["callId"],
+                            index
+                        )
+                    }
                     log.warn(
                         "FCM voice-call delivery failed. event={} callId={} tokenIndex={} error={}",
                         data["event"],
                         data["callId"],
                         index,
-                        result.exception?.message
+                        exception?.message
                     )
                 }
             }
