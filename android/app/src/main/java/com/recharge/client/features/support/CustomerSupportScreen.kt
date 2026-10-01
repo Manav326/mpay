@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -217,49 +218,61 @@ private fun SupportActions(
     onCancel: (SupportCallRequestResponse) -> Unit,
     currentTicket: com.recharge.client.core.model.SupportCaseResponse?
 ) {
-    SupportActionCard(
-        icon = Icons.Default.ChatBubbleOutline,
-        title = "Chat with mPay Support",
-        subtitle = "Continue with customer care chat and keep the issue history together.",
-        onClick = onOpenChat
-    )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(9.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SupportActionCard(
+                icon = Icons.Default.ChatBubbleOutline,
+                title = "Chat with mPay Support",
+                subtitle = "Continue with customer care chat and keep the issue history together.",
+                onClick = onOpenChat
+            )
 
-    SupportActionCard(
-        icon = Icons.Default.Call,
-        title = if (pending == null) "Request a callback" else "Callback requested",
-        subtitle = when {
-            pending != null -> "Your callback request is ${pending.status.replace('_', ' ').lowercase()}. You can cancel it while it is pending."
-            enabled -> "Ask mPay Support to call you about an issue that needs direct assistance."
-            else -> "Support calls are currently unavailable. Chat with mPay Support for help."
-        },
-        trailing = {
-            if (pending != null) {
-                OutlinedButton(
-                    onClick = { onCancel(pending) },
-                    enabled = !busy,
-                    shape = RoundedCornerShape(11.dp)
-                ) {
-                    Icon(Icons.Default.CallEnd, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.size(5.dp))
-                    Text(if (busy) "Cancelling…" else "Cancel")
-                }
-            } else {
-                OutlinedButton(
-                    onClick = onRequest,
-                    enabled = enabled && !busy,
-                    shape = RoundedCornerShape(11.dp)
-                ) {
-                    Icon(Icons.Default.Call, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.size(5.dp))
-                    Text(if (busy) "Requesting…" else "Request callback")
-                }
+            if (enabled || pending != null) {
+                SupportActionCard(
+                    icon = Icons.Default.Call,
+                    title = if (pending == null) "Request a callback" else "Callback requested",
+                    subtitle = when {
+                        pending != null -> "Your callback request is ${pending.status.replace('_', ' ').lowercase()}. You can cancel it while it is pending."
+                        else -> "Ask mPay Support to call you about an issue that needs direct assistance."
+                    },
+                    trailing = {
+                        if (pending != null) {
+                            OutlinedButton(
+                                onClick = { onCancel(pending) },
+                                enabled = !busy,
+                                shape = RoundedCornerShape(11.dp)
+                            ) {
+                                Icon(Icons.Default.CallEnd, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.size(5.dp))
+                                Text(if (busy) "Cancelling…" else "Cancel")
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = onRequest,
+                                enabled = !busy,
+                                shape = RoundedCornerShape(11.dp)
+                            ) {
+                                Icon(Icons.Default.Call, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.size(5.dp))
+                                Text(if (busy) "Requesting…" else "Request callback")
+                            }
+                        }
+                    }
+                )
             }
+
+            SupportTicketCard(currentTicket)
         }
-    )
-
-    SupportTicketCard(currentTicket)
+    }
 }
-
 @Composable
 private fun SupportActionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -274,7 +287,7 @@ private fun SupportActionCard(
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(14.dp),
@@ -316,7 +329,7 @@ private fun SupportTicketCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             Modifier.fillMaxWidth().padding(14.dp),
