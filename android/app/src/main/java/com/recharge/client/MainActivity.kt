@@ -481,6 +481,8 @@ private fun AppRoot(
     var launchedWalletOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     var launchedRechargeOrderId by rememberSaveable { mutableStateOf<String?>(null) }
     var supportFloatingChatOpen by rememberSaveable { mutableStateOf(false) }
+    var supportFloatingChatOpenRequestKey by rememberSaveable { mutableStateOf(0) }
+    var supportFloatingChatResetKey by rememberSaveable { mutableStateOf(0) }
 
     var presentedIncomingCallId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeVoiceCall by remember { mutableStateOf<VoiceCallResponse?>(null) }
@@ -648,6 +650,7 @@ private fun AppRoot(
         launchedRechargeOrderId = null
         showFundingDialog = false
         supportFloatingChatOpen = false
+        supportFloatingChatResetKey += 1
         authViewModel.logout()
     }
 
@@ -728,7 +731,7 @@ private fun AppRoot(
                     highlightTransactionId,
                     logoutAndReset,
                     onChooseContact,
-                    { supportFloatingChatOpen = true },
+                    { supportFloatingChatOpen = true; supportFloatingChatOpenRequestKey += 1 },
                     Modifier.fillMaxSize()
                 )
                 activeVoiceCall?.let { call ->
@@ -741,7 +744,9 @@ private fun AppRoot(
                 CustomerSupportFloatingChat(
                     context = context,
                     open = supportFloatingChatOpen,
-                    onDismiss = { supportFloatingChatOpen = false }
+                    onDismiss = { supportFloatingChatOpen = false },
+                    openRequestKey = supportFloatingChatOpenRequestKey,
+                    sessionResetKey = supportFloatingChatResetKey
                 )
             }
         }
@@ -777,7 +782,9 @@ private fun AppRoot(
                 CustomerSupportFloatingChat(
                     context = context,
                     open = supportFloatingChatOpen,
-                    onDismiss = { supportFloatingChatOpen = false }
+                    onDismiss = { supportFloatingChatOpen = false },
+                    openRequestKey = supportFloatingChatOpenRequestKey,
+                    sessionResetKey = supportFloatingChatResetKey
                 )
             }
         }
