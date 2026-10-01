@@ -173,7 +173,7 @@ class ClientCommissionService(
         val settings = settings()
         if (!settings.upstreamCommissionActive || settings.upstreamCommissionPercent.signum() <= 0) return null
         val directCount = referrals.countByParentUserId(parentId)
-        if (directCount < settings.level2DirectClientThreshold || !rechargeUserQualifies(recharge.userId)) return null
+        if (directCount < settings.level2DirectClientThreshold || !rechargeUserQualifies(parentId) || !rechargeUserQualifies(recharge.userId)) return null
 
         if (upstreamCommissions.existsByRechargeTransactionId(recharge.transactionId)) {
             return null
