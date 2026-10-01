@@ -837,9 +837,3 @@ function CommissionSettingsEditor(p:{
   </div>;
 }
 
-function CommissionRow(p:{rate:RoleCommissionRate;busy:boolean;onSave:(role:string,percent:number,active:boolean)=>void}){
-  const [percent,setPercent]=useState(String(p.rate.commissionPercent));
-  const [active,setActive]=useState(p.rate.active);
-  useEffect(()=>{setPercent(String(p.rate.commissionPercent));setActive(p.rate.active)},[p.rate.commissionPercent,p.rate.active]);
-  return <tr><td><b>{p.rate.role}</b></td><td><input className="inline-number" type="number" min="0" max="99.99" step="0.01" value={percent} onChange={e=>setPercent(e.target.value)}/></td><td><button className={"status-toggle "+(active?'on':'off')} onClick={()=>setActive(v=>!v)}>{active?'ACTIVE':'INACTIVE'}</button></td><td><button className="secondary" disabled={p.busy || Number(percent)<0 || Number(percent)>=100} onClick={()=>p.onSave(p.rate.role,Number(percent),active)}>Save</button></td></tr>;
-}
