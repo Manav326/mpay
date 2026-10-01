@@ -63,7 +63,7 @@ class RentalPhotoImportService {
 
                 val declaredLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L)
                 require(declaredLength <= MAX_BYTES || declaredLength < 0) {
-                    "The image at this URL must be 5 MB or smaller"
+                    "The image at this URL is too large. Maximum source size is 15 MB."
                 }
 
                 return validateImage(readAtMost(body, MAX_BYTES))
@@ -137,7 +137,7 @@ class RentalPhotoImportService {
             }
             val pixels = width.toLong() * height.toLong()
             require(width > 0 && height > 0 && pixels <= MAX_PIXELS) {
-                "The image dimensions are too large. Use an image of 25 megapixels or less."
+                "The image dimensions are too large. Use an image of 40 megapixels or less."
             }
             reader.dispose()
             val contentType = when (format) {
@@ -154,9 +154,9 @@ class RentalPhotoImportService {
     }
 
     companion object {
-        private const val MAX_BYTES = 5L * 1024L * 1024L
+        private const val MAX_BYTES = RentalImageNormalizer.MAX_INPUT_BYTES
         private const val MAX_REDIRECTS = 3
-        private const val MAX_PIXELS = 25_000_000L
+        private const val MAX_PIXELS = RentalImageNormalizer.MAX_PIXELS
         private const val USER_AGENT = "mPay-RentalPhotoImporter/1.0"
         private val REQUEST_TIMEOUT = Duration.ofSeconds(12)
     }
