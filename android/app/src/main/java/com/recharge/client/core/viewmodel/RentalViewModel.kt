@@ -385,7 +385,7 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         carId: String,
         candidates: Map<Int, RentalPhotoCandidate>
     ): Result<RentalCarResponse> = try {
-        require(candidates.keys.containsAll(0..3)) { "Front, side, rear and interior vehicle photos are required before submission." }
+        require(candidates.keys.containsAll(listOf(0, 1, 2, 3))) { "Front, side, rear and interior vehicle photos are required before submission." }
         var current: RentalCarResponse? = _state.value.vendorCars.firstOrNull { it.id == carId }
         candidates.toSortedMap().forEach { (slot, candidate) ->
             try {
