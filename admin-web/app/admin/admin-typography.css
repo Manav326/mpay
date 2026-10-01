@@ -18,7 +18,7 @@
     --admin-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Calibri, Arial, sans-serif;
     --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-    --admin-font-weight-regular: 450;
+    --admin-font-weight-regular: 500;
     --admin-font-weight-medium: 550;
     --admin-font-weight-semibold: 650;
     --admin-font-weight-bold: 700;
@@ -54,6 +54,7 @@
   .shell :where(div, span, p, small, em, li, td, label, a, input, select, textarea),
   .auth-wrap :where(div, span, p, small, em, li, td, label, a, input, select, textarea),
   .admin-login-page :where(div, span, p, small, em, li, td, label, a, input, select, textarea) {
+    font-size: 12px;
     font-weight: var(--admin-font-weight-regular) !important;
   }
 
@@ -103,6 +104,25 @@
     font-weight: var(--admin-font-weight-regular) !important;
   }
 
+  /* Readable descriptive copy floor: 12px / weight 500. */
+  .shell :where(
+    p,
+    small,
+    [class*="-copy"],
+    [class*="-meta"],
+    [class*="-subtitle"],
+    [class*="-description"],
+    [class*="-note"],
+    [class*="-hint"],
+    [class*="-help"],
+    [data-admin-type="body"],
+    [data-admin-type="secondary"],
+    [data-admin-type="caption"]
+  ) {
+    font-size: 12px;
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
   .shell :where(.nav, .primary, .secondary, .link-btn, .table-action, .icon-btn) {
     font-weight: var(--admin-font-weight-semibold) !important;
   }
@@ -143,16 +163,19 @@
   }
 
   .shell :where(table th) {
+    font-size: 12px !important;
     color: var(--admin-text-subtle) !important;
     font-weight: var(--admin-font-weight-semibold) !important;
   }
 
   .shell :where(label) {
+    font-size: 12px;
     color: var(--admin-text-secondary) !important;
     font-weight: var(--admin-font-weight-medium) !important;
   }
 
   .shell :where(input, select, textarea) {
+    font-size: 12px;
     color: var(--admin-text-primary) !important;
     font-weight: var(--admin-font-weight-regular) !important;
   }
@@ -243,11 +266,13 @@
   }
 
   .auth-wrap :where(input, select, textarea) {
+    font-size: 12px;
     color: var(--admin-text-primary) !important;
     font-weight: var(--admin-font-weight-regular) !important;
   }
 
   .auth-wrap :where(label) {
+    font-size: 12px;
     color: var(--admin-text-secondary) !important;
     font-weight: var(--admin-font-weight-medium) !important;
   }
@@ -261,16 +286,19 @@
   }
 
   .admin-login-page :where(.admin-login-copy p, .admin-login-foot) {
+    font-size: 12px;
     color: var(--admin-text-muted) !important;
     font-weight: var(--admin-font-weight-regular) !important;
   }
 
   .admin-login-page :where(label) {
+    font-size: 12px;
     color: var(--admin-text-secondary) !important;
     font-weight: var(--admin-font-weight-medium) !important;
   }
 
   .admin-login-page :where(input, select, textarea) {
+    font-size: 12px;
     color: var(--admin-text-primary) !important;
     font-weight: var(--admin-font-weight-regular) !important;
   }
