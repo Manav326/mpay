@@ -475,6 +475,21 @@ export async function updateCommissionRate(role: string, commissionPercent: numb
   });
 }
 
+export async function getClientCommissionSettings(): Promise<import('./types').ClientCommissionSettings> {
+  return api('/api/v1/admin/commission-settings');
+}
+
+export async function updateClientCommissionSettings(
+  level2DirectClientThreshold: number,
+  upstreamCommissionPercent: number,
+  upstreamCommissionActive: boolean
+): Promise<import('./types').ClientCommissionSettings> {
+  return api('/api/v1/admin/commission-settings', {
+    method: 'PUT',
+    body: JSON.stringify({ level2DirectClientThreshold, upstreamCommissionPercent, upstreamCommissionActive }),
+  });
+}
+
 
 export async function createVoiceCall(targetPublicId: string): Promise<VoiceCallResponse> {
   return api('/api/v1/calls', { method: 'POST', body: JSON.stringify({ targetPublicId }) });
