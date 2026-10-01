@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -326,7 +327,7 @@ private fun SupportTicketCard(
                     color = AppColors.Primary.copy(alpha = .10f)
                 ) {
                     Icon(
-                        androidx.compose.material.icons.automirrored.filled.Assignment,
+                        androidx.compose.material.icons.filled.Description,
                         contentDescription = null,
                         tint = AppColors.PrimaryDark,
                         modifier = Modifier.padding(9.dp).size(21.dp)
