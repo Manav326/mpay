@@ -371,6 +371,9 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
                       <b>{u.name}</b>
                       <span><Smartphone size={11}/> {u.mobile}</span>
                       <small>{u.publicUserId}</small>
+                      <em className={'mobile-verification-list-state ' + (u.mobileVerified ? 'verified' : 'unverified')}>
+                        {u.mobileVerified ? 'Mobile verified' : 'Mobile not verified'}
+                      </em>
                     </div>
                   </div>
                 </td>
