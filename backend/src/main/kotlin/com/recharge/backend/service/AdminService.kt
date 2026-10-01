@@ -446,6 +446,58 @@ class AdminService(
         )
     }
 
+    @Transactional
+    fun updateUserMobileVerification(
+        viewer: EmployeeEntity,
+        targetPublicId: String,
+        verified: Boolean,
+        reason: String?
+    ): AdminUserMobileVerificationResponse {
+        roleAccess.requirePermission(viewer, "MANAGE_USER_MOBILE_VERIFICATION")
+        val target = resolveTarget(viewer, targetPublicId)
+        require(target.role.equals("CLIENT", true)) { "Mobile verification control is only available for client accounts" }
+
+        val previous = target.mobileVerifiedAt != null
+        if (previous == verified) {
+            throw IllegalArgumentException(
+                if (verified) "This client's mobile number is already marked as verified"
+                else "This client's mobile number is already marked as not verified"
+            )
+        }
+
+        val normalizedReason = reason?.trim()?.takeIf { it.isNotBlank() }
+        require(!normalizedReason.isNullOrBlank()) {
+            "A reason is required when changing a client's mobile verification status"
+        }
+
+        val now = Instant.now()
+        target.mobileVerifiedAt = if (verified) now else null
+        users.save(target)
+
+        employeeAudit.record(
+            actor = viewer,
+            action = "USER_MOBILE_VERIFICATION_CHANGED",
+            subjectType = "CLIENT",
+            subjectId = target.publicId,
+            summary = if (verified) {
+                "Marked client mobile number as verified."
+            } else {
+                "Marked client mobile number as not verified."
+            },
+            metadata = mapOf(
+                "previousVerified" to previous,
+                "verified" to verified,
+                "reason" to normalizedReason
+            )
+        )
+
+        return AdminUserMobileVerificationResponse(
+            publicUserId = target.publicId,
+            mobileVerified = target.mobileVerifiedAt != null,
+            mobileVerifiedAt = target.mobileVerifiedAt
+        )
+    }
+
     private fun toSummary(
         user: UserEntity,
         wallet: com.recharge.backend.domain.WalletEntity,
@@ -469,7 +521,9 @@ class AdminService(
             walletBalance = wallet.balance.setScale(2),
             joinedAt = user.createdAt,
             profileUpdatedAt = user.profileUpdatedAt,
-            status = if (user.active) "ACTIVE" else "BLOCKED"
+            status = if (user.active) "ACTIVE" else "BLOCKED",
+            mobileVerified = user.mobileVerifiedAt != null,
+            mobileVerifiedAt = user.mobileVerifiedAt
         )
     }
 

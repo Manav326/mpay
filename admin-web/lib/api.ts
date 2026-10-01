@@ -120,6 +120,7 @@ export async function login(mobile: string, password: string, role: string) {
               'MANAGE_VENDORS',
               'MANAGE_COMMISSION_RATES',
               'MANAGE_USER_STATUS',
+              'MANAGE_USER_MOBILE_VERIFICATION',
               'MANAGE_RECHARGE_OPERATIONS',
               'MANAGE_RENTAL_OPERATIONS',
               'VIEW_FINANCIAL_OPERATIONS',
@@ -359,6 +360,17 @@ export async function updateUserStatus(id: string, active: boolean): Promise<{ p
   return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/status', {
     method: 'POST',
     body: JSON.stringify({ active }),
+  });
+}
+
+export async function updateUserMobileVerification(
+  id: string,
+  verified: boolean,
+  reason: string
+): Promise<{ publicUserId: string; mobileVerified: boolean; mobileVerifiedAt: string | null }> {
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/mobile-verification', {
+    method: 'POST',
+    body: JSON.stringify({ verified, reason }),
   });
 }
 

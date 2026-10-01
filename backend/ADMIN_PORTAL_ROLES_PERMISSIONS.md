@@ -42,6 +42,7 @@ ADMIN:
 - `MANAGE_RENTAL_OPERATIONS` — rental bookings and settlement lifecycle
 - `MANAGE_RECHARGE_OPERATIONS` — refresh pending/processing recharge status
 - `MANAGE_USER_STATUS` — block/unblock non-admin accounts
+- `MANAGE_USER_MOBILE_VERIFICATION` — manually mark a client mobile number verified or not verified; changes require a reason and are audited
 - `VIEW_FINANCIAL_OPERATIONS` — recharge, withdrawal and wallet-ledger oversight
 - `MANAGE_COMMISSION_RATES` — role commission rules
 

@@ -453,6 +453,18 @@ data class AdminUserStatusResponse(
     val status: String
 )
 
+data class AdminUserMobileVerificationRequest(
+    val verified: Boolean,
+    @field:jakarta.validation.constraints.Size(max = 1000)
+    val reason: String? = null
+)
+
+data class AdminUserMobileVerificationResponse(
+    val publicUserId: String,
+    val mobileVerified: Boolean,
+    val mobileVerifiedAt: Instant?
+)
+
 data class AdminFinancialRechargeOperation(
     val transactionId: String,
     val userPublicId: String,
@@ -550,7 +562,9 @@ data class AdminUserSummaryResponse(
     val walletBalance: BigDecimal,
     val joinedAt: Instant,
     val profileUpdatedAt: Instant?,
-    val status: String
+    val status: String,
+    val mobileVerified: Boolean,
+    val mobileVerifiedAt: Instant?
 )
 
 data class AdminLatestRechargeResponse(
