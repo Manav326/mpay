@@ -42,20 +42,16 @@ class LocalRentalImageStorage(
     override fun save(carId: Long, slot: Int, bytes: ByteArray, contentType: String): String {
         require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
         require(bytes.isNotEmpty()) { "Vehicle photo is empty" }
-        require(bytes.size.toLong() <= MAX_BYTES) { "Vehicle photo must be 5 MB or smaller" }
-        val normalizedContentType = contentType.trim().lowercase()
-        require(normalizedContentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
-
-        val ext = when (normalizedContentType) {
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> "jpg"
-        }
-        val key = "rental_${carId}_${slot}_${UUID.randomUUID()}.$ext"
-        Files.write(resolve(key), bytes)
-        runCatching {
+        val normalized = RentalImageNormalizer.normalize(bytes, contentType)
+        val key = "rental_" + carId + "_" + slot + "_" + UUID.randomUUID() + ".jpg"
+        Files.write(resolve(key), normalized.bytes)
+        try {
             ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB)
             ImageVariantSupport.ensureVariant(root, key, ImageVariant.LARGE)
+        } catch (error: Exception) {
+            runCatching { Files.deleteIfExists(resolve(key)) }
+            ImageVariantSupport.deleteVariants(root, key)
+            throw IllegalArgumentException("Vehicle photo could not be processed after upload. Please choose another image.", error)
         }
         return key
     }
@@ -68,18 +64,17 @@ class LocalRentalImageStorage(
 
     override fun saveDriverPhoto(driverId: Long, bytes: ByteArray, contentType: String): String {
         require(bytes.isNotEmpty()) { "Driver photo is empty" }
-        require(bytes.size.toLong() <= MAX_BYTES) { "Driver photo must be 5 MB or smaller" }
-        val normalizedContentType = contentType.trim().lowercase()
-        require(normalizedContentType in allowedContentTypes) { "Only JPEG, PNG or WebP images are supported" }
-
-        val ext = when (normalizedContentType) {
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> "jpg"
+        val normalized = RentalImageNormalizer.normalize(bytes, contentType)
+        val key = "rental_driver_" + driverId + "_" + UUID.randomUUID() + ".jpg"
+        Files.write(resolve(key), normalized.bytes)
+        try {
+            ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB)
+            ImageVariantSupport.ensureVariant(root, key, ImageVariant.LARGE)
+        } catch (error: Exception) {
+            runCatching { Files.deleteIfExists(resolve(key)) }
+            ImageVariantSupport.deleteVariants(root, key)
+            throw IllegalArgumentException("Driver photo could not be processed after upload. Please choose another image.", error)
         }
-        val key = "rental_driver_" + driverId + "_" + UUID.randomUUID() + "." + ext
-        Files.write(resolve(key), bytes)
-        runCatching { ImageVariantSupport.ensureVariant(root, key, ImageVariant.THUMB) }
         return key
     }
 
@@ -123,7 +118,6 @@ class LocalRentalImageStorage(
     }
 
     companion object {
-        private const val MAX_BYTES = 5L * 1024L * 1024L
         private val allowedContentTypes = setOf("image/jpeg", "image/png", "image/webp")
     }
 }
