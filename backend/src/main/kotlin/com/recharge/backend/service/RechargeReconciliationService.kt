@@ -22,7 +22,7 @@ class RechargeReconciliationService(
         fixedDelayString = "\${app.recharge.reconciliation.interval-ms:60000}"
     )
     fun reconcileOpenRecharges() {
-        val candidates = recharges.findByStatusInAndProviderReferenceIsNotNullOrderByUpdatedAtAsc(
+        val candidates = recharges.findByStatusInAndProviderReferenceIsNotNullAndProviderSubmissionStartedAtIsNotNullOrderByUpdatedAtAsc(
             listOf("PENDING", "RESERVED"),
             PageRequest.of(0, batchSize.coerceIn(1, 100))
         )
