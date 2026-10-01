@@ -263,8 +263,9 @@ private fun EarningsPeriodCard(period: com.recharge.client.core.model.Commission
                 Text(if (isToday) formatAsOf(period.to) else formatPeriod(period.from, period.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text("Commission earned", color = AppColors.TextSecondary)
-                        Text("₹" + formatMoney(period.commission), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                        Text("Total commission earned", color = AppColors.TextSecondary)
+                        Text("₹" + formatMoney(period.commission.add(period.upstreamCommission)), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                        Text("Own ₹" + formatMoney(period.commission) + " • Upstream ₹" + formatMoney(period.upstreamCommission), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                         Text(period.successfulRechargeCount.toString() + " successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
