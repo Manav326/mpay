@@ -146,6 +146,7 @@ interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, L
 
 interface ClientReferralLinkRepository : JpaRepository<ClientReferralLinkEntity, Long> {
     fun findByChildUserId(childUserId: Long): Optional<ClientReferralLinkEntity>
+    fun findAllByChildUserIdIn(childUserIds: Collection<Long>): List<ClientReferralLinkEntity>
     fun findAllByParentUserIdOrderByAssignedAtAsc(parentUserId: Long): List<ClientReferralLinkEntity>
     fun countByParentUserId(parentUserId: Long): Int
 }
