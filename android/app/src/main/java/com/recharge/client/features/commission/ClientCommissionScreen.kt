@@ -129,11 +129,11 @@ private fun NetworkOverviewCard(overview: ClientCommissionOverviewResponse?) {
                         Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(10.dp))
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("LEVEL ${overview.level}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                    Text(if (overview.level > 0) "LEVEL ${overview.level}" else "NETWORK NOT ACTIVE", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
-                Text("Your client network", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f))
+                Text(if (overview.level > 0) "Build your client network and unlock upstream earnings." else "Start with a recharge attempt to activate your client network.", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Metric("Your commission", "${formatMoney(overview.baseCommissionPercent)}%", Modifier.weight(1f))
+                    Metric("Recharge commission rate", "${formatMoney(overview.baseCommissionPercent)}%", Modifier.weight(1f))
                     Metric("Direct clients", "${overview.directClientCount}/${overview.level2DirectClientThreshold}", Modifier.weight(1f))
                 }
                 if (overview.level >= 2) {
@@ -171,10 +171,10 @@ private fun Metric(label: String, value: String, modifier: Modifier = Modifier) 
 private fun RequirementCard() {
     Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm)) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.CheckCircle, null, tint = AppColors.PrimaryDark)
+            Icon(Icons.Default.Lock, null, tint = AppColors.PrimaryDark)
             Spacer(Modifier.width(10.dp))
             Column {
-                Text("Complete a recharge first", fontWeight = FontWeight.Bold)
+                Text("Activate your client network", fontWeight = FontWeight.Bold)
                 Text("After your first recharge attempt, this network opens and you can add verified clients.", color = AppColors.TextSecondary)
             }
         }
@@ -234,6 +234,7 @@ private fun DirectClientCard(client: ClientReferralMemberResponse) {
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(client.name?.takeIf { it.isNotBlank() } ?: "mPay client", fontWeight = FontWeight.Bold)
+            Text("✓ Verified client", color = AppColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
             Text(client.mobile, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
             Text("Added ${formatExactTimestamp(client.assignedAt)}", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
         }
@@ -247,12 +248,12 @@ private fun UpstreamHistoryCard(item: ClientUpstreamCommissionHistoryItem) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
                     Text(item.childName?.takeIf { it.isNotBlank() } ?: "Direct client", fontWeight = FontWeight.Bold)
-                    Text("${item.childMobile} • recharge ₹${formatMoney(item.rechargeAmount)}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text("Successful recharge • ₹${formatMoney(item.rechargeAmount)}", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 Text("+₹${formatMoney(item.commissionAmount)}", color = AppColors.Success, fontWeight = FontWeight.Bold)
             }
             HorizontalDivider()
-            Text("${formatMoney(item.commissionPercent)}% upstream • ${item.rechargeTransactionId}", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+            Text("${formatMoney(item.commissionPercent)}% upstream", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
             Text(formatExactTimestamp(item.createdAt), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
         }
     }
