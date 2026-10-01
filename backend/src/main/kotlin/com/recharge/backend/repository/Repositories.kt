@@ -194,6 +194,11 @@ interface UserRechargeSummaryProjection {
 
 interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntity, Long> {
     fun existsByUserId(userId: Long): Boolean
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from RechargeTransactionEntity r where r.transactionId = :transactionId")
+    fun findByTransactionIdForUpdate(@Param("transactionId") transactionId: String): Optional<RechargeTransactionEntity>
+
     fun findByTransactionId(transactionId: String): Optional<RechargeTransactionEntity>
     fun findAllByTransactionIdIn(transactionIds: Collection<String>): List<RechargeTransactionEntity>
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<RechargeTransactionEntity>
