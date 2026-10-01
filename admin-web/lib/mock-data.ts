@@ -51,7 +51,7 @@ export function getUserDetail(id: string): UserDetail {
     rechargeCount: 46,
     addMoneyTotal: 19200,
     withdrawalTotal: 5400,
-    commissionRate: base.role === 'CLIENT' ? 1 : base.role === 'MANAGER' ? 1.5 : 2,
+    commissionRate: base.role === 'CLIENT' ? 1 : 0,
     balance: base.walletBalance,
     availableBalance: base.walletBalance,
     reservedBalance: 0,
