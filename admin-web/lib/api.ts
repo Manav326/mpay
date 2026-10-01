@@ -362,6 +362,17 @@ export async function updateUserStatus(id: string, active: boolean): Promise<{ p
   });
 }
 
+export async function updateUserMobileVerification(
+  id: string,
+  verified: boolean,
+  reason: string
+): Promise<{ publicUserId: string; mobileVerified: boolean; mobileVerifiedAt: string | null }> {
+  return api('/api/v1/admin/users/' + encodeURIComponent(id) + '/mobile-verification', {
+    method: 'POST',
+    body: JSON.stringify({ verified, reason }),
+  });
+}
+
 export async function getAdminRecharges(page = 0, size = 25, status = 'ALL', provider = 'ALL'): Promise<AdminFinancialRechargePageResponse> {
   const query = new URLSearchParams({ page: String(page), size: String(size) });
   if (status !== 'ALL') query.set('status', status);
