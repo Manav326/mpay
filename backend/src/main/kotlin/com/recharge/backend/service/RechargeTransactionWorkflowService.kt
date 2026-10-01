@@ -11,7 +11,8 @@ import java.time.Instant
 @Service
 class RechargeTransactionWorkflowService(
     private val repository: RechargeTransactionRepository,
-    private val walletService: WalletService
+    private val walletService: WalletService,
+    private val clientCommissionService: ClientCommissionService
 ) {
 
     @Transactional
@@ -116,6 +117,7 @@ class RechargeTransactionWorkflowService(
                     externalRef = tx.transactionId,
                     referenceId = tx.transactionId
                 )
+                clientCommissionService.creditUpstreamCommission(tx)
                 tx.status = "SUCCESS"
                 tx.walletLedgerRef = tx.transactionId
                 tx.completedAt = Instant.now()
