@@ -5,11 +5,14 @@ import com.recharge.backend.domain.ClientReferralLinkEntity
 import com.recharge.backend.domain.ClientUpstreamCommissionEntity
 import com.recharge.backend.domain.RechargeTransactionEntity
 import com.recharge.backend.domain.UserEntity
+import com.recharge.backend.domain.WalletEntity
 import com.recharge.backend.repository.ClientCommissionSettingsRepository
 import com.recharge.backend.repository.ClientReferralLinkRepository
 import com.recharge.backend.repository.ClientUpstreamCommissionRepository
 import com.recharge.backend.repository.RechargeTransactionRepository
 import com.recharge.backend.repository.UserRepository
+import com.recharge.backend.repository.WalletRepository
+import com.recharge.backend.repository.WalletTransactionRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -25,7 +28,9 @@ class ClientCommissionServiceTest {
     private val upstreamCommissions = Mockito.mock(ClientUpstreamCommissionRepository::class.java)
     private val settingsRepository = Mockito.mock(ClientCommissionSettingsRepository::class.java)
     private val commissionRates = Mockito.mock(CommissionRateService::class.java)
-    private val wallet = Mockito.mock(WalletService::class.java)
+    private val walletRepository = Mockito.mock(WalletRepository::class.java)
+    private val walletLedger = Mockito.mock(WalletTransactionRepository::class.java)
+    private val wallet = WalletService(walletRepository, walletLedger)
 
     private val service = ClientCommissionService(
         users,
@@ -60,18 +65,14 @@ class ClientCommissionServiceTest {
         Mockito.doReturn(Optional.of(settings)).`when`(settingsRepository).findById(1L)
         Mockito.doReturn(5).`when`(referrals).countByParentUserId(1L)
         Mockito.doReturn(false).`when`(upstreamCommissions).existsByRechargeTransactionId("RCH-100")
-        Mockito.doReturn(BigDecimal("100.10")).`when`(wallet).credit(
-            1L,
-            BigDecimal("0.10"),
-            "UPSTREAM_COMMISSION:RCH-100",
-            "UPSTREAM_COMMISSION",
-            "RCH-100",
-            "Upstream commission from client recharge RCH-100"
-        )
+        val parentWallet = WalletEntity(user = parent, balance = BigDecimal("100.00"))
+        Mockito.doReturn(Optional.of(parentWallet)).`when`(walletRepository).findByUserIdForUpdate(1L)
+        Mockito.doReturn(false).`when`(walletLedger).existsByExternalRef("UPSTREAM_COMMISSION:RCH-100")
 
         val result = service.creditUpstreamCommission(recharge)
 
         assertEquals(BigDecimal("100.10"), result)
+        assertEquals(BigDecimal("100.10"), parentWallet.balance)
         val captor = ArgumentCaptor.forClass(ClientUpstreamCommissionEntity::class.java)
         Mockito.verify(upstreamCommissions).save(captor.capture())
         val audit = captor.value
