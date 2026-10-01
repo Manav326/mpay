@@ -62,12 +62,16 @@ class AdminServiceMobileVerificationTest {
         Mockito.verify(roleAccess).requirePermission(viewer, "MANAGE_USER_MOBILE_VERIFICATION")
         Mockito.verify(users).save(client)
         Mockito.verify(employeeAudit).record(
-            Mockito.eq(viewer),
-            Mockito.eq("USER_MOBILE_VERIFICATION_CHANGED"),
-            Mockito.eq("CLIENT"),
-            Mockito.eq("CLIENT-10"),
-            Mockito.eq("Marked client mobile number as verified."),
-            Mockito.anyMap()
+            viewer,
+            "USER_MOBILE_VERIFICATION_CHANGED",
+            "CLIENT",
+            "CLIENT-10",
+            "Marked client mobile number as verified.",
+            mapOf(
+                "previousVerified" to false,
+                "verified" to true,
+                "reason" to "Customer provided evidence that the recycled number is now assigned to them."
+            )
         )
     }
 
@@ -99,12 +103,16 @@ class AdminServiceMobileVerificationTest {
         assertEquals("CLIENT", client.role)
         Mockito.verify(users).save(client)
         Mockito.verify(employeeAudit).record(
-            Mockito.eq(viewer),
-            Mockito.eq("USER_MOBILE_VERIFICATION_CHANGED"),
-            Mockito.eq("CLIENT"),
-            Mockito.eq("CLIENT-11"),
-            Mockito.eq("Marked client mobile number as not verified."),
-            Mockito.anyMap()
+            viewer,
+            "USER_MOBILE_VERIFICATION_CHANGED",
+            "CLIENT",
+            "CLIENT-11",
+            "Marked client mobile number as not verified.",
+            mapOf(
+                "previousVerified" to true,
+                "verified" to false,
+                "reason" to "The mobile number has been reassigned by the telecom operator."
+            )
         )
     }
 
@@ -121,14 +129,7 @@ class AdminServiceMobileVerificationTest {
 
         assertNull(client.mobileVerifiedAt)
         Mockito.verify(users, Mockito.never()).save(client)
-        Mockito.verify(employeeAudit, Mockito.never()).record(
-            Mockito.any(),
-            Mockito.anyString(),
-            Mockito.anyString(),
-            Mockito.anyString(),
-            Mockito.anyString(),
-            Mockito.anyMap()
-        )
+        Mockito.verifyNoInteractions(employeeAudit)
     }
 
     @Test
