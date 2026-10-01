@@ -120,6 +120,7 @@ export async function login(mobile: string, password: string, role: string) {
               'MANAGE_VENDORS',
               'MANAGE_COMMISSION_RATES',
               'MANAGE_USER_STATUS',
+              'MANAGE_USER_MOBILE_VERIFICATION',
               'MANAGE_RECHARGE_OPERATIONS',
               'MANAGE_RENTAL_OPERATIONS',
               'VIEW_FINANCIAL_OPERATIONS',
