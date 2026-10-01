@@ -86,8 +86,11 @@ class ClientCommissionViewModel(application: Application) : AndroidViewModel(app
 
     fun searchClients() {
         val query = _state.value.searchQuery.trim()
-        if (query.length < 3) {
-            _state.value = _state.value.copy(searchResults = emptyList(), searchError = "Enter at least 3 characters.")
+        if (query.isEmpty()) {
+            _state.value = _state.value.copy(
+                searchResults = emptyList(),
+                searchError = "Enter a Client ID."
+            )
             return
         }
         searchJob?.cancel()
@@ -95,7 +98,10 @@ class ClientCommissionViewModel(application: Application) : AndroidViewModel(app
             _state.value = _state.value.copy(searching = true, searchError = null)
             repository.searchCommissionClients(query)
                 .onSuccess { results ->
-                    _state.value = _state.value.copy(searching = false, searchResults = results)
+                    _state.value = _state.value.copy(
+                        searching = false,
+                        searchResults = results
+                    )
                 }
                 .onFailure { error ->
                     _state.value = _state.value.copy(
