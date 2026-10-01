@@ -164,6 +164,8 @@ class RechargeService(
 
         if (reserved.transactionId != transactionId) return toResponse(reserved)
 
+        workflow.markProviderSubmissionStarted(reserved.transactionId)
+
         val providerResult = try {
             provider.recharge(preparedProviderRequest.copy(transactionId = reserved.transactionId))
         } catch (ex: Exception) {
