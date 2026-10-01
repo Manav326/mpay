@@ -307,7 +307,12 @@ data class CommissionPeriodSummary(
 data class RechargeCommissionSummaryResponse(
     val commissionPercent: BigDecimal,
     val daily: CommissionPeriodSummary,
-    val monthly: CommissionPeriodSummary
+    val monthly: CommissionPeriodSummary,
+    val upstreamCommissionPercent: BigDecimal = BigDecimal.ZERO,
+    val level: Int = 0,
+    val directClientCount: Int = 0,
+    val level2DirectClientThreshold: Int = 5,
+    val upstreamEligible: Boolean = false
 )
 
 
