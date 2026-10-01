@@ -385,17 +385,17 @@ class RentalViewModel(application: Application) : AndroidViewModel(application) 
         carId: String,
         candidates: Map<Int, RentalPhotoCandidate>
     ): Result<RentalCarResponse> = try {
+        require(candidates.keys.containsAll(0..3)) { "Front, side, rear and interior vehicle photos are required before submission." }
         var current: RentalCarResponse? = _state.value.vendorCars.firstOrNull { it.id == carId }
         candidates.toSortedMap().forEach { (slot, candidate) ->
-            current = when (candidate.source) {
-                RentalPhotoCandidateSource.DEVICE ->
-                    repository.uploadRentalVehiclePhoto(
-                        carId, slot, android.net.Uri.parse(candidate.value)
-                    ).getOrThrow()
-                RentalPhotoCandidateSource.URL ->
-                    repository.importRentalVehiclePhotoFromUrl(
-                        carId, slot, candidate.value
-                    ).getOrThrow()
+            try {
+                current = when (candidate.source) {
+                    RentalPhotoCandidateSource.DEVICE -> repository.uploadRentalVehiclePhoto(carId, slot, android.net.Uri.parse(candidate.value)).getOrThrow()
+                    RentalPhotoCandidateSource.URL -> repository.importRentalVehiclePhotoFromUrl(carId, slot, candidate.value).getOrThrow()
+                }
+            } catch (error: Exception) {
+                val label = when (slot) { 0 -> "front"; 1 -> "side"; 2 -> "rear"; else -> "interior" }
+                throw IllegalArgumentException("The " + label + " vehicle photo could not be saved: " + (error.message ?: "unknown upload error"), error)
             }
             _state.value = _state.value.copy(
                 vendorCars = _state.value.vendorCars.map { if (it.id == current!!.id) current!! else it }
