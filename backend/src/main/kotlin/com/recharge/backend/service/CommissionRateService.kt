@@ -28,6 +28,18 @@ class CommissionRateService(
     }
 
     fun allRates(): List<RoleCommissionRateEntity> =
-        rates.findAllByRoleAscIfSupported()
-            .filter { it.role.equals("CLIENT", true) }
+        rates.findAllByOrderByRoleAsc().filter { it.role.equals("CLIENT", true) }
+
+    @Transactional
+    fun upsert(role: String, percent: BigDecimal, active: Boolean): RoleCommissionRateEntity {
+        require(percent >= BigDecimal.ZERO && percent < BigDecimal(100)) { "Commission percent must be between 0 and 100" }
+        val normalized = role.trim().uppercase()
+        require(normalized == "CLIENT") { "Only client accounts can have commission rates" }
+        val entity = rates.findByRoleIgnoreCase(normalized).orElseGet { RoleCommissionRateEntity(role = normalized) }
+        entity.role = normalized
+        entity.commissionPercent = percent.setScale(4)
+        entity.active = active
+        entity.updatedAt = Instant.now()
+        return rates.save(entity)
+    }
 }
