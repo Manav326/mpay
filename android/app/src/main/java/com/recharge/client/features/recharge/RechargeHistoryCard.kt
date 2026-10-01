@@ -85,8 +85,8 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
 private fun rechargeWalletImpact(status: String, amount: java.math.BigDecimal): Pair<String, Color> = when (status.uppercase()) {
     "SUCCESS" -> "Wallet debited · ₹" + formatMoney(amount) to AppColors.Success
     "PENDING", "PROCESSING", "RESERVED" -> "Amount reserved · ₹" + formatMoney(amount) to Color(0xFFD97706)
-    "FAILED", "CANCELLED", "REJECTED" -> "No wallet debit · ₹" + formatMoney(amount) + " not charged" to AppColors.Error
-    else -> "Wallet impact not confirmed · ₹" + formatMoney(amount) to MaterialTheme.colorScheme.onSurface
+    "FAILED", "CANCELLED", "REJECTED" -> "Wallet not debited · ₹" + formatMoney(amount) to AppColors.Error
+    else -> "Wallet status not confirmed · ₹" + formatMoney(amount) to MaterialTheme.colorScheme.onSurface
 }
 
 private fun rechargeWalletImpactCopy(status: String, amount: java.math.BigDecimal): String =
