@@ -26,6 +26,63 @@ function isHttpUrl(value: string) {
   return /^https?:\/\//i.test(value);
 }
 
+async function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return await new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (blob) resolve(blob);
+      else reject(new Error('The browser could not encode this image.'));
+    }, 'image/jpeg', quality);
+  });
+}
+
+async function normalizeDevicePhoto(file: File): Promise<File> {
+  if (file.size > MAX_SOURCE_BYTES) throw new Error('Photo is too large. Maximum source size is 15 MB.');
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = sourceUrl;
+    await image.decode();
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+    if (!width || !height) throw new Error('The selected photo could not be read.');
+    if (width * height > MAX_PIXELS) throw new Error('Image dimensions are too large. Maximum is 40 megapixels.');
+    const longest = Math.max(width, height);
+    if (file.type === 'image/jpeg' && file.size <= TARGET_BYTES && longest <= MAX_DIMENSION) return file;
+    let lastBlob: Blob | null = null;
+    const sizes = [2560, 2304, 2048, 1920, 1800, 1600, 1440, 1280, 1024];
+    const qualities = [0.88, 0.82, 0.76, 0.70, 0.64, 0.58, 0.52, 0.46, 0.40];
+    for (const maxDimension of sizes) {
+      const scale = Math.min(1, maxDimension / longest);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Your browser could not prepare the photo.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      for (const quality of qualities) {
+        const blob = await canvasToBlob(canvas, quality);
+        lastBlob = blob;
+        if (blob.size <= TARGET_BYTES) {
+          return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+        }
+      }
+    }
+    if (lastBlob && lastBlob.size <= 5 * 1024 * 1024) {
+      return new File([lastBlob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+    }
+    throw new Error('The selected photo could not be compressed below 5 MB. Please choose another image.');
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
 export default function RentalPhotoPicker({
   title,
   currentPreview,
