@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -327,7 +328,7 @@ private fun SupportTicketCard(
                     color = AppColors.Primary.copy(alpha = .10f)
                 ) {
                     Icon(
-                        androidx.compose.material.icons.filled.Description,
+                        Icons.Default.Description,
                         contentDescription = null,
                         tint = AppColors.PrimaryDark,
                         modifier = Modifier.padding(9.dp).size(21.dp)
