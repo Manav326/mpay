@@ -76,6 +76,27 @@ class RechargeTransactionEntity(
 
 @Entity
 @Table(
+    name = "recharge_transaction_events",
+    indexes = [
+        Index(name = "idx_recharge_event_transaction_time", columnList = "transaction_id, occurred_at, id"),
+        Index(name = "idx_recharge_event_time", columnList = "occurred_at")
+    ]
+)
+class RechargeTransactionEventEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "transaction_id", nullable = false, length = 255) var transactionId: String = "",
+    @Column(name = "from_status", length = 30) var fromStatus: String? = null,
+    @Column(name = "to_status", nullable = false, length = 30) var toStatus: String = "",
+    @Column(name = "event_type", nullable = false, length = 60) var eventType: String = "",
+    @Column(name = "provider_reference", length = 150) var providerReference: String? = null,
+    @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
+    @Column(name = "wallet_amount", precision = 19, scale = 2) var walletAmount: BigDecimal? = null,
+    @Column(length = 1000) var message: String? = null,
+    @Column(name = "occurred_at", nullable = false) var occurredAt: Instant = Instant.now()
+)
+
+@Entity
+@Table(
     name = "recharge_offer_cache",
     uniqueConstraints = [
         UniqueConstraint(name = "uq_offer_cache_key_offer", columnNames = ["cache_key", "offer_id"])
