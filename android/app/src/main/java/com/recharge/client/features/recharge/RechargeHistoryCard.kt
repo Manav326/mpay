@@ -86,7 +86,7 @@ private fun rechargeWalletImpact(status: String, amount: java.math.BigDecimal): 
     "SUCCESS" -> "Wallet debited · ₹" + formatMoney(amount) to AppColors.Success
     "PENDING", "PROCESSING", "RESERVED" -> "Amount reserved · ₹" + formatMoney(amount) to Color(0xFFD97706)
     "FAILED", "CANCELLED", "REJECTED" -> "Wallet not debited · ₹" + formatMoney(amount) to AppColors.Error
-    else -> "Wallet status not confirmed · ₹" + formatMoney(amount) to MaterialTheme.colorScheme.onSurface
+    else -> "Wallet status not confirmed · ₹" + formatMoney(amount) to AppColors.TextSecondary
 }
 
 private fun rechargeWalletImpactCopy(status: String, amount: java.math.BigDecimal): String =
