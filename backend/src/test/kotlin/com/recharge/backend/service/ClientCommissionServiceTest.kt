@@ -61,12 +61,12 @@ class ClientCommissionServiceTest {
         Mockito.doReturn(5).`when`(referrals).countByParentUserId(1L)
         Mockito.doReturn(false).`when`(upstreamCommissions).existsByRechargeTransactionId("RCH-100")
         Mockito.doReturn(BigDecimal("100.10")).`when`(wallet).credit(
-            Mockito.eq(1L),
-            Mockito.eq(BigDecimal("0.10")),
-            Mockito.eq("UPSTREAM_COMMISSION:RCH-100"),
-            Mockito.eq("UPSTREAM_COMMISSION"),
-            Mockito.eq("RCH-100"),
-            Mockito.anyString()
+            1L,
+            BigDecimal("0.10"),
+            "UPSTREAM_COMMISSION:RCH-100",
+            "UPSTREAM_COMMISSION",
+            "RCH-100",
+            "Upstream commission from client recharge RCH-100"
         )
 
         val result = service.creditUpstreamCommission(recharge)
