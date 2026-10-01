@@ -151,6 +151,10 @@ export default function Page() {
 
   useEffect(()=>{ if(!session) return; if(view==='dashboard') { getDashboard().then(setDashboard).catch(()=>{}); loadAttention(); if(session.permissions?.includes('MANAGE_RENTAL_OPERATIONS')) getRentalAdminDashboard().then(setRentalDashboard).catch(()=>{}); } else if(view==='users') { getVisibleRoles().then(setVisibleUserRoles).catch(()=>{}); } },[session,view]);
   async function loadUsers(){ setUsers(await getUsers(roleFilter, sort)); }
+  async function refreshSelectedUser(publicUserId: string){
+    try { setSelected(await getUserDetailById(publicUserId)); } catch {}
+    await loadUsers();
+  }
   async function loadAttention(){
     const next: AdminAttention = { pendingRecharges: 0, pendingWithdrawals: 0, pendingVendorApplications: 0, pendingVehicleReviews: 0, pendingPayouts: 0 };
     const jobs: Promise<void>[] = [];
@@ -287,7 +291,7 @@ function userStatusMeta(value?: string){
   return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageUserMobileVerification:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageUserMobileVerification,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageUserMobileVerification:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleUsers = users.filter(u => {
