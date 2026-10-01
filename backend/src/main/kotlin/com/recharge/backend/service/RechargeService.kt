@@ -194,7 +194,7 @@ class RechargeService(
     fun transaction(userId: Long, transactionId: String): RechargeTransactionStatusResponse {
         var tx = workflow.find(userId, transactionId)
         if (tx.status.equals("PENDING", ignoreCase = true) ||
-            tx.status.equals("RESERVED", ignoreCase = true)
+            (tx.status.equals("RESERVED", ignoreCase = true) && tx.providerSubmissionStartedAt != null)
         ) {
             val provider = executionProviders.firstOrNull { it.providerName.equals(tx.providerName, ignoreCase = true) }
             val providerReference = tx.providerReference?.takeIf { it.isNotBlank() }
