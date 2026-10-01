@@ -64,6 +64,8 @@ class ClientCommissionServiceTest {
             .`when`(referrals).findByChildUserId(2L)
         Mockito.doReturn(Optional.of(settings)).`when`(settingsRepository).findById(1L)
         Mockito.doReturn(5).`when`(referrals).countByParentUserId(1L)
+        Mockito.doReturn(true).`when`(rechargeTransactions).existsByUserId(1L)
+        Mockito.doReturn(true).`when`(rechargeTransactions).existsByUserId(2L)
         Mockito.doReturn(false).`when`(upstreamCommissions).existsByRechargeTransactionId("RCH-100")
         val parentWallet = WalletEntity(user = parent, balance = BigDecimal("100.00"))
         Mockito.doReturn(Optional.of(parentWallet)).`when`(walletRepository).findByUserIdForUpdate(1L)
@@ -109,7 +111,8 @@ class ClientCommissionServiceTest {
         )
 
         assertNull(result)
-        Mockito.verifyNoInteractions(wallet)
+        Mockito.verify(walletRepository, Mockito.never()).findByUserIdForUpdate(Mockito.anyLong())
+        Mockito.verify(walletLedger, Mockito.never()).existsByExternalRef(Mockito.anyString())
         Mockito.verify(upstreamCommissions, Mockito.never()).save(Mockito.any(ClientUpstreamCommissionEntity::class.java))
     }
 }
