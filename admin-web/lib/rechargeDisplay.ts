@@ -7,9 +7,9 @@ export function rechargeAmountPresentation(status: string | null | undefined, am
     return { text: `Amount reserved · ${amount}`, tone: 'pending' };
   }
   if (normalized === 'FAILED' || normalized === 'CANCELLED' || normalized === 'REJECTED') {
-    return { text: `No wallet debit · ${amount} not charged`, tone: 'failed' };
+    return { text: `Wallet not debited · ${amount}`, tone: 'failed' };
   }
-  return { text: `Wallet impact not confirmed · ${amount}`, tone: 'neutral' };
+  return { text: `Wallet status not confirmed · ${amount}`, tone: 'neutral' };
 }
 
 export function rechargeAmountCopy(status: string | null | undefined, amount: string): string {
