@@ -53,6 +53,7 @@ import com.recharge.client.features.auth.LoginScreen
 import com.recharge.client.features.auth.RegisterScreen
 import com.recharge.client.features.home.HomeScreen
 import com.recharge.client.features.profile.ProfileScreen
+import com.recharge.client.features.commission.ClientCommissionScreen
 import com.recharge.client.features.support.CustomerSupportScreen
 import com.recharge.client.features.support.CustomerSupportFloatingChat
 import com.recharge.client.features.recharge.RechargeHistoryScreen
@@ -456,6 +457,7 @@ private fun AppRoot(
     rechargeHistoryViewModel: RechargeHistoryViewModel = viewModel(),
     rentalViewModel: RentalViewModel = viewModel(),
     walletViewModel: WalletViewModel = viewModel(),
+    clientCommissionViewModel: ClientCommissionViewModel = viewModel(),
     passwordResetViewModel: PasswordResetViewModel = viewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
@@ -472,6 +474,7 @@ private fun AppRoot(
     val profileState by profileViewModel.state.collectAsState()
     val rentalState by rentalViewModel.state.collectAsState()
     val walletUiState by walletViewModel.state.collectAsState()
+    val clientCommissionState by clientCommissionViewModel.state.collectAsState()
     var authRoute by rememberSaveable(stateSaver = AuthRouteSaver) { mutableStateOf<AuthRoute>(AuthRoute.Login) }
     var showFundingDialog by rememberSaveable { mutableStateOf(false) }
     var highlightTransactionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -638,6 +641,7 @@ private fun AppRoot(
         rechargeHistoryViewModel.resetSession()
         rentalViewModel.resetSession()
         walletViewModel.resetSession()
+        clientCommissionViewModel.resetSession()
         paymentViewModel.resetSession()
         highlightTransactionId = null
         launchedWalletOrderId = null
@@ -717,6 +721,7 @@ private fun AppRoot(
                     rechargeHistoryViewModel,
                     rentalViewModel,
                     walletViewModel,
+                    clientCommissionViewModel,
                     historyState,
                     { showFundingDialog = it },
                     paymentViewModel,
@@ -752,6 +757,7 @@ private fun AppRoot(
                     rechargeHistoryViewModel,
                     rentalViewModel,
                     walletViewModel,
+                    clientCommissionViewModel,
                     historyState,
                     { showFundingDialog = it },
                     paymentViewModel,
@@ -790,7 +796,7 @@ private fun ColoredNavigationRailItem(d: TopLevelDestination, currentRoute: Stri
 @Composable
 private fun AppNavHost(
     nav: NavHostController, currentRoute: String?, homeViewModel: HomeViewModel, profileViewModel: ProfileViewModel,
-    rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, historyState: RechargeHistoryUiState,
+    rechargeViewModel: RechargeViewModel, rechargeHistoryViewModel: RechargeHistoryViewModel, rentalViewModel: RentalViewModel, walletViewModel: WalletViewModel, clientCommissionViewModel: ClientCommissionViewModel, historyState: RechargeHistoryUiState,
     showFundingDialogSetter: (Boolean) -> Unit, paymentViewModel: WalletPaymentViewModel, highlightTransactionId: String?,
     authLogout: () -> Unit,
     onChooseContact: () -> Unit,
@@ -889,6 +895,7 @@ private fun AppNavHost(
                 onLogout = authLogout,
                 onProfileUpdated = homeViewModel::load,
                 onBecomeVendor = { nav.navigate("rental-vendor") },
+                onOpenClientNetwork = { nav.navigate("client-commission") },
                 onHelpSupport = onOpenSupportChat,
                 onDeleteAccount = { password, confirmation, closeDialog ->
                     profileViewModel.deleteAccount(password, confirmation) {
@@ -898,6 +905,21 @@ private fun AppNavHost(
                 },
                 deletingAccount = profileViewModel.state.collectAsState().value.deletingAccount,
                 isVisible = currentRoute == "profile"
+            )
+        }
+        composable("client-commission") {
+            ClientCommissionScreen(
+                state = clientCommissionViewModel.state.collectAsState().value,
+                onLoad = clientCommissionViewModel::load,
+                onRefresh = clientCommissionViewModel::refresh,
+                onBack = { nav.popBackStack() },
+                onSearchQuery = clientCommissionViewModel::setSearchQuery,
+                onSearch = clientCommissionViewModel::searchClients,
+                onAddClient = clientCommissionViewModel::addClient,
+                onPreviousHistoryPage = clientCommissionViewModel::previousHistoryPage,
+                onNextHistoryPage = clientCommissionViewModel::nextHistoryPage,
+                onClearMessages = clientCommissionViewModel::clearMessages,
+                isVisible = currentRoute == "client-commission"
             )
         }
         composable("marketplace") {
