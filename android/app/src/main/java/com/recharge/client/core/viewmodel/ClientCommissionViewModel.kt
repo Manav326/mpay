@@ -30,6 +30,7 @@ data class ClientCommissionUiState(
     val refreshing: Boolean = false,
     val error: String? = null,
     val searchError: String? = null,
+    val searchMessage: String? = null,
     val actionMessage: String? = null
 )
 
@@ -81,7 +82,12 @@ class ClientCommissionViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun setSearchQuery(value: String) {
-        _state.value = _state.value.copy(searchQuery = value.take(80), searchResults = emptyList(), searchError = null)
+        _state.value = _state.value.copy(
+            searchQuery = value.take(80),
+            searchResults = emptyList(),
+            searchError = null,
+            searchMessage = null
+        )
     }
 
     fun searchClients() {
@@ -89,25 +95,31 @@ class ClientCommissionViewModel(application: Application) : AndroidViewModel(app
         if (query.isEmpty()) {
             _state.value = _state.value.copy(
                 searchResults = emptyList(),
-                searchError = "Enter a Client ID."
+                searchError = null,
+                searchMessage = "Enter a Client ID."
             )
             return
         }
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            _state.value = _state.value.copy(searching = true, searchError = null)
+            _state.value = _state.value.copy(searching = true, searchError = null, searchMessage = null)
             repository.searchCommissionClients(query)
                 .onSuccess { results ->
                     _state.value = _state.value.copy(
                         searching = false,
-                        searchResults = results
+                        searchResults = results,
+                        searchError = null,
+                        searchMessage = if (results.isEmpty()) {
+                            "No client account was found for that Client ID. Check the ID and try again."
+                        } else null
                     )
                 }
                 .onFailure { error ->
                     _state.value = _state.value.copy(
                         searching = false,
                         searchResults = emptyList(),
-                        searchError = error.message ?: "Unable to search clients."
+                        searchError = error.message ?: "Unable to search clients.",
+                        searchMessage = null
                     )
                 }
         }
@@ -126,6 +138,8 @@ class ClientCommissionViewModel(application: Application) : AndroidViewModel(app
                     _state.value = _state.value.copy(
                         addingClientId = null,
                         searchResults = _state.value.searchResults.filterNot { it.publicUserId == publicId },
+                        searchError = null,
+                        searchMessage = null,
                         actionMessage = "Client added to your network."
                     )
                     load()

@@ -85,7 +85,7 @@ class ClientCommissionService(
         require(normalized.isNotEmpty()) { "Enter a Client ID" }
 
         val candidate = users.findByPublicId(normalized).orElse(null) ?: return emptyList()
-        if (candidate.id == parent.id) return emptyList()
+        // Non-client accounts must not be exposed through the customer network search.
         if (!candidate.role.equals("CLIENT", true)) return emptyList()
 
         val candidateId = requireNotNull(candidate.id)
@@ -95,8 +95,10 @@ class ClientCommissionService(
         val alreadyAssigned = referrals.findByChildUserId(candidateId).isPresent
         val active = candidate.active && candidate.deletedAt == null
         val verified = candidate.mobileVerifiedAt != null
+        val isSelf = candidateId == parent.id
 
         val reason = when {
+            isSelf -> "This is your own Client ID. You can't add your own account to your network."
             !active -> "This client account is not active."
             !verified -> "This client has not completed mobile verification."
             alreadyAssigned -> "This client is already assigned under another client."

@@ -117,4 +117,64 @@ class ClientCommissionServiceTest {
         Mockito.verify(walletLedger, Mockito.never()).existsByExternalRef(Mockito.anyString())
         Mockito.verify(upstreamCommissions, Mockito.never()).save(Mockito.any(ClientUpstreamCommissionEntity::class.java))
     }
+    
+    @Test
+    fun searchReturnsOwnClientWithExplicitSelfAssignmentBlock() {
+        val client = UserEntity(
+            id = 7L,
+            publicId = "CLIENT-7",
+            role = "CLIENT",
+            mobile = "9000000007",
+            name = "Current Client"
+        )
+        val settings = ClientCommissionSettingsEntity(
+            id = 1L,
+            level2DirectClientThreshold = 5,
+            upstreamCommissionPercent = BigDecimal("0.1000"),
+            upstreamCommissionActive = true
+        )
+
+        Mockito.doReturn(Optional.of(client)).`when`(users).findById(7L)
+        Mockito.doReturn(Optional.of(client)).`when`(users).findByPublicId("CLIENT-7")
+        Mockito.doReturn(true).`when`(rechargeTransactions).existsByUserId(7L)
+        Mockito.doReturn(0).`when`(referrals).countByParentUserId(7L)
+        Mockito.doReturn(Optional.empty<ClientReferralLinkEntity>()).`when`(referrals).findByChildUserId(7L)
+        Mockito.doReturn(Optional.of(settings)).`when`(settingsRepository).findById(1L)
+
+        val results = service.searchEligibleClients(7L, "CLIENT-7")
+
+        assertEquals(1, results.size)
+        assertEquals("CLIENT-7", results.single().publicUserId)
+        assertEquals(false, results.single().canBeAdded)
+        assertEquals(
+            "This is your own Client ID. You can't add your own account to your network.",
+            results.single().unavailableReason
+        )
+    }
+
+    @Test
+    fun searchReturnsNoResultForUnknownClientId() {
+        val parent = UserEntity(
+            id = 1L,
+            publicId = "CLIENT-1",
+            role = "CLIENT",
+            mobile = "9000000001"
+        )
+
+        val settings = ClientCommissionSettingsEntity(
+            id = 1L,
+            level2DirectClientThreshold = 5,
+            upstreamCommissionPercent = BigDecimal("0.1000"),
+            upstreamCommissionActive = true
+        )
+
+        Mockito.doReturn(Optional.of(parent)).`when`(users).findById(1L)
+        Mockito.doReturn(true).`when`(rechargeTransactions).existsByUserId(1L)
+        Mockito.doReturn(Optional.of(settings)).`when`(settingsRepository).findById(1L)
+        Mockito.doReturn(Optional.empty<UserEntity>()).`when`(users).findByPublicId("CLIENT-UNKNOWN")
+
+        val results = service.searchEligibleClients(1L, "CLIENT-UNKNOWN")
+
+        assertEquals(0, results.size)
+    }
 }
