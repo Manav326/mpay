@@ -15,7 +15,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.HeadsetMic
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Settings
@@ -196,7 +196,7 @@ fun ProfileScreen(
                             color = AppColors.Primary.copy(alpha = .10f)
                         ) {
                             Icon(
-                                Icons.Default.HeadsetMic,
+                                Icons.Default.ChatBubbleOutline,
                                 contentDescription = null,
                                 tint = AppColors.PrimaryDark,
                                 modifier = Modifier.padding(8.dp).size(21.dp)
@@ -228,7 +228,7 @@ fun ProfileScreen(
                             onBack = {},
                             onOpenChat = onHelpSupport,
                             embedded = true,
-                            modifier = Modifier.fillMaxWidth().height(500.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
