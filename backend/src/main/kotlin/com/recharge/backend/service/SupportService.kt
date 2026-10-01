@@ -384,9 +384,10 @@ class SupportService(
 
     fun voiceCallAvailability(viewer: EmployeeEntity, publicId: String): VoiceCallAvailabilityResponse {
         val customer = visibleClient(viewer, publicId)
+        val accountAvailable = customer.active && customer.deletedAt == null
         return VoiceCallAvailabilityResponse(
             publicUserId = customer.publicId,
-            available = callPush.hasActiveDevice(requireNotNull(customer.id))
+            available = accountAvailable && callPush.hasActiveDevice(requireNotNull(customer.id))
         )
     }
 
