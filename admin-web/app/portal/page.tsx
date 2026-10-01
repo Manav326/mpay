@@ -8,7 +8,7 @@ import MpayBrandUnit from '../components/MpayBrandUnit';
 import {
   ArrowRight, Banknote, CalendarDays, Camera, Car, CarFront, Check, CheckCircle2, ChevronLeft, LockKeyhole, Landmark, MapPin,
   ChevronRight, CircleDollarSign, Clock3, Copy, Edit3, Eye, FileText, History, Home, Headset, LogOut, Menu,
-  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, Upload, UserRound, WalletCards, X, PhoneCall, PhoneOff
+  Plus, ReceiptText, RefreshCw, Save, Send, Settings, ShieldCheck, Smartphone, Sparkles, Trash2, TrendingUp, Upload, UserRound, WalletCards, X, PhoneCall, PhoneOff
 } from 'lucide-react';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8080';
@@ -232,6 +232,55 @@ type RentalPayout = {
   payoutId: string; bookingId: string; carId: string; carName: string; grossAmount: number;
   platformFeePercent: number; platformFeeAmount: number; vendorNetAmount: number; status: string; createdAt: string; paidAt?: string | null;
 };
+type ClientCommissionOverview = {
+  publicUserId: string;
+  level: number;
+  baseCommissionPercent: number;
+  directClientCount: number;
+  level2DirectClientThreshold: number;
+  level2Qualified: boolean;
+  canAddClients: boolean;
+  upstreamCommissionPercent: number;
+  upstreamCommissionActive: boolean;
+  upstreamEligible: boolean;
+  parent?: ClientReferralMember | null;
+  todayUpstreamCommission: number;
+  monthUpstreamCommission: number;
+};
+type ClientReferralMember = {
+  publicUserId: string;
+  name?: string | null;
+  mobile: string;
+  assignedAt: string;
+};
+type ClientSearchResult = {
+  publicUserId: string;
+  name?: string | null;
+  mobile: string;
+  email?: string | null;
+  profileImageUrl?: string | null;
+  profileImageVersion?: number | null;
+  createdAt: string;
+  accountActive: boolean;
+  mobileVerified: boolean;
+  clientLevel: number;
+  directClientCount: number;
+  alreadyAssigned: boolean;
+  canBeAdded: boolean;
+  unavailableReason?: string | null;
+};
+type ClientUpstreamHistoryItem = {
+  childPublicUserId: string;
+  childName?: string | null;
+  childMobile: string;
+  rechargeTransactionId: string;
+  rechargeAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  walletLedgerRef: string;
+  createdAt: string;
+};
+
 type VehicleUnavailability = {
   id: string; carId: string; startDate: string; endDate: string; reasonCode: string; reasonLabel: string;
   reasonNote?: string | null; status: string; createdAt: string;
@@ -864,6 +913,72 @@ function MpayServiceShowcase({ view }: { view: string }) {
   );
 }
 
+function ClientNetworkSearchResultCard({
+  result,
+  expanded,
+  addingId,
+  profilePhoto,
+  onToggle,
+  onAdd
+}: {
+  result: ClientSearchResult;
+  expanded: boolean;
+  addingId: string;
+  profilePhoto: string;
+  onToggle: () => void;
+  onAdd: () => void;
+}) {
+  const statusLabel = result.canBeAdded ? 'Verified client' : 'Not eligible for network add';
+  return (
+    <article className={'client-network-result-card ' + (expanded ? 'expanded' : '')}>
+      <button className="client-network-result-head" onClick={onToggle} disabled={!!addingId}>
+        <div className="client-network-result-avatar">
+          {profilePhoto ? <img src={profilePhoto} alt={result.name || 'Client profile'} /> : (result.name || 'C').charAt(0).toUpperCase()}
+        </div>
+        <div className="client-network-result-summary">
+          <b>{result.name || 'mPay client'}</b>
+          <span>Client ID · {result.publicUserId}</span>
+          <em className={result.canBeAdded ? 'positive' : 'blocked'}>{statusLabel}</em>
+        </div>
+        {expanded ? <ChevronLeft className="client-network-result-chevron open" size={17}/> : <ChevronRight size={17}/>}
+      </button>
+
+      {expanded && (
+        <div className="client-network-result-body">
+          <div className="client-network-detail-heading"><b>Account details</b><span>Profile and eligibility information</span></div>
+          <div className="client-network-profile-grid">
+            <div><span>Full name</span><b>{result.name || 'Not provided'}</b></div>
+            <div><span>Account type</span><b>Client</b></div>
+            <div><span>Client ID</span><b>{result.publicUserId}</b></div>
+            <div><span>Account status</span><b>{result.accountActive ? 'Active' : 'Inactive'}</b></div>
+            <div><span>Mobile</span><b>{result.mobile}</b></div>
+            <div><span>Email</span><b>{result.email || 'Not provided'}</b></div>
+            <div><span>Member since</span><b>{date(result.createdAt)}</b></div>
+            <div><span>Client level</span><b>{result.clientLevel > 0 ? 'Level ' + result.clientLevel : 'Not active'}</b></div>
+            <div><span>Direct clients</span><b>{result.directClientCount}</b></div>
+            <div><span>Mobile verification</span><b>{result.mobileVerified ? 'Verified' : 'Not verified'}</b></div>
+          </div>
+
+          {result.canBeAdded ? (
+            <div className="client-network-add-zone">
+              <div><CheckCircle2 size={17}/><span>This account is eligible to become your direct client.</span></div>
+              <button className="landing-primary" onClick={onAdd} disabled={addingId === result.publicUserId || !!addingId}>
+                {addingId === result.publicUserId ? 'Adding…' : 'Add client'}
+                {addingId !== result.publicUserId && <ChevronRight size={16}/>}
+              </button>
+            </div>
+          ) : (
+            <div className="client-network-cannot-add">
+              <LockKeyhole size={17}/>
+              <div><b>Can't be added because</b><span>{result.unavailableReason || 'this client is not eligible for network assignment.'}</span></div>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
 function WalletBalanceHero({
   wallet,
   loading,
@@ -1014,7 +1129,22 @@ export default function Portal() {
   const [vehicleCalendar, setVehicleCalendar] = useState<CalendarDay[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(localYearMonth());
   const [calendarCarId, setCalendarCarId] = useState('');
-  const [accountSection, setAccountSection] = useState<'profile'|'vendor'|'vehicle'>('profile');
+  const [accountSection, setAccountSection] = useState<'profile'|'vendor'|'vehicle'|'client-network'>('profile');
+
+  const [clientNetworkOverview, setClientNetworkOverview] = useState<ClientCommissionOverview>();
+  const [clientNetworkClients, setClientNetworkClients] = useState<ClientReferralMember[]>([]);
+  const [clientNetworkHistory, setClientNetworkHistory] = useState<ClientUpstreamHistoryItem[]>([]);
+  const [clientNetworkHistoryPage, setClientNetworkHistoryPage] = useState(0);
+  const [clientNetworkHistoryHasNext, setClientNetworkHistoryHasNext] = useState(false);
+  const [clientNetworkLoading, setClientNetworkLoading] = useState(false);
+  const [clientNetworkHistoryLoading, setClientNetworkHistoryLoading] = useState(false);
+  const [clientNetworkSearchId, setClientNetworkSearchId] = useState('');
+  const [clientNetworkSearchBusy, setClientNetworkSearchBusy] = useState(false);
+  const [clientNetworkSearchMessage, setClientNetworkSearchMessage] = useState('');
+  const [clientNetworkSearchResult, setClientNetworkSearchResult] = useState<ClientSearchResult>();
+  const [clientNetworkSearchExpanded, setClientNetworkSearchExpanded] = useState(false);
+  const [clientNetworkAddingId, setClientNetworkAddingId] = useState('');
+  const [clientNetworkProfilePhoto, setClientNetworkProfilePhoto] = useState('');
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [vehicleEditId, setVehicleEditId] = useState('');
@@ -1406,6 +1536,133 @@ export default function Portal() {
     setWithdrawalPage(0);
     void loadWalletHistory(0, { size: normalized });
     void loadWithdrawals(0, normalized);
+  }
+
+  async function loadClientNetworkProfilePhoto(result?: ClientSearchResult) {
+    const token = localStorage.getItem(webSession.accessKey);
+    if (!result?.profileImageUrl || !token) {
+      setClientNetworkProfilePhoto(current => {
+        if (current.startsWith('blob:')) URL.revokeObjectURL(current);
+        return '';
+      });
+      return;
+    }
+    try {
+      const version = result.profileImageVersion ? '?v=' + encodeURIComponent(String(result.profileImageVersion)) : '';
+      const r = await fetch(base + result.profileImageUrl + version, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!r.ok) throw new Error('Profile photo unavailable');
+      const url = URL.createObjectURL(await r.blob());
+      setClientNetworkProfilePhoto(current => {
+        if (current.startsWith('blob:')) URL.revokeObjectURL(current);
+        return url;
+      });
+    } catch {
+      setClientNetworkProfilePhoto(current => {
+        if (current.startsWith('blob:')) URL.revokeObjectURL(current);
+        return '';
+      });
+    }
+  }
+
+  async function loadClientNetworkHistory(page = 0) {
+    setClientNetworkHistoryLoading(true);
+    try {
+      const response = await api<{
+        items: ClientUpstreamHistoryItem[];
+        page: number;
+        hasNext: boolean;
+      }>('/api/v1/commission/upstream-history?page=' + page + '&size=10');
+      setClientNetworkHistory(response.items || []);
+      setClientNetworkHistoryPage(response.page);
+      setClientNetworkHistoryHasNext(response.hasNext);
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to load upstream earnings.');
+    } finally {
+      setClientNetworkHistoryLoading(false);
+    }
+  }
+
+  async function loadClientNetwork() {
+    setClientNetworkLoading(true);
+    try {
+      const [overview, clients, history] = await Promise.all([
+        api<ClientCommissionOverview>('/api/v1/commission/overview'),
+        api<ClientReferralMember[]>('/api/v1/commission/clients'),
+        api<{ items: ClientUpstreamHistoryItem[]; page: number; hasNext: boolean }>('/api/v1/commission/upstream-history?page=0&size=10')
+      ]);
+      setClientNetworkOverview(overview);
+      setClientNetworkClients(clients || []);
+      setClientNetworkHistory(history.items || []);
+      setClientNetworkHistoryPage(history.page || 0);
+      setClientNetworkHistoryHasNext(history.hasNext);
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to load Client Network.');
+    } finally {
+      setClientNetworkLoading(false);
+    }
+  }
+
+  async function searchClientNetwork() {
+    const clientId = clientNetworkSearchId.trim();
+    if (!clientId) {
+      setClientNetworkSearchMessage('Enter a Client ID.');
+      setClientNetworkSearchResult(undefined);
+      return;
+    }
+    setClientNetworkSearchBusy(true);
+    setClientNetworkSearchMessage('');
+    setClientNetworkSearchResult(undefined);
+    setClientNetworkSearchExpanded(false);
+    await loadClientNetworkProfilePhoto(undefined);
+    try {
+      const results = await api<ClientSearchResult[]>(
+        '/api/v1/commission/clients/search?q=' + encodeURIComponent(clientId)
+      );
+      const result = results?.[0];
+      if (!result) {
+        setClientNetworkSearchMessage('No client account was found for that Client ID.');
+        return;
+      }
+      setClientNetworkSearchResult(result);
+      void loadClientNetworkProfilePhoto(result);
+    } catch (e:any) {
+      setClientNetworkSearchMessage(e.message || 'Unable to find this Client ID.');
+    } finally {
+      setClientNetworkSearchBusy(false);
+    }
+  }
+
+  async function addClientNetworkMember(result: ClientSearchResult) {
+    if (!result.canBeAdded || clientNetworkAddingId) return;
+    setClientNetworkAddingId(result.publicUserId);
+    try {
+      await api<ClientReferralMember>('/api/v1/commission/clients', {
+        method: 'POST',
+        body: JSON.stringify({ clientPublicId: result.publicUserId })
+      });
+      setNotice('Client added to your network.');
+      setClientNetworkSearchId('');
+      setClientNetworkSearchResult(undefined);
+      setClientNetworkSearchMessage('');
+      setClientNetworkSearchExpanded(false);
+      await loadClientNetwork();
+      await loadClientNetworkProfilePhoto(undefined);
+    } catch (e:any) {
+      setNotice(e.message || 'Unable to add this client.');
+    } finally {
+      setClientNetworkAddingId('');
+    }
+  }
+
+  function openClientNetwork() {
+    setClientNetworkSearchId('');
+    setClientNetworkSearchResult(undefined);
+    setClientNetworkSearchMessage('');
+    setClientNetworkSearchExpanded(false);
+    void loadClientNetworkProfilePhoto(undefined);
+    setAccountSection('client-network');
   }
 
   async function loadProfileImage() {
@@ -2394,7 +2651,10 @@ export default function Portal() {
     finally{setBusy(false);}
   }
 
-  useEffect(() => () => { if(profileImage.startsWith('blob:')) URL.revokeObjectURL(profileImage); }, [profileImage]);
+  useEffect(() => () => {
+    if (profileImage.startsWith('blob:')) URL.revokeObjectURL(profileImage);
+    if (clientNetworkProfilePhoto.startsWith('blob:')) URL.revokeObjectURL(clientNetworkProfilePhoto);
+  }, [profileImage, clientNetworkProfilePhoto]);
 
   useEffect(()=>{
     const hour = new Date().getHours();
@@ -2411,6 +2671,12 @@ export default function Portal() {
       setAccountSection('profile');
     }
   },[view]);
+
+  useEffect(()=>{
+    if(view==='account' && accountSection==='client-network') {
+      void loadClientNetwork();
+    }
+  },[view, accountSection]);
 
   useEffect(()=>{
     if(view==='home'){
@@ -2583,7 +2849,8 @@ export default function Portal() {
         <div className="portal-topbar-copy"><span>mPay personal workspace</span><h1>{
           view==='home'?'Good to see you.':view==='recharge'?'Mobile recharge':view==='wallet'?'Your wallet':
           view==='history'?'Transaction history':view==='marketplace'?'Marketplace':view==='rental'?'Marketplace · Car Rental':
-          view==='rental-booking'?'Book with driver':view==='bookings'?'My Bookings':'Your account'
+          view==='rental-booking'?'Book with driver':view==='bookings'?'My Bookings':
+          view==='account' && accountSection==='client-network'?'Client Network':'Your account'
         }</h1></div>
         <MpayServiceShowcase view={view} />
         <div className="portal-avatar portal-topbar-avatar">{pendingProfileImagePreview ? <img src={pendingProfileImagePreview} alt="Profile"/> : profileImage ? <img src={profileImage} alt="Profile"/> : (me?.name || 'U').charAt(0).toUpperCase()}</div>
@@ -3402,6 +3669,15 @@ export default function Portal() {
             </div>
           </section>
 
+          <button className="client-network-entry-card" onClick={openClientNetwork}>
+            <span className="client-network-entry-icon"><UserRound size={21}/></span>
+            <span className="client-network-entry-copy">
+              <b>Client Network</b>
+              <small>Manage your direct clients, verify Client IDs and track upstream earnings.</small>
+            </span>
+            <ChevronRight size={17}/>
+          </button>
+
           <section className={'account-vendor-entry-card '+(vendorVerified?'verified':'')}>
             <div className="account-vendor-entry-icon"><CarFront size={24}/></div>
             <div className="account-vendor-entry-copy">
@@ -3491,6 +3767,134 @@ export default function Portal() {
 
           <button className="account-logout-button" onClick={logout}><LogOut size={17}/> Logout</button>
         </div>}
+
+        {accountSection==='client-network' && <section className="portal-panel client-network-page">
+          <div className="vendor-page-header client-network-page-header">
+            <button className="icon-btn" onClick={()=>setAccountSection('profile')} aria-label="Back to Account"><ChevronLeft size={18}/></button>
+            <div>
+              <span className="account-eyebrow">ACCOUNT NETWORK</span>
+              <h2>Client Network</h2>
+              <p>Add verified clients using their unique Client ID and track upstream earnings in one place.</p>
+            </div>
+          </div>
+
+          {clientNetworkLoading && !clientNetworkOverview ? (
+            <div className="client-network-loading"><RefreshCw size={18} className="spin"/><span>Loading your client network…</span></div>
+          ) : clientNetworkOverview ? (
+            <>
+              <section className="client-network-overview">
+                <div className="client-network-overview-top">
+                  <div>
+                    <span className="account-eyebrow">NETWORK STATUS</span>
+                    <h3>{clientNetworkOverview.level > 0 ? 'Level ' + clientNetworkOverview.level : 'Network not active'}</h3>
+                    <p>{clientNetworkOverview.level > 0 ? 'Build your direct client network and unlock upstream earnings.' : 'Complete a recharge attempt to activate your client network.'}</p>
+                  </div>
+                  <button className="icon-btn" onClick={()=>void loadClientNetwork()} disabled={clientNetworkLoading} aria-label="Refresh Client Network"><RefreshCw size={16}/></button>
+                </div>
+                <div className="client-network-stat-grid">
+                  <div><span>Recharge commission</span><b>{Number(clientNetworkOverview.baseCommissionPercent || 0).toFixed(2)}%</b></div>
+                  <div><span>Direct clients</span><b>{clientNetworkOverview.directClientCount}/{clientNetworkOverview.level2DirectClientThreshold}</b></div>
+                  <div><span>Today upstream</span><b>{money(clientNetworkOverview.todayUpstreamCommission)}</b></div>
+                  <div><span>This month</span><b>{money(clientNetworkOverview.monthUpstreamCommission)}</b></div>
+                </div>
+                {clientNetworkOverview.level >= 2 ? (
+                  <div className="client-network-eligibility active"><CheckCircle2 size={17}/><span><b>Upstream commission enabled</b><small>{Number(clientNetworkOverview.upstreamCommissionPercent || 0).toFixed(2)}% on eligible successful direct-client recharges.</small></span></div>
+                ) : (
+                  <div className="client-network-eligibility"><UserRound size={17}/><span><b>{Math.max(0, clientNetworkOverview.level2DirectClientThreshold - clientNetworkOverview.directClientCount)} more direct client{clientNetworkOverview.level2DirectClientThreshold - clientNetworkOverview.directClientCount === 1 ? '' : 's'} needed for Level 2.</b><small>Your direct-client assignment remains available at Level 1 after your first recharge attempt.</small></span></div>
+                )}
+              </section>
+
+              {clientNetworkOverview.canAddClients ? (
+                <section className="client-network-action-card">
+                  <div className="client-network-section-head">
+                    <div><h3>Add a verified client</h3><p>Use the client's unique mPay Client ID. Search first, review the account, then add it.</p></div>
+                    <UserRound size={18}/>
+                  </div>
+                  <div className="client-network-search-row">
+                    <label>
+                      Client ID
+                      <input
+                        value={clientNetworkSearchId}
+                        onChange={e=>{setClientNetworkSearchId(e.target.value.slice(0,80));setClientNetworkSearchMessage('');setClientNetworkSearchResult(undefined);setClientNetworkSearchExpanded(false);}}
+                        onKeyDown={e=>{if(e.key==='Enter') void searchClientNetwork();}}
+                        placeholder="Enter unique Client ID"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <small>Client ID remains unique for the account's full lifecycle.</small>
+                    </label>
+                    <button className="landing-primary client-network-find-btn" onClick={()=>void searchClientNetwork()} disabled={clientNetworkSearchBusy || !clientNetworkSearchId.trim()}>
+                      {clientNetworkSearchBusy ? 'Verifying…' : 'Find client'}
+                    </button>
+                  </div>
+
+                  {clientNetworkSearchMessage && <div className="client-network-search-message">{clientNetworkSearchMessage}</div>}
+
+                  {clientNetworkSearchResult && (
+                    <ClientNetworkSearchResultCard
+                      result={clientNetworkSearchResult}
+                      expanded={clientNetworkSearchExpanded}
+                      addingId={clientNetworkAddingId}
+                      profilePhoto={clientNetworkProfilePhoto}
+                      onToggle={()=>setClientNetworkSearchExpanded(value=>!value)}
+                      onAdd={()=>void addClientNetworkMember(clientNetworkSearchResult)}
+                    />
+                  )}
+                </section>
+              ) : (
+                <section className="client-network-action-card client-network-locked">
+                  <LockKeyhole size={18}/>
+                  <div><h3>Client network is not active yet</h3><p>After your first recharge attempt, you can add verified clients to your network.</p></div>
+                </section>
+              )}
+
+              <section className="client-network-section">
+                <div className="client-network-section-head">
+                  <div><h3>My direct clients</h3><p>{clientNetworkClients.length} direct client{clientNetworkClients.length === 1 ? '' : 's'} linked to your network.</p></div>
+                </div>
+                {clientNetworkClients.length ? (
+                  <div className="client-network-direct-grid">
+                    {clientNetworkClients.map(client=>(
+                      <div className="client-network-direct-card" key={client.publicUserId}>
+                        <div className="client-network-direct-avatar">{(client.name || 'C').charAt(0).toUpperCase()}</div>
+                        <div><b>{client.name || 'mPay client'}</b><span>Client ID · {client.publicUserId}</span><small>{client.mobile}</small><em>Added {dt(client.assignedAt)}</em></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="client-network-empty"><UserRound size={18}/><span>No direct clients have been added yet.</span></div>
+                )}
+              </section>
+
+              <section className="client-network-section">
+                <div className="client-network-section-head">
+                  <div><h3>Upstream earnings</h3><p>Credited only after an eligible direct client's recharge succeeds.</p></div>
+                </div>
+                {clientNetworkHistoryLoading && !clientNetworkHistory.length ? (
+                  <div className="client-network-loading"><RefreshCw size={17} className="spin"/><span>Loading earnings…</span></div>
+                ) : clientNetworkHistory.length ? (
+                  <>
+                    <div className="client-network-history-list">
+                      {clientNetworkHistory.map(item=>(
+                        <div className="client-network-history-card" key={item.walletLedgerRef}>
+                          <div><b>{item.childName || 'Direct client'}</b><span>Successful recharge · {money(item.rechargeAmount)}</span><small>{Number(item.commissionPercent || 0).toFixed(2)}% upstream · {dt(item.createdAt)}</small></div>
+                          <strong>+{money(item.commissionAmount)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="client-network-history-pager">
+                      <button className="secondary" onClick={()=>void loadClientNetworkHistory(clientNetworkHistoryPage - 1)} disabled={clientNetworkHistoryPage <= 0 || clientNetworkHistoryLoading}>Previous</button>
+                      <span>Page {clientNetworkHistoryPage + 1}</span>
+                      <button className="secondary" onClick={()=>void loadClientNetworkHistory(clientNetworkHistoryPage + 1)} disabled={!clientNetworkHistoryHasNext || clientNetworkHistoryLoading}>Next</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="client-network-empty"><TrendingUp size={18}/><span>No upstream commission has been credited yet.</span></div>
+                )}
+              </section>
+            </>
+          ) : null}
+        </section>}
 
         {accountSection==='vendor' && !vendorVerified && <section className="portal-panel vendor-onboarding-page">
           <div className="vendor-page-header">

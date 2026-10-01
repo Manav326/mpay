@@ -6338,3 +6338,120 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 
 /* Admin drawer uses the same full branding lockup as the customer portal drawer. */
 .sidebar.collapsed .mpay-brand-copy{display:none}.sidebar.collapsed .mpay-brand-unit{justify-content:center}
+
+
+/* ===== Client Network — Account workspace ===== */
+.client-network-entry-card{
+  width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;
+  padding:15px 16px;border:1px solid #e7dfd4;border-radius:18px;background:#fff;text-align:left;
+  color:#403a33;cursor:pointer;box-shadow:0 10px 28px rgba(67,48,22,.04);transition:.18s ease
+}
+.client-network-entry-card:hover{border-color:#e7c778;transform:translateY(-1px);box-shadow:0 14px 32px rgba(67,48,22,.07)}
+.client-network-entry-icon{width:42px;height:42px;border-radius:13px;background:#fff4df;color:#9a6408;display:grid;place-items:center}
+.client-network-entry-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.client-network-entry-copy b{font-size:13px;letter-spacing:-.01em}
+.client-network-entry-copy small{font-size:10px;color:#81786d;line-height:1.45}
+.client-network-entry-card>svg{color:#9a9185}
+
+.client-network-page{padding:18px;display:flex;flex-direction:column;gap:16px}
+.client-network-page-header{margin:0}
+.client-network-page-header h2{font-size:25px}
+.client-network-page-header p{max-width:680px}
+.client-network-loading{min-height:90px;border:1px dashed #ddd4c8;border-radius:16px;background:#fffdfa;display:flex;align-items:center;justify-content:center;gap:9px;color:#82786d;font-size:11px}
+.client-network-overview{padding:18px;border-radius:20px;background:linear-gradient(135deg,#2a261f 0%,#1f1d19 100%);color:#fff;box-shadow:0 22px 45px rgba(34,29,23,.12)}
+.client-network-overview-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.client-network-overview-top .account-eyebrow{color:#f4bf55}
+.client-network-overview-top h3{margin:6px 0 4px;font-size:24px;letter-spacing:-.035em}
+.client-network-overview-top p{margin:0;color:#d6cdc1;font-size:11px;line-height:1.5}
+.client-network-overview-top .icon-btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);color:#fff}
+.client-network-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:16px}
+.client-network-stat-grid>div{padding:11px 12px;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(255,255,255,.055)}
+.client-network-stat-grid span{display:block;color:#bdb4a8;font-size:9px;margin-bottom:4px}
+.client-network-stat-grid b{font-size:14px;color:#fff}
+.client-network-eligibility{margin-top:12px;padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.065);display:flex;align-items:flex-start;gap:9px;color:#efe7dd}
+.client-network-eligibility.active{background:rgba(62,170,101,.12)}
+.client-network-eligibility>svg{margin-top:1px}
+.client-network-eligibility span{display:flex;flex-direction:column;gap:3px}
+.client-network-eligibility b{font-size:10px}
+.client-network-eligibility small{font-size:9px;color:#cfc6bb;line-height:1.45}
+
+.client-network-action-card,.client-network-section{padding:16px;border:1px solid #e7dfd4;border-radius:18px;background:#fff}
+.client-network-action-card.client-network-locked{display:flex;align-items:flex-start;gap:10px;background:#fffaf0;color:#8d5d08;border-color:#ecd8aa}
+.client-network-action-card.client-network-locked h3{margin:0 0 4px;color:#4a4136;font-size:13px}
+.client-network-action-card.client-network-locked p{margin:0;color:#81776d;font-size:10px;line-height:1.55}
+.client-network-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:12px}
+.client-network-section-head h3{margin:0;font-size:14px;letter-spacing:-.015em}
+.client-network-section-head p{margin:4px 0 0;font-size:10px;color:#857b70;line-height:1.45}
+.client-network-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.client-network-search-row label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#6e665d;font-weight:800}
+.client-network-search-row input{width:100%;box-sizing:border-box;border:1px solid #dcd3c8;border-radius:11px;background:#fff;padding:11px 12px;font:inherit;color:#3d3832;outline:none}
+.client-network-search-row input:focus{border-color:#d7a63e;box-shadow:0 0 0 3px rgba(245,158,11,.11)}
+.client-network-search-row small{font-size:9px;color:#9b9186;font-weight:500}
+.client-network-find-btn{height:42px;white-space:nowrap}
+.client-network-search-message{margin-top:10px;padding:10px 12px;border:1px solid #eadfd1;border-radius:12px;background:#faf7f2;color:#776d62;font-size:10px;line-height:1.45}
+
+.client-network-result-card{margin-top:12px;border:1px solid #e4ddd3;border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 7px 24px rgba(67,48,22,.045)}
+.client-network-result-head{width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;padding:13px 14px;border:0;background:transparent;text-align:left;color:#3f3932;cursor:pointer}
+.client-network-result-head:hover{background:#fcfaf6}
+.client-network-result-head:disabled{cursor:default}
+.client-network-result-avatar{width:52px;height:52px;border-radius:15px;background:#fff4df;color:#9a6408;display:grid;place-items:center;overflow:hidden;font-weight:900;font-size:18px}
+.client-network-result-avatar img{width:100%;height:100%;object-fit:cover}
+.client-network-result-summary{display:flex;flex-direction:column;gap:3px;min-width:0}
+.client-network-result-summary b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.client-network-result-summary span{font-size:10px;color:#7d7469;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.client-network-result-summary em{font-style:normal;font-size:9px;font-weight:800;display:inline-flex;align-self:flex-start;padding:4px 7px;border-radius:999px}
+.client-network-result-summary em.positive{background:#edf8f0;color:#168448}
+.client-network-result-summary em.blocked{background:#fff1ef;color:#b42318}
+.client-network-result-chevron{color:#8c8277;transform:rotate(0deg);transition:.18s ease}
+.client-network-result-chevron.open{transform:rotate(90deg)}
+.client-network-result-body{border-top:1px solid #eee7de;padding:15px;background:#fffdfa}
+.client-network-detail-heading{display:flex;flex-direction:column;gap:3px;margin-bottom:11px}
+.client-network-detail-heading b{font-size:12px}
+.client-network-detail-heading span{font-size:9px;color:#897f75}
+.client-network-profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.client-network-profile-grid>div{padding:9px 10px;border-radius:11px;background:#f8f5f0;min-width:0}
+.client-network-profile-grid span{display:block;color:#81776c;font-size:9px;margin-bottom:4px}
+.client-network-profile-grid b{display:block;color:#3f3a34;font-size:10px;word-break:break-word}
+.client-network-add-zone{margin-top:12px;padding:11px 12px;border:1px solid #e8dfd3;border-radius:13px;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.client-network-add-zone>div{display:flex;align-items:center;gap:8px;color:#168448;font-size:10px}
+.client-network-add-zone .landing-primary{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.client-network-cannot-add{margin-top:12px;padding:11px 12px;border-radius:13px;background:#fff0ee;border:1px solid #f0ccc7;display:flex;align-items:flex-start;gap:9px;color:#b42318}
+.client-network-cannot-add>svg{margin-top:1px;flex:0 0 auto}
+.client-network-cannot-add>div{display:flex;flex-direction:column;gap:3px}
+.client-network-cannot-add b{font-size:10px}
+.client-network-cannot-add span{font-size:9px;line-height:1.5}
+
+.client-network-direct-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.client-network-direct-card{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:11px;border:1px solid #e8e1d8;border-radius:14px;background:#fff}
+.client-network-direct-avatar{width:38px;height:38px;border-radius:12px;background:#fff4df;color:#9a6408;display:grid;place-items:center;font-size:13px;font-weight:900}
+.client-network-direct-card>div:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.client-network-direct-card b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.client-network-direct-card span,.client-network-direct-card small,.client-network-direct-card em{font-size:9px;color:#81786d}
+.client-network-direct-card em{font-style:normal;color:#a0978c}
+
+.client-network-empty{min-height:74px;border:1px dashed #dcd4ca;border-radius:14px;background:#fcfaf6;display:flex;align-items:center;justify-content:center;gap:8px;color:#847b70;font-size:10px}
+.client-network-history-list{display:grid;gap:8px}
+.client-network-history-card{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:11px 12px;border:1px solid #e8e0d7;border-radius:13px;background:#fff}
+.client-network-history-card>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.client-network-history-card b{font-size:11px}
+.client-network-history-card span,.client-network-history-card small{font-size:9px;color:#7e756b}
+.client-network-history-card strong{font-size:13px;color:#168448;white-space:nowrap}
+.client-network-history-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
+.client-network-history-pager span{font-size:10px;color:#81776d}
+.client-network-history-pager .secondary{padding:8px 10px}
+
+@media(max-width:900px){
+  .client-network-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .client-network-direct-grid{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .client-network-page{padding:14px}
+  .client-network-overview{padding:15px}
+  .client-network-search-row{grid-template-columns:1fr}
+  .client-network-find-btn{width:100%}
+  .client-network-profile-grid{grid-template-columns:1fr}
+  .client-network-add-zone{align-items:stretch;flex-direction:column}
+  .client-network-add-zone .landing-primary{justify-content:center;width:100%;box-sizing:border-box}
+  .client-network-history-card{grid-template-columns:1fr}
+  .client-network-history-card strong{justify-self:start}
+}
