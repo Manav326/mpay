@@ -122,44 +122,43 @@ private fun NetworkOverviewCard(overview: ClientCommissionOverviewResponse?) {
             Row(Modifier.fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
             }
-            return
-        }
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .14f)) {
-                    Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(10.dp))
+        } else {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .14f)) {
+                        Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(10.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("LEVEL ${overview.level}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
-                Spacer(Modifier.weight(1f))
-                Text("LEVEL ${overview.level}", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
-            }
-            Text("Your client network", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Metric("Your commission", "${formatMoney(overview.baseCommissionPercent)}%", Modifier.weight(1f))
-                Metric("Direct clients", "${overview.directClientCount}/${overview.level2DirectClientThreshold}", Modifier.weight(1f))
-            }
-            if (overview.level >= 2) {
-                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .12f)) {
-                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.onPrimary)
-                        Spacer(Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Upstream commission", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .8f))
-                            Text("${formatMoney(overview.upstreamCommissionPercent)}% on successful direct-client recharges", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                Text("Your client network", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .82f))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Metric("Your commission", "${formatMoney(overview.baseCommissionPercent)}%", Modifier.weight(1f))
+                    Metric("Direct clients", "${overview.directClientCount}/${overview.level2DirectClientThreshold}", Modifier.weight(1f))
+                }
+                if (overview.level >= 2) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .12f)) {
+                        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.TrendingUp, null, tint = MaterialTheme.colorScheme.onPrimary)
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Upstream commission", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .8f))
+                                Text("${formatMoney(overview.upstreamCommissionPercent)}% on successful direct-client recharges", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
+                } else {
+                    val remaining = (overview.level2DirectClientThreshold - overview.directClientCount).coerceAtLeast(0)
+                    Text("${remaining} more direct client${if (remaining == 1) "" else "s"} needed for Level 2.", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
                 }
-            } else {
-                val remaining = (overview.level2DirectClientThreshold - overview.directClientCount).coerceAtLeast(0)
-                Text("${remaining} more direct client${if (remaining == 1) "" else "s"} needed for Level 2.", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .78f), style = MaterialTheme.typography.bodySmall)
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Metric("Today upstream", "₹${formatMoney(overview.todayUpstreamCommission)}", Modifier.weight(1f))
-                Metric("This month", "₹${formatMoney(overview.monthUpstreamCommission)}", Modifier.weight(1f))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Metric("Today upstream", "₹${formatMoney(overview.todayUpstreamCommission)}", Modifier.weight(1f))
+                    Metric("This month", "₹${formatMoney(overview.monthUpstreamCommission)}", Modifier.weight(1f))
+                }
             }
         }
     }
 }
-
 @Composable
 private fun Metric(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
