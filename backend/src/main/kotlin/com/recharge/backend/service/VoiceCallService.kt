@@ -64,13 +64,6 @@ class VoiceCallService(
         }
 
         val targetId = requireNotNull(target.id)
-        if (!push.hasActiveDevice(targetId)) {
-            throw ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "This customer is currently unavailable for voice calls"
-            )
-        }
-
         val callerId = requireNotNull(caller.id)
 
         val now = Instant.now()
