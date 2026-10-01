@@ -73,9 +73,16 @@ class RechargeTransactionWorkflowServiceTest {
             "Recharge was not submitted: biller lookup failed"
         )
 
-        Mockito.verify(walletService, Mockito.never()).reserve(Mockito.eq(2L), Mockito.any(BigDecimal::class.java))
-        Mockito.verify(walletService, Mockito.never()).finalizeReservedDebit(Mockito.anyLong(), Mockito.any(BigDecimal::class.java), Mockito.anyString(), Mockito.anyString())
-        Mockito.verify(eventRepository).save(Mockito.any(com.recharge.backend.domain.RechargeTransactionEventEntity::class.java))
+        Mockito.verify(walletService, Mockito.never()).reserve(2L, BigDecimal("345.51"))
+        Mockito.verify(walletService, Mockito.never()).finalizeReservedDebit(2L, BigDecimal("345.51"), "", "")
+
+        val eventInvocations = Mockito.mockingDetails(eventRepository).invocations
+            .filter { it.method.name == "save" }
+        assertEquals(1, eventInvocations.size)
+        val event = eventInvocations.single().arguments[0] as com.recharge.backend.domain.RechargeTransactionEventEntity
+        assertEquals("PRE_SUBMISSION_FAILURE", event.eventType)
+        assertEquals("FAILED", event.toStatus)
+
     }
 
     @Test
