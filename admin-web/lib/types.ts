@@ -17,6 +17,8 @@ export interface UserSummary {
   joinedAt: string;
   profileUpdatedAt: string;
   status: 'ACTIVE' | 'BLOCKED';
+  mobileVerified: boolean;
+  mobileVerifiedAt?: string | null;
 }
 
 export interface UserDetail extends UserSummary {
