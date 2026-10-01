@@ -654,7 +654,13 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageUserMobileVerific
         <div className="drawer-section-title"><div><h3>All recharge records</h3><p>Includes successful, failed, pending and other persisted recharge attempts.</p></div></div>
         {loadingRecharges ? <div className="empty-state">Loading recharge history…</div> : recharges.length===0 ? <div className="empty-state">No recharge records found.</div> :
           <div className="history-table-wrap"><table className="history-table"><thead><tr><th>Date</th><th>Recharge</th><th>Plan</th><th>Amounts</th><th>Status</th><th>References</th></tr></thead><tbody>
-            {recharges.map(r=><tr key={r.transactionId}><td>{dateTime(r.createdAt)}</td><td><b>{r.operator} · {r.mobileNumber}</b><span>{r.circle}</span></td><td><b>{INR.format(r.amount)}</b><span>{r.planDescription || r.planId}</span></td><td><b>Debit {INR.format(r.walletDebitAmount)}</b><span>Commission {INR.format(r.clientCommission)}</span><span>Company {INR.format(r.companyCommission)}</span></td><td><span className={"status " + (r.status || 'UNKNOWN').toLowerCase()}>{r.status}</span>{r.message&&<span>{r.message}</span>}</td><td><span className="mono">{r.transactionId}</span><span>{r.providerReference || r.providerOrderId || r.clientRequestId}</span></td></tr>)}
+            {recharges.map(r=><tr key={r.transactionId}><td>{dateTime(r.createdAt)}</td><td><b>{r.operator} · {r.mobileNumber}</b><span>{r.circle}</span></td><td><b>{INR.format(r.amount)}</b><span>{r.planDescription || r.planId}</span></td><td>
+  <b>{rechargeAmountPresentation(r.status, INR.format(r.walletDebitAmount)).text}</b>
+  {String(r.status || '').toUpperCase() === 'SUCCESS' && <>
+    <span>Commission {INR.format(r.clientCommission)}</span>
+    <span>Company {INR.format(r.companyCommission)}</span>
+  </>}
+</td><td><span className={"status " + (r.status || 'UNKNOWN').toLowerCase()}>{r.status}</span>{r.message&&<span>{r.message}</span>}</td><td><span className="mono">{r.transactionId}</span><span>{r.providerReference || r.providerOrderId || r.clientRequestId}</span></td></tr>)}
           </tbody></table></div>}
         {rechargeHasNext && <button className="secondary load-more" onClick={loadMoreRecharges}>Load more recharge records <ChevronRight size={15}/></button>}
       </section>}
