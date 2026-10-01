@@ -565,6 +565,20 @@ function RentalPhotoImage({
   return <img src={src} alt={alt} className={className} loading={loading} decoding="async" fetchPriority={fetchPriority} onError={() => setFailed(true)} />;
 }
 
+function RentalDriverPhoto({ photoUrl, large = false, name = 'Driver' }: {
+  photoUrl?: string | null;
+  large?: boolean;
+  name?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const resolved = photoUrl ? rentalPhotoClientUrl(photoUrl) : '';
+  return (
+    <span className={'rental-driver-avatar' + (large ? ' large' : '')}>
+      {resolved && !failed ? <img src={resolved} alt={name} onError={() => setFailed(true)} /> : <UserRound size={large ? 20 : 15} />}
+    </span>
+  );
+}
+
 function VehicleFourPhotoGallery({
   car,
   priority = false,
@@ -3661,7 +3675,7 @@ export default function Portal() {
                       <span className={'rental-booking-status '+String(displayStatus).toLowerCase()}>{label}</span>
                     </div>
                     <div className="rental-booking-info-grid">
-                      <div><span>Driver</span><b>{b.driverName || '—'}</b>{b.driverMobile && <small>{b.driverMobile}</small>}</div>
+                      <div><span>Driver</span><RentalDriverPhoto photoUrl={b.driverPhoto?.thumbnailUrl || b.driverPhotoUrl} name={b.driverName || 'Driver'} /><b>{b.driverName || '—'}</b>{b.driverMobile && <small>{b.driverMobile}</small>}</div>
                       <div><span>Payment</span><b>{b.paymentMethod || 'WALLET'}</b></div>
                       <div><span>Trip</span><b>{b.pickup} → {b.drop}</b></div>
                       <div className="align-right"><span>Total</span><strong className={credit ? 'amount-credit' : 'amount-debit'}>{money(b.total)}</strong></div>
