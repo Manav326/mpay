@@ -225,7 +225,7 @@ private fun SupportActions(
 
     SupportActionCard(
         icon = Icons.Default.Call,
-        title = if (pending == null) "Request a support call" else "Support call requested",
+        title = if (pending == null) "Request a callback" else "Callback requested",
         subtitle = when {
             pending != null -> "Your callback request is ${pending.status.replace('_', ' ').lowercase()}. You can cancel it while it is pending."
             enabled -> "Ask mPay Support to call you about an issue that needs direct assistance."
@@ -250,7 +250,7 @@ private fun SupportActions(
                 ) {
                     Icon(Icons.Default.Call, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.size(5.dp))
-                    Text(if (busy) "Requesting…" else "Request call")
+                    Text(if (busy) "Requesting…" else "Request callback")
                 }
             }
         }
@@ -335,9 +335,9 @@ private fun SupportTicketCard(
                 }
                 Spacer(Modifier.size(11.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Support ticket", fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                    Text("Your Support Issue", fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
                     Text(
-                        "Track the latest issue handled by mPay Support.",
+                        "Latest support status",
                         color = AppColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -346,51 +346,58 @@ private fun SupportTicketCard(
 
             if (ticket == null) {
                 Text(
-                    "No support ticket yet",
+                    "No active support issue",
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    "A ticket appears here when your support conversation needs follow-up.",
+                    "Start a support chat and mPay Support will create the issue summary here.",
                     color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
             } else {
+                Text(ticket.subject, fontWeight = FontWeight.SemiBold)
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") {
+                        Color(0xFFEAF7EE)
+                    } else {
+                        AppColors.Primary.copy(alpha = .12f)
+                    }
+                ) {
+                    Text(
+                        ticket.status.replace('_', ' '),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        color = if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") {
+                            Color(0xFF15803D)
+                        } else {
+                            AppColors.PrimaryDark
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Row(
                     Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(ticket.subject, fontWeight = FontWeight.SemiBold)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Last updated", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                         Text(
-                            "Updated ${formatSupportDate(ticket.lastMeaningfulUpdateAt ?: ticket.updatedAt)}",
-                            color = AppColors.TextSecondary,
-                            style = MaterialTheme.typography.labelSmall
+                            formatSupportDate(ticket.lastMeaningfulUpdateAt ?: ticket.updatedAt),
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") {
-                            Color(0xFFEAF7EE)
-                        } else {
-                            AppColors.Primary.copy(alpha = .12f)
-                        }
-                    ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Expected resolution", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
                         Text(
-                            ticket.status.replace('_', ' '),
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                            color = if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") {
-                                Color(0xFF15803D)
-                            } else {
-                                AppColors.PrimaryDark
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            ticket.expectedResolutionAt?.let(::formatSupportDate) ?: "Not available",
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
-                }
-            }
+                }            }
         }
     }
 }
