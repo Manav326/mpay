@@ -37,6 +37,7 @@ import com.recharge.client.core.network.ApiError
 import com.recharge.client.core.network.ClientApi
 import com.recharge.client.core.network.NetworkModule
 import com.recharge.client.core.cache.ProfileCacheStore
+import com.recharge.client.core.media.RentalPhotoCompressor
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
@@ -366,16 +367,9 @@ class ClientRepository(context: Context) {
         driverId: String,
         uri: Uri
     ): Result<com.recharge.client.core.model.RentalCarResponse> = apiCall {
-        val resolver = appContext.contentResolver
-        val mime = resolver.getType(uri)?.lowercase() ?: "image/jpeg"
-        require(mime in setOf("image/jpeg", "image/png", "image/webp")) {
-            "Please select a JPG, PNG or WebP image."
-        }
-        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: error("Unable to read selected driver photo")
-        require(bytes.size <= 5 * 1024 * 1024) { "Driver photo must be 5 MB or smaller." }
-        val body = bytes.toRequestBody(mime.toMediaType())
-        val part = MultipartBody.Part.createFormData("photo", "driver-photo", body)
+        val payload = RentalPhotoCompressor.compress(appContext.contentResolver, uri, "driver-photo")
+        val body = payload.bytes.toRequestBody("image/jpeg".toMediaType())
+        val part = MultipartBody.Part.createFormData("photo", payload.fileName, body)
         val response = api.uploadRentalDriverPhoto(driverId, part)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
@@ -405,16 +399,9 @@ class ClientRepository(context: Context) {
         uri: Uri
     ): Result<com.recharge.client.core.model.RentalCarResponse> = apiCall {
         require(slot in 0..3) { "Vehicle photo slot must be between 0 and 3" }
-        val resolver = appContext.contentResolver
-        val mime = resolver.getType(uri)?.lowercase() ?: "image/jpeg"
-        require(mime in setOf("image/jpeg", "image/png", "image/webp")) {
-            "Please select a JPG, PNG or WebP image."
-        }
-        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: error("Unable to read selected vehicle photo")
-        require(bytes.size <= 5 * 1024 * 1024) { "Vehicle photo must be 5 MB or smaller." }
-        val body = bytes.toRequestBody(mime.toMediaType())
-        val part = MultipartBody.Part.createFormData("photo", "vehicle-photo-${slot}", body)
+        val payload = RentalPhotoCompressor.compress(appContext.contentResolver, uri, "vehicle-photo-" + slot)
+        val body = payload.bytes.toRequestBody("image/jpeg".toMediaType())
+        val part = MultipartBody.Part.createFormData("photo", payload.fileName, body)
         val response = api.uploadRentalVehiclePhoto(carId, slot, part)
         if (!response.isSuccessful || response.body() == null) error(ApiError.message(response))
         response.body()!!
