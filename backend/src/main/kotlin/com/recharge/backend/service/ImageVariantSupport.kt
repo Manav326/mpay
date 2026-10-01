@@ -39,7 +39,15 @@ object ImageVariantSupport {
         require(target.parent == root) { "Invalid image path" }
 
         if (Files.exists(target) && Files.isRegularFile(target) && Files.size(target) > 0L) {
-            return target
+            val targetIsFresh = runCatching {
+                Files.getLastModifiedTime(target).toMillis() >= Files.getLastModifiedTime(source).toMillis()
+            }.getOrDefault(false)
+            val targetIsReadable = runCatching {
+                java.io.BufferedInputStream(target.toFile().inputStream()).use { input ->
+                    javax.imageio.ImageIO.read(input) != null
+                }
+            }.getOrDefault(false)
+            if (targetIsFresh && targetIsReadable) return target
         }
 
         runCatching { Files.deleteIfExists(target) }
