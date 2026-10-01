@@ -28,6 +28,7 @@ class ClientCommissionServiceTest {
     private val upstreamCommissions = Mockito.mock(ClientUpstreamCommissionRepository::class.java)
     private val settingsRepository = Mockito.mock(ClientCommissionSettingsRepository::class.java)
     private val commissionRates = Mockito.mock(CommissionRateService::class.java)
+    private val imageStorage = Mockito.mock(ProfileImageStorage::class.java)
     private val walletRepository = Mockito.mock(WalletRepository::class.java)
     private val walletLedger = Mockito.mock(WalletTransactionRepository::class.java)
     private val wallet = WalletService(walletRepository, walletLedger)
@@ -39,7 +40,8 @@ class ClientCommissionServiceTest {
         upstreamCommissions,
         settingsRepository,
         commissionRates,
-        wallet
+        wallet,
+        imageStorage
     )
 
     @Test
