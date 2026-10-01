@@ -9,6 +9,7 @@ import MobileVerificationControl from './MobileVerificationControl';
 import type { AdminAttention } from './DashboardView';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, ClientCommissionSettings, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
+import { rechargeAmountPresentation } from '../../lib/rechargeDisplay';
 import MpayBrandUnit from '../components/MpayBrandUnit';
 
 const Dashboard = dynamic(() => import('./DashboardView'), { loading: () => <div className="loading">Loading dashboard…</div> });
