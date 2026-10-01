@@ -67,6 +67,7 @@ class RechargeTransactionEntity(
     @Column(name = "provider_name", nullable = false, length = 50) var providerName: String = "MOCK",
     @Column(name = "provider_reference", length = 150) var providerReference: String? = null,
     @Column(name = "provider_order_id", length = 150) var providerOrderId: String? = null,
+    @Column(name = "provider_submission_started_at") var providerSubmissionStartedAt: Instant? = null,
     @Column(name = "wallet_ledger_ref", length = 150) var walletLedgerRef: String? = null,
     @Column(name = "completed_at") var completedAt: Instant? = null,
     @Column(length = 500) var message: String? = null,
