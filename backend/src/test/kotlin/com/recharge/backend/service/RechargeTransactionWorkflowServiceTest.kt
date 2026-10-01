@@ -29,7 +29,7 @@ class RechargeTransactionWorkflowServiceTest {
             clientCommission = BigDecimal("1.00"),
             status = "RESERVED"
         )
-        Mockito.doReturn(Optional.of(tx)).`when`(repository).findByTransactionId("RCH-200")
+        Mockito.doReturn(Optional.of(tx)).`when`(repository).findByTransactionIdForUpdate("RCH-200")
 
         workflow.applyProviderResult("RCH-200", "SUCCESS", "PROVIDER-200", "ok")
 
@@ -55,7 +55,7 @@ class RechargeTransactionWorkflowServiceTest {
             clientCommission = BigDecimal("1.00"),
             status = "RESERVED"
         )
-        Mockito.doReturn(Optional.of(tx)).`when`(repository).findByTransactionId("RCH-201")
+        Mockito.doReturn(Optional.of(tx)).`when`(repository).findByTransactionIdForUpdate("RCH-201")
 
         workflow.applyProviderResult("RCH-201", "FAILED", "PROVIDER-201", "failed")
 
