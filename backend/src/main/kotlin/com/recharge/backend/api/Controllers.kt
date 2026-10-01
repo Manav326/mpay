@@ -474,6 +474,19 @@ class AdminController(
     ): AdminUserStatusResponse =
         adminService.updateUserStatus(currentEmployee(authentication), publicId, request.active)
 
+    @PostMapping("/users/{publicId}/mobile-verification")
+    fun userMobileVerification(
+        authentication: Authentication,
+        @PathVariable publicId: String,
+        @Valid @RequestBody request: AdminUserMobileVerificationRequest
+    ): AdminUserMobileVerificationResponse =
+        adminService.updateUserMobileVerification(
+            currentEmployee(authentication),
+            publicId,
+            request.verified,
+            request.reason
+        )
+
     @GetMapping("/users/{publicId}/recharges")
     fun userRecharges(
         authentication: Authentication,
