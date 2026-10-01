@@ -41,6 +41,8 @@ export const usersMock: UserSummary[] = Array.from({ length: 24 }, (_, i) => {
     joinedAt: new Date(Date.now() - (30 + i) * 86400000).toISOString(),
     profileUpdatedAt: new Date(Date.now() - i * 8640000).toISOString(),
     status: i === 9 ? 'BLOCKED' : 'ACTIVE',
+    mobileVerified: i % 4 !== 0,
+    mobileVerifiedAt: i % 4 !== 0 ? new Date(Date.now() - (10 + i) * 86400000).toISOString() : null,
   };
 });
 
