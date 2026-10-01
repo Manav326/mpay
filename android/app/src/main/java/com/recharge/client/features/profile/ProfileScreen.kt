@@ -196,7 +196,7 @@ fun ProfileScreen(
                             color = AppColors.Primary.copy(alpha = .10f)
                         ) {
                             Icon(
-                                Icons.Default.ChatBubbleOutline,
+                                Icons.Default.HeadsetMic,
                                 contentDescription = null,
                                 tint = AppColors.PrimaryDark,
                                 modifier = Modifier.padding(8.dp).size(21.dp)
