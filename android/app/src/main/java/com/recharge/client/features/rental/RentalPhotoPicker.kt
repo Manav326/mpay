@@ -92,7 +92,7 @@ fun RentalPhotoPickerDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(title, style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Choose how you want to replace this photo.",
+                        "Choose how you want to replace this photo. Large photos are optimized before upload.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF746C63)
                     )
@@ -126,7 +126,7 @@ fun RentalPhotoPickerDialog(
                         selected = source == RentalPhotoPickerSource.DEVICE,
                         icon = { Icon(Icons.Default.PhotoCamera, null) },
                         title = "From device",
-                        subtitle = "Choose a photo",
+                        subtitle = "Choose a photo · large images are optimized automatically",
                         onClick = {
                             source = RentalPhotoPickerSource.DEVICE
                             onDevicePicked(null)
