@@ -537,15 +537,32 @@ function useRentalPhotoUrls(
       )
     ).then(results => {
       if (cancelled) return;
-      // Do not render a partial gallery. A rental widget becomes visible
-      // only after every stored photo for that vehicle has a working source.
-      setResolved(results.every(Boolean) ? results as string[] : []);
+      // Keep every healthy photo. One broken legacy slot must never blank the complete vehicle gallery.
+      setResolved(results.filter((value): value is string => Boolean(value)));
     });
 
     return () => { cancelled = true; };
   }, [slotKey, variant, active]);
 
   return resolved;
+}
+
+function RentalPhotoImage({
+  src,
+  alt,
+  className = '',
+  loading = 'lazy',
+  fetchPriority = 'auto',
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <div className={className + ' rental-photo-render-fallback'} aria-label={alt}>Photo unavailable</div>;
+  return <img src={src} alt={alt} className={className} loading={loading} decoding="async" fetchPriority={fetchPriority} onError={() => setFailed(true)} />;
 }
 
 function VehicleFourPhotoGallery({
@@ -565,24 +582,13 @@ function VehicleFourPhotoGallery({
       {!photos || !photos.length ? null : (
         <>
           <div className="vehicle-card-gallery-main">
-            <img
-              src={photos[0]}
-              alt={car?.name || 'Vehicle'}
-              loading="eager"
-              decoding="async"
-              fetchPriority={priority ? 'high' : 'auto'}
-            />
+            <RentalPhotoImage src={photos[0]} alt={car?.name || 'Vehicle'} loading="eager" fetchPriority={priority ? 'high' : 'auto'} />
           </div>
           {photos.length > 1 && (
             <div className="vehicle-card-gallery-thumbs">
               {photos.slice(1).map((src, index) => (
                 <div className="vehicle-card-gallery-thumb" key={src}>
-                  <img
-                    src={src}
-                    alt={`${car?.name || 'Vehicle'} photo ${index + 2}`}
-                    loading="eager"
-                    decoding="async"
-                  />
+                  <RentalPhotoImage src={src} alt={(car?.name || 'Vehicle') + ' photo ' + (index + 2)} loading="eager" />
                 </div>
               ))}
             </div>
@@ -605,13 +611,7 @@ function RentalDetailsPhotoGallery({
     <div className="vehicle-gallery rental-public-gallery">
       {photos.map((src, index) => (
         <div className="vehicle-gallery-slot" key={src}>
-          <img
-            src={src}
-            alt={`${car.name} ${index + 1}`}
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-          />
+          <RentalPhotoImage src={src} alt={car.name + ' ' + (index + 1)} loading="eager" fetchPriority="high" />
         </div>
       ))}
     </div>
@@ -2592,25 +2592,28 @@ export default function Portal() {
       for(let slot=0;slot<vehiclePhotoFiles.length;slot++){
         const file=vehiclePhotoFiles[slot];
         const urlCandidate=vehiclePhotoUrlCandidates[slot].trim();
-        if(file) {
-          const fd=new FormData(); fd.append('photo',file);
-          latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot,'PUT',fd);
-        } else if(urlCandidate) {
-          latest=await api<RentalCar>(
-            '/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot+'/import-url',
-            {method:'POST',body:JSON.stringify({url:urlCandidate})}
-          );
+        try {
+          if(file) {
+            const fd=new FormData(); fd.append('photo',file);
+            latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot,'PUT',fd);
+          } else if(urlCandidate) {
+            latest=await api<RentalCar>('/api/v1/car-rental/vendor/vehicles/'+encodeURIComponent(saved.id)+'/photos/'+slot+'/import-url',{method:'POST',body:JSON.stringify({url:urlCandidate})});
+          }
+        } catch(error:any) {
+          const labels=['front','side','rear','interior'];
+          throw new Error('The '+labels[slot]+' vehicle photo could not be saved: '+(error?.message || 'upload failed.'));
         }
       }
       if(latest.driverId){
-        if(driverPhotoFile){
-          const fd=new FormData(); fd.append('photo',driverPhotoFile);
-          latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
-        } else if(driverPhotoUrlCandidate.trim()) {
-          latest=await api<RentalCar>(
-            '/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo/import-url',
-            {method:'POST',body:JSON.stringify({url:driverPhotoUrlCandidate.trim()})}
-          );
+        try {
+          if(driverPhotoFile){
+            const fd=new FormData(); fd.append('photo',driverPhotoFile);
+            latest=await apiUpload<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo','PUT',fd);
+          } else if(driverPhotoUrlCandidate.trim()) {
+            latest=await api<RentalCar>('/api/v1/car-rental/vendor/drivers/'+encodeURIComponent(latest.driverId)+'/photo/import-url',{method:'POST',body:JSON.stringify({url:driverPhotoUrlCandidate.trim()})});
+          }
+        } catch(error:any) {
+          throw new Error('The driver photo could not be saved: '+(error?.message || 'upload failed.'));
         }
       }
       setVendorVehicles(v=>vehicleEditId ? v.map(x=>x.id===latest.id?latest:x) : [latest,...v]);
