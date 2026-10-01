@@ -416,7 +416,7 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
       </div>
       {visibleUsers.length===0&&<div className="empty-state">No users match the selected filters.</div>}
     </section>
-    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated}/>}
+    {selected&&<UserDrawer user={selected} onClose={()=>setSelected(undefined)} canManageUserStatus={canManageUserStatus} canManageUserMobileVerification={canManageUserMobileVerification} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onHistoryPdfDecision={()=>void loadPendingPdfRequests()} onStatusUpdated={onStatusUpdated} onMobileVerificationUpdated={onMobileVerificationUpdated}/>}
   </div>
 }
 
