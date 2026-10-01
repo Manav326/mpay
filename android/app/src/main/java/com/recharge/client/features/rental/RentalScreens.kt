@@ -1239,31 +1239,18 @@ private fun rentalCarImageUrls(imageUrl: String?): List<String?> {
 }
 
 @Composable
-private fun RentalCarImageTile(
-    url: String?,
-    modifier: Modifier = Modifier,
-    variant: String = "thumb"
-) {
+private fun RentalCarImageTile(url: String?, modifier: Modifier = Modifier, variant: String = "thumb") {
+    var failed by remember(url, variant) { mutableStateOf(false) }
     Surface(
         modifier = modifier.clip(RoundedCornerShape(9.dp)),
         color = AppColors.Primary.copy(alpha = .045f)
     ) {
-        if (url.isNullOrBlank()) {
+        if (url.isNullOrBlank() || failed) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Default.DirectionsCar,
-                    contentDescription = "Car photo placeholder",
-                    tint = AppColors.TextSecondary.copy(alpha = .28f),
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(Icons.Default.DirectionsCar, contentDescription = "Car photo unavailable", tint = AppColors.TextSecondary.copy(alpha = .28f), modifier = Modifier.size(24.dp))
             }
         } else {
-            AsyncImage(
-                model = rentalPhotoDisplayUrl(url, variant),
-                contentDescription = "Car photo",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            AsyncImage(model = rentalPhotoDisplayUrl(url, variant), contentDescription = "Car photo", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, onError = { failed = true })
         }
     }
 }
