@@ -48,7 +48,8 @@ class PayURechargeExecutionProvider(
         auth.getAccessToken("create_transactions")
 
         return request.copy(
-            plan = request.plan.copy(providerMetadata = metadata + ("billerId" to billerId))
+            plan = request.plan.copy(providerMetadata = metadata + ("billerId" to billerId)),
+            providerReference = request.providerReference ?: payURefId()
         )
     }
 
@@ -61,7 +62,7 @@ class PayURechargeExecutionProvider(
     override fun recharge(request: ProviderRechargeRequest): ProviderRechargeResult {
         validateBeforeSubmission(request)
 
-        val refId = payURefId()
+        val refId = request.providerReference ?: payURefId()
         val billerId = requireBillerId(request)
         val metadata = request.plan.providerMetadata
 

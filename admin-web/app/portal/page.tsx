@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject, type PointerEvent as ReactPointerEvent } from 'react';
 import { useWebCapabilities } from '../../lib/webCapabilities';
+import { rechargeAmountCopy } from '../../lib/rechargeDisplay';
 import RentalPhotoPicker, { type RentalPhotoPickerResult } from './RentalPhotoPicker';
 import { logoutWebSession, redirectToLogin, refreshWebSession, startWebSessionRefresh } from '../../lib/session';
 import MpayBrandUnit from '../components/MpayBrandUnit';
@@ -715,7 +716,7 @@ function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (te
   const copyTextValue = [
     'Recharge history',
     'Amount: ' + money(item.amount),
-    'Wallet debit: ' + money(item.walletDebitAmount),
+    'Wallet impact: ' + rechargeAmountCopy(status, money(item.walletDebitAmount)),
     'Mobile: ' + (item.mobileNumber || '—'),
     ...(item.recipientName ? ['Contact name: ' + item.recipientName] : []),
     'Operator: ' + webOperatorLabel(item.operator),
@@ -751,7 +752,7 @@ function HomeRecentRecharge({ item, onCopy }: { item?: RechargeItem; onCopy: (te
         </div>
         <div className="home-recharge-divider"/>
         <div className="home-recharge-meta">
-          <span>{status === 'PENDING' || status === 'PROCESSING' ? 'Reserved' : 'Wallet debit'} <b>{money(item.walletDebitAmount)}</b></span>
+          <span>{rechargeAmountCopy(status, money(item.walletDebitAmount))}</span>
           <span>Transaction <b>{item.transactionId || '—'}</b></span>
           <span>Reference <b>{item.clientRequestId || '—'}</b></span>
           {item.providerReference && <span>Provider ref <b>{item.providerReference}</b></span>}
@@ -772,7 +773,7 @@ function RechargeHistoryWebCard({ item, onCopy }: { item: RechargeItem; onCopy: 
   const copyTextValue = [
     'Recharge history',
     'Amount: ' + money(item.amount),
-    'Wallet debit: ' + money(item.walletDebitAmount),
+    'Wallet impact: ' + rechargeAmountCopy(status, money(item.walletDebitAmount)),
     'Mobile: ' + (item.mobileNumber || '—'),
     ...(item.recipientName ? ['Contact name: ' + item.recipientName] : []),
     'Operator: ' + webOperatorLabel(item.operator),
@@ -811,8 +812,7 @@ function RechargeHistoryWebCard({ item, onCopy }: { item: RechargeItem; onCopy: 
       <div className="recharge-history-divider"/>
       <div className="recharge-history-card-meta">
         <div>
-          <span>{status === 'PENDING' || status === 'PROCESSING' ? 'Reserved' : 'Wallet debit'}</span>
-          <b>{money(item.walletDebitAmount)}</b>
+          <span>{rechargeAmountCopy(status, money(item.walletDebitAmount))}</span>
         </div>
         <div><span>Transaction ID</span><b>{item.transactionId || '—'}</b></div>
         <div><span>Reference</span><b>{item.clientRequestId || '—'}</b></div>
@@ -4373,7 +4373,7 @@ export default function Portal() {
           </div>
         </div>}
       </section>}      {selectedWalletItem && <div className="modal-backdrop" onClick={()=>setSelectedWalletItem(undefined)}><div className="portal-modal small-modal" onClick={e=>e.stopPropagation()}><div className="panel-head"><div><h2>Wallet transaction</h2><p>{selectedWalletItem.referenceType || selectedWalletItem.type || 'Transaction'}</p></div><button className="icon-btn" onClick={()=>setSelectedWalletItem(undefined)}><X size={17}/></button></div><div className="detail-grid-web"><span>Amount <b className={walletAmountClass(selectedWalletItem)}>{walletAmountLabel(selectedWalletItem)}</b></span><span>Status <b>{selectedWalletItem.status || '—'}</b></span><span>Reference type <b>{selectedWalletItem.referenceType || '—'}</b></span><span>Reference ID <b>{selectedWalletItem.referenceId || '—'}</b></span><span>Provider <b>{selectedWalletItem.provider || '—'}</b></span><span>Created <b>{dt(selectedWalletItem.createdAt)}</b></span><span>Mobile <b>{selectedWalletItem.mobileNumber || '—'}</b></span><span>Operator <b>{selectedWalletItem.operator || '—'}</b></span><span>Circle <b>{selectedWalletItem.circle || '—'}</b></span><span>Description <b>{selectedWalletItem.description || '—'}</b></span></div>
-          {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>Wallet debit <b>{money(selectedRechargeDetail.walletDebitAmount)}</b></span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}          {selectedWithdrawalDetail && <div className="recharge-detail-box"><h3>Withdrawal details</h3><div className="detail-grid-web"><span>Withdrawal <b>{selectedWithdrawalDetail.withdrawalId || '—'}</b></span><span>Amount <b className="amount-debit">{money(selectedWithdrawalDetail.amount)}</b></span><span>UPI ID <b>{selectedWithdrawalDetail.upiId || '—'}</b></span><span>Status <b>{selectedWithdrawalDetail.status || '—'}</b></span><span>Provider <b>{selectedWithdrawalDetail.provider || '—'}</b></span><span>Provider status <b>{selectedWithdrawalDetail.providerStatus || '—'}</b></span><span>Provider reference <b>{selectedWithdrawalDetail.providerReference || '—'}</b></span><span>Wallet ledger <b>{selectedWithdrawalDetail.walletLedgerRef || '—'}</b></span><span>Failure reason <b>{selectedWithdrawalDetail.failureReason || '—'}</b></span><span>Created <b>{dt(selectedWithdrawalDetail.createdAt)}</b></span><span>Completed <b>{dt(selectedWithdrawalDetail.completedAt)}</b></span></div></div>}</div></div>}
+          {selectedRechargeDetail && <div className="recharge-detail-box"><h3>Recharge details</h3><div className="detail-grid-web"><span>Transaction <b>{selectedRechargeDetail.transactionId || '—'}</b></span><span>Plan <b>{selectedRechargeDetail.planDescription || selectedRechargeDetail.planId || '—'}</b></span><span>Recharge status <b>{selectedRechargeDetail.status || '—'}</b></span><span>Provider <b>{selectedRechargeDetail.provider || '—'}</b></span><span>Mobile <b>{selectedRechargeDetail.mobileNumber || '—'}</b></span><span>Operator / circle <b>{(selectedRechargeDetail.operator || '—') + ' / ' + (selectedRechargeDetail.circle || '—')}</b></span><span>{rechargeAmountCopy(selectedRechargeDetail.status, money(selectedRechargeDetail.walletDebitAmount))}</span><span>Provider reference <b>{selectedRechargeDetail.providerReference || '—'}</b></span><span>Message <b>{selectedRechargeDetail.message || '—'}</b></span></div></div>}          {selectedWithdrawalDetail && <div className="recharge-detail-box"><h3>Withdrawal details</h3><div className="detail-grid-web"><span>Withdrawal <b>{selectedWithdrawalDetail.withdrawalId || '—'}</b></span><span>Amount <b className="amount-debit">{money(selectedWithdrawalDetail.amount)}</b></span><span>UPI ID <b>{selectedWithdrawalDetail.upiId || '—'}</b></span><span>Status <b>{selectedWithdrawalDetail.status || '—'}</b></span><span>Provider <b>{selectedWithdrawalDetail.provider || '—'}</b></span><span>Provider status <b>{selectedWithdrawalDetail.providerStatus || '—'}</b></span><span>Provider reference <b>{selectedWithdrawalDetail.providerReference || '—'}</b></span><span>Wallet ledger <b>{selectedWithdrawalDetail.walletLedgerRef || '—'}</b></span><span>Failure reason <b>{selectedWithdrawalDetail.failureReason || '—'}</b></span><span>Created <b>{dt(selectedWithdrawalDetail.createdAt)}</b></span><span>Completed <b>{dt(selectedWithdrawalDetail.completedAt)}</b></span></div></div>}</div></div>}
 
       {rentalDetails && (() => {
         const hasDateInput = Boolean(rentalSearch.startDate || rentalSearch.endDate);

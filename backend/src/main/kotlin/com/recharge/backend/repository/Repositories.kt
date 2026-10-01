@@ -192,6 +192,11 @@ interface UserRechargeSummaryProjection {
     val successfulCount: Long
 }
 
+interface RechargeTransactionEventRepository :
+    JpaRepository<RechargeTransactionEventEntity, Long> {
+    fun findAllByTransactionIdOrderByOccurredAtAscIdAsc(transactionId: String): List<RechargeTransactionEventEntity>
+}
+
 interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntity, Long> {
     fun existsByUserId(userId: Long): Boolean
 
@@ -216,6 +221,7 @@ interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntit
     fun findAllByUserIdInAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByUserIdInAndStatusAndProviderNameOrderByCreatedAtDesc(userIds: Collection<Long>, status: String, providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
     fun findAllByStatusAndProviderNameOrderByCreatedAtDesc(status: String, providerName: String, pageable: Pageable): Page<RechargeTransactionEntity>
+    fun findByStatusInAndProviderReferenceIsNotNullAndProviderSubmissionStartedAtIsNotNullOrderByUpdatedAtAsc(statuses: Collection<String>, pageable: Pageable): List<RechargeTransactionEntity>
 
     @Query("""
         select coalesce(sum(r.clientCommission), 0)

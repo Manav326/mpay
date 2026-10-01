@@ -10,11 +10,13 @@ import java.util.Optional
 
 class RechargeTransactionWorkflowServiceTest {
     private val repository = Mockito.mock(RechargeTransactionRepository::class.java)
+    private val eventRepository = Mockito.mock(com.recharge.backend.repository.RechargeTransactionEventRepository::class.java)
     private val walletService = Mockito.mock(WalletService::class.java)
     private val clientCommissionService = Mockito.mock(ClientCommissionService::class.java)
 
     private val workflow = RechargeTransactionWorkflowService(
         repository,
+        eventRepository,
         walletService,
         clientCommissionService
     )
@@ -50,6 +52,37 @@ class RechargeTransactionWorkflowServiceTest {
         assertEquals("SUCCESS", tx.status)
         assertEquals("PROVIDER-200", tx.providerReference)
         Mockito.verify(repository).save(tx)
+    }
+
+    @Test
+    fun preSubmissionFailureRecordsAnEventWithoutWalletMovement() {
+        val request = RechargeRequestData("RCH-202", "client-202", "9955131155", null, "AIRTEL", "Bihar and Jharkhand")
+        val plan = com.recharge.backend.provider.RechargePlan("PLAN-202", BigDecimal("349.00"), "28 days", "Test plan")
+        Mockito.`when`(repository.findByClientRequestIdAndUserId("client-202", 2L)).thenReturn(Optional.empty())
+        val saved = RechargeTransactionEntity(transactionId = "RCH-202", userId = 2L, status = "FAILED")
+        Mockito.doReturn(saved).`when`(repository).save(Mockito.any(RechargeTransactionEntity::class.java))
+
+        workflow.recordPreSubmissionFailure(
+            2L,
+            request,
+            plan,
+            "payu",
+            BigDecimal("3.49"),
+            BigDecimal("3.49"),
+            BigDecimal("345.51"),
+            "Recharge was not submitted: biller lookup failed"
+        )
+
+        Mockito.verify(walletService, Mockito.never()).reserve(2L, BigDecimal("345.51"))
+        Mockito.verify(walletService, Mockito.never()).finalizeReservedDebit(2L, BigDecimal("345.51"), "", "")
+
+        val eventInvocations = Mockito.mockingDetails(eventRepository).invocations
+            .filter { it.method.name == "save" }
+        assertEquals(1, eventInvocations.size)
+        val event = eventInvocations.single().arguments[0] as com.recharge.backend.domain.RechargeTransactionEventEntity
+        assertEquals("PRE_SUBMISSION_FAILURE", event.eventType)
+        assertEquals("FAILED", event.toStatus)
+
     }
 
     @Test

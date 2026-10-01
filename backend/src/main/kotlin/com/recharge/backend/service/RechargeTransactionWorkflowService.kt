@@ -11,6 +11,7 @@ import java.time.Instant
 @Service
 class RechargeTransactionWorkflowService(
     private val repository: RechargeTransactionRepository,
+    private val eventRepository: com.recharge.backend.repository.RechargeTransactionEventRepository,
     private val walletService: WalletService,
     private val clientCommissionService: ClientCommissionService
 ) {
@@ -23,7 +24,8 @@ class RechargeTransactionWorkflowService(
         providerName: String,
         companyCommission: BigDecimal,
         clientCommission: BigDecimal,
-        walletDebitAmount: BigDecimal
+        walletDebitAmount: BigDecimal,
+        providerReference: String? = null
     ): RechargeTransactionEntity {
         val existing = repository.findByClientRequestIdAndUserId(request.clientRequestId, userId).orElse(null)
         if (existing != null) return existing
@@ -45,13 +47,16 @@ class RechargeTransactionWorkflowService(
             walletDebitAmount = walletDebitAmount.max(BigDecimal.ZERO).setScale(2),
             status = "RESERVED",
             providerName = providerName,
+            providerReference = providerReference,
             providerOrderId = plan.providerOrderId,
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )
 
         walletService.reserve(userId, transaction.walletDebitAmount)
-        return repository.save(transaction)
+        val saved = repository.save(transaction)
+        recordEvent(saved, null, saved.status, "RESERVED", "Recharge amount reserved before provider submission.")
+        return saved
     }
 
     @Transactional
@@ -69,7 +74,7 @@ class RechargeTransactionWorkflowService(
         if (existing != null) return existing
 
         val now = Instant.now()
-        return repository.save(
+        val saved = repository.save(
             RechargeTransactionEntity(
                 transactionId = request.transactionId,
                 clientRequestId = request.clientRequestId,
@@ -95,6 +100,8 @@ class RechargeTransactionWorkflowService(
                 updatedAt = now
             )
         )
+        recordEvent(saved, null, saved.status, "PRE_SUBMISSION_FAILURE", message)
+        return saved
     }
 
     @Transactional
@@ -105,6 +112,7 @@ class RechargeTransactionWorkflowService(
         message: String?
     ): RechargeTransactionEntity {
         val tx = repository.findByTransactionIdForUpdate(transactionId).orElseThrow()
+        val previousStatus = tx.status
         val status = resultStatus.uppercase()
 
         if (tx.status == "SUCCESS" || tx.status == "FAILED") return tx
@@ -132,21 +140,55 @@ class RechargeTransactionWorkflowService(
             }
         }
 
-        tx.providerReference = providerReference
+        tx.providerReference = providerReference ?: tx.providerReference
         tx.message = message
         tx.updatedAt = Instant.now()
-        return repository.save(tx)
+        val saved = repository.save(tx)
+        recordEvent(saved, previousStatus, saved.status, "PROVIDER_RESULT_" + saved.status, message)
+        return saved
     }
 
     @Transactional
     fun markProviderPending(transactionId: String, providerReference: String?, message: String?): RechargeTransactionEntity {
         val tx = repository.findByTransactionId(transactionId).orElseThrow()
         if (tx.status == "SUCCESS" || tx.status == "FAILED") return tx
+        val previousStatus = tx.status
         tx.status = "PENDING"
-        tx.providerReference = providerReference
+        tx.providerReference = providerReference ?: tx.providerReference
         tx.message = message
         tx.updatedAt = Instant.now()
-        return repository.save(tx)
+        val saved = repository.save(tx)
+        recordEvent(saved, previousStatus, saved.status, "PROVIDER_CALL_INDETERMINATE", message)
+        return saved
+    }
+
+    @Transactional
+    fun markProviderSubmissionStarted(transactionId: String): RechargeTransactionEntity {
+        val tx = repository.findByTransactionIdForUpdate(transactionId).orElseThrow()
+        if (tx.status == "SUCCESS" || tx.status == "FAILED") return tx
+        if (tx.providerSubmissionStartedAt == null) {
+            tx.providerSubmissionStartedAt = Instant.now()
+            tx.updatedAt = Instant.now()
+            val saved = repository.save(tx)
+            recordEvent(saved, tx.status, tx.status, "PROVIDER_SUBMISSION_STARTED", "Recharge provider submission started.")
+            return saved
+        }
+        return tx
+    }
+
+    private fun recordEvent(tx: RechargeTransactionEntity, fromStatus: String?, toStatus: String, eventType: String, message: String?) {
+        eventRepository.save(
+            com.recharge.backend.domain.RechargeTransactionEventEntity(
+                transactionId = tx.transactionId,
+                fromStatus = fromStatus,
+                toStatus = toStatus,
+                eventType = eventType,
+                providerReference = tx.providerReference,
+                walletLedgerRef = tx.walletLedgerRef,
+                walletAmount = tx.walletDebitAmount,
+                message = message
+            )
+        )
     }
 
     fun find(userId: Long, transactionId: String): RechargeTransactionEntity {

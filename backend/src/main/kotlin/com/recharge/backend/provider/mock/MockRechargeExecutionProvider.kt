@@ -12,27 +12,30 @@ class MockRechargeExecutionProvider(
 
     override val providerName: String = "MOCK"
 
+    override fun prepareBeforeSubmission(request: ProviderRechargeRequest): ProviderRechargeRequest =
+        request.copy(providerReference = request.providerReference ?: ("MOCK-" + request.transactionId + "-" + UUID.randomUUID().toString().take(8)))
+
     override fun recharge(request: ProviderRechargeRequest): ProviderRechargeResult {
         val status = configuredStatus.trim().uppercase()
         return when (status) {
             "SUCCESS" -> ProviderRechargeResult(
                 status = "SUCCESS",
-                providerReference = "MOCK-${request.transactionId}-${UUID.randomUUID().toString().take(8)}",
+                providerReference = request.providerReference,
                 message = "Mock recharge completed successfully"
             )
             "PENDING" -> ProviderRechargeResult(
                 status = "PENDING",
-                providerReference = "MOCK-PENDING-${request.transactionId}",
+                providerReference = request.providerReference,
                 message = "Mock provider accepted recharge and marked it pending"
             )
             "FAILED" -> ProviderRechargeResult(
                 status = "FAILED",
-                providerReference = "MOCK-FAILED-${request.transactionId}",
+                providerReference = request.providerReference,
                 message = "Mock provider rejected recharge"
             )
             else -> ProviderRechargeResult(
                 status = "PENDING",
-                providerReference = "MOCK-UNKNOWN-${request.transactionId}",
+                providerReference = request.providerReference,
                 message = "Mock provider status '$status' is not supported; keeping transaction pending"
             )
         }

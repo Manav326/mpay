@@ -158,10 +158,13 @@ class RechargeService(
             providerName = provider.providerName,
             companyCommission = companyCommission,
             clientCommission = clientCommission,
-            walletDebitAmount = walletDebitAmount
+            walletDebitAmount = walletDebitAmount,
+            providerReference = preparedProviderRequest.providerReference
         )
 
         if (reserved.transactionId != transactionId) return toResponse(reserved)
+
+        workflow.markProviderSubmissionStarted(reserved.transactionId)
 
         val providerResult = try {
             provider.recharge(preparedProviderRequest.copy(transactionId = reserved.transactionId))
@@ -190,7 +193,9 @@ class RechargeService(
 
     fun transaction(userId: Long, transactionId: String): RechargeTransactionStatusResponse {
         var tx = workflow.find(userId, transactionId)
-        if (tx.status.equals("PENDING", ignoreCase = true)) {
+        if (tx.status.equals("PENDING", ignoreCase = true) ||
+            (tx.status.equals("RESERVED", ignoreCase = true) && tx.providerSubmissionStartedAt != null)
+        ) {
             val provider = executionProviders.firstOrNull { it.providerName.equals(tx.providerName, ignoreCase = true) }
             val providerReference = tx.providerReference?.takeIf { it.isNotBlank() }
             val refreshed = if (provider != null && providerReference != null) {

@@ -21,5 +21,6 @@ data class ProviderRechargeRequest(
     val mobileNumber: String,
     val operator: String,
     val circle: String,
-    val plan: RechargePlan
+    val plan: RechargePlan,
+    val providerReference: String? = null
 )
