@@ -300,7 +300,8 @@ data class CommissionPeriodSummary(
     val to: Instant,
     val commission: BigDecimal,
     val successfulRechargeAmount: BigDecimal,
-    val successfulRechargeCount: Long
+    val successfulRechargeCount: Long,
+    val upstreamCommission: BigDecimal = BigDecimal.ZERO
 )
 
 data class RechargeCommissionSummaryResponse(
@@ -709,4 +710,71 @@ data class VoiceCallStatusBroadcast(
     val type: String = "status",
     val callId: String,
     val status: String
+)
+
+
+data class ClientCommissionOverviewResponse(
+    val publicUserId: String,
+    val level: Int,
+    val baseCommissionPercent: BigDecimal,
+    val directClientCount: Int,
+    val level2DirectClientThreshold: Int,
+    val level2Qualified: Boolean,
+    val canAddClients: Boolean,
+    val upstreamCommissionPercent: BigDecimal,
+    val upstreamCommissionActive: Boolean,
+    val upstreamEligible: Boolean,
+    val parent: ClientReferralMemberResponse?,
+    val todayUpstreamCommission: BigDecimal,
+    val monthUpstreamCommission: BigDecimal
+)
+
+data class ClientReferralMemberResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String,
+    val assignedAt: Instant
+)
+
+data class ClientSearchResultResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String
+)
+
+data class AddClientCommissionMemberRequest(
+    @field:NotBlank @field:Size(max = 36) val clientPublicId: String
+)
+
+data class ClientUpstreamCommissionHistoryItem(
+    val childPublicUserId: String,
+    val childName: String?,
+    val childMobile: String,
+    val rechargeTransactionId: String,
+    val rechargeAmount: BigDecimal,
+    val commissionPercent: BigDecimal,
+    val commissionAmount: BigDecimal,
+    val walletLedgerRef: String,
+    val createdAt: Instant
+)
+
+data class ClientUpstreamCommissionPageResponse(
+    val items: List<ClientUpstreamCommissionHistoryItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
+)
+
+data class ClientCommissionSettingsResponse(
+    val level2DirectClientThreshold: Int,
+    val upstreamCommissionPercent: BigDecimal,
+    val upstreamCommissionActive: Boolean
+)
+
+data class UpdateClientCommissionSettingsRequest(
+    @field:jakarta.validation.constraints.Min(1) val level2DirectClientThreshold: Int,
+    @field:DecimalMin("0.00") val upstreamCommissionPercent: BigDecimal,
+    val upstreamCommissionActive: Boolean = true
 )
