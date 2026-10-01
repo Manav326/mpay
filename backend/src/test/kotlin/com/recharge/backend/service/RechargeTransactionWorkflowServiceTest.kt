@@ -30,6 +30,13 @@ class RechargeTransactionWorkflowServiceTest {
             status = "RESERVED"
         )
         Mockito.doReturn(Optional.of(tx)).`when`(repository).findByTransactionIdForUpdate("RCH-200")
+        Mockito.doReturn(BigDecimal("1.00")).`when`(walletService).finalizeReservedDebit(
+            userId = 2L,
+            amount = BigDecimal("99.00"),
+            externalRef = "RCH-200",
+            referenceId = "RCH-200"
+        )
+        Mockito.doReturn(tx).`when`(repository).save(tx)
 
         workflow.applyProviderResult("RCH-200", "SUCCESS", "PROVIDER-200", "ok")
 
@@ -56,6 +63,7 @@ class RechargeTransactionWorkflowServiceTest {
             status = "RESERVED"
         )
         Mockito.doReturn(Optional.of(tx)).`when`(repository).findByTransactionIdForUpdate("RCH-201")
+        Mockito.doReturn(tx).`when`(repository).save(tx)
 
         workflow.applyProviderResult("RCH-201", "FAILED", "PROVIDER-201", "failed")
 
