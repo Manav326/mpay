@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Banknote, CarFront, CalendarDays, CheckCircle2, ChevronRight, CircleDollarSign, Clock3, History, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, Smartphone, TrendingUp, MapPin, Users, Wallet, WalletCards, X, XCircle, PhoneCall, MessageCircle } from 'lucide-react';
 import { cancelRentalBooking, completeRentalBooking, createVoiceCall, getAdminRecharges, getAdminWithdrawals, getDashboard, getPortalRoles, getRentalAdminBookings, getRentalAdminDashboard, getRentalAdminPayouts, getRentalAdminVendors, getUserDetailById, getUserProfileImage, getUserRechargeHistory, getUserWalletHistory, getUserWithdrawalHistory, getUserHistoryPdfAccess, decideUserHistoryPdfAccess, getPendingHistoryPdfAccess, getUsers, getVisibleRoles, getCommissionRates, updateCommissionRate, getClientCommissionSettings, updateClientCommissionSettings, login, requestPasswordReset, resetPassword, updateUserStatus } from '@/lib/api';
 import AdminProfileMenu from './AdminProfileMenu';
+import MobileVerificationControl from './MobileVerificationControl';
 import type { AdminAttention } from './DashboardView';
 import { DashboardSummary, RechargeHistoryItem, RentalAdminBooking, RentalAdminDashboard, Role, SortMode, UserDetail, UserSummary, WalletHistoryItem, WithdrawalHistoryItem, RoleCommissionRate, ClientCommissionSettings, HistoryPdfAccessResponse, HistoryPdfPendingAccessResponse } from '@/lib/types';
 import { logoutWebSession, startWebSessionRefresh } from '@/lib/session';
@@ -206,6 +207,7 @@ export default function Page() {
   const canRentalOperations = permissions.includes('MANAGE_RENTAL_OPERATIONS');
   const canFinancial = permissions.includes('VIEW_FINANCIAL_OPERATIONS');
   const canManageUserStatus = permissions.includes('MANAGE_USER_STATUS');
+  const canManageUserMobileVerification = permissions.includes('MANAGE_USER_MOBILE_VERIFICATION');
   const canManageHistoryPdfAccess = permissions.includes('MANAGE_HISTORY_PDF_ACCESS');
   const canRefreshRecharge = permissions.includes('MANAGE_RECHARGE_OPERATIONS');
   const canCommission = permissions.includes('MANAGE_COMMISSION_RATES');
@@ -266,7 +268,7 @@ export default function Page() {
           } finally { setBusy(false); }
         }}
       />} 
-      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
+      {view==='users' && <UsersView users={users} role={session.role} visibleRoles={visibleUserRoles} roleFilter={roleFilter} setRoleFilter={setRoleFilter} sort={sort} setSort={setSort} query={userQuery} setQuery={setUserQuery} statusFilter={userStatusFilter} setStatusFilter={setUserStatusFilter} selected={selected} setSelected={setSelected} canManageUserStatus={canManageUserStatus} canManageUserMobileVerification={canManageUserMobileVerification} canManageHistoryPdfAccess={canManageHistoryPdfAccess} canCallCustomer={canCallCustomer} onStatusUpdated={(id,status)=>{setSelected(current=>current?.publicUserId===id?{...current,status:status as 'ACTIVE'|'BLOCKED'}:current);loadUsers();}}/>} 
       
       {view==='rental' && canRentalOperations && <RentalOperations dashboard={rentalDashboard} bookings={rentalBookings} status={rentalBookingStatus} setStatus={(v)=>{setRentalBookingStatus(v);setRentalBookingPage(0)}} page={rentalBookingPage} hasNext={rentalBookingHasNext} onPrev={()=>setRentalBookingPage(p=>Math.max(0,p-1))} onNext={()=>setRentalBookingPage(p=>p+1)} onRefresh={async()=>{await loadRental();await loadAttention();}} onComplete={async(id)=>{setBusy(true);try{await completeRentalBooking(id);setNotice('Booking completed and vendor payout settled.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to complete booking.')}finally{setBusy(false)}}} onCancel={async(id,reason)=>{setBusy(true);try{await cancelRentalBooking(id,reason);setNotice('Booking cancelled and wallet refund completed.');await loadRental();await loadAttention();}catch(err:any){setNotice(err.message||'Unable to cancel booking.')}finally{setBusy(false)}}} onNotice={setNotice} busy={busy}/>} 
       {view==='vendors' && canVendors && <RentalVendorReview/>}
@@ -285,7 +287,7 @@ function userStatusMeta(value?: string){
   return {label:status.replace(/_/g,' '),className:'unknown',description:'Account state is not currently available.',Icon:Clock3};
 }
 
-function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onStatusUpdated:(id:string,status:string)=>void}){
+function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSort,query,setQuery,statusFilter,setStatusFilter,selected,setSelected,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onStatusUpdated}:{users:UserSummary[];role:Role;visibleRoles:string[];roleFilter:Role|'ALL';setRoleFilter:(v:any)=>void;sort:SortMode;setSort:(v:any)=>void;query:string;setQuery:(v:string)=>void;statusFilter:'ALL'|'ACTIVE'|'BLOCKED';setStatusFilter:(v:any)=>void;selected?:UserDetail;setSelected:(v:any)=>void;canManageUserStatus:boolean;canManageUserMobileVerification:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onStatusUpdated:(id:string,status:string)=>void}){
   const allowed = ['ALL', ...visibleRoles];
   const normalizedQuery = query.trim().toLowerCase();
   const visibleUsers = users.filter(u => {
@@ -411,7 +413,7 @@ function UsersView({users,role,visibleRoles,roleFilter,setRoleFilter,sort,setSor
   </div>
 }
 
-function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,canCallCustomer,onHistoryPdfDecision,onStatusUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void}){
+function UserDrawer({user,onClose,canManageUserStatus,canManageUserMobileVerification,canManageHistoryPdfAccess,canCallCustomer,onHistoryPdfDecision,onStatusUpdated,onMobileVerificationUpdated}:{user:UserDetail;onClose:()=>void;canManageUserStatus:boolean;canManageUserMobileVerification:boolean;canManageHistoryPdfAccess:boolean;canCallCustomer:boolean;onHistoryPdfDecision:()=>void;onStatusUpdated:(id:string,status:string)=>void;onMobileVerificationUpdated:(id:string)=>Promise<void>}){
   const [tab,setTab] = useState<'overview'|'recharges'|'wallet'|'withdrawals'>('overview');
   const [imageSrc,setImageSrc] = useState<string | null>(null);
   const [recharges,setRecharges] = useState<RechargeHistoryItem[]>([]);
@@ -577,6 +579,8 @@ function UserDrawer({user,onClose,canManageUserStatus,canManageHistoryPdfAccess,
           <div><small><CalendarDays size={14}/> Joined</small><b>{dateTime(user.joinedAt)}</b></div>
           <div><small><History size={14}/> Profile updated</small><b>{user.profileUpdatedAt ? dateTime(user.profileUpdatedAt) : 'Not available'}</b></div>
         </div>
+        {canManageUserMobileVerification && <MobileVerificationControl user={user} onChanged={()=>onMobileVerificationUpdated(user.publicUserId)} />}
+
         {canManageUserStatus && user.role.toUpperCase() !== 'ADMIN' && <div className="account-state-actions">
           <div><b>{user.status === 'ACTIVE' ? 'Account is active' : 'Account is blocked'}</b><span>{user.status === 'ACTIVE' ? 'The client can use mPay normally.' : 'The client cannot use the platform until re-enabled.'}</span></div>
           <button className={user.status === 'ACTIVE' ? 'status-toggle off' : 'status-toggle on'} disabled={statusBusy} onClick={async()=>{setStatusBusy(true);try{const next=await updateUserStatus(user.publicUserId,user.status!=='ACTIVE');onStatusUpdated(user.publicUserId,next.status);}catch(error:any){window.alert(error?.message||'Unable to update account status.');}finally{setStatusBusy(false);}}}>{statusBusy ? 'Saving…' : user.status === 'ACTIVE' ? 'Block account' : 'Unblock account'}</button>
