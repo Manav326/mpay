@@ -46,12 +46,7 @@ interface UserRepository : JpaRepository<UserEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from UserEntity u where u.id = :userId")
     fun findByIdForUpdate(@Param("userId") userId: Long): Optional<UserEntity>
-    fun findByMobile(mobile: String): Optional<UserEntity>
-    fun findByEmailIgnoreCase(email: String): Optional<UserEntity>
-    fun existsByEmailIgnoreCaseAndIdNot(email: String, id: Long): Boolean
-    fun findByPublicId(publicId: String): Optional<UserEntity>
-    fun findAllByRoleIn(roles: Collection<String>): List<UserEntity>
-    fun findAllByRoleInOrderByCreatedAtDesc(roles: Collection<String>): List<UserEntity>
+
     @Query("""
         select u from UserEntity u
         where upper(u.role) = 'CLIENT'
