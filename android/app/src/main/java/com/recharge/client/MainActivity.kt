@@ -496,8 +496,6 @@ private fun AppRoot(
             authViewModel.clearRegistrationOtp()
             authRoute = AuthRoute.Login
 
-            VoiceCallPushRegistrar.sync(context)
-
             if (
                 Build.VERSION.SDK_INT >= 33 &&
                 MpayFirebase.isConfigured() &&
@@ -508,6 +506,7 @@ private fun AppRoot(
 
             val callsApi = NetworkModule.clientApi(context)
             lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                VoiceCallPushRegistrar.sync(context)
                 while (kotlinx.coroutines.currentCoroutineContext().isActive) {
                     val activeCall = runCatching { callsApi.activeVoiceCall() }
                         .getOrNull()
