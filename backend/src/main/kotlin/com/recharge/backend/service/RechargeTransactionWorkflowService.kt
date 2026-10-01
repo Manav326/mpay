@@ -117,8 +117,8 @@ class RechargeTransactionWorkflowService(
                     externalRef = tx.transactionId,
                     referenceId = tx.transactionId
                 )
-                clientCommissionService.creditUpstreamCommission(tx)
                 tx.status = "SUCCESS"
+                clientCommissionService.creditUpstreamCommission(tx)
                 tx.walletLedgerRef = tx.transactionId
                 tx.completedAt = Instant.now()
             }
