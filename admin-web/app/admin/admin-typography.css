@@ -1,0 +1,277 @@
+/*
+ * mPay Admin Typography System
+ *
+ * Scoped to the Admin Console (.shell) and Admin authentication (.auth-wrap).
+ * It is loaded after globals.css and uses a dedicated cascade layer so this
+ * semantic contract can safely normalize legacy 800/900/950 weights without
+ * requiring page-by-page selector rewrites.
+ *
+ * Change a token below to change the selected typography category everywhere
+ * that consumes it. Existing component-specific font sizes are intentionally
+ * preserved to avoid layout regressions.
+ */
+
+@layer admin-typography {
+  .shell,
+  .auth-wrap,
+  .admin-login-page {
+    --admin-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Calibri, Arial, sans-serif;
+    --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+    --admin-font-weight-regular: 450;
+    --admin-font-weight-medium: 550;
+    --admin-font-weight-semibold: 650;
+    --admin-font-weight-bold: 700;
+
+    --admin-text-primary: #1b1916;
+    --admin-text-secondary: #655e55;
+    --admin-text-muted: #7b746b;
+    --admin-text-subtle: #9b8d7a;
+    --admin-text-accent: #986108;
+    --admin-text-positive: #15803d;
+    --admin-text-danger: #b42318;
+  }
+
+  .shell :where(*),
+  .auth-wrap :where(*),
+  .admin-login-page :where(*) {
+    font-family: var(--admin-font-family);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .shell :where(.mono, code, pre),
+  .auth-wrap :where(.mono, code, pre),
+  .admin-login-page :where(.mono, code, pre) {
+    font-family: var(--admin-font-family-mono) !important;
+  }
+
+  /*
+   * Baseline weight contract.
+   * Plain/generated sentences and metadata are regular; structural text is
+   * semibold. Semantic rules below provide the intentional heavier roles.
+   */
+  .shell :where(div, span, p, small, em, li, td, label, a, input, select, textarea),
+  .auth-wrap :where(div, span, p, small, em, li, td, label, a, input, select, textarea),
+  .admin-login-page :where(div, span, p, small, em, li, td, label, a, input, select, textarea) {
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
+  .shell :where(h1, h2, h3, h4, h5, h6, b, strong, th, button, [role="button"], summary),
+  .auth-wrap :where(h1, h2, h3, h4, h5, h6, b, strong, th, button, [role="button"], summary),
+  .admin-login-page :where(h1, h2, h3, h4, h5, h6, b, strong, th, button, [role="button"], summary) {
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  /*
+   * Semantic selector vocabulary for existing and future nested components.
+   * Current naming conventions automatically participate in these roles.
+   */
+  .shell :where(
+    [class*="-title"],
+    [class*="-heading"],
+    [class*="-name"],
+    [class*="-count"],
+    [class*="-kicker"],
+    [class*="-label"],
+    [class*="-action"],
+    [class*="-tab"],
+    [class*="-toggle"],
+    [class*="-select"],
+    [class*="-badge"],
+    [class*="-pill"],
+    [class*="-status"],
+    .status,
+    .status-pill,
+    .role-pill,
+    .type-pill,
+    .eyebrow
+  ) {
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(
+    [class*="-copy"],
+    [class*="-meta"],
+    [class*="-subtitle"],
+    [class*="-description"],
+    [class*="-note"],
+    [class*="-hint"],
+    [class*="-help"],
+    [class*="-text"]
+  ) {
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
+  .shell :where(.nav, .primary, .secondary, .link-btn, .table-action, .icon-btn) {
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(.nav, .secondary, .link-btn) {
+    color: var(--admin-text-secondary) !important;
+  }
+
+  .shell :where(.nav.active) {
+    color: var(--admin-text-accent) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(h1, h2, h3, h4, h5, h6),
+  .auth-wrap :where(h1, h2, h3, h4, h5, h6),
+  .admin-login-page :where(h1, h2, h3, h4, h5, h6) {
+    color: var(--admin-text-primary) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(.eyebrow, [class*="-kicker"]) {
+    color: var(--admin-text-subtle) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(
+    small,
+    [class*="-meta"],
+    [class*="-subtitle"],
+    [class*="-description"],
+    [class*="-copy"],
+    [class*="-note"],
+    [class*="-hint"],
+    [class*="-help"]
+  ) {
+    color: var(--admin-text-muted) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
+  .shell :where(table th) {
+    color: var(--admin-text-subtle) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(label) {
+    color: var(--admin-text-secondary) !important;
+    font-weight: var(--admin-font-weight-medium) !important;
+  }
+
+  .shell :where(input, select, textarea) {
+    color: var(--admin-text-primary) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
+  .shell :where(.status, .status-pill, .role-pill, .type-pill, [class*="-badge"], [class*="-pill"], [class*="-count"]) {
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  /*
+   * Bold numeric/decision values use 700. Legacy 800/900/950 values are
+   * intentionally not carried into the Admin design system.
+   */
+  .shell :where(
+    .metric-card > strong,
+    .financial-record-count,
+    .users-directory-count,
+    .care-count,
+    .care-wallet-balance,
+    .rental-section-count,
+    .inspection-quick-stat b,
+    .rental-info-card b
+  ) {
+    font-weight: var(--admin-font-weight-bold) !important;
+  }
+
+  /* Reusable semantic roles for new/dynamically generated Admin components. */
+  .shell :where(.admin-type-page-title, [data-admin-type="page-title"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+    color: var(--admin-text-primary) !important;
+  }
+
+  .shell :where(.admin-type-section-title, [data-admin-type="section-title"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+    color: var(--admin-text-primary) !important;
+  }
+
+  .shell :where(.admin-type-card-title, [data-admin-type="card-title"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+    color: var(--admin-text-primary) !important;
+  }
+
+  .shell :where(.admin-type-body, [data-admin-type="body"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+    color: var(--admin-text-primary) !important;
+  }
+
+  .shell :where(.admin-type-body-strong, [data-admin-type="body-strong"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+    color: var(--admin-text-primary) !important;
+  }
+
+  .shell :where(.admin-type-secondary, [data-admin-type="secondary"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+    color: var(--admin-text-secondary) !important;
+  }
+
+  .shell :where(.admin-type-caption, [data-admin-type="caption"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+    color: var(--admin-text-muted) !important;
+  }
+
+  .shell :where(.admin-type-button, [data-admin-type="button"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(.admin-type-table-header, [data-admin-type="table-header"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+    color: var(--admin-text-subtle) !important;
+  }
+
+  .shell :where(.admin-type-status, [data-admin-type="status"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .shell :where(.admin-type-number, [data-admin-type="number"]) {
+    font-family: var(--admin-font-family) !important;
+    font-weight: var(--admin-font-weight-bold) !important;
+  }
+
+  .auth-wrap :where(input, select, textarea) {
+    color: var(--admin-text-primary) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
+  .auth-wrap :where(label) {
+    color: var(--admin-text-secondary) !important;
+    font-weight: var(--admin-font-weight-medium) !important;
+  }
+
+  .auth-wrap :where(.primary, .link-btn, button, [role="button"]) {
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .admin-login-page :where(.secure-badge, .primary, .link-btn, .back-link) {
+    font-weight: var(--admin-font-weight-semibold) !important;
+  }
+
+  .admin-login-page :where(.admin-login-copy p, .admin-login-foot) {
+    color: var(--admin-text-muted) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+
+  .admin-login-page :where(label) {
+    color: var(--admin-text-secondary) !important;
+    font-weight: var(--admin-font-weight-medium) !important;
+  }
+
+  .admin-login-page :where(input, select, textarea) {
+    color: var(--admin-text-primary) !important;
+    font-weight: var(--admin-font-weight-regular) !important;
+  }
+}
