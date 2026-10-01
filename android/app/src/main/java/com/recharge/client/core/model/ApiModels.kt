@@ -189,7 +189,18 @@ data class ClientReferralMemberResponse(
 data class ClientSearchResultResponse(
     val publicUserId: String,
     val name: String?,
-    val mobile: String
+    val mobile: String,
+    val email: String? = null,
+    val profileImageUrl: String? = null,
+    val profileImageVersion: Long? = null,
+    val createdAt: String,
+    val accountActive: Boolean = false,
+    val mobileVerified: Boolean = false,
+    val clientLevel: Int = 0,
+    val directClientCount: Int = 0,
+    val alreadyAssigned: Boolean = false,
+    val canBeAdded: Boolean = false,
+    val unavailableReason: String? = null
 )
 
 data class AddClientCommissionMemberRequest(

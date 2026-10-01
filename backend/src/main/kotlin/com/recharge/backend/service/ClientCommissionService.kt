@@ -29,7 +29,8 @@ class ClientCommissionService(
     private val upstreamCommissions: ClientUpstreamCommissionRepository,
     private val settingsRepository: ClientCommissionSettingsRepository,
     private val commissionRates: CommissionRateService,
-    private val wallet: WalletService
+    private val wallet: WalletService,
+    private val imageStorage: ProfileImageStorage
 ) {
     private val zoneId: ZoneId = ZoneId.of("Asia/Kolkata")
 
@@ -79,21 +80,51 @@ class ClientCommissionService(
     fun searchEligibleClients(userId: Long, query: String): List<ClientSearchResultResponse> {
         val parent = requireClient(userId)
         require(levelFor(userId) >= 1) { "Complete at least one recharge attempt before adding clients" }
-        val normalized = query.trim()
-        require(normalized.length >= 3) { "Enter at least 3 characters to search for a client" }
-        val candidates = users.searchSupportCustomers(normalized, PageRequest.of(0, 30))
-        if (candidates.isEmpty()) return emptyList()
-        val candidateIds = candidates.mapNotNull { it.id }.filter { it != parent.id }
-        val assignedIds = referrals.findAllByChildUserIdIn(candidateIds).mapTo(mutableSetOf()) { it.childUserId }
-        return candidates.asSequence()
-            .filter { it.id != parent.id }
-            .filter { it.role.equals("CLIENT", true) && it.active && it.deletedAt == null && it.mobileVerifiedAt != null }
-            .filter { it.id !in assignedIds }
-            .take(10)
-            .map { ClientSearchResultResponse(it.publicId, it.name, it.mobile) }
-            .toList()
-    }
 
+        val normalized = query.trim()
+        require(normalized.isNotEmpty()) { "Enter a Client ID" }
+
+        val candidate = users.findByPublicId(normalized).orElse(null) ?: return emptyList()
+        if (candidate.id == parent.id) return emptyList()
+        if (!candidate.role.equals("CLIENT", true)) return emptyList()
+
+        val candidateId = requireNotNull(candidate.id)
+        val directCount = referrals.countByParentUserId(candidateId)
+        val settings = settings()
+        val candidateLevel = levelFor(candidateId, directCount, settings.level2DirectClientThreshold)
+        val alreadyAssigned = referrals.findByChildUserId(candidateId).isPresent
+        val active = candidate.active && candidate.deletedAt == null
+        val verified = candidate.mobileVerifiedAt != null
+
+        val reason = when {
+            !active -> "This client account is not active."
+            !verified -> "This client has not completed mobile verification."
+            alreadyAssigned -> "This client is already assigned under another client."
+            candidateLevel >= 2 -> "Level 2 clients cannot be added under another client."
+            else -> null
+        }
+
+        return listOf(
+            ClientSearchResultResponse(
+                publicUserId = candidate.publicId,
+                name = candidate.name,
+                mobile = candidate.mobile,
+                email = candidate.email,
+                profileImageUrl = candidate.profileImageKey?.let {
+                    "/api/v1/commission/clients/" + candidate.publicId + "/profile-image"
+                },
+                profileImageVersion = candidate.profileImageUpdatedAt?.toEpochMilli(),
+                createdAt = candidate.createdAt,
+                accountActive = active,
+                mobileVerified = verified,
+                clientLevel = candidateLevel,
+                directClientCount = directCount,
+                alreadyAssigned = alreadyAssigned,
+                canBeAdded = reason == null,
+                unavailableReason = reason
+            )
+        )
+    }
     @Transactional
     fun addClient(parentUserId: Long, childPublicId: String): ClientReferralMemberResponse {
         val parent = requireClient(parentUserId)
@@ -109,6 +140,10 @@ class ClientCommissionService(
         require(referrals.findByChildUserId(requireNotNull(lockedChild.id)).isEmpty) {
             "This client is already assigned under another client"
         }
+        val settings = settings()
+        val childDirectCount = referrals.countByParentUserId(requireNotNull(lockedChild.id))
+        val childLevel = levelFor(requireNotNull(lockedChild.id), childDirectCount, settings.level2DirectClientThreshold)
+        require(childLevel < 2) { "Level 2 clients cannot be added under another client" }
         ensureNoHierarchyCycle(parent.id!!, lockedChild.id!!)
 
         val link = try {
@@ -161,6 +196,14 @@ class ClientCommissionService(
             totalPages = result.totalPages,
             hasNext = result.hasNext()
         )
+    }
+
+    fun clientProfileImage(userId: Long, targetPublicId: String, variant: ImageVariant = ImageVariant.AVATAR): ProfileImageStorage.StoredImage {
+        requireClient(userId)
+        val target = users.findByPublicId(targetPublicId).orElseThrow { IllegalArgumentException("Client not found") }
+        require(target.role.equals("CLIENT", true)) { "Client not found" }
+        val key = target.profileImageKey ?: throw IllegalArgumentException("Profile image not found")
+        return imageStorage.load(key, variant) ?: throw IllegalArgumentException("Profile image not found")
     }
 
     @Transactional

@@ -1,8 +1,10 @@
 package com.recharge.client.features.commission
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,12 +13,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.ClientCommissionOverviewResponse
 import com.recharge.client.core.model.ClientReferralMemberResponse
 import com.recharge.client.core.model.ClientSearchResultResponse
 import com.recharge.client.core.model.ClientUpstreamCommissionHistoryItem
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.recharge.client.core.network.ApiConfig
+import com.recharge.client.core.security.TokenStore
 import com.recharge.client.core.theme.AppColors
 import com.recharge.client.core.ui.formatExactTimestamp
 import com.recharge.client.core.ui.formatMoney
@@ -188,47 +198,393 @@ private fun AddClientCard(
     onSearch: () -> Unit,
     onAddClient: (String) -> Unit
 ) {
+    val expandedClientId = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+
     Card(shape = RoundedCornerShape(20.dp)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.PersonAdd, null, tint = AppColors.PrimaryDark)
-                Spacer(Modifier.width(8.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Add a verified client", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("Search by name, mobile number, email or public account ID.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.Top) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppColors.Primary.copy(alpha = .10f)
+                ) {
+                    Icon(
+                        Icons.Default.PersonAdd,
+                        null,
+                        tint = AppColors.PrimaryDark,
+                        modifier = Modifier.padding(9.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        "Add a verified client",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Search using the client's unique mPay Client ID. Review the matched account before adding it to your network.",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(value = state.searchQuery, onValueChange = onSearchQuery, modifier = Modifier.weight(1f), singleLine = true, label = { Text("Search client") })
-                Spacer(Modifier.width(4.dp))
-                IconButton(onClick = onSearch, enabled = !state.searching) {
-                    if (state.searching) CircularProgressIndicator(Modifier.padding(9.dp))
-                    else Icon(Icons.Default.Search, "Search")
+
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = onSearchQuery,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Client ID") },
+                placeholder = { Text("Enter unique Client ID") },
+                leadingIcon = {
+                    Icon(Icons.Default.Badge, contentDescription = null)
+                },
+                trailingIcon = {
+                    if (state.searchQuery.isNotBlank()) {
+                        IconButton(onClick = { onSearchQuery("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear Client ID")
+                        }
+                    }
+                },
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onSearch = { onSearch() }
+                ),
+                supportingText = {
+                    Text(
+                        "Client ID remains unique for the account's full lifecycle.",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            )
+
+            Button(
+                onClick = onSearch,
+                enabled = !state.searching && state.searchQuery.trim().isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(13.dp)
+            ) {
+                if (state.searching) {
+                    CircularProgressIndicator(
+                        Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Verifying…")
+                } else {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Find client")
                 }
             }
-            state.searchError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            state.searchResults.forEach { result -> SearchResultRow(result, state.addingClientId == result.publicUserId, onAddClient) }
+
+            if (state.searching) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+
+            state.searchError?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            state.searchResults.forEach { result ->
+                SearchResultCard(
+                    result = result,
+                    expanded = expandedClientId.value == result.publicUserId,
+                    adding = state.addingClientId == result.publicUserId,
+                    onToggle = {
+                        expandedClientId.value =
+                            if (expandedClientId.value == result.publicUserId) null else result.publicUserId
+                    },
+                    onAddClient = onAddClient
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SearchResultRow(result: ClientSearchResultResponse, adding: Boolean, onAddClient: (String) -> Unit) {
-    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .5f)) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(result.name?.takeIf { it.isNotBlank() } ?: "mPay client", fontWeight = FontWeight.SemiBold)
-                Text(result.mobile, color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Text("ID ${result.publicUserId}", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+private fun SearchResultCard(
+    result: ClientSearchResultResponse,
+    expanded: Boolean,
+    adding: Boolean,
+    onToggle: () -> Unit,
+    onAddClient: (String) -> Unit
+) {
+    Card(
+        onClick = { if (!adding) onToggle() },
+        enabled = !adding,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(17.dp)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ClientAccountAvatar(result)
+                Spacer(Modifier.width(11.dp))
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        result.name?.takeIf { it.isNotBlank() } ?: "mPay client",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Client ID  ${result.publicUserId}",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    StatusBadge(
+                        text = if (result.canBeAdded) "Verified client" else "Not eligible for network add",
+                        positive = result.canBeAdded
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Hide client details" else "View client details",
+                    tint = AppColors.TextSecondary
+                )
             }
-            Button(onClick = { onAddClient(result.publicUserId) }, enabled = !adding) {
-                if (adding) CircularProgressIndicator(Modifier.height(18.dp), strokeWidth = 2.dp)
-                else Text("Add")
+
+            if (expanded) {
+                HorizontalDivider()
+
+                Column(
+                    Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Account details",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        DetailTile(
+                            "Account type",
+                            "Client",
+                            Modifier.weight(1f)
+                        )
+                        DetailTile(
+                            "Status",
+                            if (result.accountActive) "Active" else "Inactive",
+                            Modifier.weight(1f)
+                        )
+                    }
+
+                    DetailLine("Full name", result.name?.takeIf { it.isNotBlank() } ?: "Not provided")
+                    DetailLine("Client ID", result.publicUserId)
+                    DetailLine("Mobile", result.mobile)
+                    DetailLine("Email", result.email?.takeIf { it.isNotBlank() } ?: "Not provided")
+                    DetailLine("Member since", formatExactTimestamp(result.createdAt))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        DetailTile(
+                            "Client level",
+                            if (result.clientLevel > 0) "Level ${result.clientLevel}" else "Not active",
+                            Modifier.weight(1f)
+                        )
+                        DetailTile(
+                            "Direct clients",
+                            result.directClientCount.toString(),
+                            Modifier.weight(1f)
+                        )
+                    }
+
+                    StatusBadge(
+                        text = if (result.mobileVerified) "Mobile verified" else "Mobile not verified",
+                        positive = result.mobileVerified
+                    )
+
+                    if (result.canBeAdded) {
+                        Text(
+                            "This account is eligible to become your direct client.",
+                            color = AppColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Button(
+                            onClick = { onAddClient(result.publicUserId) },
+                            enabled = !adding,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(13.dp)
+                        ) {
+                            if (adding) {
+                                CircularProgressIndicator(
+                                    Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Adding…")
+                            } else {
+                                Icon(Icons.Default.PersonAdd, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Add client")
+                            }
+                        }
+                    } else {
+                        ClientCannotBeAddedCard(result)
+                    }
+                }
             }
         }
     }
 }
 
+@Composable
+private fun ClientCannotBeAddedCard(result: ClientSearchResultResponse) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = .75f)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                Icons.Default.Block,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(Modifier.width(9.dp))
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    "Can't be added",
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    result.unavailableReason ?: "This account is not eligible for network assignment.",
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClientAccountAvatar(result: ClientSearchResultResponse) {
+    val context = LocalContext.current
+    val token = TokenStore(context).accessToken()
+    val imageUrl = result.profileImageUrl?.let {
+        val base = if (it.startsWith("http")) it else ApiConfig.BASE_URL.trimEnd('/') + it
+        result.profileImageVersion?.let { version ->
+            base + (if (base.contains("?")) "&" else "?") + "v=" + version
+        } ?: base
+    }
+
+    Box(
+        modifier = Modifier
+            .size(58.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(imageUrl)
+                    .memoryCacheKey("client-profile:${result.publicUserId}:${result.profileImageVersion}")
+                    .diskCacheKey("client-profile:${result.publicUserId}:${result.profileImageVersion}")
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .networkCachePolicy(CachePolicy.ENABLED)
+                    .apply {
+                        if (!token.isNullOrBlank()) addHeader("Authorization", "Bearer $token")
+                    }
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Client profile photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize().clip(CircleShape)
+            )
+        } else {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.size(27.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusBadge(text: String, positive: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (positive) AppColors.Success.copy(alpha = .10f)
+        else MaterialTheme.colorScheme.errorContainer.copy(alpha = .7f)
+    ) {
+        Text(
+            text = text,
+            color = if (positive) AppColors.Success else MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun DetailTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = AppColors.SurfaceWarm
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(11.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                label,
+                color = AppColors.TextSecondary,
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text(value, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun DetailLine(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            label,
+            color = AppColors.TextSecondary,
+            style = MaterialTheme.typography.labelSmall
+        )
+        Text(value, fontWeight = FontWeight.SemiBold)
+    }
+}
 @Composable
 private fun DirectClientCard(client: ClientReferralMemberResponse) {
     Card(shape = RoundedCornerShape(18.dp)) {
