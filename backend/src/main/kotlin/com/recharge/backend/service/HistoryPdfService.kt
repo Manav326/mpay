@@ -84,16 +84,31 @@ class HistoryPdfService(
             append(maskMobile(tx.mobileNumber))
             append(" / Recharge INR ")
             append(tx.amount.money())
-            if (tx.walletDebitAmount.compareTo(tx.amount) != 0) {
-                append(" / Wallet debit INR ")
-                append(tx.walletDebitAmount.money())
+            when (tx.status.uppercase()) {
+                "SUCCESS" -> {
+                    append(" / Wallet debited INR ")
+                    append(tx.walletDebitAmount.money())
+                }
+                "PENDING", "RESERVED" -> {
+                    append(" / Amount reserved INR ")
+                    append(tx.walletDebitAmount.money())
+                }
+                "FAILED", "CANCELLED", "REJECTED" -> {
+                    append(" / No wallet debit / INR ")
+                    append(tx.walletDebitAmount.money())
+                    append(" not charged")
+                }
+                else -> {
+                    append(" / Wallet impact not confirmed / INR ")
+                    append(tx.walletDebitAmount.money())
+                }
             }
             if (!tx.planDescription.isNullOrBlank()) {
                 append(" / ")
                 append(tx.planDescription!!.trim())
             }
         },
-        tx.walletDebitAmount.negate(),
+        if (tx.status.equals("SUCCESS", ignoreCase = true)) tx.walletDebitAmount.negate() else BigDecimal.ZERO,
         tx.status,
         tx.transactionId
     )
