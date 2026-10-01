@@ -165,6 +165,7 @@ class ClientCommissionService(
 
     @Transactional
     fun creditUpstreamCommission(recharge: RechargeTransactionEntity): BigDecimal? {
+        if (!recharge.status.equals("SUCCESS", true)) return null
         val link = referrals.findByChildUserId(recharge.userId).orElse(null) ?: return null
         val parentId = link.parentUserId
         if (parentId == recharge.userId) return null
