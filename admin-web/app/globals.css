@@ -6366,7 +6366,7 @@ button.wallet-transaction-row:hover{background:#fffaf4;border-color:#ead9bf}
 .client-network-page-header h2{font-size:25px}
 .client-network-page-header p{max-width:680px}
 .client-network-loading{min-height:90px;border:1px dashed #ddd4c8;border-radius:16px;background:#fffdfa;display:flex;align-items:center;justify-content:center;gap:9px;color:#82786d;font-size:11px}
-.client-network-overview{padding:18px;border-radius:20px;background:linear-gradient(135deg,#2a261f 0%,#1f1d19 100%);color:#fff;box-shadow:0 22px 45px rgba(34,29,23,.12)}
+.client-network-overview{padding:18px;border-radius:20px;background:#F59E0B;color:#fff;box-shadow:0 22px 45px rgba(34,29,23,.12)}
 .client-network-overview-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .client-network-overview-top .account-eyebrow{color:#f4bf55}
 .client-network-overview-top h3{margin:6px 0 4px;font-size:24px;letter-spacing:-.035em}
