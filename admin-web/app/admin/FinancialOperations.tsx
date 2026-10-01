@@ -24,6 +24,7 @@ import {
   getAdminWithdrawals,
   refreshAdminRecharge,
 } from '@/lib/api';
+import { rechargeAmountPresentation } from '@/lib/rechargeDisplay';
 import {
   AdminFinancialRechargeOperation,
   AdminFinancialWalletOperation,
@@ -175,7 +176,7 @@ export default function FinancialOperations({ canRefreshRecharge }: { canRefresh
   }
 
   const tabMeta = {
-    recharges: { label: 'Recharges', icon: ReceiptText, hint: 'Customer recharge attempts, wallet debit and provider state.' },
+    recharges: { label: 'Recharges', icon: ReceiptText, hint: 'Customer recharge attempts, charge state and provider result.' },
     withdrawals: { label: 'Withdrawals', icon: ArrowDownLeft, hint: 'UPI withdrawals, provider state and settlement references.' },
     ledger: { label: 'Wallet ledger', icon: History, hint: 'Authoritative wallet movements across every money flow.' },
   }[tab];
@@ -282,7 +283,7 @@ function RechargeTable({ items, canRefresh, busy, onRefresh }: {
             <th>Date / transaction</th>
             <th>Customer</th>
             <th>Recharge</th>
-            <th>Amount / wallet debit</th>
+            <th>Amount / wallet state</th>
             <th>Provider</th>
             <th>Status</th>
             <th>Action</th>
@@ -304,8 +305,10 @@ function RechargeTable({ items, canRefresh, busy, onRefresh }: {
                 <td>
                   <div className="financial-money-stack">
                     <strong>{INR.format(item.amount)}</strong>
-                    <span>Wallet debit {INR.format(item.walletDebitAmount)}</span>
-                    <small>Client {INR.format(item.clientCommission)} · Company {INR.format(item.companyCommission)}</small>
+                    <span>{rechargeAmountPresentation(item.status, INR.format(item.walletDebitAmount)).text}</span>
+                    {String(item.status || '').toUpperCase() === 'SUCCESS' && (
+                      <small>Client {INR.format(item.clientCommission)} · Company {INR.format(item.companyCommission)}</small>
+                    )}
                   </div>
                 </td>
                 <td>
