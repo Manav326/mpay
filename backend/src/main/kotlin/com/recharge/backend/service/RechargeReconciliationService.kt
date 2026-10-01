@@ -32,6 +32,6 @@ class RechargeReconciliationService(
             } catch (ex: Exception) {
                 log.warn("Recharge reconciliation check failed for transactionId={}", tx.transactionId, ex)
             }
-        )
+        }
     }
 }
