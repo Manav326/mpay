@@ -288,6 +288,7 @@ type VehicleUnavailability = {
 type CalendarDay = { date: string; status: string; bookingId?: string | null; reasonCode?: string | null; reasonLabel?: string | null };
 
 const CUSTOMER_SUPPORT_CHAT_OPEN_KEY = 'mpay_customer_support_chat_open';
+const CUSTOMER_SUPPORT_CHAT_STATE_KEY = 'mpay_customer_support_chat_state';
 
 const supportChatRequestInFlight = { current: false };
 
@@ -1202,6 +1203,7 @@ export default function Portal() {
     height: 360,
     autoSizeEnabled: true
   });
+  const [supportChatStateHydrated, setSupportChatStateHydrated] = useState(false);
 
   const walletSigned = (item: WalletItem) => {
     const amount = Math.abs(Number(item.amount || 0));
@@ -1230,15 +1232,14 @@ export default function Portal() {
 
   function openCustomerSupportChat() {
     setSupportPanelExpanded(true);
-    window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY, '1');
     setSupportChatOpen(true);
     setSupportChatMinimized(false);
-    setSupportChatPosition(value => ({ ...value, autoSizeEnabled: true }));
     void loadCustomerSupportChat();
   }
 
   function closeCustomerSupportChat() {
     window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY);
+    window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_STATE_KEY);
     setSupportChatOpen(false);
   }
 
@@ -1296,10 +1297,47 @@ export default function Portal() {
   }
 
   useEffect(() => {
-    if (window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY) === '1') {
-      setSupportChatOpen(true);
+    try {
+      const raw = window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_STATE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        setSupportChatOpen(saved?.open === true);
+        setSupportChatMinimized(saved?.minimized === true);
+        if (saved?.position && typeof saved.position === 'object') {
+          setSupportChatPosition(value => ({
+            ...value,
+            ...saved.position,
+            x: Number.isFinite(Number(saved.position.x)) ? Number(saved.position.x) : value.x,
+            y: Number.isFinite(Number(saved.position.y)) ? Number(saved.position.y) : value.y,
+            width: Number.isFinite(Number(saved.position.width)) ? Number(saved.position.width) : value.width,
+            height: Number.isFinite(Number(saved.position.height)) ? Number(saved.position.height) : value.height,
+            autoSizeEnabled: saved.position.autoSizeEnabled !== false
+          }));
+        }
+      } else if (window.localStorage.getItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY) === '1') {
+        setSupportChatOpen(true);
+      }
+    } catch {
+      // Corrupt local widget state should not block the customer portal.
+    } finally {
+      setSupportChatStateHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!supportChatStateHydrated) return;
+    if (!supportChatOpen) {
+      window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_STATE_KEY);
+      window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY);
+      return;
+    }
+    window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_STATE_KEY, JSON.stringify({
+      open: true,
+      minimized: supportChatMinimized,
+      position: supportChatPosition
+    }));
+    window.localStorage.setItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY, '1');
+  }, [supportChatStateHydrated, supportChatOpen, supportChatMinimized, supportChatPosition]);
 
   useEffect(() => {
     if (view === 'account') void loadCustomerSupportChat();
@@ -2817,6 +2855,8 @@ export default function Portal() {
   }
 
   function logout() {
+    window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_OPEN_KEY);
+    window.localStorage.removeItem(CUSTOMER_SUPPORT_CHAT_STATE_KEY);
     logoutWebSession(webSession);
     window.location.replace('/');
   }

@@ -138,7 +138,9 @@ private val floatingSupportTopics = listOf(
 fun CustomerSupportFloatingChat(
     context: Context,
     open: Boolean,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    openRequestKey: Int = 0,
+    sessionResetKey: Int = 0
 ) {
 
     val scope = rememberCoroutineScope()
@@ -149,18 +151,18 @@ fun CustomerSupportFloatingChat(
     var loading by remember { mutableStateOf(false) }
     var chatRequestInFlight by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
-    var draft by rememberSaveable { mutableStateOf("") }
+    var draft by rememberSaveable(sessionResetKey) { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var guidedTopicCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var guidedTopicCode by rememberSaveable(sessionResetKey) { mutableStateOf<String?>(null) }
     val guidedTopic = floatingSupportTopics.firstOrNull { it.code == guidedTopicCode }
-    var supportIntakeMode by rememberSaveable { mutableStateOf(false) }
+    var supportIntakeMode by rememberSaveable(sessionResetKey) { mutableStateOf(false) }
     var callbackBusy by remember { mutableStateOf(false) }
-    var minimized by rememberSaveable { mutableStateOf(false) }
-    var widthDp by rememberSaveable { mutableStateOf(390f) }
-    var heightDp by rememberSaveable { mutableStateOf(360f) }
-    var autoSizeEnabled by rememberSaveable { mutableStateOf(true) }
-    var offsetX by rememberSaveable { mutableStateOf(12f) }
-    var offsetY by rememberSaveable { mutableStateOf(72f) }
+    var minimized by rememberSaveable(sessionResetKey) { mutableStateOf(false) }
+    var widthDp by rememberSaveable(sessionResetKey) { mutableStateOf(390f) }
+    var heightDp by rememberSaveable(sessionResetKey) { mutableStateOf(360f) }
+    var autoSizeEnabled by rememberSaveable(sessionResetKey) { mutableStateOf(true) }
+    var offsetX by rememberSaveable(sessionResetKey) { mutableStateOf(12f) }
+    var offsetY by rememberSaveable(sessionResetKey) { mutableStateOf(72f) }
     var minimizedDragging by remember { mutableStateOf(false) }
     var dismissTargetActive by remember { mutableStateOf(false) }
     var minimizedDragMoved by remember { mutableStateOf(false) }
@@ -169,6 +171,31 @@ fun CustomerSupportFloatingChat(
     val minHeight = 320f
     val horizontalMargin = 8f
     val bottomMargin = 8f
+
+    LaunchedEffect(sessionResetKey) {
+        chat = null
+        loading = false
+        chatRequestInFlight = false
+        busy = false
+        draft = ""
+        error = null
+        guidedTopicCode = null
+        supportIntakeMode = false
+        callbackBusy = false
+        minimized = false
+        widthDp = 390f
+        heightDp = 360f
+        autoSizeEnabled = true
+        offsetX = 12f
+        offsetY = 72f
+        minimizedDragging = false
+        dismissTargetActive = false
+        minimizedDragMoved = false
+    }
+
+    LaunchedEffect(openRequestKey) {
+        if (open) minimized = false
+    }
 
     suspend fun loadChat() {
         if (chatRequestInFlight) return
