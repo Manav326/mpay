@@ -32,7 +32,7 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
     val text = buildString {
         appendLine("Recharge history")
         appendLine("Amount: ₹${formatMoney(item.amount)}")
-        appendLine("Wallet debit: ₹${formatMoney(item.walletDebitAmount)}")
+        appendLine("Wallet impact: " + rechargeWalletImpactCopy(status, item.walletDebitAmount))
         appendLine("Mobile: ${item.mobileNumber}")
         item.recipientName?.takeIf { it.isNotBlank() }?.let { appendLine("Contact name: $it") }
         appendLine("Operator: ${operatorLabel(item.operator)}")
@@ -70,7 +70,8 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
                 }
             }
             HorizontalDivider()
-            Text(if (status == "PENDING" || status == "PROCESSING") "Reserved: ₹${formatMoney(item.walletDebitAmount)}" else "Wallet debit: ₹${formatMoney(item.walletDebitAmount)}", style = MaterialTheme.typography.bodyMedium)
+            val impact = rechargeWalletImpact(status, item.walletDebitAmount)
+            Text(impact.first, color = impact.second, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             Text("Transaction ID: ${item.transactionId}", style = MaterialTheme.typography.bodySmall)
             Text("Reference: ${item.clientRequestId}", style = MaterialTheme.typography.bodySmall)
             item.providerReference?.takeIf { it.isNotBlank() }?.let { Text("Provider ref: $it", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall) }
@@ -80,6 +81,16 @@ fun RechargeHistoryCard(item: RechargeHistoryItem) {
         }
     }
 }
+
+private fun rechargeWalletImpact(status: String, amount: java.math.BigDecimal): Pair<String, Color> = when (status.uppercase()) {
+    "SUCCESS" -> "Wallet debited · ₹" + formatMoney(amount) to AppColors.Success
+    "PENDING", "PROCESSING", "RESERVED" -> "Amount reserved · ₹" + formatMoney(amount) to Color(0xFFD97706)
+    "FAILED", "CANCELLED", "REJECTED" -> "No wallet debit · ₹" + formatMoney(amount) + " not charged" to AppColors.Error
+    else -> "Wallet impact not confirmed · ₹" + formatMoney(amount) to MaterialTheme.colorScheme.onSurface
+}
+
+private fun rechargeWalletImpactCopy(status: String, amount: java.math.BigDecimal): String =
+    rechargeWalletImpact(status, amount).first
 
 fun operatorLabel(operator: String): String = when (operator.uppercase()) {
     "AIRTEL" -> "Airtel"
