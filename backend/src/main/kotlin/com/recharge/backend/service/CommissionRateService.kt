@@ -17,20 +17,24 @@ class CommissionRateService(
 ) {
     fun rateForUser(userId: Long): BigDecimal {
         val user = users.findById(userId).orElseThrow { IllegalArgumentException("User not found") }
+        require(user.role.equals("CLIENT", true)) { "Commission rates apply only to client accounts" }
         return rateForRole(user.role)
     }
 
-    fun rateForRole(role: String): BigDecimal =
-        rates.findByRoleIgnoreCaseAndActiveTrue(role).orElse(null)?.commissionPercent?.setScale(2)
-            ?: if (role.equals("CLIENT", true)) legacyClientPercent.setScale(2) else BigDecimal.ZERO.setScale(2)
+    fun rateForRole(role: String): BigDecimal {
+        if (!role.equals("CLIENT", true)) return BigDecimal.ZERO.setScale(2)
+        return rates.findByRoleIgnoreCaseAndActiveTrue("CLIENT").orElse(null)?.commissionPercent?.setScale(2)
+            ?: legacyClientPercent.setScale(2)
+    }
 
-    fun allRates(): List<RoleCommissionRateEntity> = rates.findAllByOrderByRoleAsc()
+    fun allRates(): List<RoleCommissionRateEntity> =
+        rates.findAllByOrderByRoleAsc().filter { it.role.equals("CLIENT", true) }
 
     @Transactional
     fun upsert(role: String, percent: BigDecimal, active: Boolean): RoleCommissionRateEntity {
         require(percent >= BigDecimal.ZERO && percent < BigDecimal(100)) { "Commission percent must be between 0 and 100" }
         val normalized = role.trim().uppercase()
-        require(normalized in setOf("CLIENT", "MANAGER", "ADMIN")) { "Unsupported role" }
+        require(normalized == "CLIENT") { "Only client accounts can have commission rates" }
         val entity = rates.findByRoleIgnoreCase(normalized).orElseGet { RoleCommissionRateEntity(role = normalized) }
         entity.role = normalized
         entity.commissionPercent = percent.setScale(4)

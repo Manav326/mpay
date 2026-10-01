@@ -189,3 +189,54 @@ class WalletWithdrawalEntity(
     @Column(nullable = false) var updatedAt: Instant = Instant.now(),
     @Column(name = "completed_at") var completedAt: Instant? = null
 )
+
+
+@Entity
+@Table(
+    name = "client_referral_links",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uq_client_referral_child", columnNames = ["child_user_id"])
+    ],
+    indexes = [
+        Index(name = "idx_client_referral_parent", columnList = "parent_user_id")
+    ]
+)
+class ClientReferralLinkEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "parent_user_id", nullable = false) var parentUserId: Long = 0,
+    @Column(name = "child_user_id", nullable = false) var childUserId: Long = 0,
+    @Column(name = "assigned_at", nullable = false) var assignedAt: Instant = Instant.now()
+)
+
+@Entity
+@Table(
+    name = "client_upstream_commissions",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uq_client_upstream_recharge", columnNames = ["recharge_transaction_id"])
+    ],
+    indexes = [
+        Index(name = "idx_client_upstream_parent_created", columnList = "parent_user_id, created_at"),
+        Index(name = "idx_client_upstream_child_created", columnList = "child_user_id, created_at")
+    ]
+)
+class ClientUpstreamCommissionEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Column(name = "parent_user_id", nullable = false) var parentUserId: Long = 0,
+    @Column(name = "child_user_id", nullable = false) var childUserId: Long = 0,
+    @Column(name = "recharge_transaction_id", nullable = false, length = 255) var rechargeTransactionId: String = "",
+    @Column(name = "recharge_amount", nullable = false, precision = 19, scale = 2) var rechargeAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "commission_percent", nullable = false, precision = 7, scale = 4) var commissionPercent: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "commission_amount", nullable = false, precision = 19, scale = 2) var commissionAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "wallet_ledger_ref", nullable = false, length = 150) var walletLedgerRef: String = "",
+    @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now()
+)
+
+@Entity
+@Table(name = "client_commission_settings")
+class ClientCommissionSettingsEntity(
+    @Id var id: Long = 1L,
+    @Column(name = "level2_direct_client_threshold", nullable = false) var level2DirectClientThreshold: Int = 5,
+    @Column(name = "upstream_commission_percent", nullable = false, precision = 7, scale = 4) var upstreamCommissionPercent: BigDecimal = BigDecimal("0.1000"),
+    @Column(name = "upstream_commission_active", nullable = false) var upstreamCommissionActive: Boolean = true,
+    @Column(name = "updated_at", nullable = false) var updatedAt: Instant = Instant.now()
+)

@@ -296,6 +296,12 @@ export interface RoleCommissionRate {
   active: boolean;
 }
 
+export interface ClientCommissionSettings {
+  level2DirectClientThreshold: number;
+  upstreamCommissionPercent: number;
+  upstreamCommissionActive: boolean;
+}
+
 
 export interface AdminFinancialRechargeOperation {
   transactionId: string;

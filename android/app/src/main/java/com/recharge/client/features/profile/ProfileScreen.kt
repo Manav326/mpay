@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,7 +50,7 @@ import java.math.BigDecimal
 fun ProfileScreen(
     state: ProfileUiState, vendor: RentalVendorResponse?, onLoad: () -> Unit, onRefreshVendor: () -> Unit,
     onSave: (String, String, Uri?) -> Unit, onRemovePhoto: () -> Unit,
-    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onHelpSupport: () -> Unit, onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
+    onLogout: () -> Unit, onProfileUpdated: () -> Unit, onBecomeVendor: () -> Unit, onOpenClientNetwork: () -> Unit, onHelpSupport: () -> Unit, onDeleteAccount: (String, String, () -> Unit) -> Unit, deletingAccount: Boolean, isVisible: Boolean
 ) {
     var editing by rememberSaveable { mutableStateOf(false) }
     var helpSupportExpanded by rememberSaveable { mutableStateOf(false) }
@@ -113,6 +114,27 @@ fun ProfileScreen(
             item {
                 Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                     Text(it, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                onClick = onOpenClientNetwork,
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = AppColors.Primary.copy(alpha = .10f)) {
+                        Icon(Icons.Default.People, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(9.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Client network", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Add verified clients, reach Level 2 and track upstream earnings.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = AppColors.TextSecondary)
                 }
             }
         }

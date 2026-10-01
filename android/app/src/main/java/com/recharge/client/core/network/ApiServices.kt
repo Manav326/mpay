@@ -272,6 +272,24 @@ interface ClientApi {
     @GET("api/v1/recharge/commission-summary")
     suspend fun rechargeCommissionSummary(): Response<RechargeCommissionSummaryResponse>
 
+    @GET("api/v1/commission/overview")
+    suspend fun clientCommissionOverview(): Response<ClientCommissionOverviewResponse>
+
+    @GET("api/v1/commission/clients")
+    suspend fun clientCommissionClients(): Response<List<ClientReferralMemberResponse>>
+
+    @GET("api/v1/commission/clients/search")
+    suspend fun searchCommissionClients(@Query("q") query: String): Response<List<ClientSearchResultResponse>>
+
+    @POST("api/v1/commission/clients")
+    suspend fun addCommissionClient(@Body request: AddClientCommissionMemberRequest): Response<ClientReferralMemberResponse>
+
+    @GET("api/v1/commission/upstream-history")
+    suspend fun upstreamCommissionHistory(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): Response<ClientUpstreamCommissionPageResponse>
+
     @GET("api/v1/wallet/history")
     suspend fun walletHistory(
         @Query("page") page: Int = 0,

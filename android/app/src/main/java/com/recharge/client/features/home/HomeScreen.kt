@@ -18,8 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.recharge.client.core.model.CurrentUserResponse
@@ -123,7 +123,7 @@ fun HomeScreen(
         item {
             Card(
                 shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF9EC))
+                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .52f))
             ) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Text("Quick actions", style = MaterialTheme.typography.titleLarge)
@@ -183,21 +183,21 @@ fun HomeScreen(
             Card(
                 onClick = onRechargeHistory,
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF4DF))
+                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceWarm.copy(alpha = .72f))
             ) {
                 Row(
                     Modifier.fillMaxWidth().padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFFFE8B8)) {
-                        Icon(Icons.Default.History, null, tint = Color(0xFFB26A00), modifier = Modifier.padding(11.dp))
+                    Surface(shape = RoundedCornerShape(14.dp), color = AppColors.SurfaceWarm) {
+                        Icon(Icons.Default.History, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(11.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Recharge History", style = MaterialTheme.typography.titleLarge)
                         Text("View your submitted and completed mobile recharges.", color = AppColors.TextSecondary)
                     }
-                    Text("View", color = Color(0xFF9A6408), style = MaterialTheme.typography.labelLarge)
+                    Text("View", color = AppColors.PrimaryDark, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -212,14 +212,14 @@ fun HomeScreen(
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Today’s recharge earnings", style = MaterialTheme.typography.titleLarge)
+                Text("Today’s earnings", style = MaterialTheme.typography.titleLarge)
                 IconButton(onClick = onRefreshEarnings) { Icon(Icons.Default.Refresh, "Refresh today's earnings") }
             }
         }
         item { EarningsPeriodCard(commission?.daily, isToday = true) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Monthly recharge earnings", style = MaterialTheme.typography.titleLarge)
+                Text("Monthly earnings", style = MaterialTheme.typography.titleLarge)
             }
         }
         item { EarningsPeriodCard(commission?.monthly, isToday = false) }
@@ -263,8 +263,9 @@ private fun EarningsPeriodCard(period: com.recharge.client.core.model.Commission
                 Text(if (isToday) formatAsOf(period.to) else formatPeriod(period.from, period.to), color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text("Commission earned", color = AppColors.TextSecondary)
-                        Text("₹" + formatMoney(period.commission), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                        Text("Total earned", color = AppColors.TextSecondary)
+                        Text("₹" + formatMoney(period.commission.add(period.upstreamCommission)), style = MaterialTheme.typography.headlineSmall, color = AppColors.Success, fontWeight = FontWeight.Bold)
+                        Text(if (period.upstreamCommission > BigDecimal.ZERO) "Includes ₹${formatMoney(period.upstreamCommission)} upstream earnings" else "Recharge earnings only", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                         Text(period.successfulRechargeCount.toString() + " successful recharges", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {

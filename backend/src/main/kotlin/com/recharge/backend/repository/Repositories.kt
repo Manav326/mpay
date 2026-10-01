@@ -42,6 +42,11 @@ interface UserRepository : JpaRepository<UserEntity, Long> {
     fun findByPublicId(publicId: String): Optional<UserEntity>
     fun findAllByRoleIn(roles: Collection<String>): List<UserEntity>
     fun findAllByRoleInOrderByCreatedAtDesc(roles: Collection<String>): List<UserEntity>
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.id = :userId")
+    fun findByIdForUpdate(@Param("userId") userId: Long): Optional<UserEntity>
+
     @Query("""
         select u from UserEntity u
         where upper(u.role) = 'CLIENT'
@@ -134,6 +139,34 @@ interface WalletTransactionRepository : JpaRepository<WalletTransactionEntity, L
     fun findTop10ByUserIdOrderByCreatedAtDesc(userId: Long): List<WalletTransactionEntity>
 }
 
+interface ClientReferralLinkRepository : JpaRepository<ClientReferralLinkEntity, Long> {
+    fun findByChildUserId(childUserId: Long): Optional<ClientReferralLinkEntity>
+    fun findAllByChildUserIdIn(childUserIds: Collection<Long>): List<ClientReferralLinkEntity>
+    fun findAllByParentUserIdOrderByAssignedAtAsc(parentUserId: Long): List<ClientReferralLinkEntity>
+    fun countByParentUserId(parentUserId: Long): Int
+}
+
+interface ClientUpstreamCommissionRepository : JpaRepository<ClientUpstreamCommissionEntity, Long> {
+    fun existsByRechargeTransactionId(rechargeTransactionId: String): Boolean
+
+    @Query("""
+        select coalesce(sum(c.commissionAmount), 0)
+        from ClientUpstreamCommissionEntity c
+        where c.parentUserId = :userId
+          and c.createdAt >= :fromInclusive
+          and c.createdAt < :toExclusive
+    """)
+    fun sumCommission(
+        @Param("userId") userId: Long,
+        @Param("fromInclusive") fromInclusive: Instant,
+        @Param("toExclusive") toExclusive: Instant
+    ): BigDecimal
+
+    fun findByParentUserIdOrderByCreatedAtDesc(parentUserId: Long, pageable: Pageable): Page<ClientUpstreamCommissionEntity>
+}
+
+interface ClientCommissionSettingsRepository : JpaRepository<ClientCommissionSettingsEntity, Long>
+
 interface RolePermissionRepository : JpaRepository<RolePermissionEntity, Long> {
     fun findAllByRoleIgnoreCaseOrderByPermissionAsc(role: String): List<RolePermissionEntity>
     fun findAllByPermissionIgnoreCaseOrderByRoleAsc(permission: String): List<RolePermissionEntity>
@@ -160,6 +193,12 @@ interface UserRechargeSummaryProjection {
 }
 
 interface RechargeTransactionRepository : JpaRepository<RechargeTransactionEntity, Long> {
+    fun existsByUserId(userId: Long): Boolean
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from RechargeTransactionEntity r where r.transactionId = :transactionId")
+    fun findByTransactionIdForUpdate(@Param("transactionId") transactionId: String): Optional<RechargeTransactionEntity>
+
     fun findByTransactionId(transactionId: String): Optional<RechargeTransactionEntity>
     fun findAllByTransactionIdIn(transactionIds: Collection<String>): List<RechargeTransactionEntity>
     fun findByClientRequestIdAndUserId(clientRequestId: String, userId: Long): Optional<RechargeTransactionEntity>

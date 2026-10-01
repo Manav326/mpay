@@ -385,6 +385,7 @@ private fun WalletActivityCard(
                 WalletFilterChip(WalletHistoryFilter.ADD_MONEY, state.filter, "Add money", onSelectFilter)
                 WalletFilterChip(WalletHistoryFilter.WITHDRAWN, state.filter, "Withdrawn", onSelectFilter)
                 WalletFilterChip(WalletHistoryFilter.RENTAL, state.filter, "Rental", onSelectFilter)
+                WalletFilterChip(WalletHistoryFilter.UPSTREAM_COMMISSION, state.filter, "Upstream", onSelectFilter)
             }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 WalletDateButton(WalletDateFilter.TODAY, state.dateFilter, "Today", onSetToday, 0, 4)
@@ -473,14 +474,26 @@ private fun WalletEarningsPeriod(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "Commission earned",
+                    "Your recharge commission",
                     color = AppColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
                     "₹" + formatMoney(period?.commission ?: BigDecimal.ZERO),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = AppColors.Success
+                    style = MaterialTheme.typography.titleLarge,
+                    color = AppColors.Success,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Upstream commission ₹" + formatMoney(period?.upstreamCommission ?: BigDecimal.ZERO),
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Total earned ₹" + formatMoney((period?.commission ?: BigDecimal.ZERO).add(period?.upstreamCommission ?: BigDecimal.ZERO)),
+                    color = AppColors.Success,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     "${period?.successfulRechargeCount ?: 0} successful recharges",
@@ -542,9 +555,11 @@ private fun WalletHistoryRow(item: WalletHistoryItem, onClick: (WalletHistoryIte
     val isRecharge = item.referenceType.equals("RECHARGE", true)
     val isWithdraw = item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true)
     val isRental = item.referenceType.equals("RENTAL_PAYMENT", true) || item.referenceType.equals("RENTAL_REFUND", true)
+    val isUpstream = item.referenceType.equals("UPSTREAM_COMMISSION", true)
     val isCredit = item.type.equals("CREDIT", true)
     val label = when {
         item.referenceType.equals("RENTAL_REFUND", true) -> "Car rental refund"
+        isUpstream -> "Upstream commission"
         isRental -> "Car rental payment"
         isRecharge -> "Recharge"
         isAdd -> "Added money"
@@ -587,9 +602,11 @@ private fun WalletTransactionDetailCard(item: WalletHistoryItem, withdrawal: Wit
     val isRecharge = item.referenceType.equals("RECHARGE", true)
     val isWithdraw = item.referenceType.equals("WITHDRAWAL", true) || item.type.equals("WITHDRAW", true)
     val isRental = item.referenceType.equals("RENTAL_PAYMENT", true) || item.referenceType.equals("RENTAL_REFUND", true)
+    val isUpstream = item.referenceType.equals("UPSTREAM_COMMISSION", true)
     val isCredit = item.type.equals("CREDIT", true)
     val title = when {
         item.referenceType.equals("RENTAL_REFUND", true) -> "Car rental refund"
+        isUpstream -> "Upstream commission"
         isRental -> "Car rental payment"
         isAdd -> "Added money"
         isWithdraw -> "Withdrawn money"

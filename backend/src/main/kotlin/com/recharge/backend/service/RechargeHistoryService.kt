@@ -11,7 +11,9 @@ import java.time.*
 @Service
 class RechargeHistoryService(
     private val repository: RechargeTransactionRepository,
-    private val commissionRateService: CommissionRateService
+    private val commissionRateService: CommissionRateService,
+    private val upstreamCommissions: com.recharge.backend.repository.ClientUpstreamCommissionRepository,
+    private val clientCommissionService: ClientCommissionService
 ) {
     private val zoneId: ZoneId = ZoneId.of("Asia/Kolkata")
 
@@ -59,13 +61,20 @@ class RechargeHistoryService(
             to = to,
             commission = repository.sumClientCommission(userId, from.toInstant(), to).setScale(2),
             successfulRechargeAmount = repository.sumSuccessfulRechargeAmount(userId, from.toInstant(), to).setScale(2),
-            successfulRechargeCount = repository.countSuccessfulRecharges(userId, from.toInstant(), to)
+            successfulRechargeCount = repository.countSuccessfulRecharges(userId, from.toInstant(), to),
+            upstreamCommission = upstreamCommissions.sumCommission(userId, from.toInstant(), to).setScale(2)
         )
 
+        val overview = clientCommissionService.overview(userId)
         return RechargeCommissionSummaryResponse(
             commissionPercent = commissionRateService.rateForUser(userId),
             daily = period(todayStart, nowInstant),
-            monthly = period(monthStart, nowInstant)
+            monthly = period(monthStart, nowInstant),
+            upstreamCommissionPercent = overview.upstreamCommissionPercent,
+            level = overview.level,
+            directClientCount = overview.directClientCount,
+            level2DirectClientThreshold = overview.level2DirectClientThreshold,
+            upstreamEligible = overview.upstreamEligible
         )
     }
 

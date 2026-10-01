@@ -11,7 +11,8 @@ import java.time.Instant
 @Service
 class RechargeTransactionWorkflowService(
     private val repository: RechargeTransactionRepository,
-    private val walletService: WalletService
+    private val walletService: WalletService,
+    private val clientCommissionService: ClientCommissionService
 ) {
 
     @Transactional
@@ -103,7 +104,7 @@ class RechargeTransactionWorkflowService(
         providerReference: String?,
         message: String?
     ): RechargeTransactionEntity {
-        val tx = repository.findByTransactionId(transactionId).orElseThrow()
+        val tx = repository.findByTransactionIdForUpdate(transactionId).orElseThrow()
         val status = resultStatus.uppercase()
 
         if (tx.status == "SUCCESS" || tx.status == "FAILED") return tx
@@ -117,6 +118,7 @@ class RechargeTransactionWorkflowService(
                     referenceId = tx.transactionId
                 )
                 tx.status = "SUCCESS"
+                clientCommissionService.creditUpstreamCommission(tx)
                 tx.walletLedgerRef = tx.transactionId
                 tx.completedAt = Instant.now()
             }
