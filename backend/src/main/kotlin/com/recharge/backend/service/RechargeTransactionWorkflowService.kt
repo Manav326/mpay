@@ -104,7 +104,7 @@ class RechargeTransactionWorkflowService(
         providerReference: String?,
         message: String?
     ): RechargeTransactionEntity {
-        val tx = repository.findByTransactionId(transactionId).orElseThrow()
+        val tx = repository.findByTransactionIdForUpdate(transactionId).orElseThrow()
         val status = resultStatus.uppercase()
 
         if (tx.status == "SUCCESS" || tx.status == "FAILED") return tx
