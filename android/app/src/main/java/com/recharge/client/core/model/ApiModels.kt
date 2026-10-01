@@ -148,13 +148,73 @@ data class CommissionPeriodSummary(
     val to: String,
     val commission: BigDecimal,
     val successfulRechargeAmount: BigDecimal,
-    val successfulRechargeCount: Long
+    val successfulRechargeCount: Long,
+    val upstreamCommission: BigDecimal = BigDecimal.ZERO
 )
 
 data class RechargeCommissionSummaryResponse(
     val commissionPercent: BigDecimal,
     val daily: CommissionPeriodSummary,
-    val monthly: CommissionPeriodSummary
+    val monthly: CommissionPeriodSummary,
+    val upstreamCommissionPercent: BigDecimal = BigDecimal.ZERO,
+    val level: Int = 0,
+    val directClientCount: Int = 0,
+    val level2DirectClientThreshold: Int = 5,
+    val upstreamEligible: Boolean = false
+)
+
+data class ClientCommissionOverviewResponse(
+    val publicUserId: String,
+    val level: Int,
+    val baseCommissionPercent: BigDecimal,
+    val directClientCount: Int,
+    val level2DirectClientThreshold: Int,
+    val level2Qualified: Boolean,
+    val canAddClients: Boolean,
+    val upstreamCommissionPercent: BigDecimal,
+    val upstreamCommissionActive: Boolean,
+    val upstreamEligible: Boolean,
+    val parent: ClientReferralMemberResponse? = null,
+    val todayUpstreamCommission: BigDecimal,
+    val monthUpstreamCommission: BigDecimal
+)
+
+data class ClientReferralMemberResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String,
+    val assignedAt: String
+)
+
+data class ClientSearchResultResponse(
+    val publicUserId: String,
+    val name: String?,
+    val mobile: String
+)
+
+data class AddClientCommissionMemberRequest(
+    val clientPublicId: String
+)
+
+data class ClientUpstreamCommissionHistoryItem(
+    val childPublicUserId: String,
+    val childName: String?,
+    val childMobile: String,
+    val rechargeTransactionId: String,
+    val rechargeAmount: BigDecimal,
+    val commissionPercent: BigDecimal,
+    val commissionAmount: BigDecimal,
+    val walletLedgerRef: String,
+    val createdAt: String
+)
+
+data class ClientUpstreamCommissionPageResponse(
+    val items: List<ClientUpstreamCommissionHistoryItem>,
+    val page: Int,
+    val size: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val hasNext: Boolean
 )
 
 
