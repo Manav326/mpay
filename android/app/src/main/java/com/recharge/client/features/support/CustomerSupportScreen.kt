@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.HeadsetMic
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -63,7 +65,6 @@ fun CustomerSupportScreen(
     var overview by remember { mutableStateOf<CustomerSupportOverviewResponse?>(null) }
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
-    var reason by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
     suspend fun load() {
@@ -92,11 +93,10 @@ fun CustomerSupportScreen(
         scope.launch {
             runCatching {
                 NetworkModule.clientApi(context).requestCustomerSupportCall(
-                    CreateSupportCallRequest(reason.trim().ifBlank { null })
+                    CreateSupportCallRequest(null)
                 )
             }.onSuccess { response ->
                 if (response.isSuccessful) {
-                    reason = ""
                     load()
                 } else {
                     error = "mPay could not create the callback request."
@@ -192,101 +192,15 @@ fun CustomerSupportScreen(
                     }
                 }
 
-                SupportHero(
+                SupportActions(
                     enabled = overview?.callbackRequestEnabled == true,
                     onOpenChat = onOpenChat,
-                    showHeading = !embedded,
                     pending = overview?.pendingRequest,
                     busy = busy,
                     onRequest = ::requestCall,
-                    reason = reason,
-                    onReasonChange = { reason = it.take(500) },
-                    onCancel = { request -> cancelRequest(request) }
+                    onCancel = ::cancelRequest,
+                    currentTicket = overview?.cases.orEmpty().firstOrNull()
                 )
-
-                Text(
-                    "Your Support Issue",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = AppColors.TextPrimary
-                )
-
-                if (overview?.cases.isNullOrEmpty()) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(18.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text("No active support issue", fontWeight = FontWeight.Bold)
-                            Text(
-                                "Start a support chat and mPay Support will create the issue summary here.",
-                                color = AppColors.TextSecondary,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                } else {
-                    val item = overview?.cases.orEmpty().first()
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(18.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(7.dp)
-                        ) {
-                            Text(item.subject, fontWeight = FontWeight.Bold)
-                            Text(
-                                item.status.replace('_', ' '),
-                                color = if (item.status == "RESOLVED" || item.status == "CLOSED") Color(0xFF15803D) else AppColors.PrimaryDark,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp)
-                            ) {
-                                Column(
-                                    Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        "Last updated",
-                                        color = AppColors.TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                    Text(
-                                        formatSupportDate(item.lastMeaningfulUpdateAt ?: item.updatedAt),
-                                        fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                                Column(
-                                    Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        "Expected resolution",
-                                        color = AppColors.TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                    Text(
-                                        formatSupportDate(item.expectedResolutionAt ?: item.updatedAt),
-                                        fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.size(12.dp))
             }
         }
     }
@@ -294,61 +208,197 @@ fun CustomerSupportScreen(
 }
 
 @Composable
-private fun SupportHero(
+private fun SupportActions(
     enabled: Boolean,
     onOpenChat: () -> Unit,
-    showHeading: Boolean,
     pending: SupportCallRequestResponse?,
     busy: Boolean,
     onRequest: () -> Unit,
-    reason: String,
-    onReasonChange: (String) -> Unit,
-    onCancel: (SupportCallRequestResponse) -> Unit
+    onCancel: (SupportCallRequestResponse) -> Unit,
+    currentTicket: com.recharge.client.core.model.SupportCaseResponse?
+) {
+    SupportActionCard(
+        icon = Icons.Default.ChatBubbleOutline,
+        title = "Chat with mPay Support",
+        subtitle = "Continue with customer care chat and keep the issue history together.",
+        onClick = onOpenChat
+    )
+
+    SupportActionCard(
+        icon = Icons.Default.Call,
+        title = if (pending == null) "Request a callback" else "Callback requested",
+        subtitle = when {
+            pending != null -> "Your callback request is ${pending.status.replace('_', ' ').lowercase()}. You can cancel it while it is pending."
+            enabled -> "Ask mPay Support to call you about an issue that needs direct assistance."
+            else -> "Support calls are currently unavailable. Chat with mPay Support for help."
+        },
+        trailing = {
+            if (pending != null) {
+                OutlinedButton(
+                    onClick = { onCancel(pending) },
+                    enabled = !busy,
+                    shape = RoundedCornerShape(11.dp)
+                ) {
+                    Icon(Icons.Default.CallEnd, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(5.dp))
+                    Text(if (busy) "Cancelling…" else "Cancel")
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onRequest,
+                    enabled = enabled && !busy,
+                    shape = RoundedCornerShape(11.dp)
+                ) {
+                    Icon(Icons.Default.Call, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(5.dp))
+                    Text(if (busy) "Requesting…" else "Request callback")
+                }
+            }
+        }
+    )
+
+    SupportTicketCard(currentTicket)
+}
+
+@Composable
+private fun SupportActionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(11.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = AppColors.Primary.copy(alpha = .10f)
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = AppColors.PrimaryDark,
+                    modifier = Modifier.padding(9.dp).size(21.dp)
+                )
+            }
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(title, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                Text(
+                    subtitle,
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            trailing?.invoke()
+        }
+    }
+}
+
+@Composable
+private fun SupportTicketCard(
+    ticket: com.recharge.client.core.model.SupportCaseResponse?
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (showHeading) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(13.dp), color = AppColors.Primary.copy(alpha = .14f)) {
-                    Icon(Icons.Default.HeadsetMic, null, tint = AppColors.PrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppColors.Primary.copy(alpha = .10f)
+                ) {
+                    Icon(
+                        Icons.Default.Description,
+                        contentDescription = null,
+                        tint = AppColors.PrimaryDark,
+                        modifier = Modifier.padding(9.dp).size(21.dp)
+                    )
                 }
-                Spacer(Modifier.size(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Help & Support", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                    Text("Choose how you want mPay Support to help.", color = AppColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            }
-
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpenChat, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
-                    Icon(Icons.Default.HeadsetMic, null)
-                    Spacer(Modifier.size(6.dp))
-                    Text("Chat with Support", fontWeight = FontWeight.Bold)
-                }
-                if (pending != null) {
-                    OutlinedButton(onClick = { onCancel(pending) }, enabled = !busy, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
-                        Icon(Icons.Default.CallEnd, null)
-                        Spacer(Modifier.size(6.dp))
-                        Text("Cancel callback")
-                    }
-                } else if (enabled) {
-                    OutlinedButton(onClick = onRequest, enabled = !busy, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) {
-                        Icon(Icons.Default.Call, null)
-                        Spacer(Modifier.size(6.dp))
-                        Text(if (busy) "Requesting…" else "Request a callback")
-                    }
+                Spacer(Modifier.size(11.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Your Support Issue", fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                    Text(
+                        "Latest support status",
+                        color = AppColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
 
-            if (pending != null) {
-                Text("Callback requested · " + pending.status.replace('_', ' '), color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
-            }
+            if (ticket == null) {
+                Text(
+                    "No active support issue",
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Start a support chat and mPay Support will create the issue summary here.",
+                    color = AppColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                Text(ticket.subject, fontWeight = FontWeight.SemiBold)
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") {
+                        Color(0xFFEAF7EE)
+                    } else {
+                        AppColors.Primary.copy(alpha = .12f)
+                    }
+                ) {
+                    Text(
+                        ticket.status.replace('_', ' '),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        color = if (ticket.status == "RESOLVED" || ticket.status == "CLOSED") {
+                            Color(0xFF15803D)
+                        } else {
+                            AppColors.PrimaryDark
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Last updated", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            formatSupportDate(ticket.lastMeaningfulUpdateAt ?: ticket.updatedAt),
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Expected resolution", color = AppColors.TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            ticket.expectedResolutionAt?.let(::formatSupportDate) ?: "Not available",
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }            }
         }
     }
 }
