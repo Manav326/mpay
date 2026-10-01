@@ -409,14 +409,6 @@ export default function CustomerCarePanel({
     if (!canManageSupport || !canCallCustomer || busyKey) return;
     setBusyKey('call:' + request.requestId);
     try {
-      if (request.customerPublicId) {
-        const availability = await getCustomerCareVoiceCallAvailability(request.customerPublicId);
-        if (!availability.available) {
-          if (selected?.customerPublicId === request.customerPublicId) setVoiceCallAvailable(false);
-          setNotice('Customer is currently unavailable for voice calls.');
-          return;
-        }
-      }
       const call = await startCustomerCareCall(request.requestId);
       setActiveCallId(call.callId);
       setActiveCallName(request.customerName || request.customerMobile || 'mPay customer');
@@ -433,19 +425,17 @@ export default function CustomerCarePanel({
   }
 
   async function directCall() {
-    if (!selected || !canCallCustomer || busyKey || voiceCallAvailable !== true) return;
+    if (!selected || !canCallCustomer || busyKey) return;
     setBusyKey('direct-call');
     try {
-      const availability = await getCustomerCareVoiceCallAvailability(selected.customerPublicId);
-      setVoiceCallAvailable(availability.available);
-      if (!availability.available) {
-        setNotice('Customer is currently unavailable for voice calls.');
-        return;
-      }
       const call = await createVoiceCall(selected.customerPublicId);
       setActiveCallId(call.callId);
       setActiveCallName(selected.customerName || selected.mobile || 'mPay customer');
-      setNotice('Voice support call started.');
+      setNotice(
+        voiceCallAvailable === false
+          ? 'Voice call started. The current device status is unavailable, but the call attempt is still allowed.'
+          : 'Voice support call started.'
+      );
     } catch (error: any) {
       setNotice(error?.message || 'Unable to start the customer call.');
     } finally {
@@ -1037,9 +1027,9 @@ export default function CustomerCarePanel({
                   {selected.pendingRequest && (
                     <button
                       className="primary compact"
-                      disabled={!canCallCustomer || voiceCallAvailable !== true || !!busyKey || !!activeCallId}
+                      disabled={!canCallCustomer || !!busyKey || !!activeCallId}
                       onClick={() => void startRequestCall(selected.pendingRequest!)}
-                      title={voiceCallAvailable === false ? 'Customer is unavailable for voice calls' : undefined}
+                      title="Device availability is informational; the callback can still be attempted."
                     >
                       <PhoneCall size={14} /> Call requested
                     </button>
@@ -1047,9 +1037,9 @@ export default function CustomerCarePanel({
                   {canCallCustomer && !selected.pendingRequest && (
                     <button
                       className="secondary compact"
-                      disabled={voiceCallAvailable !== true || !!busyKey || !!activeCallId}
+                      disabled={!!busyKey || !!activeCallId}
                       onClick={() => void directCall()}
-                      title={voiceCallAvailable === false ? 'Customer is unavailable for voice calls' : undefined}
+                      title="Device availability is informational; the call can still be attempted."
                     >
                       <PhoneCall size={14} /> Call customer
                     </button>
