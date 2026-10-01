@@ -161,8 +161,16 @@ class ClientCommissionServiceTest {
             mobile = "9000000001"
         )
 
+        val settings = ClientCommissionSettingsEntity(
+            id = 1L,
+            level2DirectClientThreshold = 5,
+            upstreamCommissionPercent = BigDecimal("0.1000"),
+            upstreamCommissionActive = true
+        )
+
         Mockito.doReturn(Optional.of(parent)).`when`(users).findById(1L)
         Mockito.doReturn(true).`when`(rechargeTransactions).existsByUserId(1L)
+        Mockito.doReturn(Optional.of(settings)).`when`(settingsRepository).findById(1L)
         Mockito.doReturn(Optional.empty<UserEntity>()).`when`(users).findByPublicId("CLIENT-UNKNOWN")
 
         val results = service.searchEligibleClients(1L, "CLIENT-UNKNOWN")
