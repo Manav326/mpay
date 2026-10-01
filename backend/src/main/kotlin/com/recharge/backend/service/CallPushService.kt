@@ -6,6 +6,8 @@ import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.AndroidConfig
 import com.google.firebase.messaging.AndroidFcmOptions
 import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.FirebaseMessagingException
+import com.google.firebase.messaging.MessagingErrorCode
 import com.google.firebase.messaging.MulticastMessage
 import com.recharge.backend.config.CallProperties
 import com.recharge.backend.domain.CallPushDeviceEntity
@@ -13,6 +15,7 @@ import com.recharge.backend.repository.CallPushDeviceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.ByteArrayInputStream
+import java.time.Duration
 import java.time.Instant
 import java.util.Base64
 
@@ -22,6 +25,12 @@ class CallPushService(
     private val properties: CallProperties
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        // FCM recommends treating registrations as stale after roughly a month without a client connection.
+        // mPay gives active logged-in devices a small grace period while the app refreshes the token on resume.
+        private val DEVICE_STALE_AFTER: Duration = Duration.ofDays(35)
+    }
 
     fun register(userId: Long, token: String, platform: String) {
         val normalized = token.trim()
@@ -74,8 +83,21 @@ class CallPushService(
         )
     }
 
-    fun hasActiveDevice(userId: Long): Boolean =
-        devices.findAllByUserIdAndActiveTrue(userId).isNotEmpty()
+    fun hasActiveDevice(userId: Long): Boolean {
+        val cutoff = Instant.now().minus(DEVICE_STALE_AFTER)
+        val activeDevices = devices.findAllByUserIdAndActiveTrue(userId)
+        return activeDevices.any { it.lastSeenAt.isAfter(cutoff) }
+    }
+
+    private fun deactivateInvalidToken(token: String) {
+        devices.findByToken(token).orElse(null)?.let { device ->
+            if (device.active) {
+                device.active = false
+                device.updatedAt = Instant.now()
+                devices.save(device)
+            }
+        }
+    }
 
     fun revoke(userId: Long, token: String) {
         val normalized = token.trim()
@@ -142,12 +164,25 @@ class CallPushService(
                     successCount++
                 } else {
                     failureCount++
+                    val exception = result.exception
+                    if (
+                        exception is FirebaseMessagingException &&
+                        exception.messagingErrorCode == MessagingErrorCode.UNREGISTERED
+                    ) {
+                        deactivateInvalidToken(tokens[index])
+                        log.info(
+                            "Deactivated invalid FCM voice-call token. event={} callId={} tokenIndex={}",
+                            data["event"],
+                            data["callId"],
+                            index
+                        )
+                    }
                     log.warn(
                         "FCM voice-call delivery failed. event={} callId={} tokenIndex={} error={}",
                         data["event"],
                         data["callId"],
                         index,
-                        result.exception?.message
+                        exception?.message
                     )
                 }
             }
