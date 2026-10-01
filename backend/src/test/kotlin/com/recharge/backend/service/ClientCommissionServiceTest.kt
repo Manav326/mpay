@@ -60,7 +60,6 @@ class ClientCommissionServiceTest {
         Mockito.doReturn(Optional.of(settings)).`when`(settingsRepository).findById(1L)
         Mockito.doReturn(5).`when`(referrals).countByParentUserId(1L)
         Mockito.doReturn(false).`when`(upstreamCommissions).existsByRechargeTransactionId("RCH-100")
-        Mockito.doReturn(Optional.of(parent)).`when`(users).findById(1L)
         Mockito.doReturn(BigDecimal("100.10")).`when`(wallet).credit(
             Mockito.eq(1L),
             Mockito.eq(BigDecimal("0.10")),
@@ -99,7 +98,13 @@ class ClientCommissionServiceTest {
         Mockito.doReturn(4).`when`(referrals).countByParentUserId(1L)
 
         val result = service.creditUpstreamCommission(
-            RechargeTransactionEntity(transactionId = "RCH-101", userId = 2L, amount = BigDecimal("100.00"), walletDebitAmount = BigDecimal("99.00"))
+            RechargeTransactionEntity(
+                transactionId = "RCH-101",
+                userId = 2L,
+                amount = BigDecimal("100.00"),
+                walletDebitAmount = BigDecimal("99.00"),
+                status = "SUCCESS"
+            )
         )
 
         assertNull(result)
