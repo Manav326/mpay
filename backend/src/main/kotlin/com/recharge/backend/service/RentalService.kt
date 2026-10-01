@@ -1077,6 +1077,13 @@ class RentalService(
             ?: throw IllegalArgumentException("Vehicle driver not found")
         require(driver.active) { "Driver must be active before approving a vehicle" }
         require(driver.licenseExpiry.isAfter(LocalDateTime.now())) { "Driver license is expired" }
+        val photoReferences = rentalPhotoService.references(car.imageUrl)
+        require(photoReferences.size == 4 && photoReferences.all { reference ->
+            val key = reference.removePrefix(RentalPhotoService.RENTAL_PHOTO_URL_PREFIX)
+            runCatching { rentalImageStorage.load(key, ImageVariant.THUMB) }.getOrNull() != null
+        }) {
+            "Vehicle must have four accessible photos before it can be approved."
+        }
         car.approvalStatus = "APPROVED"; car.rejectionReason = null; car.active = true; cars.save(car)
         carReviews.save(RentalCarReviewEntity(carId = carId, action = "APPROVED", actorAccountId = requireNotNull(actor.id),
                     actorAccountType = "EMPLOYEE", createdAt = Instant.now()))
