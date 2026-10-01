@@ -15,6 +15,7 @@ import com.recharge.backend.repository.CallPushDeviceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.ByteArrayInputStream
+import java.time.Duration
 import java.time.Instant
 import java.util.Base64
 
@@ -24,6 +25,12 @@ class CallPushService(
     private val properties: CallProperties
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        // FCM recommends treating registrations as stale after roughly a month without a client connection.
+        // mPay gives active logged-in devices a small grace period while the app refreshes the token on resume.
+        private val DEVICE_STALE_AFTER: Duration = Duration.ofDays(35)
+    }
 
     fun register(userId: Long, token: String, platform: String) {
         val normalized = token.trim()
@@ -76,8 +83,11 @@ class CallPushService(
         )
     }
 
-    fun hasActiveDevice(userId: Long): Boolean =
-        devices.findAllByUserIdAndActiveTrue(userId).isNotEmpty()
+    fun hasActiveDevice(userId: Long): Boolean {
+        val cutoff = Instant.now().minus(DEVICE_STALE_AFTER)
+        val activeDevices = devices.findAllByUserIdAndActiveTrue(userId)
+        return activeDevices.any { it.lastSeenAt.isAfter(cutoff) }
+    }
 
     private fun deactivateInvalidToken(token: String) {
         devices.findByToken(token).orElse(null)?.let { device ->
