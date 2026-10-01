@@ -61,8 +61,19 @@ class ClientCommissionService(
 
     fun directClients(userId: Long): List<ClientReferralMemberResponse> {
         requireClient(userId)
-        return referrals.findAllByParentUserIdOrderByAssignedAtAsc(userId)
-            .map { memberFor(it.parentUserId, it.childUserId, it.assignedAt) }
+        val links = referrals.findAllByParentUserIdOrderByAssignedAtAsc(userId)
+        if (links.isEmpty()) return emptyList()
+        val usersById = users.findAllById(links.map { it.childUserId }).associateBy { it.id }
+        return links.mapNotNull { link ->
+            usersById[link.childUserId]?.let { child ->
+                ClientReferralMemberResponse(
+                    publicUserId = child.publicId,
+                    name = child.name,
+                    mobile = child.mobile,
+                    assignedAt = link.assignedAt
+                )
+            }
+        }
     }
 
     fun searchEligibleClients(userId: Long, query: String): List<ClientSearchResultResponse> {
@@ -71,10 +82,13 @@ class ClientCommissionService(
         val normalized = query.trim()
         require(normalized.length >= 3) { "Enter at least 3 characters to search for a client" }
         val candidates = users.searchSupportCustomers(normalized, PageRequest.of(0, 30))
+        if (candidates.isEmpty()) return emptyList()
+        val candidateIds = candidates.mapNotNull { it.id }.filter { it != parent.id }
+        val assignedIds = referrals.findAllByChildUserIdIn(candidateIds).mapTo(mutableSetOf()) { it.childUserId }
         return candidates.asSequence()
             .filter { it.id != parent.id }
             .filter { it.role.equals("CLIENT", true) && it.active && it.deletedAt == null && it.mobileVerifiedAt != null }
-            .filter { referrals.findByChildUserId(it.id!!).isEmpty }
+            .filter { it.id !in assignedIds }
             .take(10)
             .map { ClientSearchResultResponse(it.publicId, it.name, it.mobile) }
             .toList()
