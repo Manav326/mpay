@@ -162,6 +162,20 @@ class RechargeTransactionWorkflowService(
         return saved
     }
 
+    @Transactional
+    fun markProviderSubmissionStarted(transactionId: String): RechargeTransactionEntity {
+        val tx = repository.findByTransactionIdForUpdate(transactionId).orElseThrow()
+        if (tx.status == "SUCCESS" || tx.status == "FAILED") return tx
+        if (tx.providerSubmissionStartedAt == null) {
+            tx.providerSubmissionStartedAt = Instant.now()
+            tx.updatedAt = Instant.now()
+            val saved = repository.save(tx)
+            recordEvent(saved, tx.status, tx.status, "PROVIDER_SUBMISSION_STARTED", "Recharge provider submission started.")
+            return saved
+        }
+        return tx
+    }
+
     private fun recordEvent(tx: RechargeTransactionEntity, fromStatus: String?, toStatus: String, eventType: String, message: String?) {
         eventRepository.save(
             com.recharge.backend.domain.RechargeTransactionEventEntity(
