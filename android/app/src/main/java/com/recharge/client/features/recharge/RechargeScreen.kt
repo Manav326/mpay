@@ -85,14 +85,14 @@ fun RechargeScreen(
         is RechargeActionState.Pending -> RechargeResultDialog(
             title = "Recharge is processing",
             body = "Your recharge has been accepted and is still being processed.",
-            detail = "Wallet debit reserved: ₹${formatMoney(action.response.walletDebitAmount)}",
+            detail = "Amount reserved: ₹${formatMoney(action.response.walletDebitAmount)}",
             positive = false,
             onDismiss = onDone
         )
         is RechargeActionState.Failure -> RechargeResultDialog(
             title = "Recharge not completed",
             body = action.message,
-            detail = "No permanent wallet debit is made for a failed recharge.",
+            detail = "No wallet amount was charged for this failed recharge.",
             positive = false,
             onDismiss = onDone
         )
