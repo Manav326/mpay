@@ -74,6 +74,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [markerColor, setMarkerColor] = useState<MarkerColor>("yellow");
+  const [markerEnabled, setMarkerEnabled] = useState(false);
   const [markers, setMarkers] = useState<Record<number, MarkerStroke[]>>(() =>
     readMarkers(item.slug),
   );
@@ -571,17 +572,22 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
         <div className="reader-actions">
           <button
             type="button"
-            className={markerColor === "yellow" ? "active marker-yellow" : "marker-yellow"}
-            onClick={() => setMarkerColor("yellow")}
-            title="Yellow marker"
+            className={markerEnabled ? "active" : ""}
+            onClick={() => setMarkerEnabled((enabled) => !enabled)}
+            title={markerEnabled ? "Turn marker off and enable reading/scrolling" : "Turn marker on"}
+            aria-pressed={markerEnabled}
           >
             <Highlighter size={15} />
           </button>
           <button
             type="button"
             className={markerColor === "green" ? "active marker-green" : "marker-green"}
-            onClick={() => setMarkerColor("green")}
+            onClick={() => {
+              setMarkerColor("green");
+              setMarkerEnabled(true);
+            }}
             title="Light green marker"
+            aria-pressed={markerColor === "green" && markerEnabled}
           >
             <span />
           </button>
@@ -666,13 +672,24 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
               <canvas ref={pageCanvasRef} />
               <canvas
                 ref={markerCanvasRef}
-                className="study-marker-layer"
+                className={markerEnabled ? "study-marker-layer active" : "study-marker-layer"}
                 onPointerDown={beginMarker}
                 onPointerMove={moveMarker}
                 onPointerUp={endMarker}
                 onPointerCancel={endMarker}
               />
             </div>
+          </div>
+
+          <div className="study-reader-mode">
+            <span className={markerEnabled ? "active" : ""}>
+              {markerEnabled ? "MARK MODE" : "READ MODE"}
+            </span>
+            <b>
+              {markerEnabled
+                ? "Swipe/stroke on the page to mark. Tap the marker button to return to normal scrolling."
+                : "Scroll normally. Turn on the marker only when you want to highlight something."}
+            </b>
           </div>
 
           <div className="study-page-controls">
