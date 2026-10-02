@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { Readable } from "node:stream";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { getStudyBook } from "../../../../studyBooks";
+import { getStudyBook } from "@/app/store/studyBooks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
