@@ -28,3 +28,6 @@ backups/
 # Generated mPay branding outputs (source: admin-web/public/branding/mpay-logo.png)
 android/app/src/main/res/drawable-nodpi/mpay_logo.png
 android/store-assets/mPay-play-store-icon-1024.png
+
+# Runtime-managed Store study assets (downloaded by mpay-store-sync-ncert.ps1)
+store-content/
