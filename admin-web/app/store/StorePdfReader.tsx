@@ -157,7 +157,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       } catch {
         if (!disposed) {
           setError(
-            "The official textbook could not be loaded right now. Please retry, or use the NCERT source link.",
+            "The complete book is not currently installed in the Store content bundle. Please contact Store support.",
           );
         }
       } finally {
