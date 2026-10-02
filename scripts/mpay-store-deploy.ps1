@@ -127,6 +127,9 @@ try {
 
     $env:MPAY_STORE_WEB_IMAGE = "ghcr.io/manav326/mpay-store-web"
     $env:MPAY_STORE_WEB_TAG = "store-sha-$commitSha"
+    $env:MPAY_STORE_CONTENT_DIR = Join-Path $DeployDirectory "store-content"
+
+    New-Item -ItemType Directory -Force -Path (Join-Path $env:MPAY_STORE_CONTENT_DIR "ncert") | Out-Null
 
     Write-Host ""
     Write-Host "Validating Store Compose configuration..." -ForegroundColor Cyan
