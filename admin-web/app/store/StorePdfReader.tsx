@@ -572,16 +572,28 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
         <div className="reader-actions">
           <button
             type="button"
-            className={markerEnabled ? "active" : ""}
+            className={markerEnabled ? "active marker-toggle" : "marker-toggle"}
             onClick={() => setMarkerEnabled((enabled) => !enabled)}
             title={markerEnabled ? "Turn marker off and enable reading/scrolling" : "Turn marker on"}
             aria-pressed={markerEnabled}
+          >
+            <Hand size={15} />
+          </button>
+          <button
+            type="button"
+            className={markerColor === "yellow" && markerEnabled ? "active marker-yellow" : "marker-yellow"}
+            onClick={() => {
+              setMarkerColor("yellow");
+              setMarkerEnabled(true);
+            }}
+            title="Yellow marker"
+            aria-pressed={markerColor === "yellow" && markerEnabled}
           >
             <Highlighter size={15} />
           </button>
           <button
             type="button"
-            className={markerColor === "green" ? "active marker-green" : "marker-green"}
+            className={markerColor === "green" && markerEnabled ? "active marker-green" : "marker-green"}
             onClick={() => {
               setMarkerColor("green");
               setMarkerEnabled(true);
@@ -603,10 +615,38 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
           <button type="button" onClick={() => setZoom((value) => Math.min(1.6, value + 0.1))} title="Zoom in">
             <Plus size={15} />
           </button>
-          <button type="button" onClick={downloadMarkedPdf} disabled={!hasMarks || exporting} title={item.kind === "ncert" ? "Download marker positions PDF" : "Download marked PDF"}>
-            <Download size={15} />
-            <span>{exporting ? "Exporting…" : item.kind === "ncert" ? "Marks PDF" : "Marked PDF"}</span>
-          </button>
+          {item.kind === "ncert" ? (
+            <>
+              <a
+                className="reader-download-link"
+                href={`${item.pdfUrl}?download=1`}
+                title="Download the complete textbook PDF"
+                aria-label="Download complete textbook PDF"
+              >
+                <Download size={15} />
+                <span>Book PDF</span>
+              </a>
+              <button
+                type="button"
+                onClick={downloadMarkedPdf}
+                disabled={!hasMarks || exporting}
+                title="Download your saved marker positions only"
+              >
+                <Download size={15} />
+                <span>{exporting ? "Exporting…" : "Marks only"}</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={downloadMarkedPdf}
+              disabled={!hasMarks || exporting}
+              title="Download the marked PDF"
+            >
+              <Download size={15} />
+              <span>{exporting ? "Exporting…" : "Marked PDF"}</span>
+            </button>
+          )}
         </div>
       </header>
 
