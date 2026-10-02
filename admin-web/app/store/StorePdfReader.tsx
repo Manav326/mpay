@@ -136,8 +136,9 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
         const task = pdfjs.getDocument({
           url: `/store/api/reader-pdf/${encodeURIComponent(item.slug)}`,
           withCredentials: false,
-          disableAutoFetch: false,
-          disableStream: false,
+          disableAutoFetch: true,
+          disableStream: true,
+          disableRange: true,
         });
         const loaded = await task.promise;
         if (disposed) {
