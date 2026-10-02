@@ -133,12 +133,17 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
           import.meta.url,
         ).toString();
 
+        const pdfUrl =
+          item.kind === "ncert"
+            ? item.pdfUrl
+            : `/store/api/reader-pdf/${encodeURIComponent(item.slug)}`;
+
         const task = pdfjs.getDocument({
-          url: `/store/api/reader-pdf/${encodeURIComponent(item.slug)}`,
+          url: pdfUrl,
           withCredentials: false,
-          disableAutoFetch: true,
-          disableStream: true,
-          disableRange: true,
+          disableAutoFetch: false,
+          disableStream: false,
+          disableRange: false,
         });
         const loaded = await task.promise;
         if (disposed) {
