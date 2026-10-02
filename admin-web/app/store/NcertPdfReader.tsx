@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ArrowLeft, ChevronLeft, ChevronRight, Download, Eraser, Highlighter, List, Minus, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { ncertStudyBooksBySlug, NcertStudyBook } from "./ncertStudyBooks";
+import { ncertStudyBooksBySlug } from "./ncertStudyBooks";
+import type { NcertStudyBook } from "./ncertStudyBooks";
 
 type Point={x:number;y:number};
 type Color="yellow"|"green";
@@ -239,7 +240,7 @@ export default function NcertPdfReader({id}:{id:string}){
    <div className="reader-progress"><span style={{width:`${numPages?Math.round(pageNumber/numPages*100):0}%`}}/></div>
 
    <div className="study-reader-body">
-     {showLibrary && <aside className="study-book-drawer">
+     {showLibrary && <aside className={"study-book-drawer"+(showLibrary ? " open" : "")}>
        <div className="study-drawer-head"><span>YOUR STUDY SHELF</span><b>Classes IX–XII</b></div>
        {([9,10,11,12] as const).map(level=>{
          const same=ncertStudyBooksBySlug;
