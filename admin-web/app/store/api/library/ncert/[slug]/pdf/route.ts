@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getStudyBook } from "../../../../studyBooks";
@@ -68,7 +69,7 @@ async function handle(request: Request, { params }: { params: Promise<{ slug: st
   if (!range) {
     headers.set("Content-Length", String(stat.size));
     const stream = fs.createReadStream(asset.path);
-    return new Response(stream as unknown as ReadableStream, {
+    return new Response(Readable.toWeb(stream) as ReadableStream, {
       status: 200,
       headers,
     });
