@@ -124,12 +124,14 @@ try {
     Write-Host "Branch       : $Branch"
     Write-Host "Commit       : $commitSha"
     Write-Host "Store Web    : ghcr.io/manav326/mpay-store-web:store-sha-$commitSha"
+    Write-Host "Store Content: ghcr.io/manav326/mpay-store-content:$($env:MPAY_STORE_CONTENT_TAG)"
 
     $env:MPAY_STORE_WEB_IMAGE = "ghcr.io/manav326/mpay-store-web"
     $env:MPAY_STORE_WEB_TAG = "store-sha-$commitSha"
-    $env:MPAY_STORE_CONTENT_DIR = Join-Path $DeployDirectory "store-content"
-
-    New-Item -ItemType Directory -Force -Path (Join-Path $env:MPAY_STORE_CONTENT_DIR "ncert") | Out-Null
+    $env:MPAY_STORE_CONTENT_IMAGE = "ghcr.io/manav326/mpay-store-content"
+    if ([string]::IsNullOrWhiteSpace($env:MPAY_STORE_CONTENT_TAG)) {
+        $env:MPAY_STORE_CONTENT_TAG = "store-content-current"
+    }
 
     Write-Host ""
     Write-Host "Validating Store Compose configuration..." -ForegroundColor Cyan
@@ -138,8 +140,11 @@ try {
         throw "Store Docker Compose configuration is invalid."
     }
 
-    Write-Host "Pulling exact Store image only..." -ForegroundColor Cyan
-    Invoke-Compose @("pull", "store-web")
+    Write-Host "Pulling exact Store web image and content image..." -ForegroundColor Cyan
+    Invoke-Compose @("pull", "store-web", "store-content-seed")
+
+    Write-Host "Refreshing the persistent Store content volume from the GHCR content image..." -ForegroundColor Cyan
+    Invoke-Compose @("run", "--rm", "--no-deps", "store-content-seed")
 
     Write-Host "Starting Store container only..." -ForegroundColor Cyan
     Invoke-Compose @("up", "-d", "--no-deps", "store-web")
