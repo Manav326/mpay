@@ -1,0 +1,11 @@
+import Link from "next/link";
+import { ArrowLeft, ArrowRight, Check, ExternalLink, Layers3 } from "lucide-react";
+import StoreShell from "../../StoreShell";
+import { websites } from "../../data";
+export function generateStaticParams(){return websites.map(w=>({slug:w.slug}));}
+export default async function WebsiteDetail({params}:{params:Promise<{slug:string}>}){const {slug}=await params; const w=websites.find(x=>x.slug===slug)??websites[0]; return <StoreShell><main className={`website-detail ${w.theme}`}>
+ <div className="detail-breadcrumb"><Link href="/websites"><ArrowLeft size={15}/> Websites</Link><span>/</span><span>{w.name}</span></div>
+ <section className="detail-hero"><div><span className="detail-category">{w.category}</span><h1>{w.name}</h1><p>{w.tagline}</p><div className="detail-actions"><Link className="store-primary" href={`/websites/${w.slug}/demo`}>Open live demo <ExternalLink size={15}/></Link><button className="store-secondary">Buy website <ArrowRight size={15}/></button></div><div className="detail-stats">{w.stats.map(s=><span key={s}><Layers3 size={14}/>{s}</span>)}</div></div><div className="detail-device"><div className="device-browser"><i/><i/><i/></div><div className="detail-site-art"><small>{w.category}</small><h2>{w.name}</h2><p>{w.tagline}</p><div className="detail-site-bars"><span/><span/><span/></div><button>Preview section</button></div></div></section>
+ <section className="detail-lower"><div className="detail-panel"><span>DELIVERY</span><h2>Everything needed to hand over a polished website.</h2><div className="detail-feature-grid">{w.features.map(f=><div key={f}><Check size={15}/><span>{f}</span></div>)}</div></div><div className="detail-panel detail-pages"><span>PAGES</span><h2>Included routes</h2>{w.pages.map((p,i)=><div key={p}><b>0{i+1}</b><span>{p}</span><ArrowRight size={14}/></div>)}</div></section>
+ <section className="detail-demo-strip"><div><span>SEE IT IN CONTEXT</span><h2>Browse the actual journey.</h2><p>Open the demo and move through multiple routes, just like a customer would.</p></div><Link href={`/websites/${w.slug}/demo`} className="store-primary">Launch demo <ArrowRight size={16}/></Link></section>
+ </main></StoreShell>}
