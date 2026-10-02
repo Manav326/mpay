@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, ChevronRight, Heart, MapPin, Search, ShoppingBag, Stethoscope, Utensils, BriefcaseBusiness } from "lucide-react";
-import StoreShell from "../../../StoreShell";
-import { websites } from "../../../data";
+import StoreShell from "../../../../StoreShell";
+import { websites } from "../../../../data";
 export function generateStaticParams(){return websites.flatMap(w=>w.pages.map((p,i)=>({slug:w.slug,path:i===0?[]:[p.toLowerCase().replaceAll(" ","-")]})));}
 function DemoBody({w,path}:{w:any;path:string[]}){const route=path[0]||""; const isHome=!route; const c=w.theme;
  const hero = c==="luma" ? {k:"LUMA DINING",t:"Tables worth remembering.",s:"Seasonal plates, warm rooms, slow evenings.",icon:<Utensils/>}:{};
