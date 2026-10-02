@@ -17,7 +17,7 @@
 }
 
 /* Page-based study reader: one page at a time, no document scrolling */
-.study-page-shell{overflow:hidden;touch-action:pan-x;overscroll-behavior:contain}
+.study-page-shell{overflow:hidden;touch-action:none;overscroll-behavior:contain;user-select:none}
 .study-page-canvas{will-change:transform,opacity}
 .page-transition-next{animation:study-page-next .22s cubic-bezier(.2,.75,.25,1)}
 .page-transition-previous{animation:study-page-previous .22s cubic-bezier(.2,.75,.25,1)}
