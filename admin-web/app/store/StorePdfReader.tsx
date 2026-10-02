@@ -387,14 +387,14 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       const { PDFDocument, rgb } = await import("pdf-lib");
 
       if (item.kind === "ncert") {
-        const document = await PDFDocument.create();
+        const exportDocument = await PDFDocument.create();
         const markedPages = Object.keys(markers)
           .map(Number)
           .filter((page) => (markers[page]?.length ?? 0) > 0)
           .sort((a, b) => a - b);
 
         for (const sourcePage of markedPages) {
-          const exportPage = document.addPage([612, 792]);
+          const exportPage = exportDocument.addPage([612, 792]);
           const left = 46;
           const top = 84;
           const width = 520;
@@ -461,10 +461,10 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
           }
         }
 
-        const output = await document.save();
+        const output = await exportDocument.save();
         const blob = new Blob([output], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
+        const anchor = window.document.createElement("a");
         anchor.href = url;
         anchor.download = `${item.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-marks.pdf`;
         anchor.click();
@@ -480,8 +480,8 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       if (!response.ok) throw new Error("Unable to fetch the source PDF.");
 
       const bytes = await response.arrayBuffer();
-      const document = await PDFDocument.load(bytes);
-      const pages = document.getPages();
+      const sourceDocument = await PDFDocument.load(bytes);
+      const pages = sourceDocument.getPages();
 
       pages.forEach((page, index) => {
         const strokes = markers[index + 1] ?? [];
@@ -514,10 +514,10 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
         }
       });
 
-      const output = await document.save();
+      const output = await sourceDocument.save();
       const blob = new Blob([output], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
+      const anchor = window.document.createElement("a");
 
       anchor.href = url;
       anchor.download = `${item.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-marked.pdf`;
