@@ -76,6 +76,8 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
   const [zoom, setZoom] = useState(1);
   const [markerColor, setMarkerColor] = useState<MarkerColor>("yellow");
   const [markerEnabled, setMarkerEnabled] = useState(false);
+  const [pageDirection, setPageDirection] = useState<"next" | "previous">("next");
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [markers, setMarkers] = useState<Record<number, MarkerStroke[]>>(() =>
     readMarkers(item.slug),
   );
@@ -292,7 +294,46 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
     };
   }, [pdf, pageNumber, pageWidth, zoom, redrawMarkers]);
 
+  function goToPage(target: number, direction: "next" | "previous") {
+    if (!numPages) return;
+    const nextPage = Math.max(1, Math.min(numPages, target));
+    if (nextPage === pageNumber) return;
+    setPageDirection(direction);
+    setPageNumber(nextPage);
+  }
+
+  function handlePageTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (markerEnabled) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handlePageTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (markerEnabled) {
+      touchStartRef.current = null;
+      return;
+    }
+
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch || !numPages) return;
+
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return;
+
+    if (dx < 0 && pageNumber < numPages) {
+      goToPage(pageNumber + 1, "next");
+    } else if (dx > 0 && pageNumber > 1) {
+      goToPage(pageNumber - 1, "previous");
+    }
+  }
+
   function beginMarker(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!markerEnabled) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     draftRef.current = [pagePoint(event)];
     drawDraft(draftRef.current);
@@ -398,48 +439,11 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
           .sort((a, b) => a - b);
 
         for (const sourcePage of markedPages) {
-          const exportPage = exportDocument.addPage([612, 792]);
-          const left = 46;
-          const top = 84;
-          const width = 520;
-          const height = 620;
+          const exportPage = exportDocument.getPages()[sourcePage - 1];
+          if (!exportPage) continue;
 
-          exportPage.drawText("mPay Study Marks", {
-            x: left,
-            y: 744,
-            size: 18,
-          });
-          exportPage.drawText(item.title, {
-            x: left,
-            y: 718,
-            size: 11,
-          });
-          exportPage.drawText(
-            `Class ${item.classLevel} · ${item.subject} · NCERT · Source page ${sourcePage}`,
-            {
-              x: left,
-              y: 700,
-              size: 9,
-            },
-          );
-          exportPage.drawText(
-            "This PDF contains your saved marker positions only; the textbook remains available from the official NCERT source.",
-            {
-              x: left,
-              y: 682,
-              size: 7.5,
-              color: rgb(0.35, 0.32, 0.29),
-            },
-          );
-
-          exportPage.drawRectangle({
-            x: left,
-            y: 44,
-            width,
-            height,
-            borderWidth: 1,
-            borderColor: rgb(0.82, 0.78, 0.71),
-          });
+          const width = exportPage.getWidth();
+          const height = exportPage.getHeight();
 
           for (const stroke of markers[sourcePage] ?? []) {
             for (let pointIndex = 1; pointIndex < stroke.points.length; pointIndex += 1) {
@@ -448,14 +452,14 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
 
               exportPage.drawLine({
                 start: {
-                  x: left + startPoint.x * width,
-                  y: 44 + (1 - startPoint.y) * height,
+                  x: startPoint.x * width,
+                  y: height - startPoint.y * height,
                 },
                 end: {
-                  x: left + endPoint.x * width,
-                  y: 44 + (1 - endPoint.y) * height,
+                  x: endPoint.x * width,
+                  y: height - endPoint.y * height,
                 },
-                thickness: 9,
+                thickness: Math.max(6, Math.min(18, width * 0.018)),
                 color: rgb(
                   ...(MARKER[stroke.color].pdf as [number, number, number])
                 ),
@@ -631,10 +635,10 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
                 type="button"
                 onClick={downloadMarkedPdf}
                 disabled={!hasMarks || exporting}
-                title="Download your saved marker positions only"
+                title="Download the complete textbook with your saved markers"
               >
                 <Download size={15} />
-                <span>{exporting ? "Exporting…" : "Marks only"}</span>
+                <span>{exporting ? "Exporting…" : "Marked book"}</span>
               </button>
             </>
           ) : (
@@ -708,8 +712,16 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
             </div>
           ) : null}
 
-          <div className="study-page-shell" ref={pageWrapRef}>
-            <div className="study-page-canvas">
+          <div
+            className="study-page-shell"
+            ref={pageWrapRef}
+            onTouchStart={handlePageTouchStart}
+            onTouchEnd={handlePageTouchEnd}
+          >
+            <div
+              key={`${item.slug}-page-${pageNumber}-${pageDirection}`}
+              className={`study-page-canvas page-transition-${pageDirection}`}
+            >
               <canvas ref={pageCanvasRef} />
               <canvas
                 ref={markerCanvasRef}
@@ -737,7 +749,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
             <button
               type="button"
               disabled={pageNumber <= 1}
-              onClick={() => setPageNumber((value) => Math.max(1, value - 1))}
+              onClick={() => goToPage(pageNumber - 1, "previous")}
             >
               <ChevronLeft size={17} />
               Previous
@@ -760,7 +772,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
             <button
               type="button"
               disabled={!numPages || pageNumber >= numPages}
-              onClick={() => setPageNumber((value) => Math.min(numPages, value + 1))}
+              onClick={() => goToPage(pageNumber + 1, "next")}
             >
               Next
               <ChevronRight size={17} />
