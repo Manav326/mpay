@@ -113,6 +113,8 @@ function Assert-CleanCheckout {
 }
 
 try {
+    $remoteBranchSha = $null
+
     if (-not (Test-Path (Join-Path $DeployDirectory ".git"))) {
         if ([string]::IsNullOrWhiteSpace($Branch)) {
             $Branch = "main"
@@ -125,6 +127,11 @@ try {
 
         Write-Host "Cloning branch '$Branch' into $DeployDirectory..." -ForegroundColor Yellow
         Invoke-Git @("clone", "--branch", $Branch, "--single-branch", $repoUrl, $DeployDirectory)
+        Set-Location $DeployDirectory
+        $remoteBranchSha = (git rev-parse HEAD).Trim()
+        if ($remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
+            throw "Could not determine the cloned remote branch SHA for refs/heads/$Branch."
+        }
     }
     else {
         Set-Location $DeployDirectory
@@ -186,9 +193,11 @@ try {
         throw "Could not determine deployment commit SHA."
     }
 
-    $remoteHeadSha = (git rev-parse "origin/$Branch").Trim()
-    if ($remoteHeadSha -ne $commitSha) {
-        throw "Deployment checkout is not synchronized with origin/$Branch. Local=$commitSha Remote=$remoteHeadSha"
+    if ([string]::IsNullOrWhiteSpace($remoteBranchSha) -or $remoteBranchSha -notmatch "^[0-9a-f]{40}$") {
+        throw "Could not determine the authoritative remote SHA for refs/heads/$Branch."
+    }
+    if ($remoteBranchSha -ne $commitSha) {
+        throw "Deployment checkout is not synchronized with remote/$Branch. Local=$commitSha Remote=$remoteBranchSha"
     }
 
     $backendImage = "ghcr.io/manav326/mpay-backend"
