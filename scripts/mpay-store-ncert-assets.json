@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "source": "NCERT official textbook PDF portal",
+  "books": [
+    {
+      "slug": "ncert-class-9-geography",
+      "title": "Contemporary India-I",
+      "url": "https://www.ncert.nic.in/textbook/pdf/iess1ps.pdf",
+      "filename": "ncert-class-9-geography.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-9-history",
+      "title": "India and the Contemporary World-I",
+      "url": "https://www.ncert.nic.in/textbook/pdf/iess3ps.pdf",
+      "filename": "ncert-class-9-history.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-9-economics",
+      "title": "Economics",
+      "url": "https://www.ncert.nic.in/textbook/pdf/iess2ps.pdf",
+      "filename": "ncert-class-9-economics.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-10-geography",
+      "title": "Contemporary India-II",
+      "url": "https://www.ncert.nic.in/textbook/pdf/jess1ps.pdf",
+      "filename": "ncert-class-10-geography.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-10-history",
+      "title": "India and the Contemporary World-II",
+      "url": "https://www.ncert.nic.in/textbook/pdf/jess3ps.pdf",
+      "filename": "ncert-class-10-history.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-10-economics",
+      "title": "Understanding Economic Development",
+      "url": "https://www.ncert.nic.in/textbook/pdf/jess2ps.pdf",
+      "filename": "ncert-class-10-economics.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-11-geography-physical",
+      "title": "Fundamentals of Physical Geography",
+      "url": "https://www.ncert.nic.in/textbook/pdf/kegy2ps.pdf",
+      "filename": "ncert-class-11-geography-physical.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-11-geography-india",
+      "title": "India: Physical Environment",
+      "url": "https://www.ncert.nic.in/textbook/pdf/kegy1ps.pdf",
+      "filename": "ncert-class-11-geography-india.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-11-history",
+      "title": "Themes in World History",
+      "url": "https://www.ncert.nic.in/textbook/pdf/kehs1ps.pdf",
+      "filename": "ncert-class-11-history.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-11-economics-statistics",
+      "title": "Statistics for Economics",
+      "url": "https://www.ncert.nic.in/textbook/pdf/kest1ps.pdf",
+      "filename": "ncert-class-11-economics-statistics.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-11-economics-development",
+      "title": "Indian Economic Development",
+      "url": "https://www.ncert.nic.in/textbook/pdf/keec1ps.pdf",
+      "filename": "ncert-class-11-economics-development.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-geography-human",
+      "title": "Fundamentals of Human Geography",
+      "url": "https://www.ncert.nic.in/textbook/pdf/legy1ps.pdf",
+      "filename": "ncert-class-12-geography-human.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-geography-india",
+      "title": "India - People And Economy",
+      "url": "https://www.ncert.nic.in/textbook/pdf/legy2ps.pdf",
+      "filename": "ncert-class-12-geography-india.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-history-1",
+      "title": "Themes in Indian History-I",
+      "url": "https://www.ncert.nic.in/textbook/pdf/lehs1ps.pdf",
+      "filename": "ncert-class-12-history-1.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-history-2",
+      "title": "Themes in Indian History-II",
+      "url": "https://www.ncert.nic.in/textbook/pdf/lehs2ps.pdf",
+      "filename": "ncert-class-12-history-2.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-history-3",
+      "title": "Themes in Indian History-III",
+      "url": "https://www.ncert.nic.in/textbook/pdf/lehs3ps.pdf",
+      "filename": "ncert-class-12-history-3.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-economics-micro",
+      "title": "Introductory Microeconomics",
+      "url": "https://www.ncert.nic.in/textbook/pdf/leec2ps.pdf",
+      "filename": "ncert-class-12-economics-micro.pdf",
+      "minBytes": 100000
+    },
+    {
+      "slug": "ncert-class-12-economics-macro",
+      "title": "Introductory Macroeconomics",
+      "url": "https://www.ncert.nic.in/textbook/pdf/leec1ps.pdf",
+      "filename": "ncert-class-12-economics-macro.pdf",
+      "minBytes": 100000
+    }
+  ]
+}
