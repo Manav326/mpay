@@ -8,7 +8,7 @@
     reverse_proxy backend:8080
 }
 
-{$MPAY_STORE_DOMAIN} {
+store.thinkwithsujeet.in {
     encode gzip zstd
     reverse_proxy store-web:3000
 }
