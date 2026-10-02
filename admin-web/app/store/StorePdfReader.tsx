@@ -377,12 +377,100 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
   }
 
   async function downloadMarkedPdf() {
-    if (exporting || Object.values(markers).every((value) => value.length === 0)) return;
+    if (exporting || !hasMarks) return;
 
     setExporting(true);
     setError("");
 
     try {
+      const { PDFDocument, rgb } = await import("pdf-lib");
+
+      if (item.kind === "ncert") {
+        const document = await PDFDocument.create();
+        const markedPages = Object.keys(markers)
+          .map(Number)
+          .filter((page) => (markers[page]?.length ?? 0) > 0)
+          .sort((a, b) => a - b);
+
+        for (const sourcePage of markedPages) {
+          const exportPage = document.addPage([612, 792]);
+          const left = 46;
+          const top = 84;
+          const width = 520;
+          const height = 620;
+
+          exportPage.drawText("mPay Study Marks", {
+            x: left,
+            y: 744,
+            size: 18,
+          });
+          exportPage.drawText(item.title, {
+            x: left,
+            y: 718,
+            size: 11,
+          });
+          exportPage.drawText(
+            `Class ${item.classLevel} · ${item.subject} · NCERT · Source page ${sourcePage}`,
+            {
+              x: left,
+              y: 700,
+              size: 9,
+            },
+          );
+          exportPage.drawText(
+            "This PDF contains your saved marker positions only; the textbook remains available from the official NCERT source.",
+            {
+              x: left,
+              y: 682,
+              size: 7.5,
+              color: rgb(0.35, 0.32, 0.29),
+            },
+          );
+
+          exportPage.drawRectangle({
+            x: left,
+            y: 44,
+            width,
+            height,
+            borderWidth: 1,
+            borderColor: rgb(0.82, 0.78, 0.71),
+          });
+
+          for (const stroke of markers[sourcePage] ?? []) {
+            for (let pointIndex = 1; pointIndex < stroke.points.length; pointIndex += 1) {
+              const startPoint = stroke.points[pointIndex - 1];
+              const endPoint = stroke.points[pointIndex];
+
+              exportPage.drawLine({
+                start: {
+                  x: left + startPoint.x * width,
+                  y: 44 + (1 - startPoint.y) * height,
+                },
+                end: {
+                  x: left + endPoint.x * width,
+                  y: 44 + (1 - endPoint.y) * height,
+                },
+                thickness: 9,
+                color: rgb(
+                  ...(MARKER[stroke.color].pdf as [number, number, number])
+                ),
+                opacity: 0.42,
+              });
+            }
+          }
+        }
+
+        const output = await document.save();
+        const blob = new Blob([output], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `${item.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-marks.pdf`;
+        anchor.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+
       const response = await fetch(
         `/store/api/reader-pdf/${encodeURIComponent(item.slug)}`,
         { cache: "no-store" },
@@ -391,7 +479,6 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       if (!response.ok) throw new Error("Unable to fetch the source PDF.");
 
       const bytes = await response.arrayBuffer();
-      const { PDFDocument, rgb } = await import("pdf-lib");
       const document = await PDFDocument.load(bytes);
       const pages = document.getPages();
 
@@ -404,20 +491,22 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
 
         for (const stroke of strokes) {
           for (let pointIndex = 1; pointIndex < stroke.points.length; pointIndex += 1) {
-            const start = stroke.points[pointIndex - 1];
-            const end = stroke.points[pointIndex];
+            const startPoint = stroke.points[pointIndex - 1];
+            const endPoint = stroke.points[pointIndex];
 
             page.drawLine({
               start: {
-                x: start.x * width,
-                y: height - start.y * height,
+                x: startPoint.x * width,
+                y: height - startPoint.y * height,
               },
               end: {
-                x: end.x * width,
-                y: height - end.y * height,
+                x: endPoint.x * width,
+                y: height - endPoint.y * height,
               },
               thickness: 15,
-              color: rgb(...MARKER[stroke.color].pdf as [number, number, number]),
+              color: rgb(
+                ...(MARKER[stroke.color].pdf as [number, number, number])
+              ),
               opacity: 0.34,
             });
           }
@@ -436,7 +525,9 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setError(
-        "The marked copy could not be generated. Your saved markers are safe; please retry the export.",
+        item.kind === "ncert"
+          ? "Your marks could not be exported. The saved annotations are safe; please retry."
+          : "The marked copy could not be generated. Your saved markers are safe; please retry the export.",
       );
     } finally {
       setExporting(false);
@@ -503,9 +594,9 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
           <button type="button" onClick={() => setZoom((value) => Math.min(1.6, value + 0.1))} title="Zoom in">
             <Plus size={15} />
           </button>
-          <button type="button" onClick={downloadMarkedPdf} disabled={!hasMarks || exporting} title="Download marked PDF">
+          <button type="button" onClick={downloadMarkedPdf} disabled={!hasMarks || exporting} title={item.kind === "ncert" ? "Download marker positions PDF" : "Download marked PDF"}>
             <Download size={15} />
-            <span>{exporting ? "Exporting…" : "Marked PDF"}</span>
+            <span>{exporting ? "Exporting…" : item.kind === "ncert" ? "Marks PDF" : "Marked PDF"}</span>
           </button>
         </div>
       </header>
