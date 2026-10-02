@@ -3,11 +3,6 @@
     reverse_proxy admin-web:3000
 }
 
-{$MPAY_STORE_DOMAIN} {
-    encode gzip zstd
-    reverse_proxy admin-web:3000
-}
-
 {$MPAY_API_DOMAIN} {
     encode gzip zstd
     reverse_proxy backend:8080
