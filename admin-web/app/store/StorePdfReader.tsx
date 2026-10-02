@@ -262,6 +262,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
       const task = page.render({
+        canvas,
         canvasContext: ctx,
         viewport,
       });
