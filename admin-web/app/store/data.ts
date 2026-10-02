@@ -1,4 +1,17 @@
 export type WebsiteProduct = { slug:string; name:string; category:string; tagline:string; price:number; pages:string[]; features:string[]; theme:string; accent:string; stats:string[]; };
+export type BookProduct = {
+ slug:string;
+ title:string;
+ author:string;
+ price:number;
+ genre:string;
+ source:string;
+ pdf?:string;
+ cover:string;
+ excerpt:string;
+ kind:"public-domain"|"official";
+ officialBooks?:string[];
+};
 export const websites:WebsiteProduct[] = [
  {slug:"luma-dining",name:"Luma Dining",category:"Restaurant & Hospitality",tagline:"A warm, editorial restaurant site built to turn menus into reservations.",price:14999,pages:["Home","Menu","About","Reservations","Gallery","Contact"],features:["Menu filtering","Reservation flow","Gallery","Opening-hours panel","Testimonials","Responsive navigation"],theme:"luma",accent:"#b45309",stats:["6 pages","Reservation UX","Mobile ready"]},
  {slug:"estate-one",name:"Estate One",category:"Real Estate",tagline:"A polished property discovery experience for premium agencies and brokers.",price:18999,pages:["Home","Properties","Property detail","Agents","About","Contact"],features:["Property search","Price/room filters","Property gallery","Agent profiles","Enquiry flow","Saved property UI"],theme:"estate",accent:"#155e75",stats:["6 routes","Search + filters","Lead capture"]},
@@ -6,11 +19,37 @@ export const websites:WebsiteProduct[] = [
  {slug:"vertex-consulting",name:"Vertex Consulting",category:"Corporate & Consulting",tagline:"A confident corporate presence for firms that sell expertise, not noise.",price:16999,pages:["Home","Services","Case studies","Insights","About","Contact"],features:["Case-study filters","Service detail","Insight cards","Metrics section","Lead form","Editorial sections"],theme:"vertex",accent:"#334155",stats:["6 pages","Content-led","B2B ready"]},
  {slug:"atelier",name:"Atelier",category:"E-commerce & Retail",tagline:"A fashion-forward storefront with product discovery, cart and checkout UX.",price:19999,pages:["Home","Shop","Product detail","Collections","Cart","Checkout"],features:["Product filters","Variant selector","Wishlist UI","Cart management","Checkout flow","Collection pages"],theme:"atelier",accent:"#be123c",stats:["6 routes","Cart UX","Commerce ready"]},
 ];
-export const books = [
- {slug:"gatsby",title:"The Great Gatsby",author:"F. Scott Fitzgerald",price:99,genre:"Classic fiction",source:"https://www.gutenberg.org/ebooks/64317",pdf:"https://www.gutenberg.org/cache/epub/64317/pg64317.pdf",cover:"gatsby",excerpt:"A compact sample reading edition with a quiet, literary reading room."},
- {slug:"pride-and-prejudice",title:"Pride and Prejudice",author:"Jane Austen",price:129,genre:"Romance & classic",source:"https://www.gutenberg.org/ebooks/1342",pdf:"https://www.gutenberg.org/files/1342/old/old/pandp12p.pdf",cover:"pride",excerpt:"An elegant public-domain classic presented as an immersive reading experience."},
- {slug:"alice",title:"Alice’s Adventures in Wonderland",author:"Lewis Carroll",price:79,genre:"Children’s classic",source:"https://www.gutenberg.org/ebooks/11",pdf:"https://www.gutenberg.org/files/11/11-pdf.pdf",cover:"alice",excerpt:"A whimsical public-domain classic for a bright, distraction-free reader."},
+
+export const books:BookProduct[] = [
+ {slug:"gatsby",title:"The Great Gatsby",author:"F. Scott Fitzgerald",price:99,genre:"Classic fiction",source:"https://www.gutenberg.org/ebooks/64317",pdf:"https://www.gutenberg.org/cache/epub/64317/pg64317.pdf",cover:"gatsby",excerpt:"A compact sample reading edition with a quiet, literary reading room.",kind:"public-domain"},
+ {slug:"pride-and-prejudice",title:"Pride and Prejudice",author:"Jane Austen",price:129,genre:"Romance & classic",source:"https://www.gutenberg.org/ebooks/1342",pdf:"https://www.gutenberg.org/files/1342/old/old/pandp12p.pdf",cover:"pride",excerpt:"An elegant public-domain classic presented as an immersive reading experience.",kind:"public-domain"},
+ {slug:"alice",title:"Alice’s Adventures in Wonderland",author:"Lewis Carroll",price:79,genre:"Children’s classic",source:"https://www.gutenberg.org/ebooks/11",pdf:"https://www.gutenberg.org/files/11/11-pdf.pdf",cover:"alice",excerpt:"A whimsical public-domain classic for a bright, distraction-free reader.",kind:"public-domain"},
+ {
+  slug:"ncert-geography-class-11",
+  title:"NCERT Geography — Class XI",
+  author:"NCERT",
+  price:0,
+  genre:"NCERT • Geography • Class XI • English",
+  source:"https://ncert.nic.in/textbook.php?fld=11",
+  cover:"ncert11",
+  excerpt:"Free official NCERT access to the complete Class XI English-medium Geography set.",
+  kind:"official",
+  officialBooks:["Fundamentals of Physical Geography","India : Physical Environment"],
+ },
+ {
+  slug:"ncert-geography-class-12",
+  title:"NCERT Geography — Class XII",
+  author:"NCERT",
+  price:0,
+  genre:"NCERT • Geography • Class XII • English",
+  source:"https://ncert.nic.in/textbook.php?fld=12",
+  cover:"ncert12",
+  excerpt:"Free official NCERT access to the complete Class XII English-medium Geography set.",
+  kind:"official",
+  officialBooks:["Fundamentals of Human Geography","India - People And Economy"],
+ },
 ];
+
 export const bookText:Record<string,string[]> = {
  gatsby:["In my younger and more vulnerable years my father gave me some advice that I’ve been turning over in my mind ever since.","Whenever you feel like criticizing any one, he told me, just remember that all the people in this world haven’t had the advantages that you’ve had.","He didn’t say any more but we’ve always been unusually communicative in a reserved way, and I understood that he meant a great deal more than that.","In consequence, I’m inclined to reserve all judgments, a habit that has opened up many curious natures to me."],
  "pride-and-prejudice":["It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.","However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families.","My dear Mr. Bennet, said his lady to him one day, have you heard that Netherfield Park is let at last?","Mr. Bennet replied that he had not, and the conversation moved to the question of who had taken it."],
