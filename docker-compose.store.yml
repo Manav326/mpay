@@ -1,4 +1,19 @@
 services:
+  store-content-seed:
+    image: ${MPAY_STORE_CONTENT_IMAGE:-ghcr.io/manav326/mpay-store-content}:${MPAY_STORE_CONTENT_TAG:?MPAY_STORE_CONTENT_TAG must be set}
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - >
+        rm -rf /content/ncert &&
+        mkdir -p /content/ncert &&
+        cp -a /seed/ncert/. /content/ncert/ &&
+        find /content/ncert -type f -name '*.pdf' -size +0c -print
+    volumes:
+      - mpay-store-content:/content
+    networks: [mpay]
+
   store-web:
     image: ${MPAY_STORE_WEB_IMAGE:-ghcr.io/manav326/mpay-store-web}:${MPAY_STORE_WEB_TAG:?MPAY_STORE_WEB_TAG must be set for Store}
     restart: unless-stopped
@@ -8,5 +23,14 @@ services:
       HOSTNAME: 0.0.0.0
     mem_limit: 320m
     volumes:
-      - ${MPAY_STORE_CONTENT_DIR:-/opt/mpay/store-content}:/app/store-content:ro
+      - mpay-store-content:/app/store-content:ro
     networks: [mpay]
+
+volumes:
+  mpay-store-content:
+    name: ${MPAY_STORE_CONTENT_VOLUME:-mpay-store-content}
+
+networks:
+  mpay:
+    external: true
+    name: mpay
