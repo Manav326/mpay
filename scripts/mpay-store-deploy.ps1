@@ -72,7 +72,7 @@ try {
             throw "Remote branch '$Branch' was not found."
         }
 
-        $parts = $remoteLine -split "s+"
+        $parts = $remoteLine -split "\s+"
         if ($parts.Count -lt 1 -or $parts[0] -notmatch "^[0-9a-f]{40}$") {
             throw "Could not determine the authoritative remote SHA for refs/heads/$Branch."
         }
