@@ -15,3 +15,14 @@
 @media(max-width:700px){
   .reader-download-link{width:32px;min-width:32px;padding:0}
 }
+
+/* Page-based study reader: one page at a time, no document scrolling */
+.study-page-shell{overflow:hidden;touch-action:pan-x;overscroll-behavior:contain}
+.study-page-canvas{will-change:transform,opacity}
+.page-transition-next{animation:study-page-next .22s cubic-bezier(.2,.75,.25,1)}
+.page-transition-previous{animation:study-page-previous .22s cubic-bezier(.2,.75,.25,1)}
+@keyframes study-page-next{from{opacity:0;transform:translateX(28px) scale(.985)}to{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes study-page-previous{from{opacity:0;transform:translateX(-28px) scale(.985)}to{opacity:1;transform:translateX(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){
+  .page-transition-next,.page-transition-previous{animation:none}
+}
