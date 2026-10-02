@@ -1,0 +1,74 @@
+name: mPay Store Web Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref or commit SHA to build"
+        required: true
+        default: "feat/public-digital-marketplace"
+      api_base_url:
+        description: "Browser-visible backend API base URL for shared Store components"
+        required: true
+        default: "https://api.mpay.thinkwithsujeet.in"
+  push:
+    branches:
+      - "**"
+    paths:
+      - "admin-web/**"
+      - "docker-compose.store.yml"
+      - "docker-compose.azure.yml"
+      - "infra/caddy/Caddyfile.azure"
+      - "scripts/mpay-store-deploy.ps1"
+      - ".github/workflows/store-web.yml"
+
+concurrency:
+  group: mpay-store-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  MPAY_STORE_WEB_IMAGE: ghcr.io/manav326/mpay-store-web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout requested source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
+
+      - name: Resolve source commit
+        shell: bash
+        run: |
+          commit_sha="$(git rev-parse HEAD)"
+          echo "COMMIT_SHA=$commit_sha" >> "$GITHUB_ENV"
+          echo "STORE_TAG=store-sha-$commit_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Store image only
+        run: |
+          api_base_url="${{ github.event_name == 'workflow_dispatch' && inputs.api_base_url || 'https://api.mpay.thinkwithsujeet.in' }}"
+          docker buildx build             --file admin-web/Dockerfile             --build-arg "NEXT_PUBLIC_API_BASE_URL=$api_base_url"             --tag "${MPAY_STORE_WEB_IMAGE}:${STORE_TAG}"             --cache-from "type=gha,scope=mpay-store-web"             --cache-to "type=gha,mode=max,scope=mpay-store-web"             --push             admin-web
+
+      - name: Verify Store image
+        run: |
+          docker pull "${MPAY_STORE_WEB_IMAGE}:${STORE_TAG}"
+          echo "Built: ${MPAY_STORE_WEB_IMAGE}:${STORE_TAG}"
+          echo "Source commit: ${COMMIT_SHA}"

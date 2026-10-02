@@ -1,0 +1,10 @@
+services:
+  store-web:
+    image: ${MPAY_STORE_WEB_IMAGE:-ghcr.io/manav326/mpay-store-web}:${MPAY_STORE_WEB_TAG:?MPAY_STORE_WEB_TAG must be set for Store}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    mem_limit: 320m
+    networks: [mpay]

@@ -7,3 +7,8 @@
     encode gzip zstd
     reverse_proxy backend:8080
 }
+
+{$MPAY_STORE_DOMAIN} {
+    encode gzip zstd
+    reverse_proxy store-web:3000
+}
