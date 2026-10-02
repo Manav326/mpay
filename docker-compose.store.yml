@@ -8,5 +8,5 @@ services:
       HOSTNAME: 0.0.0.0
     mem_limit: 320m
     volumes:
-      - /opt/mpay/store-content:/app/store-content:ro
+      - ${MPAY_STORE_CONTENT_DIR:-/opt/mpay/store-content}:/app/store-content:ro
     networks: [mpay]
