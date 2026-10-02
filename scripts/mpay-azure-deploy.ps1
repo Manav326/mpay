@@ -262,6 +262,7 @@ try {
 
     Write-Host ""
     Write-Host "Admin Web : https://mpay.thinkwithsujeet.in" -ForegroundColor Green
+    Write-Host "Storefront : https://store.thinkwithsujeet.in" -ForegroundColor Green
     Write-Host "Backend   : https://api.mpay.thinkwithsujeet.in" -ForegroundColor Green
     Write-Host "TURN      : turn.mpay.thinkwithsujeet.in:3478" -ForegroundColor Green
     Write-Host "Commit    : $commitSha" -ForegroundColor Green

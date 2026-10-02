@@ -28,7 +28,7 @@ services:
   caddy:
     environment:
       MPAY_PUBLIC_DOMAIN: ${MPAY_PUBLIC_DOMAIN:?MPAY_PUBLIC_DOMAIN must be set}
-      MPAY_STORE_DOMAIN: ${MPAY_STORE_DOMAIN:?MPAY_STORE_DOMAIN must be set}
+      MPAY_STORE_DOMAIN: ${MPAY_STORE_DOMAIN:-store.thinkwithsujeet.in}
       MPAY_API_DOMAIN: ${MPAY_API_DOMAIN:?MPAY_API_DOMAIN must be set}
     volumes:
       - ./infra/caddy/Caddyfile.azure:/etc/caddy/Caddyfile:ro
