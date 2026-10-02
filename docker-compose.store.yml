@@ -30,7 +30,3 @@ volumes:
   mpay-store-content:
     name: ${MPAY_STORE_CONTENT_VOLUME:-mpay-store-content}
 
-networks:
-  mpay:
-    external: true
-    name: mpay
