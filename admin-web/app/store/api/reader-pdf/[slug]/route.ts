@@ -20,13 +20,24 @@ export async function GET(
     const headers = new Headers();
     if (range) headers.set("Range", range);
 
+    headers.set("Accept", "application/pdf,*/*");
+    headers.set(
+      "User-Agent",
+      "Mozilla/5.0 (compatible; mPayStudyReader/1.0; +https://store.thinkwithsujeet.in)",
+    );
+    headers.set("Referer", item.kind === "ncert" ? item.portalUrl : "https://store.thinkwithsujeet.in/");
+
     const upstream = await fetch(item.pdfUrl, {
       headers,
       redirect: "follow",
       cache: "no-store",
     });
 
-    if (!upstream.ok && upstream.status !== 206) {
+    const contentType = upstream.headers.get("content-type") ?? "";
+    if (
+      (!upstream.ok && upstream.status !== 206) ||
+      !contentType.toLowerCase().includes("pdf")
+    ) {
       return NextResponse.json(
         { error: "The official textbook source is temporarily unavailable." },
         { status: 502 },
