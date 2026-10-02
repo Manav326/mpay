@@ -49,7 +49,7 @@ export default function Library(){
        <div className={`library-book-mini book-${b.cover}`}>{b.title}</div>
        <div><b>{b.title}</b><span>{official ? "Complete official NCERT set" : "Ready to continue reading"}</span></div>
        <div className="library-book-actions">
-        {official ? <a href={b.source} target="_blank" rel="noreferrer" className="library-open-link"><ExternalLink size={14}/> Open NCERT</a> : <Link href={`/read/${b.slug}`} className="library-open-link"><BookOpen size={14}/> Read</Link>}
+        {official ? <Link href={`/read/ncert/${b.slug === "ncert-geography-class-11" ? "class-11-fundamentals-physical-geography" : "class-12-fundamentals-human-geography"}`} className="library-open-link"><BookOpen size={14}/> Read complete set</Link> : <Link href={`/read/${b.slug}`} className="library-open-link"><BookOpen size={14}/> Read</Link>}
        </div>
       </div>;
     })}
