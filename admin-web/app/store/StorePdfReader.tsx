@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Download,
   Eraser,
+  Hand,
   Highlighter,
   List,
   Minus,
