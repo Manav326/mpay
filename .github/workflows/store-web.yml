@@ -1,3 +1,4 @@
+# Store deployment: always build the exact branch commit used by mpay-store-deploy.ps1.
 name: mPay Store Web Image
 
 on:
