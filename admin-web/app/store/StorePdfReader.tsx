@@ -22,6 +22,7 @@ import {
   type PDFPageProxy,
 } from "pdfjs-dist";
 import type { ReadableItem } from "./readings";
+import { studyBooks } from "./studyBooks";
 
 GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -98,6 +99,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
   const markerCanvasRef = useRef<HTMLCanvasElement>(null);
   const draftRef = useRef<Point[] | null>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+  const pdfRef = useRef<PDFDocumentProxy | null>(null);
 
   useEffect(() => {
     try {
@@ -146,6 +148,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
           await loaded.destroy();
           return;
         }
+        pdfRef.current = loaded;
         setPdf(loaded);
         setNumPages(loaded.numPages);
         setPageNumber((current) => Math.min(Math.max(1, current), loaded.numPages));
@@ -166,7 +169,9 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       disposed = true;
       renderTaskRef.current?.cancel();
       renderTaskRef.current = null;
-      void pdf?.destroy();
+      const currentPdf = pdfRef.current;
+      pdfRef.current = null;
+      if (currentPdf) void currentPdf.destroy();
     };
     // The reader instance is tied to one book; reload only when the book changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -529,7 +534,18 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
             {[9, 10, 11, 12].map((level) => (
               <div key={level} className="study-drawer-group">
                 <small>Class {level}</small>
-                <p>Open the Study Library to change textbook.</p>
+                {studyBooks
+                  .filter((book) => book.classLevel === level)
+                  .map((book) => (
+                    <Link
+                      key={book.slug}
+                      href={`/read/${book.slug}`}
+                      className={book.slug === item.slug ? "active" : ""}
+                    >
+                      {book.subject}
+                      <span>{book.title}</span>
+                    </Link>
+                  ))}
               </div>
             ))}
             <Link href="/books#ncert-study" className="store-primary drawer-browse">
