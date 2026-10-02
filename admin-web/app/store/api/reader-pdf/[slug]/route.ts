@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getReadableItem } from "../../../readings";
+import { getStudyBook } from "../../../studyBooks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,11 @@ export async function GET(
       "User-Agent",
       "Mozilla/5.0 (compatible; mPayStudyReader/1.0; +https://store.thinkwithsujeet.in)",
     );
-    headers.set("Referer", item.kind === "ncert" ? item.portalUrl : "https://store.thinkwithsujeet.in/");
+    const referer =
+      item.kind === "ncert"
+        ? getStudyBook(slug)?.portalUrl ?? "https://www.ncert.nic.in/textbook.php"
+        : "https://store.thinkwithsujeet.in/";
+    headers.set("Referer", referer);
 
     const upstream = await fetch(item.pdfUrl, {
       headers,
