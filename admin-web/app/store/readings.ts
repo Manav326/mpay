@@ -27,7 +27,7 @@ export function getReadableItem(slug: string): ReadableItem | null {
       classLevel: study.classLevel,
       subject: study.subject,
       price: 0,
-      pdfUrl: study.pdfUrl,
+      pdfUrl: `/store/api/library/ncert/${study.slug}/pdf`,
       sourceUrl: study.portalUrl,
       cover: study.cover,
       description: study.description,
