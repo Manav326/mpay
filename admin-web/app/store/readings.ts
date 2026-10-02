@@ -1,5 +1,5 @@
 import { books } from "./data";
-import { getStudyBook } from "./studyBooks";
+import { getStudyBook, studyBooks } from "./studyBooks";
 
 export type ReadableItem = {
   slug: string;
@@ -51,7 +51,4 @@ export function getReadableItem(slug: string): ReadableItem | null {
   };
 }
 
-export const readableItems = [
-  ...Object.values(require("./studyBooks").studyBookBySlug),
-  ...books,
-];
+export const readableItems = [...studyBooks, ...books];
