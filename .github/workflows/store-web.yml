@@ -21,6 +21,7 @@ on:
       - "docker-compose.azure.yml"
       - "infra/caddy/Caddyfile.azure"
       - "scripts/mpay-store-deploy.ps1"
+      - "scripts/mpay-store-ncert-assets.json"
       - ".github/workflows/store-web.yml"
 
 concurrency:
