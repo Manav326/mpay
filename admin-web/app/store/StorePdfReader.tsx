@@ -15,19 +15,9 @@ import {
   Undo2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  getDocument,
-  GlobalWorkerOptions,
-  type PDFDocumentProxy,
-  type PDFPageProxy,
-} from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import type { ReadableItem } from "./readings";
 import { studyBooks } from "./studyBooks";
-
-GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
 
 type MarkerColor = "yellow" | "green";
 
@@ -137,7 +127,13 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       setLoading(true);
       setError("");
       try {
-        const task = getDocument({
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/build/pdf.worker.min.mjs",
+          import.meta.url,
+        ).toString();
+
+        const task = pdfjs.getDocument({
           url: `/store/api/reader-pdf/${encodeURIComponent(item.slug)}`,
           withCredentials: false,
           disableAutoFetch: false,
