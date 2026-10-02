@@ -7,4 +7,6 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
     mem_limit: 320m
+    volumes:
+      - /opt/mpay/store-content:/app/store-content:ro
     networks: [mpay]
