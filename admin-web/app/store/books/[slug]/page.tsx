@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BookOpen, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, ExternalLink, ShieldCheck } from "lucide-react";
 import StoreShell from "../../StoreShell";
 import LibraryEntitlementButton from "../../LibraryEntitlementButton";
 import { getReadableItem, readableItems } from "../../readings";
@@ -71,6 +71,17 @@ export default async function BookDetail({
                 Read complete book
               </Link>
 
+              {study ? (
+                <a
+                  href={`${item.pdfUrl}?download=1`}
+                  className="store-secondary"
+                  title="Download the complete book from the mPay Store content bundle"
+                >
+                  <Download size={16} />
+                  Download complete book
+                </a>
+              ) : null}
+
               <LibraryEntitlementButton
                 slug={item.slug}
                 price={item.price}
@@ -81,7 +92,7 @@ export default async function BookDetail({
               <ShieldCheck size={15} />
               <span>
                 {study
-                  ? "The complete textbook is read from the official NCERT source through mPay. Your page progress and markers are stored locally, and marked-copy export is created only when you request it."
+                  ? "This free NCERT textbook is served from the Store content bundle. Read it inside mPay, download the complete book, and keep your study markers locally."
                   : "This is a public-domain reading edition. The complete source PDF is available through the mPay reader."
                 }
               </span>
