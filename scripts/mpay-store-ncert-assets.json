@@ -3,27 +3,6 @@
   "source": "NCERT official textbook PDF portal",
   "books": [
     {
-      "slug": "ncert-class-9-geography",
-      "title": "Contemporary India-I",
-      "url": "https://www.ncert.nic.in/textbook/pdf/iess1ps.pdf",
-      "filename": "ncert-class-9-geography.pdf",
-      "minBytes": 100000
-    },
-    {
-      "slug": "ncert-class-9-history",
-      "title": "India and the Contemporary World-I",
-      "url": "https://www.ncert.nic.in/textbook/pdf/iess3ps.pdf",
-      "filename": "ncert-class-9-history.pdf",
-      "minBytes": 100000
-    },
-    {
-      "slug": "ncert-class-9-economics",
-      "title": "Economics",
-      "url": "https://www.ncert.nic.in/textbook/pdf/iess2ps.pdf",
-      "filename": "ncert-class-9-economics.pdf",
-      "minBytes": 100000
-    },
-    {
       "slug": "ncert-class-10-geography",
       "title": "Contemporary India-II",
       "url": "https://www.ncert.nic.in/textbook/pdf/jess1ps.pdf",
