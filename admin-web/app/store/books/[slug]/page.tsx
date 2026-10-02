@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Download, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BookOpen, ExternalLink, ShieldCheck } from "lucide-react";
 import StoreShell from "../../StoreShell";
 import LibraryEntitlementButton from "../../LibraryEntitlementButton";
 import { getReadableItem, readableItems } from "../../readings";
-import { getStudyBook } from "../../studyBooks";
 
 export function generateStaticParams() {
   return readableItems.map((item) => ({ slug: item.slug }));
@@ -21,7 +20,6 @@ export default async function BookDetail({
   }
 
   const study = item.kind === "ncert";
-  const studyBook = study ? getStudyBook(item.slug) : null;
 
   return (
     <StoreShell>
@@ -73,19 +71,6 @@ export default async function BookDetail({
                 Read complete book
               </Link>
 
-              {studyBook ? (
-                <a
-                  href={studyBook.pdfUrl}
-                  className="store-secondary"
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Open the complete NCERT textbook PDF from the official NCERT host"
-                >
-                  <Download size={16} />
-                  {studyBook.downloadLabel}
-                </a>
-              ) : null}
-
               <LibraryEntitlementButton
                 slug={item.slug}
                 price={item.price}
@@ -96,37 +81,21 @@ export default async function BookDetail({
               <ShieldCheck size={15} />
               <span>
                 {study
-                  ? "This is the free NCERT textbook. mPay organizes the book, opens the complete PDF inside the reader, and keeps your study progress and markers locally."
+                  ? "The complete textbook is read from the official NCERT source through mPay. Your page progress and markers are stored locally, and marked-copy export is created only when you request it."
                   : "This is a public-domain reading edition. The complete source PDF is available through the mPay reader."
                 }
               </span>
             </div>
 
-            {studyBook ? (
-              <div className="official-book-list">
-                <strong>{studyBook.title}</strong>
-                <span>
-                  Class {studyBook.classLevel} · {studyBook.subject} · Published by NCERT · Free access
-                </span>
-                <div className="official-book-links">
-                  <a href={studyBook.portalUrl} target="_blank" rel="noreferrer">
-                    NCERT book page <ExternalLink size={13} />
-                  </a>
-                  <a href={studyBook.pdfUrl} target="_blank" rel="noreferrer">
-                    Complete PDF <ExternalLink size={13} />
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <a
-                className="source-link"
-                href={item.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View public-domain source <ExternalLink size={13} />
-              </a>
-            )}
+            <a
+              className="source-link"
+              href={item.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {study ? "Official NCERT textbook portal" : "View public-domain source"}{" "}
+              <ExternalLink size={13} />
+            </a>
           </div>
         </section>
       </main>
