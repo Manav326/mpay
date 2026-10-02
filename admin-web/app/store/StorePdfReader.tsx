@@ -432,7 +432,11 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
       const { PDFDocument, rgb } = await import("pdf-lib");
 
       if (item.kind === "ncert") {
-        const exportDocument = await PDFDocument.create();
+        const response = await fetch(`${item.pdfUrl}?download=1`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to fetch the complete textbook PDF.");
+
+        const sourceBytes = await response.arrayBuffer();
+        const exportDocument = await PDFDocument.load(sourceBytes);
         const markedPages = Object.keys(markers)
           .map(Number)
           .filter((page) => (markers[page]?.length ?? 0) > 0)
@@ -474,7 +478,7 @@ export default function StorePdfReader({ item }: { item: ReadableItem }) {
         const url = URL.createObjectURL(blob);
         const anchor = window.document.createElement("a");
         anchor.href = url;
-        anchor.download = `${item.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-marks.pdf`;
+        anchor.download = `${item.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-marked-book.pdf`;
         anchor.click();
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
         return;
