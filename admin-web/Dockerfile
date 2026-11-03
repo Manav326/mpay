@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
@@ -8,7 +8,8 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 FROM node:20-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG NEXT_PUBLIC_API_BASE_URL=http://192.168.31.47:8080
+ARG NEXT_PUBLIC_API_BASE_URL
+RUN test -n "$NEXT_PUBLIC_API_BASE_URL" || (echo 'NEXT_PUBLIC_API_BASE_URL must be set to the approved HTTPS API origin.' >&2; exit 1)
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

@@ -41,7 +41,7 @@ services:
       MPAY_DB_PASSWORD: ${MPAY_DB_PASSWORD:-recharge}
       MPAY_PROFILE_IMAGES_DIR: /app/data/profile-images
       MPAY_RENTAL_IMAGES_DIR: /app/data/rental-images
-      MPAY_CORS_ALLOWED_ORIGINS: ${MPAY_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://192.168.31.47:3000}
+      MPAY_CORS_ALLOWED_ORIGINS: ${MPAY_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       MPAY_RENTAL_PLATFORM_FEE_PERCENT: ${MPAY_RENTAL_PLATFORM_FEE_PERCENT:-10.00}
       MPAY_FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: ${MPAY_FIREBASE_SERVICE_ACCOUNT_JSON_BASE64:-}
       MPAY_SUPPORT_AI_PROVIDER_ENABLED: ${MPAY_SUPPORT_AI_PROVIDER_ENABLED:-false}
@@ -66,7 +66,7 @@ services:
     build:
       context: ./admin-web
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${MPAY_WEB_API_BASE_URL:-http://192.168.31.47:8080}
+        NEXT_PUBLIC_API_BASE_URL: ${MPAY_WEB_API_BASE_URL:?Set MPAY_WEB_API_BASE_URL to an HTTPS API origin before building the Admin web image}
     restart: unless-stopped
     environment:
       NODE_ENV: production

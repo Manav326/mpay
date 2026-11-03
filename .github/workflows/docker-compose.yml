@@ -2,6 +2,15 @@ name: Docker Compose CI
 
 on:
   workflow_dispatch:
+    inputs:
+      mpay_web_api_base_url:
+        description: Canonical HTTPS API origin baked into the Admin web image; use the approved production API subdomain for a production release.
+        type: string
+        required: false
+      mpay_cors_allowed_origins:
+        description: Comma-separated public browser origins allowed by the backend.
+        type: string
+        required: false
   push:
     branches:
       - main
@@ -33,8 +42,8 @@ env:
   REGISTRY: ghcr.io
   MPAY_BACKEND_IMAGE: ghcr.io/manav326/mpay-backend
   MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
-  MPAY_WEB_API_BASE_URL: http://192.168.31.47:8080
-  MPAY_CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://192.168.31.47:3000
+  MPAY_WEB_API_BASE_URL: ${{ inputs.mpay_web_api_base_url || vars.MPAY_WEB_API_BASE_URL || 'https://api.mpay.thinkwithsujeet.in' }}
+  MPAY_CORS_ALLOWED_ORIGINS: ${{ inputs.mpay_cors_allowed_origins || vars.MPAY_CORS_ALLOWED_ORIGINS || 'https://mpay.thinkwithsujeet.in' }}
 
 jobs:
   build:
@@ -75,6 +84,20 @@ jobs:
 
           echo "Selected image tag: ${image_tag}"
           echo "Commit image tag: sha-${commit_sha}"
+
+      - name: Validate Admin API origin
+        shell: bash
+        run: |
+          python3 - "${MPAY_WEB_API_BASE_URL}" <<'PY'
+          import sys
+          from urllib.parse import urlsplit
+
+          value = sys.argv[1].strip()
+          parsed = urlsplit(value)
+          if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+              raise SystemExit("MPAY_WEB_API_BASE_URL must be a canonical HTTPS API origin.")
+          print(f"Admin API origin validated: https://{parsed.netloc}")
+          PY
 
       - name: Validate Docker Compose
         run: |
@@ -143,17 +166,9 @@ jobs:
             --build-arg "NEXT_PUBLIC_API_BASE_URL=${MPAY_WEB_API_BASE_URL}" \
             --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_IMAGE_TAG}" \
             --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_SHA_TAG}" \
+            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_ADMIN_WEB_AZURE_TAG}" \
             --cache-from "type=gha,scope=mpay-admin-web" \
             --cache-to "type=gha,mode=max,scope=mpay-admin-web" \
-            --push \
-            admin-web
-
-          docker buildx build \
-            --file admin-web/Dockerfile \
-            --build-arg "NEXT_PUBLIC_API_BASE_URL=https://api.mpay.thinkwithsujeet.in" \
-            --tag "${MPAY_ADMIN_WEB_IMAGE}:${MPAY_ADMIN_WEB_AZURE_TAG}" \
-            --cache-from "type=gha,scope=mpay-admin-web-azure-runtime" \
-            --cache-to "type=gha,mode=max,scope=mpay-admin-web-azure-runtime" \
             --push \
             admin-web
 
