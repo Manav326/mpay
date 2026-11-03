@@ -2,6 +2,11 @@ name: Android APK CI
 
 on:
   workflow_dispatch:
+    inputs:
+      mpay_api_base_url:
+        description: Canonical HTTPS API origin compiled into this Android APK/AAB.
+        type: string
+        required: false
   push:
     branches:
       - main
@@ -23,6 +28,8 @@ jobs:
   android-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      MPAY_API_BASE_URL: ${{ inputs.mpay_api_base_url || vars.MPAY_API_BASE_URL || 'https://api.mpay.thinkwithsujeet.in' }}
 
     steps:
       - name: Checkout repository
@@ -71,6 +78,19 @@ jobs:
           test -s "${RUNNER_TEMP}/mpay-upload-key.jks"
           chmod 600 "${RUNNER_TEMP}/mpay-upload-key.jks"
 
+      - name: Validate Android API origin
+        shell: bash
+        run: |
+          python3 - "$MPAY_API_BASE_URL" <<'PY'
+          import sys
+          from urllib.parse import urlsplit
+          value = sys.argv[1].strip()
+          parsed = urlsplit(value)
+          if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+              raise SystemExit("MPAY_API_BASE_URL must be a canonical HTTPS origin.")
+          print(f"Android API origin validated: https://{parsed.netloc}")
+          PY
+
       - name: Build optimized release APK
         working-directory: android
         env:
@@ -88,7 +108,7 @@ jobs:
           ./gradlew --no-daemon --stacktrace \
             :app:assembleRelease \
             :app:bundleRelease \
-            -PmpayApiBaseUrl=https://api.mpay.thinkwithsujeet.in/ \
+            -PmpayApiBaseUrl="$MPAY_API_BASE_URL/" \
             -x :app:lintVitalAnalyzeRelease \
             -x :app:lintVitalReportRelease \
             -x :app:lintVitalRelease
@@ -111,6 +131,7 @@ jobs:
           safe_branch="$(echo "${branch_name}" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_.-]#-#g')"
           echo "MPAY_APK_ARTIFACT_NAME=mpay-android-release-${safe_branch}" >> "${GITHUB_ENV}"
           echo "APK artifact: mpay-android-release-${safe_branch}"
+          echo "Android API origin: ${MPAY_API_BASE_URL}"
 
       - name: Upload optimized Play Store AAB
         uses: actions/upload-artifact@v4
