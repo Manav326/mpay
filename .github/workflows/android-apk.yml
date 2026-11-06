@@ -168,23 +168,49 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: mpay-android-release-main
-          path: dist
+          path: dist/apk
+
+      - name: Download signed Play Store AAB and R8 mapping
+        uses: actions/download-artifact@v4
+        with:
+          name: mpay-android-playstore-aab
+          path: dist/playstore
 
       - name: Prepare versioned release files
         id: public_release
         shell: bash
         run: |
-          apk_path="$(find dist -type f -name '*.apk' -print -quit)"
-          test -n "$apk_path"
-          test -s "$apk_path"
+          apk_path="$(find dist/apk -type f -name '*.apk' -print -quit)"
+          aab_path="$(find dist/playstore -type f -name '*.aab' -print -quit)"
+          test -n "$apk_path" && test -s "$apk_path"
+          test -n "$aab_path" && test -s "$aab_path"
           version_name="$(awk -F '"' '/^[[:space:]]*versionName = / { print $2; exit }' android/app/build.gradle.kts)"
-          test -n "$version_name"
+          version_code="$(awk -F '= ' '/^[[:space:]]*versionCode = / { print $2; exit }' android/app/build.gradle.kts)"
+          test -n "$version_name" && test -n "$version_code"
           short_sha="${GITHUB_SHA:0:12}"
-          tag_name="mpay-android-v${version_name}-${short_sha}"
+          tag_name="mpay-android-v${version_name}-build${version_code}-${short_sha}"
           cp "$apk_path" "$RUNNER_TEMP/mpay-android.apk"
-          (cd "$RUNNER_TEMP" && sha256sum mpay-android.apk > mpay-android.apk.sha256)
+          cp "$aab_path" "$RUNNER_TEMP/mpay-android.aab"
+          cd "$RUNNER_TEMP"
+          sha256sum mpay-android.apk > mpay-android.apk.sha256
+          sha256sum mpay-android.aab > mpay-android.aab.sha256
+          VERSION_NAME="$version_name" VERSION_CODE="$version_code" MPAY_API_BASE_URL="$MPAY_API_BASE_URL" GITHUB_SHA="$GITHUB_SHA" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          info = {
+              "applicationId": "com.client.mpay",
+              "versionName": os.environ["VERSION_NAME"],
+              "versionCode": int(os.environ["VERSION_CODE"]),
+              "gitCommit": os.environ["GITHUB_SHA"],
+              "apiBaseUrl": os.environ["MPAY_API_BASE_URL"],
+              "apkSha256": Path("mpay-android.apk.sha256").read_text().split()[0],
+              "aabSha256": Path("mpay-android.aab.sha256").read_text().split()[0],
+          }
+          Path("mpay-android-release.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
+          PY
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
 
       - name: Publish versioned signed APK and stable latest download
@@ -192,14 +218,25 @@ jobs:
         with:
           tag_name: ${{ steps.public_release.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
-          name: mPay Android v${{ steps.public_release.outputs.version_name }} (${{ steps.public_release.outputs.short_sha }})
+          name: mPay Android v${{ steps.public_release.outputs.version_name }} · Build ${{ steps.public_release.outputs.version_code }}
           body: |
-            Official signed mPay Android APK for commit ${{ github.sha }}.
-            Public API origin is derived from the repository's single tracked config/public-hosts.env file.
-            Verify the APK with the accompanying SHA-256 checksum before distributing it.
+            Official signed mPay Android release.
+
+            - Version: ${{ steps.public_release.outputs.version_name }} (versionCode ${{ steps.public_release.outputs.version_code }})
+            - Commit: ${{ github.sha }}
+            - API origin: https://api-mpay.quantaedge.in
+            - `mpay-android.apk`: customer installation package.
+            - `mpay-android.aab`: Google Play Console upload bundle.
+            - SHA-256 checksums and machine-readable release metadata are attached.
+
+            Download customer installations from: https://mpay.quantaedge.in/download
+          generate_release_notes: true
           files: |
             ${{ runner.temp }}/mpay-android.apk
             ${{ runner.temp }}/mpay-android.apk.sha256
+            ${{ runner.temp }}/mpay-android.aab
+            ${{ runner.temp }}/mpay-android.aab.sha256
+            ${{ runner.temp }}/mpay-android-release.json
           draft: false
           prerelease: false
           make_latest: true
