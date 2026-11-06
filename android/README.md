@@ -38,58 +38,59 @@ The Android app does not contain any Way2API or recharge-provider credentials. P
 - Wallet funding remains Razorpay-based and is independent from recharge execution.
 - Wallet debit is authoritative on the backend; the Android app never deducts the wallet locally.
 
-## APK build and test automation
+## APK build and public Android distribution
 
-The existing Docker Compose CI workflow also builds the Android debug APK for pushes to main and Android feature branches (feature/android-* and feature/android/**). This keeps backend, Admin Web, and Android validation in the same CI pipeline.
+The `Android APK CI` workflow builds an optimized, signed Release APK and Play Store AAB with JDK 17 and Android SDK 37. For pull requests, it validates the build and uploads branch-specific artifacts. For pushes to `main`, a separate least-privilege publish job downloads the exact release APK artifact and publishes it as a versioned GitHub Release with a SHA-256 checksum.
 
-For an Android build:
-- builds a debug APK with JDK 17 and Android SDK 36,
-- verifies android/app/build/outputs/apk/debug/app-debug.apk,
-- uploads it as the mpay-android-debug-apk GitHub Actions artifact,
-- keeps the artifact for 14 days.
+The public website uses the stable asset URL:
 
-The repository does not commit the generated APK because android/app/build/ is ignored by Git.
+```text
+https://github.com/Manav326/mpay/releases/latest/download/mpay-android.apk
+```
 
-### Download or reuse the APK from the Windows helper
+The homepage's Android card reads version and APK size from the latest public release, streams the APK through the same-origin web route, and displays actual download byte progress from 0–100%. Until the first signed main-branch release is published, the card reports that the app is being prepared.
 
-On the Windows development machine, install and authenticate the GitHub CLI once:
+### Required release secrets
+
+Configure these repository Actions secrets before the first public release:
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `MAPS_API_KEY` when Maps functionality is enabled
+- `MPAY_FIREBASE_API_KEY`
+- `MPAY_FIREBASE_APP_ID`
+- `MPAY_FIREBASE_PROJECT_ID`
+- `MPAY_FIREBASE_SENDER_ID`
+
+Keep the same signing key for every public update. A different signing key prevents an in-place update and can require uninstalling the existing app, which deletes local app data. Production builds use `https://api.mpay.thinkwithsujeet.in/` by default through `MPAY_API_BASE_URL` or the repository variable of that name.
+
+### Download or reuse an APK from Windows
+
+On the Windows development machine, install and authenticate GitHub CLI when needed:
 
 ```powershell
 gh auth login
 ```
 
-Then from the repository root, on the commit whose Android build you want to test:
+From the repository root, on the commit whose Android CI artifact you want to test:
 
 ```powershell
 .\scripts\android-fetch-latest-apk.ps1
 ```
 
-The helper uses this flow:
+The helper:
+1. Reuses a cached release APK only when its commit marker matches the current commit.
+2. Otherwise retrieves the successful `Android APK CI` release artifact for the exact commit, or for a later commit only when the helper verifies that no Android-related file changed.
+3. Stores the file at `android/app/build/outputs/apk/release/app-release.apk` and records its commit marker beside it.
+4. Optionally offers to install it with ADB on a connected device.
 
-1. If a cached APK already exists for the current commit, it reuses that local APK and does not contact GitHub Actions.
-2. If an APK exists but was created by an older version of the helper and has no commit marker, the script asks whether to reuse it. If confirmed, the helper records the current commit for future runs.
-3. If the cached APK belongs to a different commit, the helper downloads a fresh artifact for the exact current commit.
-4. A fresh download is copied to android/app/build/outputs/apk/debug/app-debug.apk.
-5. The helper records the commit in app-debug.apk.commit beside the APK. Both files remain local because android/app/build/ is ignored by Git.
-
-The helper only requires GitHub CLI when a new APK must be downloaded. A cached APK can therefore be installed without querying GitHub.
-
-Use -ForceDownload when you intentionally want to replace the cached APK:
+Use `-ForceDownload` to replace the cached file:
 
 ```powershell
 .\scripts\android-fetch-latest-apk.ps1 -ForceDownload
 ```
 
-### Optional automatic installation
+The actual Android application ID is `com.client.mpay`. The Gradle namespace `com.recharge.client` is not the installed package name.
 
-The Windows helper asks whether to install the APK immediately.
-
-- If you answer N, it only prepares the APK.
-- If you answer Y and exactly one ADB device is connected, that device is selected automatically.
-- If you answer Y and multiple ADB devices are connected, the script lists them and asks you to choose one.
-- If no ADB device is connected, installation is skipped and the APK remains in the Gradle debug output directory.
-- If Android rejects the update because the installed com.client.mpay APK has a different signing key, the helper offers to uninstall the old app and install the CI APK. Uninstalling removes the app's local data.
-
-ADB device selection uses the exact serial reported by adb devices, including Android wireless mDNS serials such as adb-..._adb-tls-connect._tcp.
-
-For local development, backend URL configuration is supplied through the MPAY_API_BASE_URL Gradle property/environment variable. The shared CI workflow currently builds the test APK with http://192.168.31.47:8080/, matching the local development backend used on the test PC.
+For local development, backend URL configuration is supplied through the `MPAY_API_BASE_URL` environment variable or `-PmpayApiBaseUrl` Gradle property. Production/release builds must use the public HTTPS API origin.
