@@ -19,6 +19,7 @@ admin-web/.next/
 .env
 .env.cloudflare
 .env.cloudflare.*
+!.env.cloudflare.example
 
 # OS / IDE
 .DS_Store
