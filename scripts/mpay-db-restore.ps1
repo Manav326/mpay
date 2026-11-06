@@ -55,6 +55,8 @@ for ($i = 1; $i -le 60; $i++) {
     Start-Sleep -Seconds 2
 }
 
+Invoke-Compose @("stop", "backend", "admin-web")
+
 $postgresContainer = (& docker compose @composeArgs ps -q postgres).Trim()
 $envLines = & docker inspect $postgresContainer --format '{{range .Config.Env}}{{println .}}{{end}}'
 $dbName = (($envLines | Where-Object { $_ -like "POSTGRES_DB=*" } | Select-Object -First 1) -split "=", 2)[1]
