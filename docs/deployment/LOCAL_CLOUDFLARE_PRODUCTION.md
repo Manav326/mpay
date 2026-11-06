@@ -85,7 +85,7 @@ For a genuinely new mPay installation with no existing user, wallet, transaction
 
 ## 4. Verify the existing Cloudflare network
 
-The deployment script checks that the Docker network `cloudflare-edge` exists and that the existing connector container `qrtoprint-local-cloudflared-1` is attached to it. It does not create, restart, reconfigure or detach the connector. If the connector has a different name, pass `-CloudflareConnectorContainer <actual-container-name>`.
+The deployment script checks that the central connector container `quantaedge-ingress-cloudflared` is attached to the Docker network `cloudflare-edge`. The connector is owned by the `QuantaEdge-Production` control plane; start it with `.\scripts\local-ingress.ps1 up` from that repository before deploying mPay. mPay's Compose overlay only joins the shared network and never starts or manages a Tunnel connector. The central topology and migration procedure are documented in [local-cloudflare-tunnel.md](https://github.com/Manav326/QuantaEdge-Production/blob/main/docs/local-cloudflare-tunnel.md).
 
 Configure these two public hostnames in the existing tunnel's Public Hostnames / ingress settings:
 
