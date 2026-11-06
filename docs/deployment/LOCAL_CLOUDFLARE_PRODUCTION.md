@@ -41,7 +41,7 @@ Copy-Item .env.cloudflare.example .env.cloudflare
 
 Edit `.env.cloudflare` and replace every `REPLACE_WITH` value with the approved live configuration. Keep the completed file out of Git; it is ignored.
 
-Create `backend/config/application-secrets.yml` from the repository's example shape, but populate it with production credentials only. Do not copy the example's mock/demo values into production. The deploy preflight rejects obvious placeholders, mock providers, demo OTP, sandbox/test settings, a short JWT secret, and missing key provider settings.
+Create `backend/config/cloudflare-production/application-secrets.yml` from the repository's example shape, but populate it with production credentials only. This separate directory is mounted only into the Cloudflare production backend; it leaves the development `backend/config/application-secrets.yml` untouched and is ignored by Git. Do not copy the example's mock/demo values into production. The deploy preflight rejects obvious placeholders, mock providers, demo OTP, sandbox/test settings, a short JWT secret, and missing key provider settings.
 
 At minimum, validate these provider values with their owners before enabling transactions:
 
@@ -72,7 +72,7 @@ Back up whichever existing mPay Compose project contains the data to retain. The
 .\scripts\mpay-db-backup.ps1 -ComposeProject mpay
 ```
 
-The backup contains PostgreSQL plus profile and rental media. It intentionally excludes Redis cache and backend secret files. Keep a separate secure backup of `backend/config/application-secrets.yml`; never put secrets in the database backup folder shared with others.
+The backup contains PostgreSQL plus profile and rental media. It intentionally excludes Redis cache and backend secret files. Keep a separate secure backup of `backend/config/cloudflare-production/application-secrets.yml`; never put secrets in the database backup folder shared with others.
 
 Record the resulting backup directory. On first production cutover, restore it into the isolated production volumes:
 
