@@ -1,5 +1,6 @@
 # Secrets
 backend/config/application-secrets.yml
+backend/config/cloudflare-production/
 
 # Build/runtime artifacts
 backend/build/
