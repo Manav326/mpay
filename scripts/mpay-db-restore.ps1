@@ -77,23 +77,35 @@ finally {
     & docker exec $postgresContainer rm -f $containerDumpPath *> $null
 }
 
-Write-Host "Starting backend and Admin Web..." -ForegroundColor Yellow
-Invoke-Compose @("up", "-d", "--no-build", "backend", "admin-web")
+Write-Host "Creating the backend container without starting application traffic..." -ForegroundColor Yellow
+Invoke-Compose @("create", "--no-build", "--force-recreate", "backend")
+
+$backendContainer = (& docker compose @composeArgs ps --all -q backend).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($backendContainer)) {
+    throw "Backend container could not be created for offline media restoration."
+}
+
+foreach ($media in @("profile-images", "rental-images")) {
+    $source = Join-Path $BackupDirectory $media
+    if (-not (Test-Path $source)) {
+        throw "The backup is missing required media directory '$media'. Restore aborted before starting application traffic."
+    }
+    Write-Host "Restoring $media into the stopped backend volume..." -ForegroundColor Yellow
+    Invoke-Docker @("cp", "$($source)/.", "$($backendContainer):/app/data/$media")
+}
+
+Write-Host "Starting backend after database and media are restored..." -ForegroundColor Yellow
+Invoke-Compose @("up", "-d", "--no-build", "backend")
 
 $backendContainer = (& docker compose @composeArgs ps -q backend).Trim()
 if ([string]::IsNullOrWhiteSpace($backendContainer)) { throw "Backend container not found after startup." }
 
-foreach ($media in @("profile-images", "rental-images")) {
-    $source = Join-Path $BackupDirectory $media
-    if (Test-Path $source) {
-        Write-Host "Restoring $media..." -ForegroundColor Yellow
-        Invoke-Docker @("cp", "$($source)/.", "$($backendContainer):/app/data/$media")
-    }
-}
-
 Write-Host "Restoring media ownership..." -ForegroundColor Yellow
 & docker exec -u 0 $backendContainer sh -c "chown -R 10001:10001 /app/data/profile-images /app/data/rental-images"
 if ($LASTEXITCODE -ne 0) { throw "Could not restore media ownership." }
+
+Write-Host "Starting Admin Web after backend and media are ready..." -ForegroundColor Yellow
+Invoke-Compose @("up", "-d", "--no-build", "admin-web")
 
 Write-Host "Database and media restore completed." -ForegroundColor Green
 Set-Location $originalLocation
