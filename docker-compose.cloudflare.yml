@@ -5,11 +5,11 @@ services:
     environment:
       POSTGRES_PASSWORD: ${MPAY_DB_PASSWORD:?Set MPAY_DB_PASSWORD in .env.cloudflare}
     volumes:
-      - mpay_cloudflare_postgres_data:/var/lib/postgresql/data
+      - mpay_postgres_data:/var/lib/postgresql/data
 
   redis:
     volumes:
-      - mpay_cloudflare_redis_data:/data
+      - mpay_redis_data:/data
 
   backend:
     environment:
@@ -49,8 +49,8 @@ services:
       MPAY_CALL_TURN_CREDENTIAL: ${MPAY_CALL_TURN_CREDENTIAL:-}
     volumes:
       - ${MPAY_PRODUCTION_CONFIG_DIR:-./backend/config/cloudflare-production}:/app/config:ro
-      - mpay_cloudflare_profile_images:/app/data/profile-images
-      - mpay_cloudflare_rental_images:/app/data/rental-images
+      - mpay_profile_images:/app/data/profile-images
+      - mpay_rental_images:/app/data/rental-images
     networks:
       mpay: {}
       cloudflare-edge:
