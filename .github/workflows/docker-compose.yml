@@ -2,12 +2,6 @@ name: Docker Compose CI
 
 on:
   workflow_dispatch:
-    inputs:
-      mpay_public_root_url:
-        description: Canonical HTTPS root domain. Web, API, CORS and TURN hostnames are derived from this single value.
-        type: string
-        required: false
-        default: https://quantaedge.in
   push:
     branches:
       - main
@@ -29,6 +23,7 @@ on:
       - 'scripts/mpay-*.ps1'
       - 'scripts/mpay-azure-deploy.ps1'
       - 'scripts/mpay-public-config.py'
+      - 'config/public-hosts.env'
       - 'tests/test_mpay_public_config.py'
 
 concurrency:
@@ -43,7 +38,6 @@ env:
   REGISTRY: ghcr.io
   MPAY_BACKEND_IMAGE: ghcr.io/manav326/mpay-backend
   MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
-  MPAY_PUBLIC_ROOT_URL: ${{ inputs.mpay_public_root_url || vars.MPAY_PUBLIC_ROOT_URL || 'https://quantaedge.in' }}
 
 jobs:
   build:
@@ -56,9 +50,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-      - name: Derive mPay public URLs from the single root domain
+      - name: Derive mPay public URLs from the single tracked hostname file
         shell: bash
-        run: python3 scripts/mpay-public-config.py --root-url "$MPAY_PUBLIC_ROOT_URL" --format github >> "$GITHUB_ENV"
+        run: python3 scripts/mpay-public-config.py --env-file config/public-hosts.env --format github >> "$GITHUB_ENV"
 
       - name: Run mPay public URL regression tests
         run: python3 -m unittest discover -s tests -p 'test_mpay_public_config.py' -v

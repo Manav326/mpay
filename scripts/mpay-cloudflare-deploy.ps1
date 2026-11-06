@@ -49,12 +49,16 @@ function Get-EnvValue {
     return $value
 }
 
-# Derive all public service origins from the single root-domain setting before
-# any Compose, backup, restore, or public smoke-test operation runs.
+# Derive every public origin from the one tracked, non-secret hostname contract.
+# GitHub builds, Android builds and this local deployment all read this exact file.
+$publicHostConfigPath = Join-Path $repoRoot "config/public-hosts.env"
+if (-not (Test-Path $publicHostConfigPath)) {
+    throw "Missing $publicHostConfigPath. Restore the tracked single-source mPay hostname configuration."
+}
 $publicConfigTool = Join-Path $PSScriptRoot "mpay-public-config.py"
-$publicConfigOutput = & python $publicConfigTool --env-file $envPath --format json
+$publicConfigOutput = & python $publicConfigTool --env-file $publicHostConfigPath --format json
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not derive mPay public URLs from MPAY_PUBLIC_ROOT_URL in $envPath."
+    throw "Could not derive mPay public URLs from $publicHostConfigPath."
 }
 try {
     $script:publicConfig = ($publicConfigOutput -join [Environment]::NewLine) | ConvertFrom-Json
