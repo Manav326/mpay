@@ -48,6 +48,7 @@ services:
       MPAY_CALL_TURN_USERNAME: ${MPAY_CALL_TURN_USERNAME:-}
       MPAY_CALL_TURN_CREDENTIAL: ${MPAY_CALL_TURN_CREDENTIAL:-}
     volumes:
+      - ${MPAY_PRODUCTION_CONFIG_DIR:-./backend/config/cloudflare-production}:/app/config:ro
       - mpay_cloudflare_profile_images:/app/data/profile-images
       - mpay_cloudflare_rental_images:/app/data/rental-images
     networks:
