@@ -2,17 +2,31 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$BackupDirectory,
     [string]$ComposeProject = "mpay-azure-dev-local",
-    [string]$ComposeOverlay = ""
+    [string]$ComposeOverlay = "",
+    [string]$EnvFile = ""
 )
 
 $ErrorActionPreference = "Stop"
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$originalLocation = (Get-Location).Path
+Set-Location $repoRoot
 
 if (-not (Test-Path (Join-Path $BackupDirectory "postgres.dump"))) { throw "postgres.dump not found in backup directory." }
 if (-not (Test-Path (Join-Path $BackupDirectory "manifest.json"))) { throw "manifest.json not found in backup directory." }
 
-$composeArgs = @("-f", "docker-compose.yml")
+if (-not (Test-Path $BackupDirectory)) { throw "Backup directory not found: $BackupDirectory" }
+
+$baseCompose = Join-Path $repoRoot "docker-compose.yml"
+$composeArgs = @("-f", $baseCompose)
 if (-not [string]::IsNullOrWhiteSpace($ComposeOverlay)) {
-    $composeArgs += @("-f", $ComposeOverlay)
+    $overlayPath = if ([System.IO.Path]::IsPathRooted($ComposeOverlay)) { $ComposeOverlay } else { Join-Path $repoRoot $ComposeOverlay }
+    if (-not (Test-Path $overlayPath)) { throw "Compose overlay not found: $overlayPath" }
+    $composeArgs += @("-f", $overlayPath)
+}
+if (-not [string]::IsNullOrWhiteSpace($EnvFile)) {
+    $envPath = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $repoRoot $EnvFile }
+    if (-not (Test-Path $envPath)) { throw "Compose env file not found: $envPath" }
+    $composeArgs = @("--env-file", $envPath) + $composeArgs
 }
 $composeArgs += @("-p", $ComposeProject)
 
@@ -80,3 +94,4 @@ Write-Host "Restoring media ownership..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { throw "Could not restore media ownership." }
 
 Write-Host "Database and media restore completed." -ForegroundColor Green
+Set-Location $originalLocation
