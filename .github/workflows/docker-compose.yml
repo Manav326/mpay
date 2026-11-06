@@ -3,14 +3,11 @@ name: Docker Compose CI
 on:
   workflow_dispatch:
     inputs:
-      mpay_web_api_base_url:
-        description: Canonical HTTPS API origin baked into the Admin web image; use the approved production API subdomain for a production release.
+      mpay_public_root_url:
+        description: Canonical HTTPS root domain. Web, API, CORS and TURN hostnames are derived from this single value.
         type: string
         required: false
-      mpay_cors_allowed_origins:
-        description: Comma-separated public browser origins allowed by the backend.
-        type: string
-        required: false
+        default: https://quantaedge.in
   push:
     branches:
       - main
@@ -31,6 +28,8 @@ on:
       - '.env.azure.example'
       - 'scripts/mpay-*.ps1'
       - 'scripts/mpay-azure-deploy.ps1'
+      - 'scripts/mpay-public-config.py'
+      - 'tests/test_mpay_public_config.py'
 
 concurrency:
   group: mpay-docker-ci-${{ github.head_ref || github.ref_name }}
@@ -44,8 +43,7 @@ env:
   REGISTRY: ghcr.io
   MPAY_BACKEND_IMAGE: ghcr.io/manav326/mpay-backend
   MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
-  MPAY_WEB_API_BASE_URL: ${{ inputs.mpay_web_api_base_url || vars.MPAY_WEB_API_BASE_URL || 'https://api.mpay.thinkwithsujeet.in' }}
-  MPAY_CORS_ALLOWED_ORIGINS: ${{ inputs.mpay_cors_allowed_origins || vars.MPAY_CORS_ALLOWED_ORIGINS || 'https://mpay.thinkwithsujeet.in' }}
+  MPAY_PUBLIC_ROOT_URL: ${{ inputs.mpay_public_root_url || vars.MPAY_PUBLIC_ROOT_URL || 'https://quantaedge.in' }}
 
 jobs:
   build:
@@ -57,6 +55,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Derive mPay public URLs from the single root domain
+        shell: bash
+        run: python3 scripts/mpay-public-config.py --root-url "$MPAY_PUBLIC_ROOT_URL" --format github >> "$GITHUB_ENV"
+
+      - name: Run mPay public URL regression tests
+        run: python3 -m unittest discover -s tests -p 'test_mpay_public_config.py' -v
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -114,8 +119,7 @@ jobs:
           MPAY_IMAGE_TAG: sha-ci
           MPAY_ADMIN_WEB_TAG: azure-sha-ci
           MPAY_DB_PASSWORD: ci-validation-only-password-1234567890
-          MPAY_WEB_API_BASE_URL: https://api.mpay.thinkwithsujeet.in
-          MPAY_CORS_ALLOWED_ORIGINS: https://mpay.thinkwithsujeet.in
+          MPAY_PUBLIC_ROOT_URL: https://quantaedge.in
           MPAY_BACKEND_BIND_ADDRESS: 127.0.0.1
           MPAY_ADMIN_WEB_BIND_ADDRESS: 127.0.0.1
           MPAY_BACKEND_HOST_PORT: "18080"
@@ -129,8 +133,8 @@ jobs:
           MPAY_PAYU_NBC_BASE_URL: https://nbc.payu.example
           MPAY_PAYU_AGENT_ID: ci-agent
           MPAY_PAYU_PG_VERIFY_URL: https://pg.payu.example/verify
-          MPAY_PAYU_PG_SUCCESS_URL: https://mpay.thinkwithsujeet.in/payment/success
-          MPAY_PAYU_PG_FAILURE_URL: https://mpay.thinkwithsujeet.in/payment/failure
+          MPAY_PAYU_PG_SUCCESS_URL: https://cbjs.payu.in/sdk/success
+          MPAY_PAYU_PG_FAILURE_URL: https://cbjs.payu.in/sdk/failure
           MPAY_PAYU_PG_PRODUCTION: "true"
         run: |
           docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml config --quiet
@@ -140,12 +144,12 @@ jobs:
           MPAY_IMAGE_TAG: sha-ci
           MPAY_ADMIN_WEB_TAG: azure-sha-ci
           MPAY_PUBLIC_DOMAIN: mpay.example.test
-          MPAY_API_DOMAIN: api.mpay.example.test
-          MPAY_CALL_TURN_REALM: turn.mpay.example.test
+          MPAY_API_DOMAIN: api-mpay.example.test
+          MPAY_CALL_TURN_REALM: turn-mpay.example.test
           MPAY_CALL_TURN_EXTERNAL_IP: 198.51.100.10
           MPAY_CALL_TURN_USERNAME: ci
           MPAY_CALL_TURN_CREDENTIAL: ci
-          MPAY_CALL_ICE_SERVERS: stun:stun.l.google.com:19302,turn:turn.mpay.example.test:3478?transport=udp,turn:turn.mpay.example.test:3478?transport=tcp
+          MPAY_CALL_ICE_SERVERS: stun:stun.l.google.com:19302,turn:turn-mpay.example.test:3478?transport=udp,turn:turn-mpay.example.test:3478?transport=tcp
         run: |
           docker compose -f docker-compose.yml -f docker-compose.azure.yml config
 

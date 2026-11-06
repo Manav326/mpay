@@ -7,10 +7,10 @@ on:
         description: "Git ref or commit SHA to build"
         required: true
         default: "main"
-      api_base_url:
-        description: "Browser-visible backend API base URL"
-        required: true
-        default: "https://api.mpay.thinkwithsujeet.in"
+      public_root_url:
+        description: "Canonical HTTPS root domain; the Admin API origin is derived from it."
+        required: false
+        default: "https://quantaedge.in"
 
 concurrency:
   group: mpay-azure-admin-web-${{ inputs.ref }}
@@ -23,6 +23,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
+  MPAY_PUBLIC_ROOT_URL: ${{ inputs.public_root_url || vars.MPAY_PUBLIC_ROOT_URL || 'https://quantaedge.in' }}
 
 jobs:
   build:
@@ -34,6 +35,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+
+      - name: Derive mPay API origin from the root domain
+        run: python3 scripts/mpay-public-config.py --root-url "$MPAY_PUBLIC_ROOT_URL" --format github >> "$GITHUB_ENV"
 
       - name: Resolve source commit
         shell: bash
@@ -54,7 +58,7 @@ jobs:
 
       - name: Build and push Azure Admin Web image
         run: |
-          docker buildx build             --file admin-web/Dockerfile             --build-arg "NEXT_PUBLIC_API_BASE_URL=${{ inputs.api_base_url }}"             --tag "${MPAY_ADMIN_WEB_IMAGE}:${AZURE_TAG}"             --cache-from "type=gha,scope=mpay-admin-web-azure"             --cache-to "type=gha,mode=max,scope=mpay-admin-web-azure"             --push             admin-web
+          docker buildx build             --file admin-web/Dockerfile             --build-arg "NEXT_PUBLIC_API_BASE_URL=${MPAY_API_PUBLIC_URL}"             --tag "${MPAY_ADMIN_WEB_IMAGE}:${AZURE_TAG}"             --cache-from "type=gha,scope=mpay-admin-web-azure"             --cache-to "type=gha,mode=max,scope=mpay-admin-web-azure"             --push             admin-web
 
       - name: Verify image
         run: |

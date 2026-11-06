@@ -17,13 +17,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_API_BASE_URL: ${{ vars.MPAY_WEB_API_BASE_URL || 'https://api.mpay.thinkwithsujeet.in' }}
+      MPAY_PUBLIC_ROOT_URL: ${{ vars.MPAY_PUBLIC_ROOT_URL || 'https://quantaedge.in' }}
     defaults:
       run:
         working-directory: admin-web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Derive mPay API origin from the single root domain
+        run: python3 ../scripts/mpay-public-config.py --root-url "$MPAY_PUBLIC_ROOT_URL" --format github >> "$GITHUB_ENV"
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
