@@ -88,7 +88,7 @@ The Windows helper asks whether to install the APK immediately.
 - If you answer Y and exactly one ADB device is connected, that device is selected automatically.
 - If you answer Y and multiple ADB devices are connected, the script lists them and asks you to choose one.
 - If no ADB device is connected, installation is skipped and the APK remains in the Gradle debug output directory.
-- If Android rejects the update because the installed com.recharge.client APK has a different signing key, the helper offers to uninstall the old app and install the CI APK. Uninstalling removes the app's local data.
+- If Android rejects the update because the installed com.client.mpay APK has a different signing key, the helper offers to uninstall the old app and install the CI APK. Uninstalling removes the app's local data.
 
 ADB device selection uses the exact serial reported by adb devices, including Android wireless mDNS serials such as adb-..._adb-tls-connect._tcp.
 
