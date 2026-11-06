@@ -103,12 +103,15 @@ function Assert-ProductionEnvironment {
     if ($secrets -match "(?i)YOUR_|REPLACE_WITH|CHANGEME|demo-otp-enabled\s*:\s*true|provider\s*:\s*mock|execution-provider\s*:\s*mock|environment\s*:\s*(test|sandbox)") {
         throw "backend/config/application-secrets.yml still contains a placeholder, mock, demo-OTP, or test/sandbox setting."
     }
-    $jwtMatch = [regex]::Match($secrets, "(?m)^\s*jwt-secret\s*:\s*['\""]?([^\r\n'\""]+)")
-    if (-not $jwtMatch.Success -or $jwtMatch.Groups[1].Value.Trim().Length -lt 32) {
+    $jwtMatch = [regex]::Match($secrets, '(?m)^\s*jwt-secret\s*:\s*(.+)$')
+    $jwtValue = if ($jwtMatch.Success) { $jwtMatch.Groups[1].Value.Trim().Trim('"').Trim("'") } else { "" }
+    if ($jwtValue.Length -lt 32) {
         throw "The backend secrets file must contain a unique app.security.jwt-secret of at least 32 characters."
     }
     foreach ($key in @("api-key", "key-id", "key-secret", "client-id", "client-secret", "agent-id", "merchant-key", "merchant-salt")) {
-        if ($secrets -notmatch ("(?m)^\s*" + [regex]::Escape($key) + "\s*:\s*['\""]?[^\s'\""][^\r\n]*")) {
+        $settingMatch = [regex]::Match($secrets, "(?m)^\s*" + [regex]::Escape($key) + "\s*:\s*(.+)$")
+        $settingValue = if ($settingMatch.Success) { $settingMatch.Groups[1].Value.Trim().Trim('"').Trim("'") } else { "" }
+        if ([string]::IsNullOrWhiteSpace($settingValue)) {
             throw "The backend secrets file is missing a non-empty provider setting: $key."
         }
     }
