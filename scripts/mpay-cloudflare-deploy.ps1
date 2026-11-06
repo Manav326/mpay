@@ -3,7 +3,7 @@ param(
     [string]$EnvFile = ".env.cloudflare",
     [string]$ComposeProject = "mpay-cloudflare-production",
     [string]$CloudflareNetwork = "cloudflare-edge",
-    [string]$CloudflareConnectorContainer = "qrtoprint-local-cloudflared-1",
+    [string]$CloudflareConnectorContainer = "quantaedge-ingress-cloudflared",
     [string]$RestoreBackup = "",
     [switch]$AllowFreshInstall,
     [switch]$ConfirmRestoreOverwrite,
