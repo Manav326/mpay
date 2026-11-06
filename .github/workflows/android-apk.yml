@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   android-apk:
@@ -151,24 +151,42 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Prepare stable Android release asset
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+  publish-android-release:
+    needs: android-apk
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      MPAY_API_BASE_URL: ${{ inputs.mpay_api_base_url || vars.MPAY_API_BASE_URL || 'https://api.mpay.thinkwithsujeet.in' }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download signed APK artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: mpay-android-release-main
+          path: dist
+
+      - name: Prepare versioned release files
         id: public_release
         shell: bash
         run: |
+          test -s dist/app-release.apk
           version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\\1/p' android/app/build.gradle.kts | head -n 1)"
           test -n "$version_name"
           short_sha="${GITHUB_SHA:0:12}"
           tag_name="mpay-android-v${version_name}-${short_sha}"
-          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/mpay-android.apk"
+          cp dist/app-release.apk "$RUNNER_TEMP/mpay-android.apk"
           sha256sum "$RUNNER_TEMP/mpay-android.apk" > "$RUNNER_TEMP/mpay-android.apk.sha256"
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
-          echo "Prepared ${tag_name}"
 
       - name: Publish versioned signed APK and stable latest download
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.public_release.outputs.tag_name }}
