@@ -144,6 +144,13 @@ function Assert-ProductionEnvironment {
                 throw "$name must contain the approved live PayU payout configuration."
             }
         }
+        foreach ($name in @("MPAY_PAYU_PAYOUT_AUTH_BASE_URL", "MPAY_PAYU_PAYOUT_API_BASE_URL")) {
+            $value = Get-EnvValue $name
+            $uri = $null
+            if (-not [Uri]::TryCreate($value, [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -ne "https" -or $value -match "(?i)replace|test|uat|sandbox") {
+                throw "$name must be the approved live HTTPS PayU payout endpoint."
+            }
+        }
     }
 
     foreach ($name in @(
