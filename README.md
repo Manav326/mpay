@@ -12,9 +12,11 @@ The complete system architecture, GitHub Actions flow, Docker/GHCR feature-test 
 
 - PostgreSQL: Docker service `postgres`
 - Redis: Docker service `redis`
-- Spring Boot backend: Docker service `backend`
-- Next.js Admin Web: Docker service `admin-web`
+- Spring Boot API: Docker service `mpay-api`
+- Next.js Admin Web: Docker service `mpay-admin-web`
 - Android: standalone Android Studio project; it is not part of the runtime Docker stack.
+
+mPay's app services use product-qualified IDs `mpay-api` and `mpay-admin-web`, avoiding generic DNS names on the shared Cloudflare network. Production runs as Compose project `mpay-production`; Docker-generated container names are project-scoped and fixed `container_name` values are not used. Production storage volumes use the `mpay_production_*` namespace, and deployment verifies shared-network DNS alias ownership before launch.
 
 ## Stable local stack and GitHub feature-test stack
 
@@ -24,14 +26,14 @@ The Windows development machine keeps two independent Compose projects:
 mpay
 ├── postgres
 ├── redis
-├── backend
-└── admin-web
+├── mpay-api
+└── mpay-admin-web
 
 mpay-github
 ├── postgres
 ├── redis
-├── backend
-└── admin-web
+├── mpay-api
+└── mpay-admin-web
 ```
 
 Both use the same host ports:
@@ -144,7 +146,7 @@ feature-recharge-history-latest
 It then:
 
 ```text
-1. docker compose pull backend admin-web
+1. docker compose pull mpay-api mpay-admin-web
 2. start/reuse postgres and redis
 3. start backend/admin-web with --no-build --no-deps
 ```
@@ -156,8 +158,8 @@ This means the local machine does not run the Gradle build or Next.js build for 
 The equivalent commands are:
 
 ```powershell
-docker compose -p mpay-github pull backend admin-web
-docker compose -p mpay-github up -d --no-build --no-deps backend admin-web
+docker compose -p mpay-github pull mpay-api mpay-admin-web
+docker compose -p mpay-github up -d --no-build --no-deps mpay-api mpay-admin-web
 ```
 
 ## Switching back to the stable application
@@ -294,8 +296,8 @@ Set production environment values separately before deployment.
 
 Caddy terminates HTTPS and routes:
 
-- `/api/*` -> Spring Boot `backend:8080`
-- everything else -> Next.js `admin-web:3000`
+- `/api/*` -> Spring Boot `mpay-api:8080`
+- everything else -> Next.js `mpay-admin-web:3000`
 
 ## Database and persistent data
 

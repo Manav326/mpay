@@ -131,6 +131,19 @@ jobs:
           MPAY_PAYU_PG_PRODUCTION: "true"
         run: |
           docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml config --quiet
+          services="$(docker compose -p mpay-production -f docker-compose.yml -f docker-compose.cloudflare.yml config --services)"
+          for service in postgres redis mpay-api mpay-admin-web; do
+            if ! grep -Fxq "$service" <<< "$services"; then
+              echo "Missing mPay production service: $service"
+              exit 1
+            fi
+          done
+          for service in backend admin-web api web; do
+            if grep -Fxq "$service" <<< "$services"; then
+              echo "Generic service name '$service' is forbidden in the mPay production project."
+              exit 1
+            fi
+          done
 
       - name: Validate Azure deployment overlay
         env:
@@ -151,6 +164,7 @@ jobs:
         run: |
           $files = @(
             'scripts/mpay-local-deploy.ps1',
+            'scripts/mpay-github-update.ps1',
             'scripts/mpay-cloudflare-deploy.ps1',
             'scripts/mpay-db-backup.ps1',
             'scripts/mpay-db-restore.ps1',

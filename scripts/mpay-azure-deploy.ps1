@@ -248,7 +248,7 @@ try {
     Ensure-DockerStorage
 
     Write-Host "Pulling exact commit images..." -ForegroundColor Yellow
-    Invoke-Compose @("pull", "backend", "admin-web", "coturn")
+    Invoke-Compose @("pull", "mpay-api", "mpay-admin-web", "coturn")
 
     Write-Host "Starting PostgreSQL and Redis..." -ForegroundColor Yellow
     Invoke-Compose @("up", "-d", "postgres", "redis")
@@ -266,8 +266,8 @@ try {
         }
     }
 
-    Write-Host "Starting backend, Admin Web, Caddy and TURN..." -ForegroundColor Yellow
-    Invoke-Compose @("up", "-d", "backend", "admin-web", "caddy", "coturn")
+    Write-Host "Starting mPay API, Admin Web, Caddy and TURN..." -ForegroundColor Yellow
+    Invoke-Compose @("up", "-d", "mpay-api", "mpay-admin-web", "caddy", "coturn")
 
     Write-Host ""
     Invoke-Compose @("ps")

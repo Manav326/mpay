@@ -2,7 +2,7 @@
     encode gzip zstd
 
     @api path /api/*
-    reverse_proxy @api backend:8080
+    reverse_proxy @api mpay-api:8080
 
-    reverse_proxy admin-web:3000
+    reverse_proxy mpay-admin-web:3000
 }

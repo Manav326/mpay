@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$EnvFile = ".env.cloudflare",
-    [string]$ComposeProject = "mpay-cloudflare-production",
+    [string]$ComposeProject = "mpay-production",
     [string]$CloudflareNetwork = "cloudflare-edge",
     [string]$CloudflareConnectorContainer = "quantaedge-ingress-cloudflared",
     [string]$RestoreBackup = "",
@@ -262,6 +262,27 @@ try {
         throw "The existing connector '$CloudflareConnectorContainer' is not attached to '$CloudflareNetwork'. No connector/network changes were made."
     }
 
+    # mPay's product-qualified DNS aliases must not be claimed by another Compose project.
+    $requiredIngressAliases = @("mpay-api", "mpay-admin-web")
+    if ($networkInfo.Count -gt 0 -and $networkInfo[0].Containers) {
+        foreach ($member in $networkInfo[0].Containers.PSObject.Properties) {
+            $memberInspection = & docker inspect $member.Name 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not inspect a member of '$CloudflareNetwork'; refusing deployment without an alias-collision check."
+            }
+            $memberContainer = (($memberInspection -join [Environment]::NewLine) | ConvertFrom-Json)[0]
+            $networkEntry = $memberContainer.NetworkSettings.Networks.PSObject.Properties[$CloudflareNetwork]
+            if ($null -eq $networkEntry) { continue }
+            $memberAliases = @($networkEntry.Value.Aliases)
+            $ownerProject = [string]$memberContainer.Config.Labels.'com.docker.compose.project'
+            foreach ($alias in $requiredIngressAliases) {
+                if ($memberAliases -contains $alias -and $ownerProject -ne $ComposeProject) {
+                    throw "Shared-network DNS alias '$alias' is already owned by container '$($memberContainer.Name)' in Compose project '$ownerProject'. Resolve that collision before deploying mPay."
+                }
+            }
+        }
+    }
+
     $env:MPAY_IMAGE_TAG = "sha-$commitSha"
     $env:MPAY_ADMIN_WEB_TAG = "azure-sha-$commitSha"
     $env:MPAY_BACKEND_IMAGE = "ghcr.io/manav326/mpay-backend"
@@ -277,7 +298,7 @@ try {
     Write-Host ""
     Write-Host "mPay local + Cloudflare production deployment" -ForegroundColor Cyan
     Write-Host "Branch / commit : main / $commitSha" -ForegroundColor Cyan
-    Write-Host "Backend image   : ghcr.io/manav326/mpay-backend:sha-$commitSha" -ForegroundColor Cyan
+    Write-Host "API image       : ghcr.io/manav326/mpay-backend:sha-$commitSha" -ForegroundColor Cyan
     Write-Host "Admin Web image : ghcr.io/manav326/mpay-admin-web:azure-sha-$commitSha" -ForegroundColor Cyan
     Write-Host "Tunnel network  : $CloudflareNetwork (existing connector verified)" -ForegroundColor Cyan
     Write-Host ""
@@ -292,7 +313,7 @@ try {
         throw "Compose did not resolve the Admin Web image to this exact main commit."
     }
 
-    $postgresVolume = "mpay_cloudflare_production_postgres_data"
+    $postgresVolume = "mpay_production_postgres_data"
     $postgresVolumeExists = Test-DockerVolume $postgresVolume
     $restoreProvided = -not [string]::IsNullOrWhiteSpace($RestoreBackup)
 
@@ -307,25 +328,25 @@ try {
     }
 
     $existingPostgres = (& docker compose @script:composeBaseArgs ps -q postgres 2>$null).Trim()
-    $existingBackend = (& docker compose @script:composeBaseArgs ps -q backend 2>$null).Trim()
+    $existingApi = (& docker compose @script:composeBaseArgs ps -q mpay-api 2>$null).Trim()
     if ($postgresVolumeExists -and -not $restoreProvided) {
-        if ([string]::IsNullOrWhiteSpace($existingPostgres) -or [string]::IsNullOrWhiteSpace($existingBackend)) {
-            throw "The production database volume exists but its current backend/PostgreSQL stack is not running. Start it and take a verified backup before updating; the script will not guess at the data state."
+        if ([string]::IsNullOrWhiteSpace($existingPostgres) -or [string]::IsNullOrWhiteSpace($existingApi)) {
+            throw "The production database volume exists but its current mPay API/PostgreSQL stack is not running. Start it and take a verified backup before updating; the script will not guess at the data state."
         }
     }
 
     Write-Host "Pulling immutable images for this exact main commit..." -ForegroundColor Yellow
-    Invoke-Compose @("pull", "backend", "admin-web")
+    Invoke-Compose @("pull", "mpay-api", "mpay-admin-web")
 
-    if ($postgresVolumeExists -and -not [string]::IsNullOrWhiteSpace($existingBackend)) {
+    if ($postgresVolumeExists -and -not [string]::IsNullOrWhiteSpace($existingApi)) {
         try {
-            Write-Host "Briefly stopping Admin Web/backend to freeze database and media writes..." -ForegroundColor Yellow
-            Invoke-Compose @("stop", "backend", "admin-web")
+            Write-Host "Briefly stopping mPay Web/API to freeze database and media writes..." -ForegroundColor Yellow
+            Invoke-Compose @("stop", "mpay-api", "mpay-admin-web")
             Write-Host "Creating a consistent database + profile/rental-media backup before the update..." -ForegroundColor Yellow
             & $backupScript -ComposeProject $ComposeProject -ComposeOverlay $overlayPath -EnvFile $envPath -BackupDirectory (Join-Path $repoRoot "backups/cloudflare-production")
         } catch {
             try {
-                Invoke-Compose @("start", "backend", "admin-web")
+                Invoke-Compose @("start", "mpay-api", "mpay-admin-web")
             } catch {
                 Write-Warning "The pre-update backup failed and the previous application containers could not be restarted automatically. Inspect docker compose ps/logs."
             }
@@ -344,8 +365,8 @@ try {
             throw "Database/media restore failed. The backup files and persistent volumes have been preserved. $($_.Exception.Message)"
         }
     } else {
-        Write-Host "Starting backend and Admin Web without rebuilding local images..." -ForegroundColor Yellow
-        Invoke-Compose @("up", "-d", "--no-build", "backend", "admin-web")
+        Write-Host "Starting mPay API and Admin Web without rebuilding local images..." -ForegroundColor Yellow
+        Invoke-Compose @("up", "-d", "--no-build", "mpay-api", "mpay-admin-web")
     }
 
     $backendPort = Get-EnvValue "MPAY_BACKEND_HOST_PORT"
@@ -363,7 +384,7 @@ try {
     }
     if (-not $backendReady) {
         Invoke-Compose @("ps")
-        throw "Backend did not reach /actuator/health UP. The pre-deployment backup is retained; inspect container logs before attempting rollback."
+        throw "mPay API did not reach /actuator/health UP. The pre-deployment backup is retained; inspect container logs before attempting rollback."
     }
 
     try {

@@ -28,7 +28,7 @@ services:
       retries: 20
     networks: [mpay]
 
-  backend:
+  mpay-api:
     build:
       context: ./backend
     restart: unless-stopped
@@ -51,7 +51,7 @@ services:
       - mpay_profile_images:/app/data/profile-images
     networks: [mpay]
 
-  admin-web:
+  mpay-admin-web:
     build:
       context: ./admin-web
       args:
@@ -62,7 +62,7 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
     depends_on:
-      - backend
+      - mpay-api
     ports:
       - "3000:3000"
     networks: [mpay]
@@ -81,8 +81,8 @@ services:
       - mpay_caddy_data:/data
       - mpay_caddy_config:/config
     depends_on:
-      - backend
-      - admin-web
+      - mpay-api
+      - mpay-admin-web
     networks: [mpay]
 
 networks:

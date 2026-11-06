@@ -200,8 +200,8 @@ The Android app's default physical-device API URL is the local development backe
 - `postgres`: PostgreSQL 17.
 - `redis`: Redis 7 Alpine.
 - `pgadmin`: pgAdmin 9 on host port 5050.
-- `backend`: Spring Boot image on port 8080.
-- `admin-web`: Next.js image on port 3000.
+- `mpay-api`: Spring Boot image on port 8080.
+- `mpay-admin-web`: Next.js image on port 3000.
 - `caddy`: optional production profile on ports 80/443.
 
 Named persistent volumes are intentionally reused. In particular, the existing PostgreSQL development volume must be preserved. Routine feature switching must not use `docker compose down -v`.

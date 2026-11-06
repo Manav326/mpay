@@ -88,7 +88,7 @@ $project = "mpay-azure-dev-local"
 
 Write-Host "Deployment commit: $commitSha" -ForegroundColor Green
 Write-Host "Pulling exact GHCR images: sha-$commitSha" -ForegroundColor Yellow
-Invoke-Compose ($composeFiles + @("-p", $project, "pull", "backend", "admin-web"))
+Invoke-Compose ($composeFiles + @("-p", $project, "pull", "mpay-api", "mpay-admin-web"))
 Invoke-Compose ($composeFiles + @("-p", $project, "up", "-d", "postgres", "redis"))
 
 if (-not [string]::IsNullOrWhiteSpace($RestoreBackup)) {
@@ -96,7 +96,7 @@ if (-not [string]::IsNullOrWhiteSpace($RestoreBackup)) {
     if ($LASTEXITCODE -ne 0) { throw "Database/media restore failed." }
 }
 else {
-    Invoke-Compose ($composeFiles + @("-p", $project, "up", "-d", "backend", "admin-web"))
+    Invoke-Compose ($composeFiles + @("-p", $project, "up", "-d", "mpay-api", "mpay-admin-web"))
 }
 
 Write-Host ""

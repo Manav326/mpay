@@ -7,7 +7,7 @@ Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
-The four runtime services are `postgres`, `redis`, `backend`, and `admin-web`.
+The four runtime services are `postgres`, `redis`, `mpay-api`, and `mpay-admin-web`.
 
 Local URLs:
 
@@ -22,11 +22,11 @@ The selected production path is local Docker behind the existing central Cloudfl
 
 Change the single root URL in `config/public-hosts.env`, then let the shared renderer derive the public routes and build-time origins:
 
-- `https://mpay.quantaedge.in` → Admin Web service
-- `https://api-mpay.quantaedge.in` → API service
+- `https://mpay.quantaedge.in` → mPay Admin Web service (`mpay-admin-web`)
+- `https://api-mpay.quantaedge.in` → mPay API service (`mpay-api`)
 - `turn-mpay.quantaedge.in` → direct TURN UDP/TCP endpoint; not an HTTP Tunnel route
 
-Use the guarded deployment runbook in `docs/deployment/LOCAL_CLOUDFLARE_PRODUCTION.md`. It uses the existing `cloudflare-edge` network and loopback-only host diagnostics. Do not start a second tunnel or Caddy listener for this selected path.
+Use the guarded deployment runbook in `docs/deployment/LOCAL_CLOUDFLARE_PRODUCTION.md`. Production uses the `mpay-production` Compose project, product-qualified app services and `mpay_production_*` data volumes to avoid cross-project naming collisions. It uses the existing `cloudflare-edge` network and loopback-only host diagnostics. Do not start a second tunnel or Caddy listener for this selected path.
 
 ## Android production build
 

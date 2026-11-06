@@ -1,9 +1,9 @@
 {$MPAY_PUBLIC_DOMAIN} {
     encode gzip zstd
-    reverse_proxy admin-web:3000
+    reverse_proxy mpay-admin-web:3000
 }
 
 {$MPAY_API_DOMAIN} {
     encode gzip zstd
-    reverse_proxy backend:8080
+    reverse_proxy mpay-api:8080
 }

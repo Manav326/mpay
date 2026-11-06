@@ -42,11 +42,11 @@ function Invoke-Docker {
 try {
     $postgresContainer = (& docker compose @composeArgs ps -q postgres).Trim()
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect PostgreSQL for Compose project '$ComposeProject'." }
-    $backendContainer = (& docker compose @composeArgs ps --all -q backend).Trim()
-    if ($LASTEXITCODE -ne 0) { throw "Could not inspect the backend for Compose project '$ComposeProject'." }
+    $apiContainer = (& docker compose @composeArgs ps --all -q mpay-api).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect the API for Compose project '$ComposeProject'." }
 
 if ([string]::IsNullOrWhiteSpace($postgresContainer)) { throw "PostgreSQL container not found for Compose project '$ComposeProject'." }
-if ([string]::IsNullOrWhiteSpace($backendContainer)) { throw "Backend container not found for Compose project '$ComposeProject'." }
+if ([string]::IsNullOrWhiteSpace($apiContainer)) { throw "Backend container not found for Compose project '$ComposeProject'." }
 
 $envLines = & docker inspect $postgresContainer --format '{{range .Config.Env}}{{println .}}{{end}}'
 $dbName = (($envLines | Where-Object { $_ -like "POSTGRES_DB=*" } | Select-Object -First 1) -split "=", 2)[1]
@@ -78,8 +78,8 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) { throw "Could not clean up temporary PostgreSQL dump." }
 
 Write-Host "Backing up profile/rental media..." -ForegroundColor Yellow
-Invoke-Docker @("cp", "$($backendContainer):/app/data/profile-images", (Join-Path $backupRoot "profile-images"))
-Invoke-Docker @("cp", "$($backendContainer):/app/data/rental-images", (Join-Path $backupRoot "rental-images"))
+Invoke-Docker @("cp", "$($apiContainer):/app/data/profile-images", (Join-Path $backupRoot "profile-images"))
+Invoke-Docker @("cp", "$($apiContainer):/app/data/rental-images", (Join-Path $backupRoot "rental-images"))
 
 $sourceCommit = (git -C $repoRoot rev-parse HEAD 2>$null).Trim()
 $manifest = @{

@@ -70,10 +70,10 @@ Mock payment and withdrawal providers are forced off in the production Compose o
 
 The Cloudflare production Compose project owns isolated named volumes:
 
-- `mpay_cloudflare_production_postgres_data`
-- `mpay_cloudflare_production_redis`
-- `mpay_cloudflare_production_profile_images`
-- `mpay_cloudflare_production_rental_images`
+- `mpay_production_postgres_data`
+- `mpay_production_redis_data`
+- `mpay_production_profile_images`
+- `mpay_production_rental_images`
 
 They do not reuse the development or feature-test database/media volumes. The deployment script never runs `down -v`, `docker system prune`, or global image/container cleanup.
 
@@ -94,6 +94,8 @@ Record the resulting backup directory. On first production cutover, restore it i
 For a genuinely new mPay installation with no existing user, wallet, transaction or media data, use `-AllowFreshInstall` instead. This is an explicit choice; the script will not silently initialize an empty production database. A restore into an existing production database also requires `-ConfirmRestoreOverwrite`.
 
 ## 4. Verify the existing Cloudflare network
+
+The mPay production Compose project is `mpay-production`. Its shared-network service IDs are `mpay-api` and `mpay-admin-web`; generic `api`/`web` aliases are not exposed. Before deployment, the script checks if either product-qualified alias is already owned by a different Compose project and stops on a collision. No fixed container names are used.
 
 The deployment script checks that the central connector container `quantaedge-ingress-cloudflared` is attached to the Docker network `cloudflare-edge`. The connector is owned by the `QuantaEdge-Production` control plane; start it with `.\scripts\local-ingress.ps1 up` from that repository before deploying mPay. mPay's Compose overlay only joins the shared network and never starts or manages a Tunnel connector. The central topology and migration procedure are documented in [local-cloudflare-tunnel.md](https://github.com/Manav326/QuantaEdge-Production/blob/main/docs/local-cloudflare-tunnel.md).
 

@@ -29,7 +29,7 @@ services:
     networks: [mpay]
 
 
-  backend:
+  mpay-api:
     image: ${MPAY_BACKEND_IMAGE:-ghcr.io/manav326/mpay-backend}:${MPAY_IMAGE_TAG:-latest}
     build:
       context: ./backend
@@ -62,7 +62,7 @@ services:
     networks:
       mpay: {}
 
-  admin-web:
+  mpay-admin-web:
     image: ${MPAY_ADMIN_WEB_IMAGE:-ghcr.io/manav326/mpay-admin-web}:${MPAY_IMAGE_TAG:-latest}
     build:
       context: ./admin-web
@@ -74,7 +74,7 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
     depends_on:
-      - backend
+      - mpay-api
     ports:
       - "${MPAY_ADMIN_WEB_BIND_ADDRESS:-0.0.0.0}:${MPAY_ADMIN_WEB_HOST_PORT:-3000}:3000"
     networks:
@@ -94,8 +94,8 @@ services:
       - mpay_caddy_data:/data
       - mpay_caddy_config:/config
     depends_on:
-      - backend
-      - admin-web
+      - mpay-api
+      - mpay-admin-web
     networks: [mpay]
 
 networks:
