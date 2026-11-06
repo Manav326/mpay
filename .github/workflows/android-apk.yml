@@ -191,7 +191,7 @@ jobs:
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
 
       - name: Publish versioned signed APK and stable latest download
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.public_release.outputs.tag_name }}
           target_commitish: ${{ github.sha }}
