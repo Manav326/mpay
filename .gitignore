@@ -17,6 +17,8 @@ admin-web/node_modules/
 admin-web/.next/
 *.log
 .env
+.env.cloudflare
+.env.cloudflare.*
 
 # OS / IDE
 .DS_Store
