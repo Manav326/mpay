@@ -78,6 +78,42 @@ function Assert-ProductionEnvironment {
         throw "MPAY_PAYU_PG_PRODUCTION must be true only after live PayU credentials are approved and configured."
     }
 
+    $razorpayPayoutEnabled = (Get-EnvValue "MPAY_RAZORPAY_PAYOUT_ENABLED").ToLowerInvariant() -eq "true"
+    $payuPayoutEnabled = (Get-EnvValue "MPAY_PAYU_PAYOUT_ENABLED").ToLowerInvariant() -eq "true"
+    if (-not $razorpayPayoutEnabled -and -not $payuPayoutEnabled) {
+        throw "At least one live payout provider must be configured and enabled. Mock withdrawals are disabled; do not deploy a customer withdrawal flow that cannot execute."
+    }
+    if ($razorpayPayoutEnabled) {
+        foreach ($name in @(
+            "MPAY_RAZORPAY_PAYOUT_KEY_ID",
+            "MPAY_RAZORPAY_PAYOUT_KEY_SECRET",
+            "MPAY_RAZORPAY_PAYOUT_ACCOUNT_NUMBER",
+            "MPAY_RAZORPAY_PAYOUT_CONTACT_ID",
+            "MPAY_RAZORPAY_PAYOUT_WEBHOOK_SECRET"
+        )) {
+            $value = Get-EnvValue $name
+            if ([string]::IsNullOrWhiteSpace($value) -or $value -match "(?i)replace|test|your_") {
+                throw "$name must contain the approved live RazorpayX payout configuration."
+            }
+        }
+    }
+    if ($payuPayoutEnabled) {
+        if ((Get-EnvValue "MPAY_PAYU_PAYOUT_ENVIRONMENT").ToLowerInvariant() -ne "production") {
+            throw "MPAY_PAYU_PAYOUT_ENVIRONMENT must be production when PayU payout is enabled."
+        }
+        foreach ($name in @(
+            "MPAY_PAYU_PAYOUT_CLIENT_ID",
+            "MPAY_PAYU_PAYOUT_CLIENT_SECRET",
+            "MPAY_PAYU_PAYOUT_MERCHANT_ID",
+            "MPAY_PAYU_PAYOUT_WEBHOOK_AUTHORIZATION"
+        )) {
+            $value = Get-EnvValue $name
+            if ([string]::IsNullOrWhiteSpace($value) -or $value -match "(?i)replace|test|uat|your_") {
+                throw "$name must contain the approved live PayU payout configuration."
+            }
+        }
+    }
+
     foreach ($name in @(
         "MPAY_PAYU_AUTH_BASE_URL",
         "MPAY_PAYU_NBC_BASE_URL",
