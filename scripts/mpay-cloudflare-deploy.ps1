@@ -63,7 +63,7 @@ function Assert-ProductionEnvironment {
         throw "Missing $envPath. Copy .env.cloudflare.example to .env.cloudflare and fill in every production value first."
     }
     if (-not (Test-Path $secretPath)) {
-        throw "Missing backend/config/application-secrets.yml. Configure production-only backend credentials before deployment."
+        throw "Missing $secretPath. Configure production-only backend credentials before deployment."
     }
 
     $databasePassword = Get-EnvValue "MPAY_DB_PASSWORD"
@@ -294,22 +294,35 @@ try {
         }
     }
 
-    if ($postgresVolumeExists -and -not [string]::IsNullOrWhiteSpace($existingBackend)) {
-        Write-Host "Creating a database + profile/rental-media backup before the update..." -ForegroundColor Yellow
-        & $backupScript -ComposeProject $ComposeProject -ComposeOverlay $overlayPath -EnvFile $envPath -BackupDirectory (Join-Path $repoRoot "backups/cloudflare-production")
-        if ($LASTEXITCODE -ne 0) { throw "Automatic pre-deployment backup failed. No application update was started." }
-    }
-
     Write-Host "Pulling immutable images for this exact main commit..." -ForegroundColor Yellow
     Invoke-Compose @("pull", "backend", "admin-web")
+
+    if ($postgresVolumeExists -and -not [string]::IsNullOrWhiteSpace($existingBackend)) {
+        Write-Host "Briefly stopping Admin Web/backend to freeze database and media writes..." -ForegroundColor Yellow
+        Invoke-Compose @("stop", "backend", "admin-web")
+        try {
+            Write-Host "Creating a consistent database + profile/rental-media backup before the update..." -ForegroundColor Yellow
+            & $backupScript -ComposeProject $ComposeProject -ComposeOverlay $overlayPath -EnvFile $envPath -BackupDirectory (Join-Path $repoRoot "backups/cloudflare-production")
+        } catch {
+            try {
+                Invoke-Compose @("start", "backend", "admin-web")
+            } catch {
+                Write-Warning "The pre-update backup failed and the previous application containers could not be restarted automatically. Inspect docker compose ps/logs."
+            }
+            throw "Automatic pre-deployment backup failed. The update was not started. $($_.Exception.Message)"
+        }
+    }
 
     Write-Host "Starting production PostgreSQL and Redis..." -ForegroundColor Yellow
     Invoke-Compose @("up", "-d", "postgres", "redis")
 
     if ($restoreProvided) {
         Write-Host "Restoring the verified database and media backup..." -ForegroundColor Yellow
-        & $restoreScript -BackupDirectory $RestoreBackup -ComposeProject $ComposeProject -ComposeOverlay $overlayPath -EnvFile $envPath
-        if ($LASTEXITCODE -ne 0) { throw "Database/media restore failed. The backup files and persistent volumes have been preserved." }
+        try {
+            & $restoreScript -BackupDirectory $RestoreBackup -ComposeProject $ComposeProject -ComposeOverlay $overlayPath -EnvFile $envPath
+        } catch {
+            throw "Database/media restore failed. The backup files and persistent volumes have been preserved. $($_.Exception.Message)"
+        }
     } else {
         Write-Host "Starting backend and Admin Web without rebuilding local images..." -ForegroundColor Yellow
         Invoke-Compose @("up", "-d", "--no-build", "backend", "admin-web")
