@@ -175,12 +175,16 @@ jobs:
         id: public_release
         shell: bash
         run: |
-          test -s dist/app-release.apk
-          version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\\1/p' android/app/build.gradle.kts | head -n 1)"
+          apk_path="$(find dist -type f -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          test -s "$apk_path"
+          version_line="$(grep -m1 -E '^[[:space:]]*versionName = "' android/app/build.gradle.kts)"
+          version_name="${version_line#*versionName = \"}"
+          version_name="${version_name%%\"*}"
           test -n "$version_name"
           short_sha="${GITHUB_SHA:0:12}"
           tag_name="mpay-android-v${version_name}-${short_sha}"
-          cp dist/app-release.apk "$RUNNER_TEMP/mpay-android.apk"
+          cp "$apk_path" "$RUNNER_TEMP/mpay-android.apk"
           sha256sum "$RUNNER_TEMP/mpay-android.apk" > "$RUNNER_TEMP/mpay-android.apk.sha256"
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
