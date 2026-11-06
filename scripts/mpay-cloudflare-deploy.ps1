@@ -298,9 +298,9 @@ try {
     Invoke-Compose @("pull", "backend", "admin-web")
 
     if ($postgresVolumeExists -and -not [string]::IsNullOrWhiteSpace($existingBackend)) {
-        Write-Host "Briefly stopping Admin Web/backend to freeze database and media writes..." -ForegroundColor Yellow
-        Invoke-Compose @("stop", "backend", "admin-web")
         try {
+            Write-Host "Briefly stopping Admin Web/backend to freeze database and media writes..." -ForegroundColor Yellow
+            Invoke-Compose @("stop", "backend", "admin-web")
             Write-Host "Creating a consistent database + profile/rental-media backup before the update..." -ForegroundColor Yellow
             & $backupScript -ComposeProject $ComposeProject -ComposeOverlay $overlayPath -EnvFile $envPath -BackupDirectory (Join-Path $repoRoot "backups/cloudflare-production")
         } catch {
