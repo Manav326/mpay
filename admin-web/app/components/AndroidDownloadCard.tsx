@@ -77,7 +77,12 @@ export default function AndroidDownloadCard() {
 
       if (receivedBytes === 0) throw new Error('The downloaded file was empty. Please try again.');
 
-      const apk = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
+      const blobParts = chunks.map(chunk => {
+        const copy = new Uint8Array(chunk.byteLength);
+        copy.set(chunk);
+        return copy.buffer;
+      });
+      const apk = new Blob(blobParts, { type: 'application/vnd.android.package-archive' });
       const objectUrl = URL.createObjectURL(apk);
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
