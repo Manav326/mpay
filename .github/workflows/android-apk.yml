@@ -123,6 +123,8 @@ jobs:
           stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/release/app-release.apk
           stat -c "AAB_SIZE_BYTES=%s" android/app/build/outputs/bundle/release/app-release.aab
           test -f android/app/build/outputs/mapping/release/mapping.txt
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          "${sdk_root}/build-tools/36.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Set APK artifact name
         shell: bash
@@ -183,7 +185,7 @@ jobs:
           short_sha="${GITHUB_SHA:0:12}"
           tag_name="mpay-android-v${version_name}-${short_sha}"
           cp "$apk_path" "$RUNNER_TEMP/mpay-android.apk"
-          sha256sum "$RUNNER_TEMP/mpay-android.apk" > "$RUNNER_TEMP/mpay-android.apk.sha256"
+          (cd "$RUNNER_TEMP" && sha256sum mpay-android.apk > mpay-android.apk.sha256)
           echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
