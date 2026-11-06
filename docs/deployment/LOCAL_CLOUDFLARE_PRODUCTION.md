@@ -122,7 +122,7 @@ If the tunnel hostnames have not yet been configured, use `-SkipPublicSmokeTest`
 
 ## 6. Voice calling is a separate network requirement
 
-Cloudflare Tunnel's HTTP/HTTPS ingress can carry the Admin Web, REST API and WebSocket signaling, but it does not relay WebRTC audio media over UDP. The app's voice-calling feature therefore needs a separately reachable TURN service (UDP/TCP 3478 plus its configured relay port range), TURN username/credential, and the matching `MPAY_CALL_ICE_SERVERS` URLs. Firebase Admin service-account credentials and the Android Firebase app secrets are also required for incoming-call notifications.
+Cloudflare Tunnel's HTTP/HTTPS ingress can carry the Admin Web, REST API and WebSocket signaling, but it does not relay WebRTC audio media over UDP. The local Cloudflare deployment therefore advertises only the public STUN server by default and does not pretend a TURN service exists. `config/public-hosts.env` keeps `MPAY_TURN_ENABLED=false` until a separately reachable TURN service has been provisioned and tested. Only then set it to true; the renderer will advertise `turn-mpay.<root-domain>` on UDP/TCP 3478. The TURN service must independently expose its UDP relay port range (49160–49260), username and credential. TURN is never an HTTP Tunnel route. Firebase Admin service-account credentials and the Android Firebase app secrets are also required for incoming-call notifications.
 
 Until an external TURN path and FCM delivery are tested from real networks, do not grant `CALL_CUSTOMER` to production staff roles or represent voice calling as ready. Do not try to route TURN UDP through the regular Cloudflare HTTP tunnel.
 

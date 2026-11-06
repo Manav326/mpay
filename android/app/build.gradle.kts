@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -26,7 +28,7 @@ tasks.named("preBuild") {
 }
 
 fun deriveMpayPublicUrl(rootUrl: String, serviceLabel: String): String {
-    val uri = java.net.URI(rootUrl.trim())
+    val uri = URI(rootUrl.trim())
     require(uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()) {
         "mpayPublicRootUrl must be a canonical HTTPS root URL."
     }
@@ -79,8 +81,8 @@ android {
         applicationId = "com.client.mpay"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.0.1"
 
         // Ship only Android ARM ABIs. WebRTC also publishes x86/x86_64
         // native binaries for emulators, which are not needed in the

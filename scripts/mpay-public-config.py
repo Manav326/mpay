@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive every mPay public origin from one canonical HTTPS root URL."""
+"""Derive mPay public origins from the canonical root URL in config/public-hosts.env."""
 from __future__ import annotations
 
 import argparse
@@ -41,40 +41,47 @@ def normalize_root(value: str) -> tuple[str, str]:
     return f"https://{domain}", domain
 
 
-def read_root(env_file: Path) -> str:
-    values: list[str] = []
+def read_settings(env_file: Path) -> tuple[str, bool]:
+    settings: dict[str, list[str]] = {"MPAY_PUBLIC_ROOT_URL": [], "MPAY_TURN_ENABLED": []}
     try:
         lines = env_file.read_text(encoding="utf-8").splitlines()
     except OSError as exc:
-        raise ConfigError(f"cannot read env file: {exc}") from exc
+        raise ConfigError(f"cannot read config file: {exc}") from exc
     for raw in lines:
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = (part.strip() for part in line.split("=", 1))
-        if key == "MPAY_PUBLIC_ROOT_URL":
+        if key in settings:
             if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
                 value = value[1:-1]
-            values.append(value)
-    if len(values) != 1:
-        raise ConfigError("env file must contain exactly one MPAY_PUBLIC_ROOT_URL=... entry")
-    return values[0]
+            settings[key].append(value)
+    if len(settings["MPAY_PUBLIC_ROOT_URL"]) != 1:
+        raise ConfigError("config file must contain exactly one MPAY_PUBLIC_ROOT_URL=... entry")
+    if len(settings["MPAY_TURN_ENABLED"]) > 1:
+        raise ConfigError("config file may contain at most one MPAY_TURN_ENABLED entry")
+    turn_value = settings["MPAY_TURN_ENABLED"][0].lower() if settings["MPAY_TURN_ENABLED"] else "false"
+    if turn_value not in ("true", "false"):
+        raise ConfigError("MPAY_TURN_ENABLED must be true or false")
+    return settings["MPAY_PUBLIC_ROOT_URL"][0], turn_value == "true"
 
 
-def derive(root_value: str) -> dict[str, str]:
+def derive(root_value: str, turn_enabled: bool = False) -> dict[str, str]:
     root_url, domain = normalize_root(root_value)
     web_host = f"mpay.{domain}"
     api_host = f"api-mpay.{domain}"
     turn_host = f"turn-mpay.{domain}"
     web_url = f"https://{web_host}"
     api_url = f"https://{api_host}"
-    ice = (
-        "stun:stun.l.google.com:19302,"
-        f"turn:{turn_host}:3478?transport=udp,"
-        f"turn:{turn_host}:3478?transport=tcp"
-    )
+    ice_values = ["stun:stun.l.google.com:19302"]
+    if turn_enabled:
+        ice_values.extend((
+            f"turn:{turn_host}:3478?transport=udp",
+            f"turn:{turn_host}:3478?transport=tcp",
+        ))
     return {
         "MPAY_PUBLIC_ROOT_URL": root_url,
+        "MPAY_TURN_ENABLED": str(turn_enabled).lower(),
         "MPAY_WEB_PUBLIC_URL": web_url,
         "MPAY_API_PUBLIC_URL": api_url,
         "MPAY_TURN_HOST": turn_host,
@@ -84,7 +91,7 @@ def derive(root_value: str) -> dict[str, str]:
         "MPAY_API_BASE_URL": api_url,
         "MPAY_CORS_ALLOWED_ORIGINS": web_url,
         "MPAY_CALL_TURN_REALM": turn_host,
-        "MPAY_CALL_ICE_SERVERS": ice,
+        "MPAY_CALL_ICE_SERVERS": ",".join(ice_values),
     }
 
 
@@ -92,12 +99,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--root-url", help="Canonical HTTPS root URL")
-    source.add_argument("--env-file", type=Path, help="Read MPAY_PUBLIC_ROOT_URL from an env file")
+    source.add_argument("--env-file", type=Path, help="Read MPAY_PUBLIC_ROOT_URL and optional MPAY_TURN_ENABLED")
     parser.add_argument("--format", choices=("env", "json", "github"), default="env")
     args = parser.parse_args()
     try:
-        root = args.root_url if args.root_url is not None else read_root(args.env_file)
-        config = derive(root)
+        if args.root_url is not None:
+            root, turn_enabled = args.root_url, False
+        else:
+            root, turn_enabled = read_settings(args.env_file)
+        config = derive(root, turn_enabled=turn_enabled)
     except ConfigError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
