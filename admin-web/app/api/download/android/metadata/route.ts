@@ -4,6 +4,8 @@ export const runtime = 'nodejs';
 
 const RELEASES_URL = 'https://api.github.com/repos/Manav326/mpay/releases/latest';
 
+type ReleaseAsset = { name?: string; size?: number; browser_download_url?: string };
+
 export async function GET() {
   try {
     const response = await fetch(RELEASES_URL, {
@@ -14,36 +16,36 @@ export async function GET() {
       },
       next: { revalidate: 300 },
     });
-
     if (!response.ok) {
       return NextResponse.json(
         { available: false, message: 'The latest Android release could not be checked right now.' },
         { status: 200, headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=120' } },
       );
     }
-
     const release = await response.json();
-    const asset = Array.isArray(release.assets)
-      ? release.assets.find((item: { name?: string }) => item.name === 'mpay-android.apk')
-      : undefined;
-
-    if (release.draft || release.prerelease || !asset || !Number.isFinite(Number(asset.size)) || Number(asset.size) <= 0) {
+    const assets: ReleaseAsset[] = Array.isArray(release.assets) ? release.assets : [];
+    const apk = assets.find(asset => asset.name === 'mpay-android.apk');
+    const checksum = assets.find(asset => asset.name === 'mpay-android.apk.sha256');
+    const tag = String(release.tag_name || '');
+    const versionMatch = tag.match(/^mpay-android-v(.+?)-build(\d+)-[0-9a-f]{12}$/i);
+    const legacyVersionMatch = tag.match(/^mpay-android-v(.+)-[0-9a-f]{12}$/i);
+    const version = versionMatch?.[1] || legacyVersionMatch?.[1] || tag.replace(/^mpay-android-v/i, '') || 'Latest';
+    const buildNumber = versionMatch?.[2] || undefined;
+    if (
+      release.draft || release.prerelease || !apk?.browser_download_url ||
+      !Number.isFinite(Number(apk.size)) || Number(apk.size) <= 0 || !checksum?.browser_download_url
+    ) {
       return NextResponse.json(
-        { available: false, message: 'The first signed Android release is being prepared.' },
+        { available: false, message: 'The next signed Android release is being prepared.' },
         { status: 200, headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=120' } },
       );
     }
-
-    const tag = String(release.tag_name || '');
-    const versionMatch = tag.match(/^mpay-android-v(.+)-[0-9a-f]{12}$/i);
-    const version = versionMatch?.[1] || tag.replace(/^mpay-android-v/i, '') || 'Latest';
-
     return NextResponse.json(
       {
-        available: true,
-        version,
-        sizeBytes: Number(asset.size),
+        available: true, version, buildNumber, sizeBytes: Number(apk.size),
         publishedAt: release.published_at || null,
+        releaseUrl: release.html_url || null,
+        checksumUrl: checksum.browser_download_url,
       },
       { headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' } },
     );

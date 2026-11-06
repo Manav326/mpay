@@ -29,3 +29,8 @@
 @media(max-width:760px){.section{width:min(100% - 32px,560px);margin-bottom:56px}.card{grid-template-columns:1fr;gap:20px;padding:21px;border-radius:22px}.identity{gap:13px}.appIcon{width:50px;height:50px;border-radius:16px}.downloadPanel{padding:15px}}
 @media(max-width:420px){.section{width:calc(100% - 24px)}.card{padding:17px}.identity{align-items:flex-start}.identity h2{font-size:21px}.releaseLine{align-items:flex-start;flex-direction:column;gap:7px}}
 @media(prefers-reduced-motion:reduce){.spinner{animation:none}.downloadButton,.progressTrack span{transition:none}}
+
+
+.releaseLinks{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid #f0e6d6}
+.releaseLinks a{color:#9a5d08;font-size:11px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.releaseLinks a:hover{color:#704205}

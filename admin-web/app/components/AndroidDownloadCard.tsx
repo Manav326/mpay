@@ -9,6 +9,9 @@ type ReleaseMetadata = {
   version?: string;
   sizeBytes?: number;
   publishedAt?: string;
+  buildNumber?: string;
+  releaseUrl?: string;
+  checksumUrl?: string;
   message?: string;
 };
 
@@ -125,6 +128,7 @@ export default function AndroidDownloadCard() {
             <span className={styles.platform}><Smartphone size={14} /> Android</span>
             <span>{metadata?.version ? `Version ${metadata.version}` : 'Latest version'}</span>
             <span>{formatBytes(metadata?.sizeBytes)}</span>
+            {metadata?.publishedAt ? <span>Released {new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(metadata.publishedAt))}</span> : null}
           </div>
 
           <button
@@ -154,6 +158,12 @@ export default function AndroidDownloadCard() {
           ) : (
             <p className={styles.message}>The latest signed APK is checked automatically before download.</p>
           )}
+          {metadata?.available ? (
+            <div className={styles.releaseLinks}>
+              {metadata.checksumUrl ? <a href={metadata.checksumUrl} target="_blank" rel="noreferrer">SHA-256 checksum</a> : null}
+              {metadata.releaseUrl ? <a href={metadata.releaseUrl} target="_blank" rel="noreferrer">Release notes</a> : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
