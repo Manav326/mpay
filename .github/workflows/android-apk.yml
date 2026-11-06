@@ -123,6 +123,8 @@ jobs:
           stat -c "APK_SIZE_BYTES=%s" android/app/build/outputs/apk/release/app-release.apk
           stat -c "AAB_SIZE_BYTES=%s" android/app/build/outputs/bundle/release/app-release.aab
           test -f android/app/build/outputs/mapping/release/mapping.txt
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          "${sdk_root}/build-tools/36.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Set APK artifact name
         shell: bash
@@ -150,3 +152,59 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+  publish-android-release:
+    needs: android-apk
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      MPAY_API_BASE_URL: ${{ inputs.mpay_api_base_url || vars.MPAY_API_BASE_URL || 'https://api.mpay.thinkwithsujeet.in' }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download signed APK artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: mpay-android-release-main
+          path: dist
+
+      - name: Prepare versioned release files
+        id: public_release
+        shell: bash
+        run: |
+          apk_path="$(find dist -type f -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          test -s "$apk_path"
+          version_name="$(awk -F '"' '/^[[:space:]]*versionName = / { print $2; exit }' android/app/build.gradle.kts)"
+          test -n "$version_name"
+          short_sha="${GITHUB_SHA:0:12}"
+          tag_name="mpay-android-v${version_name}-${short_sha}"
+          cp "$apk_path" "$RUNNER_TEMP/mpay-android.apk"
+          (cd "$RUNNER_TEMP" && sha256sum mpay-android.apk > mpay-android.apk.sha256)
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish versioned signed APK and stable latest download
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.public_release.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: mPay Android v${{ steps.public_release.outputs.version_name }} (${{ steps.public_release.outputs.short_sha }})
+          body: |
+            Official signed mPay Android APK for commit ${{ github.sha }}.
+            API origin: ${{ env.MPAY_API_BASE_URL }}
+            Verify the APK with the accompanying SHA-256 checksum before distributing it.
+          files: |
+            ${{ runner.temp }}/mpay-android.apk
+            ${{ runner.temp }}/mpay-android.apk.sha256
+          draft: false
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true
+          overwrite_files: true

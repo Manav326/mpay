@@ -231,7 +231,25 @@ cd android
 
 The same URL can be supplied through the `MPAY_API_BASE_URL` environment variable.
 
-## Production deployment
+## Selected production deployment: local Docker + existing Cloudflare Tunnel
+
+The selected release target keeps mPay on the local Docker host and uses the already-running Cloudflare Tunnel. It has a separate Compose overlay, isolated persistent volumes, loopback-only diagnostic ports, and stable Docker aliases for the existing connector. It does not start Caddy or modify the connector.
+
+Start with [the local Cloudflare production runbook](docs/deployment/LOCAL_CLOUDFLARE_PRODUCTION.md). After the main-branch CI checks pass and the local production environment/secrets are prepared, the guarded deploy command is:
+
+```powershell
+.\scripts\mpay-cloudflare-deploy.ps1
+```
+
+First cutover must specify either a verified `-RestoreBackup <folder>` or the explicit `-AllowFreshInstall` switch. Upgrades of an already-running production project create a database and media backup automatically. The script never removes named volumes or runs global Docker cleanup.
+
+The public tunnel hostnames must target the Docker network aliases:
+- `mpay.thinkwithsujeet.in` → `http://mpay-admin-web:3000`
+- `api.mpay.thinkwithsujeet.in` → `http://mpay-api:8080`
+
+The Android homepage card uses the latest signed GitHub Release asset. The main-branch Android workflow publishes a versioned APK plus SHA-256 checksum; it is not dependent on temporary Actions artifact retention.
+
+## Legacy Azure VM deployment (not selected for this rollout)
 
 Production deployment is commit-oriented, like the local GitHub-image test flow. On the VM, keep the checkout at the desired branch, then run:
 

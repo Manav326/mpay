@@ -54,12 +54,13 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "${MPAY_BACKEND_BIND_ADDRESS:-0.0.0.0}:8080:8080"
+      - "${MPAY_BACKEND_BIND_ADDRESS:-0.0.0.0}:${MPAY_BACKEND_HOST_PORT:-8080}:8080"
     volumes:
       - ./backend/config:/app/config:ro
       - mpay_profile_images:/app/data/profile-images
       - mpay_rental_images:/app/data/rental-images
-    networks: [mpay]
+    networks:
+      mpay: {}
 
   admin-web:
     image: ${MPAY_ADMIN_WEB_IMAGE:-ghcr.io/manav326/mpay-admin-web}:${MPAY_IMAGE_TAG:-latest}
@@ -75,8 +76,9 @@ services:
     depends_on:
       - backend
     ports:
-      - "${MPAY_ADMIN_WEB_BIND_ADDRESS:-0.0.0.0}:3000:3000"
-    networks: [mpay]
+      - "${MPAY_ADMIN_WEB_BIND_ADDRESS:-0.0.0.0}:${MPAY_ADMIN_WEB_HOST_PORT:-3000}:3000"
+    networks:
+      mpay: {}
 
   caddy:
     image: caddy:2-alpine

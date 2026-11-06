@@ -1,10 +1,27 @@
 param(
     [string]$ComposeProject = "mpay-github",
-    [string]$BackupDirectory = ""
+    [string]$BackupDirectory = "",
+    [string]$ComposeOverlay = "",
+    [string]$EnvFile = ""
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$originalLocation = (Get-Location).Path
+Set-Location $repoRoot
+
+$composeArgs = @("-f", (Join-Path $repoRoot "docker-compose.yml"))
+if (-not [string]::IsNullOrWhiteSpace($ComposeOverlay)) {
+    $overlayPath = if ([System.IO.Path]::IsPathRooted($ComposeOverlay)) { $ComposeOverlay } else { Join-Path $repoRoot $ComposeOverlay }
+    if (-not (Test-Path $overlayPath)) { throw "Compose overlay not found: $overlayPath" }
+    $composeArgs += @("-f", $overlayPath)
+}
+if (-not [string]::IsNullOrWhiteSpace($EnvFile)) {
+    $envPath = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $repoRoot $EnvFile }
+    if (-not (Test-Path $envPath)) { throw "Compose env file not found: $envPath" }
+    $composeArgs = @("--env-file", $envPath) + $composeArgs
+}
+$composeArgs += @("-p", $ComposeProject)
 
 if ([string]::IsNullOrWhiteSpace($BackupDirectory)) {
     $BackupDirectory = Join-Path $repoRoot "backups"
@@ -22,8 +39,11 @@ function Invoke-Docker {
     }
 }
 
-$postgresContainer = (& docker compose -p $ComposeProject ps -q postgres).Trim()
-$backendContainer = (& docker compose -p $ComposeProject ps -q backend).Trim()
+try {
+    $postgresContainer = (& docker compose @composeArgs ps -q postgres).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect PostgreSQL for Compose project '$ComposeProject'." }
+    $backendContainer = (& docker compose @composeArgs ps --all -q backend).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect the backend for Compose project '$ComposeProject'." }
 
 if ([string]::IsNullOrWhiteSpace($postgresContainer)) { throw "PostgreSQL container not found for Compose project '$ComposeProject'." }
 if ([string]::IsNullOrWhiteSpace($backendContainer)) { throw "Backend container not found for Compose project '$ComposeProject'." }
@@ -76,3 +96,7 @@ Set-Content -Path (Join-Path $backupRoot "manifest.json") -Value $manifest -Enco
 Write-Host ""
 Write-Host "Backup created:" -ForegroundColor Green
 Write-Host $backupRoot -ForegroundColor Cyan
+}
+finally {
+    Set-Location $originalLocation
+}

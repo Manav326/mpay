@@ -22,6 +22,8 @@ on:
       - 'admin-web/**'
       - 'docker-compose.yml'
       - 'docker-compose.azure.yml'
+      - 'docker-compose.cloudflare.yml'
+      - '.env.cloudflare.example'
       - 'infra/caddy/Caddyfile.azure'
       - '.github/workflows/docker-compose.yml'
       - '.github/workflows/azure-admin-web.yml'
@@ -107,6 +109,32 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f docker-compose.local-deploy.yml config
 
+      - name: Validate Cloudflare local production overlay
+        env:
+          MPAY_IMAGE_TAG: sha-ci
+          MPAY_ADMIN_WEB_TAG: azure-sha-ci
+          MPAY_DB_PASSWORD: ci-validation-only-password-1234567890
+          MPAY_WEB_API_BASE_URL: https://api.mpay.thinkwithsujeet.in
+          MPAY_CORS_ALLOWED_ORIGINS: https://mpay.thinkwithsujeet.in
+          MPAY_BACKEND_BIND_ADDRESS: 127.0.0.1
+          MPAY_ADMIN_WEB_BIND_ADDRESS: 127.0.0.1
+          MPAY_BACKEND_HOST_PORT: "18080"
+          MPAY_ADMIN_WEB_HOST_PORT: "13000"
+          MPAY_AUTH_OTP_PROVIDER: way2api
+          MPAY_PAYMENT_GATEWAY_PROVIDERS: razorpay,payu
+          MPAY_WITHDRAWAL_PROVIDER_ORDER: razorpay,payu
+          MPAY_RECHARGE_EXECUTION_PROVIDERS: payu
+          MPAY_PAYU_ENVIRONMENT: production
+          MPAY_PAYU_AUTH_BASE_URL: https://auth.payu.example
+          MPAY_PAYU_NBC_BASE_URL: https://nbc.payu.example
+          MPAY_PAYU_AGENT_ID: ci-agent
+          MPAY_PAYU_PG_VERIFY_URL: https://pg.payu.example/verify
+          MPAY_PAYU_PG_SUCCESS_URL: https://mpay.thinkwithsujeet.in/payment/success
+          MPAY_PAYU_PG_FAILURE_URL: https://mpay.thinkwithsujeet.in/payment/failure
+          MPAY_PAYU_PG_PRODUCTION: "true"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.cloudflare.yml config --quiet
+
       - name: Validate Azure deployment overlay
         env:
           MPAY_IMAGE_TAG: sha-ci
@@ -126,6 +154,7 @@ jobs:
         run: |
           $files = @(
             'scripts/mpay-local-deploy.ps1',
+            'scripts/mpay-cloudflare-deploy.ps1',
             'scripts/mpay-db-backup.ps1',
             'scripts/mpay-db-restore.ps1',
             'scripts/mpay-azure-deploy.ps1'

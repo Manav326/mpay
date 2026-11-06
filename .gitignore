@@ -1,5 +1,6 @@
 # Secrets
 backend/config/application-secrets.yml
+backend/config/cloudflare-production/
 
 # Build/runtime artifacts
 backend/build/
@@ -17,6 +18,9 @@ admin-web/node_modules/
 admin-web/.next/
 *.log
 .env
+.env.cloudflare
+.env.cloudflare.*
+!.env.cloudflare.example
 
 # OS / IDE
 .DS_Store

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, CheckCircle2, ChevronDown, ShieldCheck, Smartphone, UserRound, WalletCards, Zap } from 'lucide-react';
 import MpayBrandUnit from './components/MpayBrandUnit';
+import AndroidDownloadCard from './components/AndroidDownloadCard';
 
 function Brand(){
   return <a className="landing-brand" href="/" aria-label="mPay home"><MpayBrandUnit variant="landing"/></a>;
@@ -41,6 +42,8 @@ export default function LandingPage(){
         <div className="float-card float-two"><ShieldCheck size={17}/><div><b>Secure by design</b><span>Protected account access</span></div></div>
       </div>
     </section>
+
+    <AndroidDownloadCard />
 
     <section className="landing-section" id="how"><div className="section-heading"><span>WHAT WE DO</span><h2>Designed around the moments that matter.</h2><p>mPay keeps the everyday payment journey straightforward, transparent and easy to understand.</p></div>
       <div className="feature-grid">
