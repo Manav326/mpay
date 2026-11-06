@@ -16,6 +16,9 @@ $originalLocation = (Get-Location).Path
 Set-Location $repoRoot
 
 $envPath = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $repoRoot $EnvFile }
+if (-not (Test-Path $envPath)) {
+    throw "Missing $envPath. Copy .env.cloudflare.example to .env.cloudflare and fill in every production value first."
+}
 $overlayPath = Join-Path $repoRoot "docker-compose.cloudflare.yml"
 $secretPath = $null
 $backupScript = Join-Path $PSScriptRoot "mpay-db-backup.ps1"
