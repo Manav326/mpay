@@ -234,14 +234,19 @@ Default local physical-device URL:
 http://192.168.31.47:8080/
 ```
 
-Release build against a production API:
+For a production Android release, use the shared root URL in `config/public-hosts.env`. The release helper reads that file and derives both the API and mPay web origins automatically:
 
 ```powershell
-cd android
-./gradlew.bat :app:assembleRelease -PmpayApiBaseUrl=https://admin.example.com/
+.\scripts\android-build-release.ps1
 ```
 
-The same URL can be supplied through the `MPAY_API_BASE_URL` environment variable.
+For a local development build only, an explicit API override is still supported:
+
+```powershell
+.\scripts\android-build-release.ps1 -ApiBaseUrl http://192.168.31.47:8080/
+```
+
+Do not use a separate API URL override for production; change only `MPAY_PUBLIC_ROOT_URL` in `config/public-hosts.env`.
 
 ## Selected production deployment: local Docker + existing Cloudflare Tunnel
 

@@ -18,37 +18,23 @@ Local URLs:
 
 ## Production
 
-Use one public hostname so the same URL serves both Admin Web and API:
+The selected production path is local Docker behind the existing central Cloudflare Tunnel. Public hostnames are not maintained in individual Compose files or secret-bearing environment files.
 
-```text
-https://admin.example.com/       -> Next.js
-https://admin.example.com/api/*  -> Spring Boot
-```
+Change the single root URL in `config/public-hosts.env`, then let the shared renderer derive the public routes and build-time origins:
 
-Set:
+- `https://mpay.quantaedge.in` → Admin Web service
+- `https://api-mpay.quantaedge.in` → API service
+- `turn-mpay.quantaedge.in` → direct TURN UDP/TCP endpoint; not an HTTP Tunnel route
 
-```text
-MPAY_PUBLIC_DOMAIN=admin.example.com
-MPAY_WEB_API_BASE_URL=https://admin.example.com
-MPAY_CORS_ALLOWED_ORIGINS=https://admin.example.com
-```
-
-Then:
-
-```powershell
-docker compose --profile production up -d --build
-```
-
-Caddy obtains/renews TLS certificates automatically when DNS for the hostname points to the Docker host and ports 80/443 are reachable.
+Use the guarded deployment runbook in `docs/deployment/LOCAL_CLOUDFLARE_PRODUCTION.md`. It uses the existing `cloudflare-edge` network and loopback-only host diagnostics. Do not start a second tunnel or Caddy listener for this selected path.
 
 ## Android production build
 
 ```powershell
-cd android
-./gradlew.bat :app:assembleRelease -PmpayApiBaseUrl=https://admin.example.com/
+.\scripts\android-build-release.ps1
 ```
 
-The app does not need the internal Docker backend address.
+The release helper reads `config/public-hosts.env` and derives the app's API and web origins from the same root. Local development may still use an explicit `-ApiBaseUrl` override.
 
 ## Data persistence
 
