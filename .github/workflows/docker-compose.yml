@@ -113,7 +113,6 @@ jobs:
           MPAY_IMAGE_TAG: sha-ci
           MPAY_ADMIN_WEB_TAG: azure-sha-ci
           MPAY_DB_PASSWORD: ci-validation-only-password-1234567890
-          MPAY_PUBLIC_ROOT_URL: https://quantaedge.in
           MPAY_BACKEND_BIND_ADDRESS: 127.0.0.1
           MPAY_ADMIN_WEB_BIND_ADDRESS: 127.0.0.1
           MPAY_BACKEND_HOST_PORT: "18080"
