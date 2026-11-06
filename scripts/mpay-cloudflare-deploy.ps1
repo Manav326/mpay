@@ -49,6 +49,22 @@ function Get-EnvValue {
     return $value
 }
 
+# Derive all public service origins from the single root-domain setting before
+# any Compose, backup, restore, or public smoke-test operation runs.
+$publicConfigTool = Join-Path $PSScriptRoot "mpay-public-config.py"
+$publicConfigOutput = & python $publicConfigTool --env-file $envPath --format json
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not derive mPay public URLs from MPAY_PUBLIC_ROOT_URL in $envPath."
+}
+try {
+    $script:publicConfig = ($publicConfigOutput -join [Environment]::NewLine) | ConvertFrom-Json
+} catch {
+    throw "The mPay public URL renderer returned invalid JSON: $($_.Exception.Message)"
+}
+foreach ($property in $script:publicConfig.PSObject.Properties) {
+    [Environment]::SetEnvironmentVariable($property.Name, [string]$property.Value, "Process")
+}
+
 function Get-ProductionConfigDirectory {
     $configured = Get-EnvValue "MPAY_PRODUCTION_CONFIG_DIR"
     if ([string]::IsNullOrWhiteSpace($configured)) { $configured = "./backend/config/cloudflare-production" }
@@ -88,13 +104,13 @@ function Assert-ProductionEnvironment {
         throw "MPAY_AUTH_OTP_PROVIDER must be way2api; Twilio is only used by the separate password-reset OTP flow."
     }
 
-    $webApiOrigin = (Get-EnvValue "MPAY_WEB_API_BASE_URL").TrimEnd('/')
-    if ($webApiOrigin -ne "https://api.mpay.thinkwithsujeet.in") {
-        throw "MPAY_WEB_API_BASE_URL must be https://api.mpay.thinkwithsujeet.in for this production deployment."
+    $webApiOrigin = [string]$script:publicConfig.MPAY_API_PUBLIC_URL
+    if ([string]::IsNullOrWhiteSpace($webApiOrigin)) {
+        throw "The generated mPay API origin is missing; check MPAY_PUBLIC_ROOT_URL."
     }
-    $corsOrigins = (Get-EnvValue "MPAY_CORS_ALLOWED_ORIGINS").Split(",") | ForEach-Object { $_.Trim().TrimEnd('/') }
-    if ($corsOrigins -notcontains "https://mpay.thinkwithsujeet.in") {
-        throw "MPAY_CORS_ALLOWED_ORIGINS must include https://mpay.thinkwithsujeet.in."
+    $corsOrigins = @([string]$script:publicConfig.MPAY_CORS_ALLOWED_ORIGINS)
+    if ($corsOrigins -notcontains [string]$script:publicConfig.MPAY_WEB_PUBLIC_URL) {
+        throw "The generated mPay CORS origin does not match the public web origin."
     }
 
     if ((Get-EnvValue "MPAY_PAYU_ENVIRONMENT").ToLowerInvariant() -ne "production") {
@@ -361,8 +377,8 @@ try {
     }
 
     if (-not $SkipPublicSmokeTest) {
-        $webOrigin = "https://mpay.thinkwithsujeet.in"
-        $apiOrigin = (Get-EnvValue "MPAY_WEB_API_BASE_URL").TrimEnd('/')
+        $webOrigin = [string]$script:publicConfig.MPAY_WEB_PUBLIC_URL
+        $apiOrigin = [string]$script:publicConfig.MPAY_API_PUBLIC_URL
         try {
             $null = Invoke-WebRequest -Uri $webOrigin -UseBasicParsing -TimeoutSec 25
             $publicHealth = Invoke-RestMethod -Uri "$apiOrigin/actuator/health" -TimeoutSec 25
@@ -372,7 +388,7 @@ try {
                 throw "Public homepage cannot resolve the signed Android release asset."
             }
         } catch {
-            throw "Local containers are healthy, but the public Cloudflare route smoke test failed. Verify Tunnel hostnames point to mpay-admin-web:3000 and mpay-api:8080, then rerun the script. $($_.Exception.Message)"
+            throw "Local containers are healthy, but the public Cloudflare route smoke test failed. Verify Tunnel hostnames point to mpay.quantaedge.in → mpay-admin-web:3000 and api-mpay.quantaedge.in → mpay-api:8080, then rerun the script. $($_.Exception.Message)"
         }
     }
 
@@ -380,8 +396,9 @@ try {
     Invoke-Compose @("ps")
     Write-Host ""
     Write-Host "mPay local production services are healthy." -ForegroundColor Green
-    Write-Host "Public Web : https://mpay.thinkwithsujeet.in" -ForegroundColor Green
-    Write-Host "Public API : https://api.mpay.thinkwithsujeet.in" -ForegroundColor Green
+    Write-Host "Public Web : $($script:publicConfig.MPAY_WEB_PUBLIC_URL)" -ForegroundColor Green
+    Write-Host "Public API : $($script:publicConfig.MPAY_API_PUBLIC_URL)" -ForegroundColor Green
+    Write-Host "TURN host  : $($script:publicConfig.MPAY_TURN_HOST) (direct UDP/TCP; not an HTTP Tunnel route)" -ForegroundColor Green
     Write-Host "Local Web  : http://127.0.0.1:$webPort" -ForegroundColor DarkGray
     Write-Host "Local API  : http://127.0.0.1:$backendPort" -ForegroundColor DarkGray
     Write-Host "Commit     : $commitSha" -ForegroundColor Green
