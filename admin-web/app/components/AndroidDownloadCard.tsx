@@ -114,7 +114,7 @@ export default function AndroidDownloadCard() {
     <section className={styles.section} aria-labelledby="android-download-title">
       <div className={styles.card}>
         <div className={styles.identity}>
-          <div className={styles.appIcon}><Smartphone size={27} strokeWidth={1.8} /></div>
+          <div className={styles.appIcon}><img src="/branding/mpay-logo.png" alt="mPay" /></div>
           <div className={styles.identityCopy}>
             <span className={styles.eyebrow}>THE mPay APP</span>
             <h2 id="android-download-title">Your payments, right in your pocket.</h2>
@@ -143,7 +143,7 @@ export default function AndroidDownloadCard() {
           {isDownloading || status === 'complete' ? (
             <div className={styles.progressArea} aria-live="polite">
               <div className={styles.progressMeta}>
-                <span>{status === 'complete' ? 'Download ready' : 'Downloading APK'}</span>
+                <span>{status === 'complete' ? 'Download started' : 'Downloading APK'}</span>
                 <strong>{progress}%</strong>
               </div>
               <div className={styles.progressTrack} role="progressbar" aria-label="Android APK download progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
