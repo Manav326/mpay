@@ -76,7 +76,7 @@ finally {
 }
 
 Write-Host "Starting backend and Admin Web..." -ForegroundColor Yellow
-Invoke-Compose @("up", "-d", "backend", "admin-web")
+Invoke-Compose @("up", "-d", "--no-build", "backend", "admin-web")
 
 $backendContainer = (& docker compose @composeArgs ps -q backend).Trim()
 if ([string]::IsNullOrWhiteSpace($backendContainer)) { throw "Backend container not found after startup." }
