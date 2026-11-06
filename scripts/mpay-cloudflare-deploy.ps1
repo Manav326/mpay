@@ -100,7 +100,7 @@ function Assert-ProductionEnvironment {
         throw "MPAY_WITHDRAWAL_PROVIDER_ORDER must select real Razorpay/PayU payout providers and must not include mock."
     }
     $rechargeProviders = (Get-EnvValue "MPAY_RECHARGE_EXECUTION_PROVIDERS").ToLowerInvariant()
-    if ($rechargeProviders -notmatch "(^|,)\\s*payu\\s*(,|$)" -or $rechargeProviders -match "mock") {
+    if ($rechargeProviders -notmatch "(^|,)\s*payu\s*(,|$)" -or $rechargeProviders -match "mock") {
         throw "MPAY_RECHARGE_EXECUTION_PROVIDERS must include the implemented live PayU recharge execution provider and must not include mock."
     }
     $otpProvider = (Get-EnvValue "MPAY_AUTH_OTP_PROVIDER").ToLowerInvariant()
@@ -129,10 +129,10 @@ function Assert-ProductionEnvironment {
     if (-not $razorpayPayoutEnabled -and -not $payuPayoutEnabled) {
         throw "At least one live payout provider must be configured and enabled. Mock withdrawals are disabled; do not deploy a customer withdrawal flow that cannot execute."
     }
-    if ($razorpayPayoutEnabled -and $withdrawalProviders -notmatch "(^|,)\\s*razorpay\\s*(,|$)") {
+    if ($razorpayPayoutEnabled -and $withdrawalProviders -notmatch "(^|,)\s*razorpay\s*(,|$)") {
         throw "Razorpay payouts are enabled but razorpay is missing from MPAY_WITHDRAWAL_PROVIDER_ORDER."
     }
-    if ($payuPayoutEnabled -and $withdrawalProviders -notmatch "(^|,)\\s*payu\\s*(,|$)") {
+    if ($payuPayoutEnabled -and $withdrawalProviders -notmatch "(^|,)\s*payu\s*(,|$)") {
         throw "PayU payouts are enabled but payu is missing from MPAY_WITHDRAWAL_PROVIDER_ORDER."
     }
     if ($razorpayPayoutEnabled) {
