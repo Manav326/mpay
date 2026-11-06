@@ -29,7 +29,7 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq "HEAD") {
 $workflow = "Android APK CI"
 $safeBranch = ($Branch.ToLowerInvariant() -replace '[^a-z0-9_.-]', '-')
 $artifactName = "mpay-android-release-$safeBranch"
-$packageName = "com.recharge.client"
+$packageName = "com.client.mpay"
 $headSha = (git rev-parse HEAD).Trim()
 
 $targetDir = Join-Path $repoRoot "android\app\build\outputs\apk\release"
