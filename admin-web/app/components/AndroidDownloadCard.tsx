@@ -60,14 +60,16 @@ export default function AndroidDownloadCard() {
 
       const totalBytes = Number(response.headers.get('content-length')) || metadata.sizeBytes || 0;
       const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
+      const chunks: ArrayBuffer[] = [];
       let receivedBytes = 0;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         if (value) {
-          chunks.push(value);
+          const chunk = new ArrayBuffer(value.byteLength);
+          new Uint8Array(chunk).set(value);
+          chunks.push(chunk);
           receivedBytes += value.byteLength;
           if (totalBytes > 0) {
             setProgress(Math.min(99, Math.round((receivedBytes / totalBytes) * 100)));
@@ -77,12 +79,7 @@ export default function AndroidDownloadCard() {
 
       if (receivedBytes === 0) throw new Error('The downloaded file was empty. Please try again.');
 
-      const blobParts = chunks.map(chunk => {
-        const copy = new Uint8Array(chunk.byteLength);
-        copy.set(chunk);
-        return copy.buffer;
-      });
-      const apk = new Blob(blobParts, { type: 'application/vnd.android.package-archive' });
+      const apk = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
       const objectUrl = URL.createObjectURL(apk);
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
