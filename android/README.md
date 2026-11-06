@@ -63,7 +63,7 @@ Configure these repository Actions secrets before the first public release:
 - `MPAY_FIREBASE_PROJECT_ID`
 - `MPAY_FIREBASE_SENDER_ID`
 
-Keep the same signing key for every public update. A different signing key prevents an in-place update and can require uninstalling the existing app, which deletes local app data. Production builds use `https://api.mpay.thinkwithsujeet.in/` by default through `MPAY_API_BASE_URL` or the repository variable of that name.
+Keep the same signing key for every public update. A different signing key prevents an in-place update and can require uninstalling the existing app, which deletes local app data. Production builds derive the API origin from `MPAY_PUBLIC_ROOT_URL` (for example, `https://quantaedge.in` → `https://api-mpay.quantaedge.in/`). Local builds without the root setting may still use `MPAY_API_BASE_URL` or `-PmpayApiBaseUrl`.
 
 ### Download or reuse an APK from Windows
 

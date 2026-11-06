@@ -25,9 +25,33 @@ tasks.named("preBuild") {
     dependsOn(syncMpayBranding)
 }
 
-val mpayApiBaseUrl = providers.gradleProperty("mpayApiBaseUrl")
+fun deriveMpayPublicUrl(rootUrl: String, serviceLabel: String): String {
+    val uri = java.net.URI(rootUrl.trim())
+    require(uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()) {
+        "mpayPublicRootUrl must be a canonical HTTPS root URL."
+    }
+    require(uri.rawUserInfo == null && uri.port == -1 && uri.rawPath in listOf("", "/") &&
+        uri.rawQuery == null && uri.rawFragment == null) {
+        "mpayPublicRootUrl must not contain credentials, a port, path, query or fragment."
+    }
+    return "https://$serviceLabel.${uri.host.lowercase()}"
+}
+
+val mpayPublicRootUrl = providers.gradleProperty("mpayPublicRootUrl")
+    .orElse(providers.environmentVariable("MPAY_PUBLIC_ROOT_URL"))
+val derivedMpayApiBaseUrl = mpayPublicRootUrl.map { deriveMpayPublicUrl(it, "api-mpay") }
+val derivedMpayWebBaseUrl = mpayPublicRootUrl.map { deriveMpayPublicUrl(it, "mpay") }
+
+val mpayApiBaseUrl = derivedMpayApiBaseUrl
+    .orElse(providers.gradleProperty("mpayApiBaseUrl"))
     .orElse(providers.environmentVariable("MPAY_API_BASE_URL"))
     .orElse("http://192.168.31.47:8080/")
+    .map { value -> if (value.endsWith("/")) value else "$value/" }
+
+val mpayWebBaseUrl = derivedMpayWebBaseUrl
+    .orElse(providers.gradleProperty("mpayWebBaseUrl"))
+    .orElse(providers.environmentVariable("MPAY_WEB_PUBLIC_URL"))
+    .orElse("http://192.168.31.47:3000/")
     .map { value -> if (value.endsWith("/")) value else "$value/" }
 
 val mapsApiKey = providers.gradleProperty("mapsApiKey")
@@ -66,6 +90,7 @@ android {
         }
 
         buildConfigField("String", "MPAY_API_BASE_URL", "\"${mpayApiBaseUrl.get()}\"")
+        buildConfigField("String", "MPAY_WEB_BASE_URL", "\"${mpayWebBaseUrl.get()}\"")
         buildConfigField("String", "MAPS_API_KEY", "\"${mapsApiKey.get()}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseApiKey.get()}\"")
         buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseAppId.get()}\"")

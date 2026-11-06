@@ -193,12 +193,22 @@ Keep that file local and never commit it.
 
 ## Environment-specific URLs
 
-Local development and production deliberately use different build-time/public API settings:
+Local development remains independently configurable. The local Cloudflare production deployment uses one canonical setting:
 
-- Local GitHub feature-test Admin Web uses the local API base URL.
-- Production Admin Web uses `https://api.mpay.thinkwithsujeet.in`.
-- Android release CI uses `https://api.mpay.thinkwithsujeet.in/`.
-- Local Android builds use `MPAY_API_BASE_URL` or `-PmpayApiBaseUrl`.
+```text
+MPAY_PUBLIC_ROOT_URL=https://quantaedge.in
+```
+
+The shared renderer `scripts/mpay-public-config.py` derives all public mPay URLs and compatibility settings from that value:
+
+- Admin Web: `https://mpay.quantaedge.in`
+- API: `https://api-mpay.quantaedge.in`
+- TURN realm/ICE hostname: `turn-mpay.quantaedge.in` (direct UDP/TCP endpoint, not an HTTP Tunnel route)
+- Admin Web/Android build origins, backend CORS, public domains and TURN ICE configuration are generated from the same root.
+
+To change domains, update only `MPAY_PUBLIC_ROOT_URL` in `.env.cloudflare` and the GitHub Actions repository variable `MPAY_PUBLIC_ROOT_URL`, then rebuild the Admin Web and Android release artifacts. Do not separately edit derived URL variables. Payment-provider endpoints and provider-owned callback URLs are intentionally independent of the public mPay domain.
+
+Local Android builds without `MPAY_PUBLIC_ROOT_URL` can still use `MPAY_API_BASE_URL` or `-PmpayApiBaseUrl`. When a public root URL is supplied, it takes precedence and derives both production API and web origins.
 
 The commit remains the identity across all three builds; only the environment-specific build configuration differs.
 

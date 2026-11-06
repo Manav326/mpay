@@ -1,3 +1,13 @@
+## Single-source public URL configuration
+
+For the local Cloudflare deployment, set only `MPAY_PUBLIC_ROOT_URL=https://quantaedge.in` in `.env.cloudflare` and as the GitHub Actions repository variable with the same name. The renderer derives:
+
+- `https://mpay.quantaedge.in` → `http://mpay-admin-web:3000`
+- `https://api-mpay.quantaedge.in` → `http://mpay-api:8080`
+- `turn-mpay.quantaedge.in` → TURN over direct UDP/TCP 3478 and UDP relay ports 49160–49260; this is not an HTTP Tunnel route.
+
+Admin Web builds, Android APK/AAB builds, backend CORS, deployment validation and public smoke tests consume the generated values. A domain migration changes the root setting once, then rebuilds the compiled Admin Web/mobile artifacts. Do not maintain derived URLs as independent settings. Payment gateway upstream URLs and PayU-owned SDK callback URLs remain provider configuration, not mPay public origins.
+
 # mPay local production deployment through the existing Cloudflare Tunnel
 
 This is the selected mPay hosting path: Docker services remain on the Windows host, while the existing Cloudflare Tunnel provides public HTTPS ingress. It does not create a second tunnel, Caddy listener, public application port, or new app data volume shared with development.
@@ -27,7 +37,7 @@ Before the first main-branch release, configure these repository Actions secrets
 - `MPAY_FIREBASE_PROJECT_ID`
 - `MPAY_FIREBASE_SENDER_ID`
 
-The workflow already defaults `MPAY_API_BASE_URL` to `https://api.mpay.thinkwithsujeet.in`; a repository variable of the same name may override it. The signing key must be the same key used for any existing distributed mPay installation. A different signing key prevents an in-place Android update and may require uninstalling the previous app (which deletes its local app data).
+The Android workflow derives its API base URL from the single `MPAY_PUBLIC_ROOT_URL` repository variable. The signing key must be the same key used for any existing distributed mPay installation. A different signing key prevents an in-place Android update and may require uninstalling the previous app (which deletes its local app data).
 
 The Android package ID is `com.client.mpay`. The Windows APK helper now uses that actual application ID.
 
@@ -91,8 +101,8 @@ Configure these two public hostnames in the existing tunnel's Public Hostnames /
 
 | Public hostname | Service target inside `cloudflare-edge` |
 | --- | --- |
-| `mpay.thinkwithsujeet.in` | `http://mpay-admin-web:3000` |
-| `api.mpay.thinkwithsujeet.in` | `http://mpay-api:8080` |
+| `mpay.quantaedge.in` | `http://mpay-admin-web:3000` |
+| `api-mpay.quantaedge.in` | `http://mpay-api:8080` |
 
 No Caddy profile is started. Use dedicated loopback diagnostic ports that do not overlap the currently deployed Lucky Bajaj mappings: `127.0.0.1:13002` for Admin Web and `127.0.0.1:18081` for the API. The container listener ports remain `3000` and `8080`; Cloudflare must target `mpay-admin-web:3000` and `mpay-api:8080`, never these Windows host ports. Set `MPAY_ADMIN_WEB_HOST_PORT=13002` and `MPAY_BACKEND_HOST_PORT=18081` in the private `.env.cloudflare` file before deployment.
 

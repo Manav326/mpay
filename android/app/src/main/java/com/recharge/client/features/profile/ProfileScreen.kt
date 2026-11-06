@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import com.recharge.client.BuildConfig
 import com.recharge.client.core.model.CurrentUserResponse
 import com.recharge.client.core.model.RentalVendorResponse
 import com.recharge.client.core.theme.AppColors
@@ -243,7 +244,7 @@ fun ProfileScreen(
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     ProfileActionRow(Icons.Default.Description, "Privacy Policy", "How mPay collects and uses your information") {
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://mpay.thinkwithsujeet.in/privacy-policy"))
+                            Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.MPAY_WEB_BASE_URL.trimEnd('/') + "/privacy-policy"))
                         )
                     }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
