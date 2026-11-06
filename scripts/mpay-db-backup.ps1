@@ -42,7 +42,7 @@ function Invoke-Docker {
 try {
     $postgresContainer = (& docker compose @composeArgs ps -q postgres).Trim()
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect PostgreSQL for Compose project '$ComposeProject'." }
-    $backendContainer = (& docker compose @composeArgs ps -q backend).Trim()
+    $backendContainer = (& docker compose @composeArgs ps --all -q backend).Trim()
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect the backend for Compose project '$ComposeProject'." }
 
 if ([string]::IsNullOrWhiteSpace($postgresContainer)) { throw "PostgreSQL container not found for Compose project '$ComposeProject'." }
