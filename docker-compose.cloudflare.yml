@@ -62,10 +62,14 @@ networks:
 
 volumes:
   mpay_postgres_data:
+    external: false
     name: mpay_cloudflare_production_postgres_data
   mpay_redis_data:
+    external: false
     name: mpay_cloudflare_production_redis
   mpay_profile_images:
+    external: false
     name: mpay_cloudflare_production_profile_images
   mpay_rental_images:
+    external: false
     name: mpay_cloudflare_production_rental_images
