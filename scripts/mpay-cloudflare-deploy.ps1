@@ -71,16 +71,30 @@ function Assert-ProductionEnvironment {
         throw "MPAY_DB_PASSWORD must be a unique random value with at least 24 characters; the example/default value is not accepted."
     }
 
-    foreach ($name in @(
-        "MPAY_PAYMENT_GATEWAY_PROVIDERS",
-        "MPAY_WITHDRAWAL_PROVIDER_ORDER",
-        "MPAY_RECHARGE_EXECUTION_PROVIDERS",
-        "MPAY_AUTH_OTP_PROVIDER"
-    )) {
-        $value = Get-EnvValue $name
-        if ([string]::IsNullOrWhiteSpace($value) -or $value -match "(?i)mock") {
-            throw "$name must name a real configured production provider and must not contain 'mock'."
-        }
+    $paymentProviders = (Get-EnvValue "MPAY_PAYMENT_GATEWAY_PROVIDERS").ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($paymentProviders) -or $paymentProviders -match "mock" -or $paymentProviders -notmatch "razorpay|payu") {
+        throw "MPAY_PAYMENT_GATEWAY_PROVIDERS must select at least one real Razorpay/PayU gateway and must not include mock."
+    }
+    $withdrawalProviders = (Get-EnvValue "MPAY_WITHDRAWAL_PROVIDER_ORDER").ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($withdrawalProviders) -or $withdrawalProviders -match "mock" -or $withdrawalProviders -notmatch "razorpay|payu") {
+        throw "MPAY_WITHDRAWAL_PROVIDER_ORDER must select real Razorpay/PayU payout providers and must not include mock."
+    }
+    $rechargeProviders = (Get-EnvValue "MPAY_RECHARGE_EXECUTION_PROVIDERS").ToLowerInvariant()
+    if ($rechargeProviders -notmatch "(^|,)\\s*payu\\s*(,|$)" -or $rechargeProviders -match "mock") {
+        throw "MPAY_RECHARGE_EXECUTION_PROVIDERS must include the implemented live PayU recharge execution provider and must not include mock."
+    }
+    $otpProvider = (Get-EnvValue "MPAY_AUTH_OTP_PROVIDER").ToLowerInvariant()
+    if ($otpProvider -notin @("way2api", "twilio")) {
+        throw "MPAY_AUTH_OTP_PROVIDER must select a configured real OTP provider (way2api or twilio)."
+    }
+
+    $webApiOrigin = (Get-EnvValue "MPAY_WEB_API_BASE_URL").TrimEnd('/')
+    if ($webApiOrigin -ne "https://api.mpay.thinkwithsujeet.in") {
+        throw "MPAY_WEB_API_BASE_URL must be https://api.mpay.thinkwithsujeet.in for this production deployment."
+    }
+    $corsOrigins = (Get-EnvValue "MPAY_CORS_ALLOWED_ORIGINS").Split(",") | ForEach-Object { $_.Trim().TrimEnd('/') }
+    if ($corsOrigins -notcontains "https://mpay.thinkwithsujeet.in") {
+        throw "MPAY_CORS_ALLOWED_ORIGINS must include https://mpay.thinkwithsujeet.in."
     }
 
     if ((Get-EnvValue "MPAY_PAYU_ENVIRONMENT").ToLowerInvariant() -ne "production") {
@@ -94,6 +108,12 @@ function Assert-ProductionEnvironment {
     $payuPayoutEnabled = (Get-EnvValue "MPAY_PAYU_PAYOUT_ENABLED").ToLowerInvariant() -eq "true"
     if (-not $razorpayPayoutEnabled -and -not $payuPayoutEnabled) {
         throw "At least one live payout provider must be configured and enabled. Mock withdrawals are disabled; do not deploy a customer withdrawal flow that cannot execute."
+    }
+    if ($razorpayPayoutEnabled -and $withdrawalProviders -notmatch "(^|,)\\s*razorpay\\s*(,|$)") {
+        throw "Razorpay payouts are enabled but razorpay is missing from MPAY_WITHDRAWAL_PROVIDER_ORDER."
+    }
+    if ($payuPayoutEnabled -and $withdrawalProviders -notmatch "(^|,)\\s*payu\\s*(,|$)") {
+        throw "PayU payouts are enabled but payu is missing from MPAY_WITHDRAWAL_PROVIDER_ORDER."
     }
     if ($razorpayPayoutEnabled) {
         foreach ($name in @(
@@ -148,7 +168,7 @@ function Assert-ProductionEnvironment {
     }
 
     $secrets = Get-Content -Path $secretPath -Raw
-    if ($secrets -match "(?i)YOUR_|REPLACE_WITH|CHANGEME|demo-otp-enabled\s*:\s*true|provider\s*:\s*mock|execution-provider\s*:\s*mock|environment\s*:\s*(test|sandbox)") {
+    if ($secrets -match "(?i)YOUR_|REPLACE_WITH|CHANGEME|demo-otp-enabled\s*:\s*true|provider\s*:\s*mock|execution-provider\s*:\s*mock|environment\s*:\s*(test|sandbox|uat)") {
         throw "backend/config/application-secrets.yml still contains a placeholder, mock, demo-OTP, or test/sandbox setting."
     }
     $jwtMatch = [regex]::Match($secrets, '(?m)^\s*jwt-secret\s*:\s*(.+)$')
