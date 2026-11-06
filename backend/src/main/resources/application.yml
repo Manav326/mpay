@@ -57,9 +57,9 @@ app:
     read-timeout-ms: ${MPAY_WAY2API_READ_TIMEOUT_MS:45000}
     r-offer-read-timeout-ms: ${MPAY_WAY2API_R_OFFER_READ_TIMEOUT_MS:50000}
   recharge:
-    operator-providers: way2api,payu
-    plan-providers: way2api,payu
-    execution-providers: payu
+    operator-providers: ${MPAY_RECHARGE_OPERATOR_PROVIDERS:way2api,payu}
+    plan-providers: ${MPAY_RECHARGE_PLAN_PROVIDERS:way2api,payu}
+    execution-providers: ${MPAY_RECHARGE_EXECUTION_PROVIDERS:payu}
     mock-execution-status: SUCCESS
     offer-cache-ttl-seconds: 86400
     reconciliation:
@@ -108,11 +108,11 @@ app:
     images-dir: ${MPAY_PROFILE_IMAGES_DIR:./data/profile-images}
 
   payu:
-    environment: test
-    auth-base-url: https://uat-accounts.payu.in
-    nbc-base-url: https://bbps-sb.payu.in
+    environment: ${MPAY_PAYU_ENVIRONMENT:test}
+    auth-base-url: ${MPAY_PAYU_AUTH_BASE_URL:https://uat-accounts.payu.in}
+    nbc-base-url: ${MPAY_PAYU_NBC_BASE_URL:https://bbps-sb.payu.in}
     scope: read_plans
-    agent-id: ""
+    agent-id: ${MPAY_PAYU_AGENT_ID:}
     operator-circle-path: /payu-nbc/v2/nbc/getOperatorAndCircleInfo
     plans-path: /payu-nbc/v3/nbc/getRechargePlans
     custom-plans-path: /payu-nbc/v3/nbc/getCustomizedRechargePlans
@@ -125,10 +125,10 @@ app:
     wallet-name: PAYU
     pg-name: other
     initiating-channel: AGT
-    pg-verify-url: https://test.payu.in/merchant/postservice?form=2
-    pg-success-url: https://cbjs.payu.in/sdk/success
-    pg-failure-url: https://cbjs.payu.in/sdk/failure
-    pg-production: false
+    pg-verify-url: ${MPAY_PAYU_PG_VERIFY_URL:https://test.payu.in/merchant/postservice?form=2}
+    pg-success-url: ${MPAY_PAYU_PG_SUCCESS_URL:https://cbjs.payu.in/sdk/success}
+    pg-failure-url: ${MPAY_PAYU_PG_FAILURE_URL:https://cbjs.payu.in/sdk/failure}
+    pg-production: ${MPAY_PAYU_PG_PRODUCTION:false}
     connect-timeout-ms: 10000
     payout:
       enabled: ${MPAY_PAYU_PAYOUT_ENABLED:false}
