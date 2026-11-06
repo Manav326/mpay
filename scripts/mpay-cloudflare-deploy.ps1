@@ -84,8 +84,8 @@ function Assert-ProductionEnvironment {
         throw "MPAY_RECHARGE_EXECUTION_PROVIDERS must include the implemented live PayU recharge execution provider and must not include mock."
     }
     $otpProvider = (Get-EnvValue "MPAY_AUTH_OTP_PROVIDER").ToLowerInvariant()
-    if ($otpProvider -notin @("way2api", "twilio")) {
-        throw "MPAY_AUTH_OTP_PROVIDER must select a configured real OTP provider (way2api or twilio)."
+    if ($otpProvider -ne "way2api") {
+        throw "MPAY_AUTH_OTP_PROVIDER must be way2api; Twilio is only used by the separate password-reset OTP flow."
     }
 
     $webApiOrigin = (Get-EnvValue "MPAY_WEB_API_BASE_URL").TrimEnd('/')
