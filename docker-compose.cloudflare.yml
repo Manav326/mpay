@@ -45,6 +45,7 @@ services:
           - mpay-api
 
   admin-web:
+    image: ${MPAY_ADMIN_WEB_IMAGE:-ghcr.io/manav326/mpay-admin-web}:${MPAY_ADMIN_WEB_TAG:?Set the immutable azure-sha Admin Web image tag}
     networks:
       mpay: {}
       cloudflare-edge:
