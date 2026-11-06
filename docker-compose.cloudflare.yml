@@ -35,6 +35,9 @@ services:
       MPAY_PAYU_PAYOUT_ENABLED: ${MPAY_PAYU_PAYOUT_ENABLED:-false}
       MPAY_PAYU_PAYOUT_ENVIRONMENT: ${MPAY_PAYU_PAYOUT_ENVIRONMENT:-production}
       MPAY_SUPPORT_AI_PROVIDER_ENABLED: ${MPAY_SUPPORT_AI_PROVIDER_ENABLED:-false}
+      MPAY_CALL_ICE_SERVERS: ${MPAY_CALL_ICE_SERVERS:-stun:stun.l.google.com:19302}
+      MPAY_CALL_TURN_USERNAME: ${MPAY_CALL_TURN_USERNAME:-}
+      MPAY_CALL_TURN_CREDENTIAL: ${MPAY_CALL_TURN_CREDENTIAL:-}
     volumes:
       - mpay_cloudflare_profile_images:/app/data/profile-images
       - mpay_cloudflare_rental_images:/app/data/rental-images
