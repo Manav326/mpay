@@ -181,6 +181,24 @@ try {
         throw "Missing backend/config/application-secrets.yml. Provide the external secret configuration before deployment."
     }
 
+    $publicHostConfigPath = Join-Path $DeployDirectory "config/public-hosts.env"
+    if (-not (Test-Path $publicHostConfigPath)) {
+        throw "Missing $publicHostConfigPath. Public hostnames must come from the shared tracked configuration file."
+    }
+    $pythonCommand = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" } elseif (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { throw "Python 3 is required to render the shared mPay public host configuration." }
+    $publicConfigOutput = & $pythonCommand (Join-Path $DeployDirectory "scripts/mpay-public-config.py") --env-file $publicHostConfigPath --format json
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not derive mPay public URLs from $publicHostConfigPath."
+    }
+    try {
+        $script:publicConfig = ($publicConfigOutput -join [Environment]::NewLine) | ConvertFrom-Json
+    } catch {
+        throw "The mPay public URL renderer returned invalid JSON: $($_.Exception.Message)"
+    }
+    foreach ($property in $script:publicConfig.PSObject.Properties) {
+        [Environment]::SetEnvironmentVariable($property.Name, [string]$property.Value, "Process")
+    }
+
     $commitSha = (git rev-parse HEAD).Trim()
     if ($commitSha -notmatch "^[0-9a-f]{40}$") {
         throw "Could not determine deployment commit SHA."
@@ -261,9 +279,9 @@ try {
     Show-DockerStorage
 
     Write-Host ""
-    Write-Host "Admin Web : https://mpay.thinkwithsujeet.in" -ForegroundColor Green
-    Write-Host "Backend   : https://api.mpay.thinkwithsujeet.in" -ForegroundColor Green
-    Write-Host "TURN      : turn.mpay.thinkwithsujeet.in:3478" -ForegroundColor Green
+    Write-Host "Admin Web : $($script:publicConfig.MPAY_WEB_PUBLIC_URL)" -ForegroundColor Green
+    Write-Host "Backend   : $($script:publicConfig.MPAY_API_PUBLIC_URL)" -ForegroundColor Green
+    Write-Host "TURN      : $($script:publicConfig.MPAY_TURN_HOST):3478 (direct UDP/TCP)" -ForegroundColor Green
     Write-Host "Commit    : $commitSha" -ForegroundColor Green
 }
 finally {

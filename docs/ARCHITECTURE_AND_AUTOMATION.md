@@ -439,7 +439,7 @@ commit SHA
    └── Admin Web     azure-sha-<commit>
 ```
 
-The production Admin Web image is built separately with the public API URL `https://api.mpay.thinkwithsujeet.in`. The local GitHub test image keeps the local API URL.
+The Admin Web production image derives its public API URL from the single tracked `config/public-hosts.env` file via `scripts/mpay-public-config.py`. Local developer builds retain the explicit local API URL when the public-root property is not supplied.
 
 Android follows the same commit identity rule. Its Gradle build accepts an API base URL, and the GitHub Actions release build uses the public production API URL. The Android retrieval helper now refuses to download an artifact unless a successful Actions run exists for the exact current commit SHA.
 

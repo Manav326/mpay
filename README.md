@@ -256,8 +256,8 @@ Start with [the local Cloudflare production runbook](docs/deployment/LOCAL_CLOUD
 First cutover must specify either a verified `-RestoreBackup <folder>` or the explicit `-AllowFreshInstall` switch. Upgrades of an already-running production project create a database and media backup automatically. The script never removes named volumes or runs global Docker cleanup.
 
 The public tunnel hostnames must target the Docker network aliases:
-- `mpay.thinkwithsujeet.in` → `http://mpay-admin-web:3000`
-- `api.mpay.thinkwithsujeet.in` → `http://mpay-api:8080`
+- `mpay.quantaedge.in` → `http://mpay-admin-web:3000`
+- `api-mpay.quantaedge.in` → `http://mpay-api:8080`
 
 The Android homepage card uses the latest signed GitHub Release asset. The main-branch Android workflow publishes a versioned APK plus SHA-256 checksum; it is not dependent on temporary Actions artifact retention.
 
