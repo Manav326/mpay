@@ -311,6 +311,11 @@ try {
         if ($webResponse.StatusCode -lt 200 -or $webResponse.StatusCode -ge 400) {
             throw "Admin Web returned HTTP $($webResponse.StatusCode)."
         }
+        $androidRelease = Invoke-RestMethod -Uri "http://127.0.0.1:$webPort/api/download/android/metadata" -TimeoutSec 20
+        if ($androidRelease.available -ne $true -or [int64]$androidRelease.sizeBytes -le 0) {
+            throw "The latest signed Android APK is not published yet. Wait for the main-branch Android release workflow to finish before enabling the public website."
+        }
+        Write-Host "Android release: v$($androidRelease.version), $([math]::Round($androidRelease.sizeBytes / 1MB, 1)) MB" -ForegroundColor Cyan
     } catch {
         throw "Admin Web local smoke test failed: $($_.Exception.Message)"
     }
@@ -322,6 +327,10 @@ try {
             $null = Invoke-WebRequest -Uri $webOrigin -UseBasicParsing -TimeoutSec 25
             $publicHealth = Invoke-RestMethod -Uri "$apiOrigin/actuator/health" -TimeoutSec 25
             if ($publicHealth.status -ne "UP") { throw "Public API health did not return UP." }
+            $publicAndroidRelease = Invoke-RestMethod -Uri "$webOrigin/api/download/android/metadata" -TimeoutSec 25
+            if ($publicAndroidRelease.available -ne $true -or [int64]$publicAndroidRelease.sizeBytes -le 0) {
+                throw "Public homepage cannot resolve the signed Android release asset."
+            }
         } catch {
             throw "Local containers are healthy, but the public Cloudflare route smoke test failed. Verify Tunnel hostnames point to mpay-admin-web:3000 and mpay-api:8080, then rerun the script. $($_.Exception.Message)"
         }
