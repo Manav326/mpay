@@ -17,7 +17,13 @@ Set-Location $repoRoot
 
 $envPath = if ([System.IO.Path]::IsPathRooted($EnvFile)) { $EnvFile } else { Join-Path $repoRoot $EnvFile }
 $overlayPath = Join-Path $repoRoot "docker-compose.cloudflare.yml"
-$secretPath = Join-Path $repoRoot "backend/config/application-secrets.yml"
+function Get-ProductionConfigDirectory {
+    $configured = Get-EnvValue "MPAY_PRODUCTION_CONFIG_DIR"
+    if ([string]::IsNullOrWhiteSpace($configured)) { $configured = "./backend/config/cloudflare-production" }
+    if ([System.IO.Path]::IsPathRooted($configured)) { return $configured }
+    return Join-Path $repoRoot $configured
+}
+$secretPath = Join-Path (Get-ProductionConfigDirectory) "application-secrets.yml"
 $backupScript = Join-Path $PSScriptRoot "mpay-db-backup.ps1"
 $restoreScript = Join-Path $PSScriptRoot "mpay-db-restore.ps1"
 
