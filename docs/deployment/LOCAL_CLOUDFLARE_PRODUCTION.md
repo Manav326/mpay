@@ -94,7 +94,7 @@ Configure these two public hostnames in the existing tunnel's Public Hostnames /
 | `mpay.thinkwithsujeet.in` | `http://mpay-admin-web:3000` |
 | `api.mpay.thinkwithsujeet.in` | `http://mpay-api:8080` |
 
-No Caddy profile is started. Docker publishes only loopback diagnostic ports by default (`127.0.0.1:13000` for Admin Web and `127.0.0.1:18080` for the API). Public requests enter through the existing tunnel network aliases.
+No Caddy profile is started. Use dedicated loopback diagnostic ports that do not overlap the currently deployed Lucky Bajaj mappings: `127.0.0.1:13002` for Admin Web and `127.0.0.1:18081` for the API. The container listener ports remain `3000` and `8080`; Cloudflare must target `mpay-admin-web:3000` and `mpay-api:8080`, never these Windows host ports. Set `MPAY_ADMIN_WEB_HOST_PORT=13002` and `MPAY_BACKEND_HOST_PORT=18081` in the private `.env.cloudflare` file before deployment.
 
 ## 5. Deploy and verify
 
