@@ -7,10 +7,6 @@ on:
         description: "Git ref or commit SHA to build"
         required: true
         default: "main"
-      public_root_url:
-        description: "Canonical HTTPS root domain; the Admin API origin is derived from it."
-        required: false
-        default: "https://quantaedge.in"
 
 concurrency:
   group: mpay-azure-admin-web-${{ inputs.ref }}
@@ -23,7 +19,6 @@ permissions:
 env:
   REGISTRY: ghcr.io
   MPAY_ADMIN_WEB_IMAGE: ghcr.io/manav326/mpay-admin-web
-  MPAY_PUBLIC_ROOT_URL: ${{ inputs.public_root_url || vars.MPAY_PUBLIC_ROOT_URL || 'https://quantaedge.in' }}
 
 jobs:
   build:
@@ -36,8 +31,8 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Derive mPay API origin from the root domain
-        run: python3 scripts/mpay-public-config.py --root-url "$MPAY_PUBLIC_ROOT_URL" --format github >> "$GITHUB_ENV"
+      - name: Derive mPay API origin from the single tracked hostname file
+        run: python3 scripts/mpay-public-config.py --env-file config/public-hosts.env --format github >> "$GITHUB_ENV"
 
       - name: Resolve source commit
         shell: bash

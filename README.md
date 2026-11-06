@@ -193,20 +193,22 @@ Keep that file local and never commit it.
 
 ## Environment-specific URLs
 
-Local development remains independently configurable. The local Cloudflare production deployment uses one canonical setting:
+Local development remains independently configurable. Every production build and deployment reads one tracked, non-secret source file: `config/public-hosts.env`. Its only public-origin setting is:
 
 ```text
 MPAY_PUBLIC_ROOT_URL=https://quantaedge.in
 ```
 
-The shared renderer `scripts/mpay-public-config.py` derives all public mPay URLs and compatibility settings from that value:
+Change that single line in `config/public-hosts.env`; the local Cloudflare deploy script, Docker/Admin Web CI, Azure Admin image workflow and Android release workflow all read the same file through `scripts/mpay-public-config.py`. Do not create a second URL setting in `.env.cloudflare` or GitHub Actions variables.
+
+The shared renderer derives all public mPay URLs and compatibility settings from that value:
 
 - Admin Web: `https://mpay.quantaedge.in`
 - API: `https://api-mpay.quantaedge.in`
 - TURN realm/ICE hostname: `turn-mpay.quantaedge.in` (direct UDP/TCP endpoint, not an HTTP Tunnel route)
 - Admin Web/Android build origins, backend CORS, public domains and TURN ICE configuration are generated from the same root.
 
-To change domains, update only `MPAY_PUBLIC_ROOT_URL` in `.env.cloudflare` and the GitHub Actions repository variable `MPAY_PUBLIC_ROOT_URL`, then rebuild the Admin Web and Android release artifacts. Do not separately edit derived URL variables. Payment-provider endpoints and provider-owned callback URLs are intentionally independent of the public mPay domain.
+To change domains, edit only `MPAY_PUBLIC_ROOT_URL` in `config/public-hosts.env`, commit it to `main`, and rebuild the Admin Web and Android release artifacts before deploying them. The local deployment script automatically derives runtime values from that same file. Payment-provider endpoints and provider-owned callback URLs are intentionally independent of the public mPay domain.
 
 Local Android builds without `MPAY_PUBLIC_ROOT_URL` can still use `MPAY_API_BASE_URL` or `-PmpayApiBaseUrl`. When a public root URL is supplied, it takes precedence and derives both production API and web origins.
 

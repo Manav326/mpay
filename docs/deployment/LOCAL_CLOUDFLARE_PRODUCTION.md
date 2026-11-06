@@ -1,12 +1,12 @@
 ## Single-source public URL configuration
 
-For the local Cloudflare deployment, set only `MPAY_PUBLIC_ROOT_URL=https://quantaedge.in` in `.env.cloudflare` and as the GitHub Actions repository variable with the same name. The renderer derives:
+For all mPay builds and deployments, the only public-origin setting is `MPAY_PUBLIC_ROOT_URL=https://quantaedge.in` in the tracked file `config/public-hosts.env`. The local deploy script and all relevant GitHub Actions workflows read this same file. Do not duplicate this value in `.env.cloudflare` or repository variables. The renderer derives:
 
 - `https://mpay.quantaedge.in` → `http://mpay-admin-web:3000`
 - `https://api-mpay.quantaedge.in` → `http://mpay-api:8080`
 - `turn-mpay.quantaedge.in` → TURN over direct UDP/TCP 3478 and UDP relay ports 49160–49260; this is not an HTTP Tunnel route.
 
-Admin Web builds, Android APK/AAB builds, backend CORS, deployment validation and public smoke tests consume the generated values. A domain migration changes the root setting once, then rebuilds the compiled Admin Web/mobile artifacts. Do not maintain derived URLs as independent settings. Payment gateway upstream URLs and PayU-owned SDK callback URLs remain provider configuration, not mPay public origins.
+Admin Web builds, Android APK/AAB builds, backend CORS, deployment validation and public smoke tests consume the generated values. A domain migration changes that tracked root setting once, then rebuilds the compiled Admin Web/mobile artifacts. Do not maintain derived URLs as independent settings. Payment gateway upstream URLs and PayU-owned SDK callback URLs remain provider configuration, not mPay public origins.
 
 # mPay local production deployment through the existing Cloudflare Tunnel
 
@@ -37,7 +37,7 @@ Before the first main-branch release, configure these repository Actions secrets
 - `MPAY_FIREBASE_PROJECT_ID`
 - `MPAY_FIREBASE_SENDER_ID`
 
-The Android workflow derives its API base URL from the single `MPAY_PUBLIC_ROOT_URL` repository variable. The signing key must be the same key used for any existing distributed mPay installation. A different signing key prevents an in-place Android update and may require uninstalling the previous app (which deletes its local app data).
+The Android workflow derives its API base URL from `config/public-hosts.env` using the shared URL renderer. The signing key must be the same key used for any existing distributed mPay installation. A different signing key prevents an in-place Android update and may require uninstalling the previous app (which deletes its local app data).
 
 The Android package ID is `com.client.mpay`. The Windows APK helper now uses that actual application ID.
 
