@@ -49,7 +49,8 @@ At minimum, validate these provider values with their owners before enabling tra
 - Way2API credentials for the configured customer OTP flow;
 - Razorpay key ID/secret for the configured wallet-payment route;
 - PayU client ID/secret, approved agent ID, merchant key/salt, and operator/circle mappings;
-- the PayU live authentication, NBC, verification and callback URLs supplied by PayU.
+- the PayU live authentication, NBC, verification and callback URLs supplied by PayU;
+- separate live PayU payout authentication/API URLs when PayU payout is the selected payout provider.
 
 The PayU configuration in `application.yml` retains safe UAT defaults for development. The Cloudflare production overlay requires explicit live values through the `MPAY_PAYU_*` variables and refuses UAT/test/placeholder URLs. Do not guess the live endpoints or switch the flag until the live account has been approved and tested.
 
